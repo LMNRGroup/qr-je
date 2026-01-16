@@ -44,13 +44,16 @@ const Index = () => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [hasGenerated, setHasGenerated] = useState(false);
   const [lastGeneratedContent, setLastGeneratedContent] = useState('');
-  const [activeTab, setActiveTab] = useState<'studio' | 'codes' | 'settings'>('studio');
+  const [activeTab, setActiveTab] = useState<'studio' | 'codes' | 'analytics' | 'settings'>('studio');
   const [qrMode, setQrMode] = useState<'static' | 'dynamic' | null>(null);
   const [qrType, setQrType] = useState<'website' | 'vcard' | null>(null);
   const [websiteUrl, setWebsiteUrl] = useState('');
   const [websiteTouched, setWebsiteTouched] = useState(false);
   const [isBooting, setIsBooting] = useState(true);
   const [showUpsell, setShowUpsell] = useState(true);
+  const [isCreateHover, setIsCreateHover] = useState(false);
+  const [showAnalyticsIntro, setShowAnalyticsIntro] = useState(false);
+  const [analyticsSeen, setAnalyticsSeen] = useState(false);
   const [vcard, setVcard] = useState({
     name: '',
     phone: '',
@@ -124,6 +127,11 @@ const Index = () => {
   const canShowPreview = qrType === 'website' && isWebsiteValid;
   const hasSelectedMode = qrMode !== null;
   const hasSelectedType = qrType !== null;
+  const previewContent = hasGenerated
+    ? generatedContent
+    : hasSelectedType
+      ? 'https://preview.qrcodestudio.app'
+      : '';
 
   const updateOption = useCallback(<K extends keyof QROptions>(key: K, value: QROptions[K]) => {
     setOptions((prev) => ({ ...prev, [key]: value }));
@@ -143,6 +151,14 @@ const Index = () => {
     const timer = window.setTimeout(() => setIsBooting(false), 1100);
     return () => window.clearTimeout(timer);
   }, []);
+
+  useEffect(() => {
+    if (activeTab !== 'analytics' || analyticsSeen) return;
+    setShowAnalyticsIntro(true);
+    setAnalyticsSeen(true);
+    const timer = window.setTimeout(() => setShowAnalyticsIntro(false), 1100);
+    return () => window.clearTimeout(timer);
+  }, [activeTab, analyticsSeen]);
 
   const handleGenerate = async () => {
     if (!canGenerate) {
@@ -227,16 +243,14 @@ const Index = () => {
     label?: string;
   }) => (
     <div
-      className={`relative group flex items-center gap-3 ${
+      className={`relative z-[60] group flex items-center gap-3 ${
         align === 'right' ? 'ml-auto' : ''
       } after:absolute after:left-1/2 after:top-full after:h-16 after:w-40 after:-translate-x-1/2 after:content-['']`}
+      onMouseEnter={() => setIsCreateHover(true)}
+      onMouseLeave={() => setIsCreateHover(false)}
+      onFocus={() => setIsCreateHover(true)}
+      onBlur={() => setIsCreateHover(false)}
     >
-      <div className="pointer-events-none absolute -top-12 left-1/2 -translate-x-1/2 opacity-0 transition group-hover:opacity-100">
-        <div className="rounded-full border border-border/60 bg-card/80 px-4 py-1 text-[10px] uppercase tracking-[0.35em] text-muted-foreground shadow-sm backdrop-blur">
-          Create New QR Code
-        </div>
-      </div>
-
       <span className="text-[11px] uppercase tracking-[0.35em] text-muted-foreground/80 transition group-hover:opacity-0">
         {label}
       </span>
@@ -253,7 +267,10 @@ const Index = () => {
         <div className="flex items-center gap-2 rounded-full border border-border/60 bg-card/80 px-3 py-2 shadow-lg backdrop-blur">
           <button
             type="button"
-            onClick={handleStartStatic}
+            onClick={() => {
+              handleStartStatic();
+              setIsCreateHover(false);
+            }}
             className="rounded-full border border-border/60 bg-secondary/50 px-4 py-1.5 text-[10px] uppercase tracking-[0.35em] text-foreground transition hover:border-primary/60 hover:text-primary"
           >
             Static
@@ -261,6 +278,7 @@ const Index = () => {
           <button
             type="button"
             aria-disabled="true"
+            onClick={() => setIsCreateHover(false)}
             className="rounded-full border border-border/60 bg-secondary/40 px-4 py-1.5 text-[10px] uppercase tracking-[0.35em] text-muted-foreground opacity-60 cursor-not-allowed"
           >
             Dynamic
@@ -272,6 +290,10 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      {isCreateHover && (
+        <div className="fixed inset-0 z-[40] bg-background/40 backdrop-blur-md transition" />
+      )}
+
       {isBooting && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-background/95 backdrop-blur-sm">
           <div className="text-3xl sm:text-4xl font-semibold tracking-tight">
@@ -321,6 +343,20 @@ const Index = () => {
         </div>
       )}
 
+      {showAnalyticsIntro && (
+        <div className="fixed inset-0 z-[50] flex items-center justify-center bg-background/80 backdrop-blur-sm">
+          <div className="text-center space-y-4">
+            <div className="text-3xl sm:text-4xl font-semibold tracking-tight">
+              <span className="relative inline-block">
+                <span className="text-muted-foreground/70">Analytics</span>
+                <span className="absolute inset-0 logo-fill">Analytics</span>
+              </span>
+            </div>
+            <p className="text-xs uppercase tracking-[0.4em] text-muted-foreground">Loading insights</p>
+          </div>
+        </div>
+      )}
+
       {/* Background gradient */}
       <div className="fixed inset-0 -z-10 overflow-hidden">
         <div className="absolute -top-24 left-8 h-[24rem] w-[24rem] rounded-full bg-[radial-gradient(circle_at_center,rgba(99,102,241,0.28),transparent_60%)] blur-3xl float-slow" />
@@ -330,7 +366,7 @@ const Index = () => {
       </div>
 
       {/* Header */}
-      <header className="sticky top-0 z-50 glass-panel border-b border-border/50">
+      <header className="sticky top-0 z-30 glass-panel border-b border-border/50">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="h-10 w-10 rounded-xl bg-gradient-primary flex items-center justify-center glow">
@@ -345,6 +381,7 @@ const Index = () => {
             {[
               { id: 'studio', label: 'Studio' },
               { id: 'codes', label: 'My Codes' },
+              { id: 'analytics', label: 'Analytics' },
               { id: 'settings', label: 'Settings' },
             ].map((item) => {
               const isActive = activeTab === item.id;
@@ -353,8 +390,10 @@ const Index = () => {
                   key={item.id}
                   type="button"
                   onClick={() => setActiveTab(item.id as typeof activeTab)}
-                  className={`px-4 py-2 rounded-t-2xl border border-border/60 bg-secondary/40 hover:bg-secondary/70 hover:text-primary transition-all ${
-                    isActive ? 'text-foreground bg-card/90 border-b-transparent shadow-lg' : ''
+                  className={`px-4 py-2 rounded-t-xl border border-border/50 bg-secondary/30 hover:bg-secondary/60 hover:text-primary transition-all ${
+                    isActive
+                      ? 'text-foreground bg-card/95 border-b-transparent shadow-xl shadow-black/10'
+                      : 'translate-y-1'
                   }`}
                 >
                   {item.label}
@@ -701,7 +740,19 @@ const Index = () => {
                 transition={{ delay: 0.1 }}
                 className="flex flex-col items-center"
               >
-                <QRPreview ref={qrRef} options={options} isGenerating={isGenerating} />
+                {hasSelectedMode && hasSelectedType ? (
+                  <QRPreview
+                    ref={qrRef}
+                    options={options}
+                    isGenerating={isGenerating}
+                    contentOverride={previewContent}
+                    showCaption={hasGenerated}
+                  />
+                ) : (
+                  <div className="glass-panel rounded-2xl p-8 text-center text-sm text-muted-foreground">
+                    Select a mode and type to preview your QR design.
+                  </div>
+                )}
               </motion.div>
 
               {hasGenerated && (
@@ -894,6 +945,133 @@ const Index = () => {
               </div>
             ) : (
               <HistoryPanel onSelect={handleHistorySelect} />
+            )}
+          </section>
+        )}
+
+        {activeTab === 'analytics' && (
+          <section id="analytics" className="space-y-6">
+            <div>
+              <p className="text-xs uppercase tracking-[0.4em] text-muted-foreground">Analytics</p>
+              <h2 className="text-3xl font-semibold tracking-tight">Live Performance</h2>
+            </div>
+
+            {!hasGenerated ? (
+              <div className="glass-panel rounded-2xl p-8 text-center space-y-4">
+                <p className="text-sm text-muted-foreground">No analytics yet.</p>
+                <p className="text-lg font-semibold">Generate a QR Code to unlock analytics.</p>
+                <div className="flex items-center justify-center">
+                  <CreateMenu label="Create New" />
+                </div>
+              </div>
+            ) : (
+              <div className="grid lg:grid-cols-[1.2fr_0.8fr] gap-6">
+                <div className="glass-panel rounded-2xl p-6 space-y-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">QR Code</p>
+                      <h3 className="text-lg font-semibold">Active Campaign</h3>
+                    </div>
+                    <span className="text-xs uppercase tracking-[0.3em] text-primary">Live</span>
+                  </div>
+
+                  <div className="grid sm:grid-cols-3 gap-4">
+                    {[
+                      { label: 'Scan Count', value: '1,284' },
+                      { label: 'Unique Users', value: '894' },
+                      { label: 'Avg. Daily', value: '86' },
+                    ].map((item) => (
+                      <div key={item.label} className="rounded-xl border border-border/60 bg-secondary/30 p-4">
+                        <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">{item.label}</p>
+                        <p className="text-2xl font-semibold mt-2">{item.value}</p>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div>
+                    <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground mb-3">Scans over time</p>
+                    <div className="flex items-end gap-2 h-32">
+                      {[24, 38, 56, 44, 68, 84, 72, 96].map((value, index) => (
+                        <div
+                          key={`${value}-${index}`}
+                          className="flex-1 rounded-full bg-gradient-to-t from-primary/30 to-primary/80"
+                          style={{ height: `${value}%` }}
+                        />
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="grid sm:grid-cols-2 gap-4">
+                    <div className="rounded-xl border border-border/60 bg-secondary/30 p-4">
+                      <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Top OS</p>
+                      <div className="mt-3 space-y-2 text-sm">
+                        <div className="flex items-center justify-between">
+                          <span>iOS</span>
+                          <span className="text-primary">52%</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span>Android</span>
+                          <span className="text-primary">37%</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span>Desktop</span>
+                          <span className="text-primary">11%</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="rounded-xl border border-border/60 bg-secondary/30 p-4">
+                      <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Scans by location</p>
+                      <div className="mt-3 space-y-2 text-sm">
+                        <div className="flex items-center justify-between">
+                          <span>San Juan, PR</span>
+                          <span className="text-primary">#1</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span>Brooklyn, NYC</span>
+                          <span className="text-primary">#2</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span>Miami, FL</span>
+                          <span className="text-primary">#3</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-6">
+                  <div className="glass-panel rounded-2xl p-6">
+                    <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">QR Preview</p>
+                    <div className="mt-4 flex justify-center">
+                      <QRPreview
+                        options={options}
+                        contentOverride={generatedContent}
+                        showCaption={false}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="glass-panel rounded-2xl p-6">
+                    <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Scan Map</p>
+                    <div className="relative mt-4 h-48 rounded-2xl border border-border/60 bg-gradient-to-br from-secondary/40 via-secondary/10 to-primary/20 overflow-hidden">
+                      <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_30%,rgba(99,102,241,0.35),transparent_45%)]" />
+                      <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_60%,rgba(236,72,153,0.25),transparent_40%)]" />
+                      {[
+                        { top: '25%', left: '22%' },
+                        { top: '48%', left: '68%' },
+                        { top: '62%', left: '38%' },
+                        { top: '30%', left: '58%' },
+                      ].map((pin, index) => (
+                        <div
+                          key={`${pin.top}-${pin.left}-${index}`}
+                          className="absolute h-3 w-3 rounded-full bg-primary shadow-[0_0_12px_rgba(168,85,247,0.8)]"
+                          style={{ top: pin.top, left: pin.left }}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
             )}
           </section>
         )}

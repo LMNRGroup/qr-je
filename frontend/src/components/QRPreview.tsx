@@ -9,6 +9,8 @@ import { QROptions } from '@/types/qr';
 interface QRPreviewProps {
   options: QROptions;
   isGenerating?: boolean;
+  contentOverride?: string;
+  showCaption?: boolean;
 }
 
 export interface QRPreviewHandle {
@@ -20,7 +22,7 @@ export interface QRPreviewHandle {
 }
 
 export const QRPreview = forwardRef<QRPreviewHandle, QRPreviewProps>(
-  ({ options, isGenerating = false }, ref) => {
+  ({ options, isGenerating = false, contentOverride, showCaption = true }, ref) => {
     const qrRef = useRef<HTMLDivElement>(null);
 
     const getCornerRadius = () => {
@@ -100,7 +102,8 @@ export const QRPreview = forwardRef<QRPreviewHandle, QRPreviewProps>(
       copyToClipboard,
     }));
 
-    const hasContent = options.content.trim().length > 0;
+    const contentValue = (contentOverride ?? options.content).trim();
+    const hasContent = contentValue.length > 0;
 
     return (
       <div className="flex flex-col items-center gap-6">
@@ -126,7 +129,7 @@ export const QRPreview = forwardRef<QRPreviewHandle, QRPreviewProps>(
               </div>
             ) : hasContent ? (
               <QRCodeSVG
-                value={options.content}
+                value={contentValue}
                 size={options.size - 32}
                 fgColor={options.fgColor}
                 bgColor={options.bgColor}
@@ -156,13 +159,13 @@ export const QRPreview = forwardRef<QRPreviewHandle, QRPreviewProps>(
           </div>
         </motion.div>
 
-        {hasContent && (
+        {hasContent && showCaption && (
           <motion.p
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             className="text-xs text-muted-foreground max-w-[200px] text-center truncate"
           >
-            {options.content}
+            {contentValue}
           </motion.p>
         )}
       </div>
