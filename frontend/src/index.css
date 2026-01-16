@@ -4,77 +4,77 @@
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222 47% 11%;
+    --background: 216 65% 11%;
+    --foreground: 210 40% 98%;
 
-    --card: 0 0% 100%;
-    --card-foreground: 222 47% 11%;
+    --card: 216 42% 14%;
+    --card-foreground: 210 40% 98%;
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 222 47% 11%;
+    --popover: 216 42% 14%;
+    --popover-foreground: 210 40% 98%;
 
-    --primary: 187 100% 42%;
-    --primary-foreground: 222 47% 11%;
+    --primary: 46 65% 52%;
+    --primary-foreground: 216 65% 11%;
 
-    --secondary: 220 14% 96%;
-    --secondary-foreground: 222 47% 11%;
+    --secondary: 216 36% 18%;
+    --secondary-foreground: 210 40% 98%;
 
-    --muted: 220 14% 96%;
-    --muted-foreground: 220 9% 46%;
+    --muted: 216 34% 18%;
+    --muted-foreground: 215 20% 72%;
 
-    --accent: 187 100% 42%;
-    --accent-foreground: 222 47% 11%;
+    --accent: 46 65% 52%;
+    --accent-foreground: 216 65% 11%;
 
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 220 13% 91%;
-    --input: 220 13% 91%;
-    --ring: 187 100% 42%;
+    --border: 216 28% 24%;
+    --input: 216 28% 24%;
+    --ring: 46 65% 52%;
 
     --radius: 0.75rem;
 
-    --glass: 0 0% 100% / 0.7;
-    --glass-border: 220 13% 91% / 0.5;
+    --glass: 216 35% 14% / 0.8;
+    --glass-border: 216 30% 24% / 0.6;
     
-    --gradient-start: 187 100% 42%;
-    --gradient-end: 199 89% 48%;
+    --gradient-start: 46 65% 52%;
+    --gradient-end: 45 70% 60%;
   }
 
   .dark {
-    --background: 222 47% 6%;
+    --background: 216 65% 11%;
     --foreground: 210 40% 98%;
 
-    --card: 222 47% 8%;
+    --card: 216 42% 14%;
     --card-foreground: 210 40% 98%;
 
-    --popover: 222 47% 8%;
+    --popover: 216 42% 14%;
     --popover-foreground: 210 40% 98%;
 
-    --primary: 187 100% 50%;
-    --primary-foreground: 222 47% 6%;
+    --primary: 46 65% 52%;
+    --primary-foreground: 216 65% 11%;
 
-    --secondary: 222 47% 12%;
+    --secondary: 216 36% 18%;
     --secondary-foreground: 210 40% 98%;
 
-    --muted: 222 47% 12%;
-    --muted-foreground: 215 20% 65%;
+    --muted: 216 34% 18%;
+    --muted-foreground: 215 20% 72%;
 
-    --accent: 187 100% 50%;
-    --accent-foreground: 222 47% 6%;
+    --accent: 46 65% 52%;
+    --accent-foreground: 216 65% 11%;
 
     --destructive: 0 62% 30%;
     --destructive-foreground: 210 40% 98%;
 
-    --border: 222 47% 15%;
-    --input: 222 47% 15%;
-    --ring: 187 100% 50%;
+    --border: 216 28% 24%;
+    --input: 216 28% 24%;
+    --ring: 46 65% 52%;
 
-    --glass: 222 47% 8% / 0.8;
-    --glass-border: 222 47% 20% / 0.5;
+    --glass: 216 35% 14% / 0.8;
+    --glass-border: 216 30% 24% / 0.6;
     
-    --gradient-start: 187 100% 50%;
-    --gradient-end: 199 89% 58%;
+    --gradient-start: 46 65% 52%;
+    --gradient-end: 45 70% 60%;
   }
 }
 
@@ -98,11 +98,11 @@
   }
 
   .gradient-text {
-    @apply bg-gradient-to-r from-primary to-cyan-400 bg-clip-text text-transparent;
+    @apply bg-gradient-to-r from-primary to-amber-200 bg-clip-text text-transparent;
   }
 
   .gradient-border {
-    @apply relative before:absolute before:inset-0 before:rounded-[inherit] before:p-[1px] before:bg-gradient-to-r before:from-primary before:to-cyan-400 before:-z-10;
+    @apply relative before:absolute before:inset-0 before:rounded-[inherit] before:p-[1px] before:bg-gradient-to-r before:from-primary before:to-amber-200 before:-z-10;
   }
 
   .glow {

@@ -10,13 +10,13 @@ interface ColorPickerProps {
 }
 
 const defaultPresets = [
-  '#00d4ff', // Cyan
-  '#ffffff', // White
-  '#10b981', // Emerald
-  '#8b5cf6', // Violet
-  '#f59e0b', // Amber
-  '#ef4444', // Red
-  '#ec4899', // Pink
+  '#D4AF37', // Gold
+  '#0A192F', // Navy
+  '#F5F5F5', // Light gray
+  '#1F2937', // Dark gray
+  '#FFFFFF', // White
+  '#C9A227', // Deep gold
+  '#111827', // Charcoal
   '#000000', // Black
 ];
 

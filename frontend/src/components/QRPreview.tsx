@@ -2,21 +2,25 @@ import { useRef, useCallback, forwardRef, useImperativeHandle } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { motion } from 'framer-motion';
 import { toPng, toJpeg, toSvg } from 'html-to-image';
+import { jsPDF } from 'jspdf';
+import { Loader2 } from 'lucide-react';
 import { QROptions } from '@/types/qr';
 
 interface QRPreviewProps {
   options: QROptions;
+  isGenerating?: boolean;
 }
 
 export interface QRPreviewHandle {
   downloadPng: () => Promise<void>;
   downloadSvg: () => Promise<void>;
   downloadJpeg: () => Promise<void>;
+  downloadPdf: () => Promise<void>;
   copyToClipboard: () => Promise<boolean>;
 }
 
 export const QRPreview = forwardRef<QRPreviewHandle, QRPreviewProps>(
-  ({ options }, ref) => {
+  ({ options, isGenerating = false }, ref) => {
     const qrRef = useRef<HTMLDivElement>(null);
 
     const getCornerRadius = () => {
@@ -57,6 +61,22 @@ export const QRPreview = forwardRef<QRPreviewHandle, QRPreviewProps>(
       link.click();
     }, []);
 
+    const downloadPdf = useCallback(async () => {
+      if (!qrRef.current) return;
+      const dataUrl = await toPng(qrRef.current, { quality: 1, pixelRatio: 3 });
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'pt',
+        format: [options.size + 96, options.size + 96],
+      });
+      const imgProps = pdf.getImageProperties(dataUrl);
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+      const y = (pdf.internal.pageSize.getHeight() - pdfHeight) / 2;
+      pdf.addImage(dataUrl, 'PNG', 0, y, pdfWidth, pdfHeight);
+      pdf.save(`qrcode-${Date.now()}.pdf`);
+    }, [options.size]);
+
     const copyToClipboard = useCallback(async () => {
       if (!qrRef.current) return false;
       try {
@@ -76,6 +96,7 @@ export const QRPreview = forwardRef<QRPreviewHandle, QRPreviewProps>(
       downloadPng,
       downloadSvg,
       downloadJpeg,
+      downloadPdf,
       copyToClipboard,
     }));
 
@@ -98,29 +119,32 @@ export const QRPreview = forwardRef<QRPreviewHandle, QRPreviewProps>(
               backgroundColor: options.bgColor,
             }}
           >
-            {hasContent ? (
-              <>
-                <QRCodeSVG
-                  value={options.content}
-                  size={options.size - 32}
-                  fgColor={options.fgColor}
-                  bgColor={options.bgColor}
-                  level={options.errorCorrectionLevel}
-                  style={{
-                    borderRadius: getCornerRadius(),
-                  }}
-                  imageSettings={
-                    options.logo
-                      ? {
-                          src: options.logo,
-                          height: options.logoSize || 50,
-                          width: options.logoSize || 50,
-                          excavate: true,
-                        }
-                      : undefined
-                  }
-                />
-              </>
+            {isGenerating ? (
+              <div className="flex flex-col items-center justify-center text-muted-foreground gap-2">
+                <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                <span className="text-xs uppercase tracking-[0.2em]">Generating</span>
+              </div>
+            ) : hasContent ? (
+              <QRCodeSVG
+                value={options.content}
+                size={options.size - 32}
+                fgColor={options.fgColor}
+                bgColor={options.bgColor}
+                level={options.errorCorrectionLevel}
+                style={{
+                  borderRadius: getCornerRadius(),
+                }}
+                imageSettings={
+                  options.logo
+                    ? {
+                        src: options.logo,
+                        height: options.logoSize || 50,
+                        width: options.logoSize || 50,
+                        excavate: true,
+                      }
+                    : undefined
+                }
+              />
             ) : (
               <div className="flex flex-col items-center justify-center text-muted-foreground gap-2">
                 <div className="w-16 h-16 border-2 border-dashed border-muted-foreground/30 rounded-lg flex items-center justify-center">
