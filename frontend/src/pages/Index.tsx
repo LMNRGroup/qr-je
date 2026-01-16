@@ -9,7 +9,7 @@ import {
   QrCode,
   Loader2,
   Plus,
-  UserCircle,
+  User,
   Monitor,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -507,7 +507,7 @@ const Index = () => {
                 aria-label="My Account"
                 onClick={() => setShowAccountModal(true)}
               >
-                <UserCircle className="h-5 w-5 text-muted-foreground group-hover:text-primary transition" />
+                <User className="h-5 w-5 text-muted-foreground group-hover:text-primary transition" />
               </button>
               <div className="pointer-events-none absolute right-0 top-full mt-2 w-40 opacity-0 transition group-hover:opacity-100">
                 <div className="rounded-xl border border-border/60 bg-card/90 px-3 py-2 text-xs shadow-lg backdrop-blur">
