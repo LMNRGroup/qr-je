@@ -1,15 +1,23 @@
-import { Context } from 'hono'
+import type { Context } from 'hono'
+
 import { buildShortUrl } from '../../config/env'
 import { UrlConflictError, UrlNotFoundError, UrlValidationError } from './errors'
 import { UrlsService } from './service'
 import { parseCreateUrlInput, parseResolveParams } from './validators'
+import type { AppBindings } from '../../shared/http/types'
 
 export const createUrlHandler = (service: UrlsService) => {
-  return async (c: Context) => {
+  return async (c: Context<AppBindings>) => {
     try {
       const payload = await c.req.json()
       const input = parseCreateUrlInput(payload)
-      const url = await service.createUrl(input)
+      const userId = c.get('userId')
+
+      if (!userId) {
+        return c.json({ message: 'Unauthorized' }, 401)
+      }
+
+      const url = await service.createUrl({ ...input, userId })
 
       return c.json(
         {
@@ -35,7 +43,7 @@ export const createUrlHandler = (service: UrlsService) => {
 }
 
 export const redirectUrlHandler = (service: UrlsService) => {
-  return async (c: Context) => {
+  return async (c: Context<AppBindings>) => {
     try {
       const params = parseResolveParams(c.req.param())
       const url = await service.resolveUrl(params)
@@ -56,8 +64,14 @@ export const redirectUrlHandler = (service: UrlsService) => {
 }
 
 export const listUrlsHandler = (service: UrlsService) => {
-  return async (c: Context) => {
-    const urls = await service.getAllUrls()
+  return async (c: Context<AppBindings>) => {
+    const userId = c.get('userId')
+
+    if (!userId) {
+      return c.json({ message: 'Unauthorized' }, 401)
+    }
+
+    const urls = await service.getUrlsForUser(userId)
     return c.json(urls)
   }
 }
