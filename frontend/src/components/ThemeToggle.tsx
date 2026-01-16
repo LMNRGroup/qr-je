@@ -3,15 +3,25 @@ import { Moon, Sun } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { motion } from 'framer-motion';
 
+const getInitialTheme = () => {
+  if (typeof window === 'undefined') return true;
+  const stored = window.localStorage.getItem('theme');
+  if (stored === 'light') return false;
+  if (stored === 'dark') return true;
+  return window.matchMedia?.('(prefers-color-scheme: dark)').matches ?? true;
+};
+
 export function ThemeToggle() {
-  const [isDark, setIsDark] = useState(true);
+  const [isDark, setIsDark] = useState(getInitialTheme);
 
   useEffect(() => {
     const root = document.documentElement;
     if (isDark) {
       root.classList.add('dark');
+      window.localStorage.setItem('theme', 'dark');
     } else {
       root.classList.remove('dark');
+      window.localStorage.setItem('theme', 'light');
     }
   }, [isDark]);
 

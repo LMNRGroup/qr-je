@@ -4,41 +4,41 @@
 
 @layer base {
   :root {
-    --background: 225 10% 8%;
-    --foreground: 210 40% 98%;
+    --background: 220 33% 97%;
+    --foreground: 222 47% 11%;
 
-    --card: 225 12% 12%;
-    --card-foreground: 210 40% 98%;
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
 
-    --popover: 225 12% 12%;
-    --popover-foreground: 210 40% 98%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
 
-    --primary: 268 85% 70%;
-    --primary-foreground: 225 10% 8%;
+    --primary: 268 85% 55%;
+    --primary-foreground: 0 0% 100%;
 
-    --secondary: 225 12% 16%;
-    --secondary-foreground: 210 40% 98%;
+    --secondary: 220 20% 94%;
+    --secondary-foreground: 222 47% 11%;
 
-    --muted: 225 10% 16%;
-    --muted-foreground: 215 20% 72%;
+    --muted: 220 16% 92%;
+    --muted-foreground: 215 16% 45%;
 
-    --accent: 197 90% 60%;
-    --accent-foreground: 225 10% 8%;
+    --accent: 197 90% 45%;
+    --accent-foreground: 0 0% 100%;
 
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 225 12% 24%;
-    --input: 225 12% 24%;
-    --ring: 268 85% 70%;
+    --border: 220 16% 86%;
+    --input: 220 16% 86%;
+    --ring: 268 85% 55%;
 
     --radius: 0.75rem;
 
-    --glass: 225 12% 12% / 0.75;
-    --glass-border: 225 12% 22% / 0.6;
+    --glass: 0 0% 100% / 0.7;
+    --glass-border: 220 16% 86% / 0.7;
     
-    --gradient-start: 197 90% 60%;
-    --gradient-end: 268 85% 70%;
+    --gradient-start: 197 90% 45%;
+    --gradient-end: 268 85% 55%;
   }
 
   .dark {
@@ -160,12 +160,25 @@
     animation: float 10s ease-in-out infinite;
   }
 
+  .logo-fill {
+    @apply bg-gradient-to-r from-primary via-amber-200 to-amber-100 bg-clip-text text-transparent;
+    background-size: 200% 100%;
+    animation: logo-fill 1.2s ease forwards;
+    clip-path: inset(0 100% 0 0);
+  }
+
   @keyframes float {
     0%, 100% {
       transform: translate3d(0, 0, 0);
     }
     50% {
       transform: translate3d(0, -18px, 0);
+    }
+  }
+
+  @keyframes logo-fill {
+    to {
+      clip-path: inset(0 0 0 0);
     }
   }
 }
