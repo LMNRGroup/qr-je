@@ -9,6 +9,8 @@ import {
   QrCode,
   Loader2,
   Plus,
+  UserCircle,
+  Monitor,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -42,10 +44,13 @@ const Index = () => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [hasGenerated, setHasGenerated] = useState(false);
   const [lastGeneratedContent, setLastGeneratedContent] = useState('');
-  const [qrMode, setQrMode] = useState<'static' | 'dynamic'>('static');
-  const [qrType, setQrType] = useState<'website' | 'vcard'>('website');
+  const [activeTab, setActiveTab] = useState<'studio' | 'codes' | 'settings'>('studio');
+  const [qrMode, setQrMode] = useState<'static' | 'dynamic' | null>(null);
+  const [qrType, setQrType] = useState<'website' | 'vcard' | null>(null);
   const [websiteUrl, setWebsiteUrl] = useState('');
   const [websiteTouched, setWebsiteTouched] = useState(false);
+  const [isBooting, setIsBooting] = useState(true);
+  const [showUpsell, setShowUpsell] = useState(true);
   const [vcard, setVcard] = useState({
     name: '',
     phone: '',
@@ -107,8 +112,18 @@ const Index = () => {
     : '';
   const generatedContent = qrType === 'website'
     ? (isWebsiteValid ? normalizedWebsiteUrl : '')
-    : vcardUrl;
-  const canGenerate = qrType === 'website' ? isWebsiteValid : Boolean(vcardSlug);
+    : qrType === 'vcard'
+      ? vcardUrl
+      : '';
+  const canGenerate = qrType === 'website'
+    ? isWebsiteValid
+    : qrType === 'vcard'
+      ? Boolean(vcardSlug)
+      : false;
+  const previewUrl = qrType === 'website' ? normalizedWebsiteUrl : vcardUrl;
+  const canShowPreview = qrType === 'website' && isWebsiteValid;
+  const hasSelectedMode = qrMode !== null;
+  const hasSelectedType = qrType !== null;
 
   const updateOption = useCallback(<K extends keyof QROptions>(key: K, value: QROptions[K]) => {
     setOptions((prev) => ({ ...prev, [key]: value }));
@@ -123,6 +138,11 @@ const Index = () => {
   useEffect(() => {
     setHasGenerated(Boolean(generatedContent) && generatedContent === lastGeneratedContent);
   }, [generatedContent, lastGeneratedContent]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setIsBooting(false), 1100);
+    return () => window.clearTimeout(timer);
+  }, []);
 
   const handleGenerate = async () => {
     if (!canGenerate) {
@@ -175,6 +195,7 @@ const Index = () => {
 
   const handleHistorySelect = (historicOptions: QROptions) => {
     setOptions(historicOptions);
+    setQrMode('static');
     setQrType('website');
     setWebsiteUrl(historicOptions.content);
     setLastGeneratedContent(historicOptions.content);
@@ -184,16 +205,41 @@ const Index = () => {
 
   const handleStartStatic = () => {
     setQrMode('static');
+    setActiveTab('studio');
     createSectionRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  const CreateMenu = ({ align = 'center' }: { align?: 'center' | 'right' }) => (
-    <div className={`relative group ${align === 'right' ? 'ml-auto' : ''}`}>
+  const handleCopyUrl = async () => {
+    if (!generatedContent) return;
+    try {
+      await navigator.clipboard.writeText(generatedContent);
+      toast.success('Link copied');
+    } catch {
+      toast.error('Failed to copy link');
+    }
+  };
+
+  const CreateMenu = ({
+    align = 'center',
+    label = 'Create New',
+  }: {
+    align?: 'center' | 'right';
+    label?: string;
+  }) => (
+    <div
+      className={`relative group flex items-center gap-3 ${
+        align === 'right' ? 'ml-auto' : ''
+      } after:absolute after:left-1/2 after:top-full after:h-16 after:w-40 after:-translate-x-1/2 after:content-['']`}
+    >
       <div className="pointer-events-none absolute -top-12 left-1/2 -translate-x-1/2 opacity-0 transition group-hover:opacity-100">
         <div className="rounded-full border border-border/60 bg-card/80 px-4 py-1 text-[10px] uppercase tracking-[0.35em] text-muted-foreground shadow-sm backdrop-blur">
           Create New QR Code
         </div>
       </div>
+
+      <span className="text-[11px] uppercase tracking-[0.35em] text-muted-foreground/80 transition group-hover:opacity-0">
+        {label}
+      </span>
 
       <button
         type="button"
@@ -203,7 +249,7 @@ const Index = () => {
         <Plus className="h-5 w-5" />
       </button>
 
-      <div className="pointer-events-none absolute left-1/2 top-full mt-3 -translate-x-1/2 opacity-0 transition group-hover:pointer-events-auto group-hover:opacity-100">
+      <div className="pointer-events-none absolute left-1/2 top-full mt-3 -translate-x-1/2 opacity-0 transition group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100">
         <div className="flex items-center gap-2 rounded-full border border-border/60 bg-card/80 px-3 py-2 shadow-lg backdrop-blur">
           <button
             type="button"
@@ -226,6 +272,55 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      {isBooting && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-background/95 backdrop-blur-sm">
+          <div className="text-3xl sm:text-4xl font-semibold tracking-tight">
+            <span className="relative inline-block">
+              <span className="text-muted-foreground/70">QR Code Studio</span>
+              <span className="absolute inset-0 logo-fill">QR Code Studio</span>
+            </span>
+          </div>
+        </div>
+      )}
+
+      {!isBooting && showUpsell && (
+        <div className="fixed inset-0 z-[55] flex items-center justify-center bg-background/70 backdrop-blur-sm px-4">
+          <div className="glass-panel rounded-3xl p-8 w-full max-w-md text-center space-y-4">
+            <p className="text-xs uppercase tracking-[0.35em] text-muted-foreground">Go Pro</p>
+            <h2 className="text-2xl font-semibold">Unlimited analytics, insights, and more.</h2>
+            <p className="text-sm text-muted-foreground">
+              Unlock advanced data, user interactions, and premium exports with QR Code Studio Pro.
+            </p>
+            <div className="pt-2 space-y-2">
+              <Button className="w-full bg-gradient-primary text-primary-foreground uppercase tracking-[0.2em] text-xs">
+                Go Pro
+              </Button>
+              <Button
+                variant="ghost"
+                className="w-full text-xs uppercase tracking-[0.3em]"
+                onClick={() => setShowUpsell(false)}
+              >
+                Continue for Free
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {isGenerating && (
+        <div className="fixed inset-0 z-[50] flex items-center justify-center bg-background/80 backdrop-blur-sm">
+          <div className="text-center space-y-4">
+            <div className="text-3xl sm:text-4xl font-semibold tracking-tight">
+              <span className="relative inline-block">
+                <span className="text-muted-foreground/70">QR Code Studio</span>
+                <span className="absolute inset-0 logo-fill">QR Code Studio</span>
+              </span>
+            </div>
+            <p className="text-xs uppercase tracking-[0.4em] text-muted-foreground">Generating your QR</p>
+          </div>
+        </div>
+      )}
+
       {/* Background gradient */}
       <div className="fixed inset-0 -z-10 overflow-hidden">
         <div className="absolute -top-24 left-8 h-[24rem] w-[24rem] rounded-full bg-[radial-gradient(circle_at_center,rgba(99,102,241,0.28),transparent_60%)] blur-3xl float-slow" />
@@ -248,37 +343,58 @@ const Index = () => {
           </div>
           <nav className="hidden lg:flex items-end gap-2 text-xs uppercase tracking-[0.3em] text-muted-foreground">
             {[
-              { label: 'Dashboard', href: '#dashboard' },
-              { label: 'My QR Codes', href: '#my-qr-codes' },
-              { label: 'Settings', href: '#settings' },
-            ].map((item, index) => (
-              <a
-                key={item.label}
-                href={item.href}
-                className={`px-4 py-2 rounded-t-2xl border border-border/60 bg-secondary/40 hover:bg-secondary/70 hover:text-primary transition-all ${
-                  index === 0 ? 'text-foreground bg-card/80 border-b-transparent' : ''
-                }`}
-              >
-                {item.label}
-              </a>
-            ))}
+              { id: 'studio', label: 'Studio' },
+              { id: 'codes', label: 'My Codes' },
+              { id: 'settings', label: 'Settings' },
+            ].map((item) => {
+              const isActive = activeTab === item.id;
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => setActiveTab(item.id as typeof activeTab)}
+                  className={`px-4 py-2 rounded-t-2xl border border-border/60 bg-secondary/40 hover:bg-secondary/70 hover:text-primary transition-all ${
+                    isActive ? 'text-foreground bg-card/90 border-b-transparent shadow-lg' : ''
+                  }`}
+                >
+                  {item.label}
+                </button>
+              );
+            })}
           </nav>
           <div className="flex items-center gap-3">
-            <CreateMenu align="right" />
+            <CreateMenu align="right" label="Create New" />
             <ThemeToggle />
+            <div className="relative group">
+              <button
+                type="button"
+                className="h-9 w-9 rounded-full border border-border/60 bg-secondary/50 flex items-center justify-center transition hover:border-primary/50"
+                aria-label="My Account"
+              >
+                <UserCircle className="h-5 w-5 text-muted-foreground group-hover:text-primary transition" />
+              </button>
+              <div className="pointer-events-none absolute right-0 top-full mt-2 w-40 opacity-0 transition group-hover:opacity-100">
+                <div className="rounded-xl border border-border/60 bg-card/90 px-3 py-2 text-xs shadow-lg backdrop-blur">
+                  <p className="font-semibold">My Account</p>
+                  <p className="text-[10px] uppercase tracking-[0.3em] text-primary">Free Plan</p>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </header>
 
       {/* Main Content */}
       <main className="container mx-auto px-4 py-8">
-        <section id="dashboard" className="space-y-8">
+        {activeTab === 'studio' && (
+          <>
+            <section id="studio" className="space-y-8">
           <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
             <div>
-              <p className="text-xs uppercase tracking-[0.4em] text-muted-foreground">Dashboard</p>
-              <h2 className="text-3xl font-semibold tracking-tight">Command Center</h2>
+              <p className="text-xs uppercase tracking-[0.4em] text-muted-foreground">Studio</p>
+              <h2 className="text-3xl font-semibold tracking-tight">Creative Workspace</h2>
             </div>
-            <CreateMenu />
+            <CreateMenu label="Create New QR" />
           </div>
 
           <div className="grid lg:grid-cols-[1.1fr_0.9fr] gap-6">
@@ -317,25 +433,25 @@ const Index = () => {
               </div>
             </div>
 
-            <div id="my-qr-codes" className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">My QR Codes</p>
-                  <h3 className="text-lg font-semibold">Recent Activity</h3>
-                </div>
+            <div className="glass-panel rounded-2xl p-6 space-y-4">
+              <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Studio Guide</p>
+              <h3 className="text-lg font-semibold">Your QR flow</h3>
+              <div className="space-y-3 text-sm text-muted-foreground">
+                <p>1. Choose Static or Dynamic.</p>
+                <p>2. Pick URL QR or Virtual Card.</p>
+                <p>3. Customize, generate, and export.</p>
               </div>
-              <HistoryPanel onSelect={handleHistorySelect} />
             </div>
           </div>
         </section>
 
-        <section ref={createSectionRef} id="settings" className="mt-14">
+        <section ref={createSectionRef} id="create" className="mt-14">
           <div className="flex items-center justify-between gap-4 mb-6">
             <div>
               <p className="text-xs uppercase tracking-[0.4em] text-muted-foreground">Create</p>
               <h2 className="text-3xl font-semibold tracking-tight">Build Your QR</h2>
             </div>
-            <span className="text-xs uppercase tracking-[0.3em] text-primary">Static • Dynamic</span>
+            <span className="text-xs uppercase tracking-[0.3em] text-primary">Step-by-step</span>
           </div>
 
           <div className="grid lg:grid-cols-[1fr_400px] gap-8">
@@ -350,7 +466,7 @@ const Index = () => {
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       <LinkIcon className="h-5 w-5 text-primary" />
-                      <h2 className="font-semibold">QR Mode</h2>
+                      <h2 className="font-semibold">Step 1 · QR Mode</h2>
                     </div>
                     <span className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Select</span>
                   </div>
@@ -360,203 +476,223 @@ const Index = () => {
                       className={qrMode === 'static'
                         ? 'bg-card/80 text-foreground border border-border/70 border-b-transparent rounded-t-xl uppercase tracking-[0.2em] text-xs'
                         : 'bg-secondary/40 border border-border/60 text-muted-foreground rounded-t-xl uppercase tracking-[0.2em] text-xs hover:text-primary'}
-                      onClick={() => setQrMode('static')}
+                      onClick={() => {
+                        setQrMode('static');
+                        setQrType(null);
+                        setWebsiteTouched(false);
+                      }}
                     >
                       Static
                     </Button>
                     <Button
                       size="sm"
-                      className={qrMode === 'dynamic'
-                        ? 'bg-card/80 text-foreground border border-border/70 border-b-transparent rounded-t-xl uppercase tracking-[0.2em] text-xs'
-                        : 'bg-secondary/40 border border-border/60 text-muted-foreground rounded-t-xl uppercase tracking-[0.2em] text-xs hover:text-primary'}
-                      onClick={() => {
-                        setQrMode('dynamic');
-                        toast.info('Dynamic QR is a placeholder for now.');
-                      }}
+                      className="bg-secondary/40 border border-border/60 text-muted-foreground rounded-t-xl uppercase tracking-[0.2em] text-xs cursor-not-allowed"
+                      onClick={() => toast.info('Dynamic QR is a placeholder for now.')}
                     >
                       Dynamic
                     </Button>
                   </div>
                 </div>
 
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <h3 className="font-semibold">QR Type</h3>
-                    <span className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Choose</span>
-                  </div>
-                  <div className="grid sm:grid-cols-2 gap-3">
-                    <button
-                      type="button"
-                      onClick={() => setQrType('website')}
-                      className={`rounded-t-2xl border px-4 py-3 text-left transition-all ${
-                        qrType === 'website'
-                          ? 'border-border/70 bg-card/80'
-                          : 'border-border/60 bg-secondary/30 hover:border-primary/60'
-                      }`}
-                    >
-                      <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">URL QR</p>
-                      <p className="mt-2 font-semibold">Open a URL</p>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setQrType('vcard')}
-                      className={`rounded-t-2xl border px-4 py-3 text-left transition-all ${
-                        qrType === 'vcard'
-                          ? 'border-border/70 bg-card/80'
-                          : 'border-border/60 bg-secondary/30 hover:border-primary/60'
-                      }`}
-                    >
-                      <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Virtual Card</p>
-                      <p className="mt-2 font-semibold">Share your profile</p>
-                    </button>
-                  </div>
-                </div>
-
-                {qrType === 'website' ? (
-                  <div className="space-y-3">
-                    <div className="flex items-center gap-3">
-                      <Sparkles className="h-4 w-4 text-primary" />
-                      <h3 className="font-semibold">Enter URL</h3>
+                {hasSelectedMode ? (
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <h3 className="font-semibold">Step 2 · QR Type</h3>
+                      <span className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Choose</span>
                     </div>
-                    <Input
-                      value={websiteUrl}
-                      onChange={(e) => setWebsiteUrl(e.target.value)}
-                      onBlur={() => setWebsiteTouched(true)}
-                      placeholder="example.com or https://example.com"
-                      className="h-14 text-lg pl-4 pr-12 border-border bg-secondary/50 focus:border-primary input-glow"
-                      inputMode="url"
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      Must be a valid website ending in a real domain (.com, .org, .net, etc).
-                    </p>
-                    {websiteTouched && websiteUrl && !isWebsiteValid && (
-                      <p className="text-xs text-destructive">
-                        Please enter a valid website URL.
-                      </p>
-                    )}
+                    <div className="grid sm:grid-cols-2 gap-3">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setQrType('website');
+                          setWebsiteTouched(false);
+                        }}
+                        className={`rounded-t-2xl border px-4 py-3 text-left transition-all ${
+                          qrType === 'website'
+                            ? 'border-border/70 bg-card/80'
+                            : 'border-border/60 bg-secondary/30 hover:border-primary/60'
+                        }`}
+                      >
+                        <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">URL QR</p>
+                        <p className="mt-2 font-semibold">Open a URL</p>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setQrType('vcard')}
+                        className={`rounded-t-2xl border px-4 py-3 text-left transition-all ${
+                          qrType === 'vcard'
+                            ? 'border-border/70 bg-card/80'
+                            : 'border-border/60 bg-secondary/30 hover:border-primary/60'
+                        }`}
+                      >
+                        <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Virtual Card</p>
+                        <p className="mt-2 font-semibold">Share your profile</p>
+                      </button>
+                    </div>
                   </div>
                 ) : (
-                  <div className="space-y-4">
-                    <div className="flex items-center gap-3">
-                      <Sparkles className="h-4 w-4 text-primary" />
-                      <h3 className="font-semibold">Virtual Card Details</h3>
-                    </div>
-                    <div className="grid sm:grid-cols-2 gap-4">
-                      <Input
-                        value={vcard.name}
-                        onChange={(e) => setVcard((prev) => ({ ...prev, name: e.target.value }))}
-                        placeholder="Full Name"
-                        className="bg-secondary/50 border-border"
-                      />
-                      <Input
-                        value={vcard.company}
-                        onChange={(e) => setVcard((prev) => ({ ...prev, company: e.target.value }))}
-                        placeholder="Company"
-                        className="bg-secondary/50 border-border"
-                      />
-                      <Input
-                        value={vcard.phone}
-                        onChange={(e) => setVcard((prev) => ({ ...prev, phone: e.target.value }))}
-                        placeholder="Phone"
-                        className="bg-secondary/50 border-border"
-                      />
-                      <Input
-                        value={vcard.email}
-                        onChange={(e) => setVcard((prev) => ({ ...prev, email: e.target.value }))}
-                        placeholder="Email"
-                        type="email"
-                        className="bg-secondary/50 border-border"
-                      />
-                      <Input
-                        value={vcard.website}
-                        onChange={(e) => setVcard((prev) => ({ ...prev, website: e.target.value }))}
-                        placeholder="Website"
-                        className="bg-secondary/50 border-border"
-                      />
-                      <Input
-                        value={vcard.slug}
-                        onChange={(e) => setVcard((prev) => ({ ...prev, slug: e.target.value }))}
-                        placeholder="Profile Slug (optional)"
-                        className="bg-secondary/50 border-border"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Textarea
-                        value={vcard.about}
-                        onChange={(e) => setVcard((prev) => ({ ...prev, about: e.target.value }))}
-                        placeholder="About Me (max 250 characters)"
-                        maxLength={250}
-                        className="bg-secondary/50 border-border"
-                      />
-                      <div className="flex items-center justify-between text-xs text-muted-foreground">
-                        <span>Virtual card hosted at QR Code Studio</span>
-                        <span>{vcard.about.length}/250</span>
-                      </div>
-                      <Input
-                        value={vcardUrl || 'https://qrcode.luminarapps.com/your-handle'}
-                        readOnly
-                        className="bg-secondary/40 border-border text-xs text-muted-foreground"
-                      />
-                    </div>
+                  <div className="rounded-2xl border border-dashed border-border/70 bg-secondary/20 p-4 text-sm text-muted-foreground">
+                    Choose Static or Dynamic to unlock QR types.
                   </div>
                 )}
 
-                <div className="flex flex-wrap items-center gap-3">
-                  <Button
-                    size="lg"
-                    className="gap-2 bg-gradient-primary hover:opacity-90 text-primary-foreground glow uppercase tracking-[0.2em] text-xs"
-                    disabled={!canGenerate || isGenerating}
-                    onClick={handleGenerate}
-                  >
-                    {isGenerating ? (
-                      <>
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                        Generating
-                      </>
-                    ) : (
-                      <>Generate QR</>
-                    )}
-                  </Button>
+                {hasSelectedType ? (
+                  qrType === 'website' ? (
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-3">
+                        <Sparkles className="h-4 w-4 text-primary" />
+                        <h3 className="font-semibold">Step 3 · Enter URL</h3>
+                      </div>
+                      <Input
+                        value={websiteUrl}
+                        onChange={(e) => setWebsiteUrl(e.target.value)}
+                        onBlur={() => setWebsiteTouched(true)}
+                        placeholder="example.com or https://example.com"
+                        className="h-14 text-lg pl-4 pr-12 border-border bg-secondary/50 focus:border-primary input-glow"
+                        inputMode="url"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Must be a valid website ending in a real domain (.com, .org, .net, etc).
+                      </p>
+                      {websiteTouched && websiteUrl && !isWebsiteValid && (
+                        <p className="text-xs text-destructive">
+                          Please enter a valid website URL.
+                        </p>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      <div className="flex items-center gap-3">
+                        <Sparkles className="h-4 w-4 text-primary" />
+                        <h3 className="font-semibold">Step 3 · Virtual Card Details</h3>
+                      </div>
+                      <div className="grid sm:grid-cols-2 gap-4">
+                        <Input
+                          value={vcard.name}
+                          onChange={(e) => setVcard((prev) => ({ ...prev, name: e.target.value }))}
+                          placeholder="Full Name"
+                          className="bg-secondary/50 border-border"
+                        />
+                        <Input
+                          value={vcard.company}
+                          onChange={(e) => setVcard((prev) => ({ ...prev, company: e.target.value }))}
+                          placeholder="Company"
+                          className="bg-secondary/50 border-border"
+                        />
+                        <Input
+                          value={vcard.phone}
+                          onChange={(e) => setVcard((prev) => ({ ...prev, phone: e.target.value }))}
+                          placeholder="Phone"
+                          className="bg-secondary/50 border-border"
+                        />
+                        <Input
+                          value={vcard.email}
+                          onChange={(e) => setVcard((prev) => ({ ...prev, email: e.target.value }))}
+                          placeholder="Email"
+                          type="email"
+                          className="bg-secondary/50 border-border"
+                        />
+                        <Input
+                          value={vcard.website}
+                          onChange={(e) => setVcard((prev) => ({ ...prev, website: e.target.value }))}
+                          placeholder="Website"
+                          className="bg-secondary/50 border-border"
+                        />
+                        <Input
+                          value={vcard.slug}
+                          onChange={(e) => setVcard((prev) => ({ ...prev, slug: e.target.value }))}
+                          placeholder="Profile Slug (optional)"
+                          className="bg-secondary/50 border-border"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Textarea
+                          value={vcard.about}
+                          onChange={(e) => setVcard((prev) => ({ ...prev, about: e.target.value }))}
+                          placeholder="About Me (max 250 characters)"
+                          maxLength={250}
+                          className="bg-secondary/50 border-border"
+                        />
+                        <div className="flex items-center justify-between text-xs text-muted-foreground">
+                          <span>Virtual card hosted at QR Code Studio</span>
+                          <span>{vcard.about.length}/250</span>
+                        </div>
+                        <Input
+                          value={vcardUrl || 'https://qrcode.luminarapps.com/your-handle'}
+                          readOnly
+                          className="bg-secondary/40 border-border text-xs text-muted-foreground"
+                        />
+                      </div>
+                    </div>
+                  )
+                ) : (
+                  <div className="rounded-2xl border border-dashed border-border/70 bg-secondary/20 p-4 text-sm text-muted-foreground">
+                    Select a QR type to continue building your code.
+                  </div>
+                )}
 
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button
-                        size="lg"
-                        className="gap-2 bg-secondary/60 border border-border hover:border-primary hover:bg-primary/10"
-                        disabled={!hasGenerated}
-                      >
-                        <Download className="h-4 w-4" />
-                        Download
-                        <ChevronDown className="h-4 w-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="center" className="glass-panel">
-                      <DropdownMenuItem onClick={() => handleDownload('png')}>
-                        Download PNG
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => handleDownload('svg')}>
-                        Download SVG
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => handleDownload('jpeg')}>
-                        Download JPEG
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => handleDownload('pdf')}>
-                        Download PDF
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+                {hasSelectedType ? (
+                  <div className="flex flex-wrap items-center gap-3">
+                    <Button
+                      size="lg"
+                      className="gap-2 bg-gradient-primary hover:opacity-90 text-primary-foreground glow uppercase tracking-[0.2em] text-xs"
+                      disabled={!canGenerate || isGenerating}
+                      onClick={handleGenerate}
+                    >
+                      {isGenerating ? (
+                        <>
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          Generating
+                        </>
+                      ) : (
+                        <>Generate My QR Code</>
+                      )}
+                    </Button>
 
-                  <Button
-                    variant="outline"
-                    size="lg"
-                    className="gap-2 border-border hover:border-primary hover:bg-primary/10"
-                    onClick={handleCopy}
-                    disabled={!hasGenerated}
-                  >
-                    <Copy className="h-4 w-4" />
-                    Copy
-                  </Button>
-                </div>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          size="lg"
+                          className="gap-2 bg-secondary/60 border border-border hover:border-primary hover:bg-primary/10"
+                          disabled={!hasGenerated}
+                        >
+                          <Download className="h-4 w-4" />
+                          Download
+                          <ChevronDown className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="center" className="glass-panel">
+                        <DropdownMenuItem onClick={() => handleDownload('png')}>
+                          Download PNG
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleDownload('svg')}>
+                          Download SVG
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleDownload('jpeg')}>
+                          Download JPEG
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleDownload('pdf')}>
+                          Download PDF
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+
+                    <Button
+                      variant="outline"
+                      size="lg"
+                      className="gap-2 border-border hover:border-primary hover:bg-primary/10"
+                      onClick={handleCopy}
+                      disabled={!hasGenerated}
+                    >
+                      <Copy className="h-4 w-4" />
+                      Copy
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="rounded-2xl border border-dashed border-border/70 bg-secondary/20 p-4 text-sm text-muted-foreground">
+                    Complete steps 1-3 to unlock generate and export actions.
+                  </div>
+                )}
               </motion.div>
 
               <motion.div
@@ -567,6 +703,93 @@ const Index = () => {
               >
                 <QRPreview ref={qrRef} options={options} isGenerating={isGenerating} />
               </motion.div>
+
+              {hasGenerated && (
+                <motion.div
+                  initial={{ opacity: 0, y: 16 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.15 }}
+                  className="glass-panel rounded-2xl p-6 space-y-4"
+                >
+                  <div>
+                    <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Result</p>
+                    <h3 className="text-lg font-semibold">Your QR is ready</h3>
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+                    <Input
+                      value={generatedContent}
+                      readOnly
+                      className="bg-secondary/40 border-border text-sm"
+                    />
+                    <Button
+                      size="icon"
+                      variant="outline"
+                      className="border-border hover:border-primary hover:bg-primary/10"
+                      onClick={handleCopyUrl}
+                    >
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-3">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          size="sm"
+                          className="gap-2 bg-secondary/60 border border-border hover:border-primary hover:bg-primary/10"
+                        >
+                          <Download className="h-4 w-4" />
+                          Download
+                          <ChevronDown className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="center" className="glass-panel">
+                        <DropdownMenuItem onClick={() => handleDownload('png')}>
+                          Download PNG
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleDownload('svg')}>
+                          Download SVG
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleDownload('jpeg')}>
+                          Download JPEG
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleDownload('pdf')}>
+                          Download PDF
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+
+                    {canShowPreview && (
+                      <a
+                        href={previewUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-2 text-xs uppercase tracking-[0.3em] text-primary hover:text-primary/80 transition"
+                      >
+                        <Monitor className="h-4 w-4" />
+                        Live Preview
+                      </a>
+                    )}
+                  </div>
+
+                  {canShowPreview && (
+                    <a
+                      href={previewUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="group block overflow-hidden rounded-xl border border-border/60 bg-secondary/30"
+                    >
+                      <img
+                        src={`https://image.thum.io/get/width/1200/${previewUrl}`}
+                        alt="Live preview"
+                        className="h-48 w-full object-cover transition duration-300 group-hover:scale-[1.02]"
+                        loading="lazy"
+                      />
+                    </a>
+                  )}
+                </motion.div>
+              )}
             </div>
 
             {/* Right Panel - Customization */}
@@ -576,73 +799,120 @@ const Index = () => {
               transition={{ delay: 0.15 }}
               className="space-y-6"
             >
-              <div className="glass-panel rounded-2xl p-4">
-                <Accordion type="multiple" defaultValue={['colors', 'style']} className="space-y-2">
-                  <AccordionItem value="colors" className="border-none">
-                    <AccordionTrigger className="py-3 px-4 rounded-lg hover:bg-secondary/50 hover:no-underline">
-                      <span className="text-sm font-medium">Colors</span>
-                    </AccordionTrigger>
-                    <AccordionContent className="px-4 pb-4 pt-2 space-y-5">
-                      <ColorPicker
-                        label="Foreground Color"
-                        value={options.fgColor}
-                        onChange={(v) => updateOption('fgColor', v)}
-                      />
-                      <ColorPicker
-                        label="Background Color"
-                        value={options.bgColor}
-                        onChange={(v) => updateOption('bgColor', v)}
-                        presets={['#0A192F', '#D4AF37', '#F5F5F5', '#1F2937', '#111827', '#FFFFFF', '#000000']}
-                      />
-                    </AccordionContent>
-                  </AccordionItem>
+              {hasSelectedMode && hasSelectedType ? (
+                <div className="glass-panel rounded-2xl p-4">
+                  <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground px-4 pt-2">
+                    Step 4 · Customize
+                  </p>
+                  <Accordion type="multiple" defaultValue={['colors', 'style']} className="space-y-2">
+                    <AccordionItem value="colors" className="border-none">
+                      <AccordionTrigger className="py-3 px-4 rounded-lg hover:bg-secondary/50 hover:no-underline">
+                        <span className="text-sm font-medium">Colors</span>
+                      </AccordionTrigger>
+                      <AccordionContent className="px-4 pb-4 pt-2 space-y-5">
+                        <ColorPicker
+                          label="Foreground Color"
+                          value={options.fgColor}
+                          onChange={(v) => updateOption('fgColor', v)}
+                        />
+                        <ColorPicker
+                          label="Background Color"
+                          value={options.bgColor}
+                          onChange={(v) => updateOption('bgColor', v)}
+                          presets={['#0A192F', '#D4AF37', '#F5F5F5', '#1F2937', '#111827', '#FFFFFF', '#000000']}
+                        />
+                      </AccordionContent>
+                    </AccordionItem>
 
-                  <AccordionItem value="style" className="border-none">
-                    <AccordionTrigger className="py-3 px-4 rounded-lg hover:bg-secondary/50 hover:no-underline">
-                      <span className="text-sm font-medium">Style</span>
-                    </AccordionTrigger>
-                    <AccordionContent className="px-4 pb-4 pt-2 space-y-5">
-                      <SizeSlider
-                        value={options.size}
-                        onChange={(v) => updateOption('size', v)}
-                      />
-                      <CornerStylePicker
-                        value={options.cornerStyle}
-                        onChange={(v) => updateOption('cornerStyle', v)}
-                      />
-                      <ErrorCorrectionSelector
-                        value={options.errorCorrectionLevel}
-                        onChange={(v) => updateOption('errorCorrectionLevel', v)}
-                      />
-                    </AccordionContent>
-                  </AccordionItem>
+                    <AccordionItem value="style" className="border-none">
+                      <AccordionTrigger className="py-3 px-4 rounded-lg hover:bg-secondary/50 hover:no-underline">
+                        <span className="text-sm font-medium">Style</span>
+                      </AccordionTrigger>
+                      <AccordionContent className="px-4 pb-4 pt-2 space-y-5">
+                        <SizeSlider
+                          value={options.size}
+                          onChange={(v) => updateOption('size', v)}
+                        />
+                        <CornerStylePicker
+                          value={options.cornerStyle}
+                          onChange={(v) => updateOption('cornerStyle', v)}
+                        />
+                        <ErrorCorrectionSelector
+                          value={options.errorCorrectionLevel}
+                          onChange={(v) => updateOption('errorCorrectionLevel', v)}
+                        />
+                      </AccordionContent>
+                    </AccordionItem>
 
-                  <AccordionItem value="logo" className="border-none">
-                    <AccordionTrigger className="py-3 px-4 rounded-lg hover:bg-secondary/50 hover:no-underline">
-                      <span className="text-sm font-medium">Logo</span>
-                    </AccordionTrigger>
-                    <AccordionContent className="px-4 pb-4 pt-2">
-                      <LogoUpload
-                        logo={options.logo}
-                        onLogoChange={(v) => updateOption('logo', v)}
-                      />
-                      {options.logo && (
-                        <div className="mt-4">
-                          <SizeSlider
-                            value={options.logoSize || 50}
-                            onChange={(v) => updateOption('logoSize', v)}
-                            min={20}
-                            max={100}
-                          />
-                        </div>
-                      )}
-                    </AccordionContent>
-                  </AccordionItem>
-                </Accordion>
-              </div>
+                    <AccordionItem value="logo" className="border-none">
+                      <AccordionTrigger className="py-3 px-4 rounded-lg hover:bg-secondary/50 hover:no-underline">
+                        <span className="text-sm font-medium">Logo</span>
+                      </AccordionTrigger>
+                      <AccordionContent className="px-4 pb-4 pt-2">
+                        <LogoUpload
+                          logo={options.logo}
+                          onLogoChange={(v) => updateOption('logo', v)}
+                        />
+                        {options.logo && (
+                          <div className="mt-4">
+                            <SizeSlider
+                              value={options.logoSize || 50}
+                              onChange={(v) => updateOption('logoSize', v)}
+                              min={20}
+                              max={100}
+                            />
+                          </div>
+                        )}
+                      </AccordionContent>
+                    </AccordionItem>
+                  </Accordion>
+                </div>
+              ) : (
+                <div className="glass-panel rounded-2xl p-6 text-sm text-muted-foreground">
+                  Customize colors, style, and logo once you pick a mode and QR type.
+                </div>
+              )}
             </motion.div>
           </div>
         </section>
+          </>
+        )}
+
+        {activeTab === 'codes' && (
+          <section id="my-codes" className="space-y-6">
+            <div>
+              <p className="text-xs uppercase tracking-[0.4em] text-muted-foreground">My Codes</p>
+              <h2 className="text-3xl font-semibold tracking-tight">Your QR Library</h2>
+            </div>
+            {!hasGenerated ? (
+              <div className="glass-panel rounded-2xl p-8 text-center space-y-4">
+                <p className="text-sm text-muted-foreground">No QR codes yet.</p>
+                <p className="text-lg font-semibold">Create your first QR Code to get started.</p>
+                <div className="flex items-center justify-center">
+                  <CreateMenu label="Create New" />
+                </div>
+              </div>
+            ) : (
+              <HistoryPanel onSelect={handleHistorySelect} />
+            )}
+          </section>
+        )}
+
+        {activeTab === 'settings' && (
+          <section id="settings" className="space-y-6">
+            <div>
+              <p className="text-xs uppercase tracking-[0.4em] text-muted-foreground">Settings</p>
+              <h2 className="text-3xl font-semibold tracking-tight">Preferences</h2>
+            </div>
+            <div className="glass-panel rounded-2xl p-6 text-sm text-muted-foreground">
+              Theme, account, and export preferences will live here soon.
+            </div>
+          </section>
+        )}
+
+        <footer className="mt-16 text-center text-xs text-muted-foreground">
+          © 2026 Girón x Luminar Apps.
+        </footer>
       </main>
     </div>
   );
