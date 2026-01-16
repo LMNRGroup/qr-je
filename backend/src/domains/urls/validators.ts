@@ -1,11 +1,11 @@
 import { UrlValidationError } from './errors'
-import { CreateUrlInput, ResolveUrlInput } from './models'
+import { CreateUrlPayload, ResolveUrlInput } from './models'
 
 const isRecord = (value: unknown): value is Record<string, unknown> => {
   return typeof value === 'object' && value !== null
 }
 
-export const parseCreateUrlInput = (payload: unknown): CreateUrlInput => {
+export const parseCreateUrlInput = (payload: unknown): CreateUrlPayload => {
   if (!isRecord(payload)) {
     throw new UrlValidationError('Body must be a JSON object')
   }
