@@ -21,7 +21,6 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { UserMenu } from '@/components/UserMenu';
 import { generateQR } from '@/lib/api';
 import { QROptions, defaultQROptions } from '@/types/qr';
 import { motion } from 'framer-motion';
@@ -35,6 +34,7 @@ import {
   Plus,
   QrCode,
   Sparkles,
+  User,
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
@@ -507,7 +507,7 @@ const Index = () => {
                 aria-label="My Account"
                 onClick={() => setShowAccountModal(true)}
               >
-                <UserCircle className="h-5 w-5 text-muted-foreground group-hover:text-primary transition" />
+                <User className="h-5 w-5 text-muted-foreground group-hover:text-primary transition" />
               </button>
               <div className="pointer-events-none absolute right-0 top-full mt-2 w-40 opacity-0 transition group-hover:opacity-100">
                 <div className="rounded-xl border border-border/60 bg-card/90 px-3 py-2 text-xs shadow-lg backdrop-blur">
