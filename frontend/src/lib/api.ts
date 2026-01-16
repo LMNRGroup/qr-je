@@ -8,8 +8,8 @@ const mockHistory: QRHistoryItem[] = [
     options: {
       content: 'https://example.com',
       size: 256,
-      fgColor: '#00d4ff',
-      bgColor: '#0a0f1a',
+      fgColor: '#D4AF37',
+      bgColor: '#0A192F',
       errorCorrectionLevel: 'M',
       cornerStyle: 'square',
     },
@@ -21,8 +21,8 @@ const mockHistory: QRHistoryItem[] = [
     options: {
       content: 'https://github.com',
       size: 300,
-      fgColor: '#ffffff',
-      bgColor: '#0d1117',
+      fgColor: '#D4AF37',
+      bgColor: '#0A192F',
       errorCorrectionLevel: 'H',
       cornerStyle: 'rounded',
     },
@@ -34,8 +34,8 @@ const mockHistory: QRHistoryItem[] = [
     options: {
       content: 'Hello World!',
       size: 200,
-      fgColor: '#10b981',
-      bgColor: '#022c22',
+      fgColor: '#D4AF37',
+      bgColor: '#0A192F',
       errorCorrectionLevel: 'L',
       cornerStyle: 'dots',
     },
@@ -55,8 +55,8 @@ export async function generateQR(content: string, options: Partial<QROptions>): 
     options: {
       content,
       size: options.size || 256,
-      fgColor: options.fgColor || '#00d4ff',
-      bgColor: options.bgColor || '#0a0f1a',
+      fgColor: options.fgColor || '#D4AF37',
+      bgColor: options.bgColor || '#0A192F',
       errorCorrectionLevel: options.errorCorrectionLevel || 'M',
       cornerStyle: options.cornerStyle || 'square',
       logo: options.logo,

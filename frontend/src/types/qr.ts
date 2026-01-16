@@ -20,8 +20,8 @@ export interface QRHistoryItem {
 export const defaultQROptions: QROptions = {
   content: '',
   size: 256,
-  fgColor: '#00d4ff',
-  bgColor: '#0a0f1a',
+  fgColor: '#D4AF37',
+  bgColor: '#0A192F',
   errorCorrectionLevel: 'M',
   cornerStyle: 'square',
   logoSize: 50,
