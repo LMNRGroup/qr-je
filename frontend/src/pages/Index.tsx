@@ -8,7 +8,7 @@ import {
   Sparkles,
   QrCode,
   Loader2,
-  ArrowRight,
+  Plus,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -182,13 +182,56 @@ const Index = () => {
     toast.info('Loaded from history');
   };
 
+  const handleStartStatic = () => {
+    setQrMode('static');
+    createSectionRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  const CreateMenu = ({ align = 'center' }: { align?: 'center' | 'right' }) => (
+    <div className={`relative group ${align === 'right' ? 'ml-auto' : ''}`}>
+      <div className="pointer-events-none absolute -top-12 left-1/2 -translate-x-1/2 opacity-0 transition group-hover:opacity-100">
+        <div className="rounded-full border border-border/60 bg-card/80 px-4 py-1 text-[10px] uppercase tracking-[0.35em] text-muted-foreground shadow-sm backdrop-blur">
+          Create New QR Code
+        </div>
+      </div>
+
+      <button
+        type="button"
+        aria-label="Create new QR code"
+        className="flex h-12 w-12 items-center justify-center rounded-full border border-border/60 bg-card/80 text-primary shadow-sm transition hover:border-primary/50 hover:bg-card/90 hover:shadow-lg"
+      >
+        <Plus className="h-5 w-5" />
+      </button>
+
+      <div className="pointer-events-none absolute left-1/2 top-full mt-3 -translate-x-1/2 opacity-0 transition group-hover:pointer-events-auto group-hover:opacity-100">
+        <div className="flex items-center gap-2 rounded-full border border-border/60 bg-card/80 px-3 py-2 shadow-lg backdrop-blur">
+          <button
+            type="button"
+            onClick={handleStartStatic}
+            className="rounded-full border border-border/60 bg-secondary/50 px-4 py-1.5 text-[10px] uppercase tracking-[0.35em] text-foreground transition hover:border-primary/60 hover:text-primary"
+          >
+            Static
+          </button>
+          <button
+            type="button"
+            aria-disabled="true"
+            className="rounded-full border border-border/60 bg-secondary/40 px-4 py-1.5 text-[10px] uppercase tracking-[0.35em] text-muted-foreground opacity-60 cursor-not-allowed"
+          >
+            Dynamic
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+
   return (
     <div className="min-h-screen bg-background">
       {/* Background gradient */}
       <div className="fixed inset-0 -z-10 overflow-hidden">
-        <div className="absolute top-0 left-1/4 w-[28rem] h-[28rem] bg-primary/15 rounded-full blur-3xl" />
-        <div className="absolute bottom-0 right-1/4 w-[30rem] h-[30rem] bg-primary/10 rounded-full blur-3xl" />
-        <div className="absolute inset-x-0 top-1/3 h-72 bg-gradient-to-r from-primary/10 via-transparent to-primary/10 blur-3xl" />
+        <div className="absolute -top-24 left-8 h-[24rem] w-[24rem] rounded-full bg-[radial-gradient(circle_at_center,rgba(99,102,241,0.28),transparent_60%)] blur-3xl float-slow" />
+        <div className="absolute top-4 right-6 h-[30rem] w-[30rem] rounded-full bg-[radial-gradient(circle_at_center,rgba(16,185,129,0.22),transparent_60%)] blur-3xl float-medium" />
+        <div className="absolute bottom-0 left-1/3 h-[22rem] w-[22rem] rounded-full bg-[radial-gradient(circle_at_center,rgba(236,72,153,0.18),transparent_65%)] blur-3xl float-fast" />
+        <div className="absolute inset-x-0 top-1/4 h-72 bg-gradient-to-r from-indigo-500/10 via-transparent to-emerald-500/10 blur-3xl" />
       </div>
 
       {/* Header */}
@@ -199,23 +242,29 @@ const Index = () => {
               <QrCode className="h-5 w-5 text-primary-foreground" />
             </div>
             <div>
-              <h1 className="text-lg font-bold gradient-text tracking-wide">LUMINAR QR</h1>
+              <h1 className="text-lg font-bold gradient-text tracking-wide">QR Code Studio</h1>
               <p className="text-xs text-muted-foreground uppercase tracking-[0.3em]">Generate • Customize • Share</p>
             </div>
           </div>
-          <nav className="hidden lg:flex items-center gap-6 text-xs uppercase tracking-[0.3em] text-muted-foreground">
-            <a href="#dashboard" className="hover:text-primary transition-colors">Dashboard</a>
-            <a href="#my-qr-codes" className="hover:text-primary transition-colors">My QR Codes</a>
-            <a href="#settings" className="hover:text-primary transition-colors">Settings</a>
+          <nav className="hidden lg:flex items-end gap-2 text-xs uppercase tracking-[0.3em] text-muted-foreground">
+            {[
+              { label: 'Dashboard', href: '#dashboard' },
+              { label: 'My QR Codes', href: '#my-qr-codes' },
+              { label: 'Settings', href: '#settings' },
+            ].map((item, index) => (
+              <a
+                key={item.label}
+                href={item.href}
+                className={`px-4 py-2 rounded-t-2xl border border-border/60 bg-secondary/40 hover:bg-secondary/70 hover:text-primary transition-all ${
+                  index === 0 ? 'text-foreground bg-card/80 border-b-transparent' : ''
+                }`}
+              >
+                {item.label}
+              </a>
+            ))}
           </nav>
           <div className="flex items-center gap-3">
-            <Button
-              size="sm"
-              className="hidden md:flex uppercase tracking-[0.2em] text-xs bg-gradient-primary hover:opacity-90 text-primary-foreground"
-              onClick={() => createSectionRef.current?.scrollIntoView({ behavior: 'smooth' })}
-            >
-              Create New QR Code
-            </Button>
+            <CreateMenu align="right" />
             <ThemeToggle />
           </div>
         </div>
@@ -229,14 +278,7 @@ const Index = () => {
               <p className="text-xs uppercase tracking-[0.4em] text-muted-foreground">Dashboard</p>
               <h2 className="text-3xl font-semibold tracking-tight">Command Center</h2>
             </div>
-            <Button
-              size="lg"
-              className="uppercase tracking-[0.2em] text-xs bg-gradient-primary hover:opacity-90 text-primary-foreground"
-              onClick={() => createSectionRef.current?.scrollIntoView({ behavior: 'smooth' })}
-            >
-              CREATE NEW QR Code
-              <ArrowRight className="ml-2 h-4 w-4" />
-            </Button>
+            <CreateMenu />
           </div>
 
           <div className="grid lg:grid-cols-[1.1fr_0.9fr] gap-6">
@@ -316,8 +358,8 @@ const Index = () => {
                     <Button
                       size="sm"
                       className={qrMode === 'static'
-                        ? 'bg-primary text-primary-foreground uppercase tracking-[0.2em] text-xs'
-                        : 'bg-secondary/50 border border-border text-muted-foreground uppercase tracking-[0.2em] text-xs hover:text-primary'}
+                        ? 'bg-card/80 text-foreground border border-border/70 border-b-transparent rounded-t-xl uppercase tracking-[0.2em] text-xs'
+                        : 'bg-secondary/40 border border-border/60 text-muted-foreground rounded-t-xl uppercase tracking-[0.2em] text-xs hover:text-primary'}
                       onClick={() => setQrMode('static')}
                     >
                       Static
@@ -325,8 +367,8 @@ const Index = () => {
                     <Button
                       size="sm"
                       className={qrMode === 'dynamic'
-                        ? 'bg-primary text-primary-foreground uppercase tracking-[0.2em] text-xs'
-                        : 'bg-secondary/50 border border-border text-muted-foreground uppercase tracking-[0.2em] text-xs hover:text-primary'}
+                        ? 'bg-card/80 text-foreground border border-border/70 border-b-transparent rounded-t-xl uppercase tracking-[0.2em] text-xs'
+                        : 'bg-secondary/40 border border-border/60 text-muted-foreground rounded-t-xl uppercase tracking-[0.2em] text-xs hover:text-primary'}
                       onClick={() => {
                         setQrMode('dynamic');
                         toast.info('Dynamic QR is a placeholder for now.');
@@ -346,22 +388,22 @@ const Index = () => {
                     <button
                       type="button"
                       onClick={() => setQrType('website')}
-                      className={`rounded-xl border px-4 py-3 text-left transition-all ${
+                      className={`rounded-t-2xl border px-4 py-3 text-left transition-all ${
                         qrType === 'website'
-                          ? 'border-primary bg-primary/10'
-                          : 'border-border bg-secondary/30 hover:border-primary/60'
+                          ? 'border-border/70 bg-card/80'
+                          : 'border-border/60 bg-secondary/30 hover:border-primary/60'
                       }`}
                     >
-                      <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Website QR</p>
+                      <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">URL QR</p>
                       <p className="mt-2 font-semibold">Open a URL</p>
                     </button>
                     <button
                       type="button"
                       onClick={() => setQrType('vcard')}
-                      className={`rounded-xl border px-4 py-3 text-left transition-all ${
+                      className={`rounded-t-2xl border px-4 py-3 text-left transition-all ${
                         qrType === 'vcard'
-                          ? 'border-primary bg-primary/10'
-                          : 'border-border bg-secondary/30 hover:border-primary/60'
+                          ? 'border-border/70 bg-card/80'
+                          : 'border-border/60 bg-secondary/30 hover:border-primary/60'
                       }`}
                     >
                       <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Virtual Card</p>
@@ -447,7 +489,7 @@ const Index = () => {
                         className="bg-secondary/50 border-border"
                       />
                       <div className="flex items-center justify-between text-xs text-muted-foreground">
-                        <span>Virtual card hosted at Luminar Apps</span>
+                        <span>Virtual card hosted at QR Code Studio</span>
                         <span>{vcard.about.length}/250</span>
                       </div>
                       <Input
