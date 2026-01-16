@@ -1,42 +1,42 @@
-import { useRef, useState, useCallback, useEffect, useMemo } from 'react';
-import { motion } from 'framer-motion';
-import {
-  Download,
-  Copy,
-  Link as LinkIcon,
-  ChevronDown,
-  Sparkles,
-  QrCode,
-  Loader2,
-  Plus,
-  UserCircle,
-  Monitor,
-} from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
+import { ColorPicker } from '@/components/ColorPicker';
+import { CornerStylePicker } from '@/components/CornerStylePicker';
+import { ErrorCorrectionSelector } from '@/components/ErrorCorrectionSelector';
+import { HistoryPanel } from '@/components/HistoryPanel';
+import { LogoUpload } from '@/components/LogoUpload';
+import { QRPreview, QRPreviewHandle } from '@/components/QRPreview';
+import { SizeSlider } from '@/components/SizeSlider';
+import { ThemeToggle } from '@/components/ThemeToggle';
 import {
   Accordion,
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
 } from '@/components/ui/accordion';
+import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { QRPreview, QRPreviewHandle } from '@/components/QRPreview';
-import { ColorPicker } from '@/components/ColorPicker';
-import { SizeSlider } from '@/components/SizeSlider';
-import { CornerStylePicker } from '@/components/CornerStylePicker';
-import { ErrorCorrectionSelector } from '@/components/ErrorCorrectionSelector';
-import { LogoUpload } from '@/components/LogoUpload';
-import { HistoryPanel } from '@/components/HistoryPanel';
-import { ThemeToggle } from '@/components/ThemeToggle';
-import { QROptions, defaultQROptions } from '@/types/qr';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { UserMenu } from '@/components/UserMenu';
 import { generateQR } from '@/lib/api';
+import { QROptions, defaultQROptions } from '@/types/qr';
+import { motion } from 'framer-motion';
+import {
+  ChevronDown,
+  Copy,
+  Download,
+  Link as LinkIcon,
+  Loader2,
+  Monitor,
+  Plus,
+  QrCode,
+  Sparkles,
+} from 'lucide-react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
 const Index = () => {
@@ -365,21 +365,7 @@ const Index = () => {
           <div className="flex items-center gap-3">
             <CreateMenu align="right" label="Create New" />
             <ThemeToggle />
-            <div className="relative group">
-              <button
-                type="button"
-                className="h-9 w-9 rounded-full border border-border/60 bg-secondary/50 flex items-center justify-center transition hover:border-primary/50"
-                aria-label="My Account"
-              >
-                <UserCircle className="h-5 w-5 text-muted-foreground group-hover:text-primary transition" />
-              </button>
-              <div className="pointer-events-none absolute right-0 top-full mt-2 w-40 opacity-0 transition group-hover:opacity-100">
-                <div className="rounded-xl border border-border/60 bg-card/90 px-3 py-2 text-xs shadow-lg backdrop-blur">
-                  <p className="font-semibold">My Account</p>
-                  <p className="text-[10px] uppercase tracking-[0.3em] text-primary">Free Plan</p>
-                </div>
-              </div>
-            </div>
+            <UserMenu />
           </div>
         </div>
       </header>
