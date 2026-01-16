@@ -54,6 +54,14 @@ const Index = () => {
   const [isCreateHover, setIsCreateHover] = useState(false);
   const [showAnalyticsIntro, setShowAnalyticsIntro] = useState(false);
   const [analyticsSeen, setAnalyticsSeen] = useState(false);
+  const [showAccountModal, setShowAccountModal] = useState(false);
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
+  const [accountForm, setAccountForm] = useState({
+    username: '',
+    firstName: '',
+    lastName: '',
+    email: '',
+  });
   const [vcard, setVcard] = useState({
     name: '',
     phone: '',
@@ -245,7 +253,7 @@ const Index = () => {
     <div
       className={`relative z-[60] group flex items-center gap-3 ${
         align === 'right' ? 'ml-auto' : ''
-      } after:absolute after:left-1/2 after:top-full after:h-16 after:w-40 after:-translate-x-1/2 after:content-['']`}
+      } after:absolute after:left-1/2 after:top-1/2 after:h-36 after:w-36 after:-translate-x-1/2 after:-translate-y-1/2 after:content-['']`}
       onMouseEnter={() => setIsCreateHover(true)}
       onMouseLeave={() => setIsCreateHover(false)}
       onFocus={() => setIsCreateHover(true)}
@@ -263,34 +271,45 @@ const Index = () => {
         <Plus className="h-5 w-5" />
       </button>
 
-      <div className="pointer-events-none absolute left-1/2 top-full mt-3 -translate-x-1/2 opacity-0 transition group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100">
-        <div className="flex items-center gap-2 rounded-full border border-border/60 bg-card/80 px-3 py-2 shadow-lg backdrop-blur">
-          <button
-            type="button"
-            onClick={() => {
-              handleStartStatic();
-              setIsCreateHover(false);
-            }}
-            className="rounded-full border border-border/60 bg-secondary/50 px-4 py-1.5 text-[10px] uppercase tracking-[0.35em] text-foreground transition hover:border-primary/60 hover:text-primary"
-          >
-            Static
-          </button>
-          <button
-            type="button"
-            aria-disabled="true"
-            onClick={() => setIsCreateHover(false)}
-            className="rounded-full border border-border/60 bg-secondary/40 px-4 py-1.5 text-[10px] uppercase tracking-[0.35em] text-muted-foreground opacity-60 cursor-not-allowed"
-          >
-            Dynamic
-          </button>
-        </div>
+      <div className="pointer-events-none absolute inset-0 opacity-0 transition group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100">
+        <button
+          type="button"
+          onClick={() => {
+            handleStartStatic();
+            setIsCreateHover(false);
+          }}
+          className="absolute left-1/2 top-0 -translate-x-1/2 flex h-11 w-11 items-center justify-center rounded-full border border-border/60 bg-card/90 text-[10px] uppercase tracking-[0.35em] text-foreground shadow-lg backdrop-blur transition hover:border-primary/60 hover:text-primary"
+        >
+          Static
+        </button>
+        <button
+          type="button"
+          aria-disabled="true"
+          onClick={() => setIsCreateHover(false)}
+          className="absolute right-0 top-1/2 -translate-y-1/2 flex h-11 w-11 items-center justify-center rounded-full border border-border/60 bg-card/80 text-[10px] uppercase tracking-[0.35em] text-muted-foreground opacity-60 shadow-lg backdrop-blur cursor-not-allowed"
+        >
+          Dynamic
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            setQrMode('static');
+            setQrType('vcard');
+            setActiveTab('studio');
+            createSectionRef.current?.scrollIntoView({ behavior: 'smooth' });
+            setIsCreateHover(false);
+          }}
+          className="absolute left-0 top-1/2 -translate-y-1/2 flex h-11 w-11 items-center justify-center rounded-full border border-border/60 bg-card/90 text-[10px] uppercase tracking-[0.35em] text-foreground shadow-lg backdrop-blur transition hover:border-primary/60 hover:text-primary"
+        >
+          Vcard
+        </button>
       </div>
     </div>
   );
 
   return (
     <div className="min-h-screen bg-background">
-      {isCreateHover && (
+      {isCreateHover && !showUpsell && !isBooting && (
         <div className="fixed inset-0 z-[40] bg-background/40 backdrop-blur-md transition" />
       )}
 
@@ -306,7 +325,7 @@ const Index = () => {
       )}
 
       {!isBooting && showUpsell && (
-        <div className="fixed inset-0 z-[55] flex items-center justify-center bg-background/70 backdrop-blur-sm px-4">
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-background/70 backdrop-blur-md px-4">
           <div className="glass-panel rounded-3xl p-8 w-full max-w-md text-center space-y-4">
             <p className="text-xs uppercase tracking-[0.35em] text-muted-foreground">Go Pro</p>
             <h2 className="text-2xl font-semibold">Unlimited analytics, insights, and more.</h2>
@@ -317,13 +336,13 @@ const Index = () => {
               <Button className="w-full bg-gradient-primary text-primary-foreground uppercase tracking-[0.2em] text-xs">
                 Go Pro
               </Button>
-              <Button
-                variant="ghost"
-                className="w-full text-xs uppercase tracking-[0.3em]"
+              <button
+                type="button"
+                className="w-full text-xs uppercase tracking-[0.3em] text-muted-foreground transition hover:text-primary"
                 onClick={() => setShowUpsell(false)}
               >
                 Continue for Free
-              </Button>
+              </button>
             </div>
           </div>
         </div>
@@ -357,6 +376,80 @@ const Index = () => {
         </div>
       )}
 
+      {showAccountModal && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-background/70 backdrop-blur-md px-4">
+          <div className="glass-panel rounded-3xl p-8 w-full max-w-lg space-y-5">
+            <div>
+              <p className="text-xs uppercase tracking-[0.35em] text-muted-foreground">My Account</p>
+              <h2 className="text-2xl font-semibold">Create your account</h2>
+              <p className="text-sm text-muted-foreground">
+                Save your QR codes, track analytics, and sync across devices.
+              </p>
+            </div>
+            <div className="grid sm:grid-cols-2 gap-4">
+              <Input
+                value={accountForm.username}
+                onChange={(e) => setAccountForm((prev) => ({ ...prev, username: e.target.value }))}
+                placeholder="Username (max 24)"
+                maxLength={24}
+                className="bg-secondary/40 border-border"
+              />
+              <Input
+                value={accountForm.firstName}
+                onChange={(e) => setAccountForm((prev) => ({ ...prev, firstName: e.target.value }))}
+                placeholder="First Name"
+                className="bg-secondary/40 border-border"
+              />
+              <Input
+                value={accountForm.lastName}
+                onChange={(e) => setAccountForm((prev) => ({ ...prev, lastName: e.target.value }))}
+                placeholder="Last Name"
+                className="bg-secondary/40 border-border"
+              />
+              <Input
+                value={accountForm.email}
+                onChange={(e) => setAccountForm((prev) => ({ ...prev, email: e.target.value }))}
+                placeholder="Email"
+                type="email"
+                className="bg-secondary/40 border-border"
+              />
+            </div>
+            <label className="flex items-start gap-3 text-xs text-muted-foreground">
+              <input
+                type="checkbox"
+                checked={acceptedTerms}
+                onChange={(e) => setAcceptedTerms(e.target.checked)}
+                className="mt-0.5 accent-primary"
+              />
+              <span>
+                I agree to the Terms & Conditions and subscribe for free updates.
+              </span>
+            </label>
+            <div className="flex flex-col sm:flex-row gap-3">
+              <Button
+                className="flex-1 bg-gradient-primary text-primary-foreground uppercase tracking-[0.2em] text-xs"
+                disabled={!acceptedTerms}
+              >
+                Create Account
+              </Button>
+              <Button
+                variant="ghost"
+                className="flex-1 text-xs uppercase tracking-[0.3em]"
+                onClick={() => setShowAccountModal(false)}
+              >
+                Close
+              </Button>
+            </div>
+            <a
+              href="/terms"
+              className="text-[11px] text-muted-foreground underline decoration-dotted underline-offset-4 hover:text-primary"
+            >
+              View Terms & Conditions
+            </a>
+          </div>
+        </div>
+      )}
+
       {/* Background gradient */}
       <div className="fixed inset-0 -z-10 overflow-hidden">
         <div className="absolute -top-24 left-8 h-[24rem] w-[24rem] rounded-full bg-[radial-gradient(circle_at_center,rgba(99,102,241,0.28),transparent_60%)] blur-3xl float-slow" />
@@ -366,7 +459,11 @@ const Index = () => {
       </div>
 
       {/* Header */}
-      <header className="sticky top-0 z-30 glass-panel border-b border-border/50">
+      <header
+        className={`sticky top-0 z-30 glass-panel border-b border-border/50 transition ${
+          showUpsell || isBooting ? 'blur-md pointer-events-none select-none' : ''
+        }`}
+      >
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="h-10 w-10 rounded-xl bg-gradient-primary flex items-center justify-center glow">
@@ -377,7 +474,7 @@ const Index = () => {
               <p className="text-xs text-muted-foreground uppercase tracking-[0.3em]">Generate • Customize • Share</p>
             </div>
           </div>
-          <nav className="hidden lg:flex items-end gap-2 text-xs uppercase tracking-[0.3em] text-muted-foreground">
+          <nav className="hidden lg:flex items-end gap-8 text-xs uppercase tracking-[0.35em] text-muted-foreground">
             {[
               { id: 'studio', label: 'Studio' },
               { id: 'codes', label: 'My Codes' },
@@ -390,10 +487,10 @@ const Index = () => {
                   key={item.id}
                   type="button"
                   onClick={() => setActiveTab(item.id as typeof activeTab)}
-                  className={`px-4 py-2 rounded-t-xl border border-border/50 bg-secondary/30 hover:bg-secondary/60 hover:text-primary transition-all ${
+                  className={`relative px-1 pb-2 transition-all before:absolute before:-top-2 before:left-0 before:h-[2px] before:w-full before:rounded-full before:bg-gradient-to-r before:from-primary before:to-amber-200 before:opacity-0 before:transition ${
                     isActive
-                      ? 'text-foreground bg-card/95 border-b-transparent shadow-xl shadow-black/10'
-                      : 'translate-y-1'
+                      ? 'text-foreground before:opacity-100'
+                      : 'text-muted-foreground hover:text-foreground hover:before:opacity-80'
                   }`}
                 >
                   {item.label}
@@ -402,13 +499,13 @@ const Index = () => {
             })}
           </nav>
           <div className="flex items-center gap-3">
-            <CreateMenu align="right" label="Create New" />
             <ThemeToggle />
             <div className="relative group">
               <button
                 type="button"
                 className="h-9 w-9 rounded-full border border-border/60 bg-secondary/50 flex items-center justify-center transition hover:border-primary/50"
                 aria-label="My Account"
+                onClick={() => setShowAccountModal(true)}
               >
                 <UserCircle className="h-5 w-5 text-muted-foreground group-hover:text-primary transition" />
               </button>
@@ -424,7 +521,11 @@ const Index = () => {
       </header>
 
       {/* Main Content */}
-      <main className="container mx-auto px-4 py-8">
+      <main
+        className={`container mx-auto px-4 py-8 transition ${
+          showUpsell || isBooting ? 'blur-md pointer-events-none select-none' : ''
+        }`}
+      >
         {activeTab === 'studio' && (
           <>
             <section id="studio" className="space-y-8">
@@ -959,7 +1060,7 @@ const Index = () => {
             {!hasGenerated ? (
               <div className="glass-panel rounded-2xl p-8 text-center space-y-4">
                 <p className="text-sm text-muted-foreground">No analytics yet.</p>
-                <p className="text-lg font-semibold">Generate a QR Code to unlock analytics.</p>
+                <p className="text-lg font-semibold">Create your first QR Code to view analytics.</p>
                 <div className="flex items-center justify-center">
                   <CreateMenu label="Create New" />
                 </div>
