@@ -1,42 +1,42 @@
-import { useRef, useState, useCallback, useEffect, useMemo } from 'react';
-import { motion } from 'framer-motion';
-import {
-  Download,
-  Copy,
-  Link as LinkIcon,
-  ChevronDown,
-  Sparkles,
-  QrCode,
-  Loader2,
-  Plus,
-  UserCircle,
-  Monitor,
-} from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
+import { ColorPicker } from '@/components/ColorPicker';
+import { CornerStylePicker } from '@/components/CornerStylePicker';
+import { ErrorCorrectionSelector } from '@/components/ErrorCorrectionSelector';
+import { HistoryPanel } from '@/components/HistoryPanel';
+import { LogoUpload } from '@/components/LogoUpload';
+import { QRPreview, QRPreviewHandle } from '@/components/QRPreview';
+import { SizeSlider } from '@/components/SizeSlider';
+import { ThemeToggle } from '@/components/ThemeToggle';
 import {
   Accordion,
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
 } from '@/components/ui/accordion';
+import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { QRPreview, QRPreviewHandle } from '@/components/QRPreview';
-import { ColorPicker } from '@/components/ColorPicker';
-import { SizeSlider } from '@/components/SizeSlider';
-import { CornerStylePicker } from '@/components/CornerStylePicker';
-import { ErrorCorrectionSelector } from '@/components/ErrorCorrectionSelector';
-import { LogoUpload } from '@/components/LogoUpload';
-import { HistoryPanel } from '@/components/HistoryPanel';
-import { ThemeToggle } from '@/components/ThemeToggle';
-import { QROptions, defaultQROptions } from '@/types/qr';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { UserMenu } from '@/components/UserMenu';
 import { generateQR } from '@/lib/api';
+import { QROptions, defaultQROptions } from '@/types/qr';
+import { motion } from 'framer-motion';
+import {
+  ChevronDown,
+  Copy,
+  Download,
+  Link as LinkIcon,
+  Loader2,
+  Monitor,
+  Plus,
+  QrCode,
+  Sparkles,
+} from 'lucide-react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
 const Index = () => {
