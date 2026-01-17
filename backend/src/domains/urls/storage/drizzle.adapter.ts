@@ -31,11 +31,11 @@ export class DrizzleUrlsStorageAdapter implements UrlsStorage {
     return this.toDomain(rows[0])
   }
 
-  async existsByIdRandom(id: string, random: string) {
+  async existsById(id: string) {
     const rows = await db
       .select({ id: urls.id })
       .from(urls)
-      .where(and(eq(urls.id, id), eq(urls.random, random)))
+      .where(eq(urls.id, id))
       .limit(1)
 
     return rows.length > 0
@@ -51,6 +51,15 @@ export class DrizzleUrlsStorageAdapter implements UrlsStorage {
     return rows.map((row) => this.toDomain(row))
   }
 
+  async getAll() {
+    const rows = await db.select().from(urls).orderBy(desc(urls.createdAt))
+    return rows.map((row) => this.toDomain(row))
+  }
+
+  async deleteById(id: string) {
+    await db.delete(urls).where(eq(urls.id, id))
+  }
+
   private toDomain(row: typeof urls.$inferSelect): Url {
     return {
       id: row.id,
@@ -58,7 +67,9 @@ export class DrizzleUrlsStorageAdapter implements UrlsStorage {
       userId: row.userId,
       virtualCardId: row.virtualCardId,
       targetUrl: row.targetUrl,
-      createdAt: row.createdAt.toISOString()
+      createdAt: row.createdAt.toISOString(),
+      options: null,
+      kind: null
     }
   }
 }
