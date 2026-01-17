@@ -61,6 +61,8 @@ const Index = () => {
   const [isCreateHover, setIsCreateHover] = useState(false);
   const [showAnalyticsIntro, setShowAnalyticsIntro] = useState(false);
   const [analyticsSeen, setAnalyticsSeen] = useState(false);
+  const [showWelcomeIntro, setShowWelcomeIntro] = useState(false);
+  const [welcomeMessage, setWelcomeMessage] = useState('');
   const [showAccountModal, setShowAccountModal] = useState(false);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [pendingCreateScroll, setPendingCreateScroll] = useState(false);
@@ -168,6 +170,32 @@ const Index = () => {
     const timer = window.setTimeout(() => setIsBooting(false), 1100);
     return () => window.clearTimeout(timer);
   }, []);
+
+  useEffect(() => {
+    if (authLoading || isBooting) return;
+    if (!user) {
+      sessionStorage.removeItem('qr.welcome.shown');
+      return;
+    }
+    if (sessionStorage.getItem('qr.welcome.shown')) return;
+
+    const metadata = user.user_metadata as Record<string, string> | undefined;
+    const rawName = metadata?.first_name || metadata?.full_name || metadata?.name || '';
+    const fallbackName = user.email ? user.email.split('@')[0] : 'there';
+    const firstName = (rawName.trim() ? rawName.split(' ')[0] : fallbackName).trim();
+    const createdAt = user.created_at ? new Date(user.created_at).getTime() : 0;
+    const lastSignIn = user.last_sign_in_at ? new Date(user.last_sign_in_at).getTime() : 0;
+    const isNewUser = createdAt && lastSignIn && Math.abs(lastSignIn - createdAt) < 2 * 60 * 1000;
+    const displayName = firstName
+      ? `${firstName.charAt(0).toUpperCase()}${firstName.slice(1)}`
+      : 'there';
+
+    setWelcomeMessage(isNewUser ? `Welcome ${displayName}` : 'Welcome Back! Loading your Studio');
+    setShowWelcomeIntro(true);
+    sessionStorage.setItem('qr.welcome.shown', 'true');
+    const timer = window.setTimeout(() => setShowWelcomeIntro(false), 1100);
+    return () => window.clearTimeout(timer);
+  }, [authLoading, isBooting, user]);
 
   useEffect(() => {
     if (authLoading) return;
@@ -361,64 +389,62 @@ const Index = () => {
             <Plus className="h-5 w-5" />
           </button>
 
-          <div
-            className={`absolute left-1/2 top-1/2 h-44 w-44 -translate-x-1/2 -translate-y-1/2 transition-all duration-200 ${
-              isCreateHover
-                ? 'pointer-events-auto scale-100 opacity-100'
-                : 'pointer-events-none scale-90 opacity-0'
-            }`}
-            onMouseEnter={openCreateMenu}
-            onMouseLeave={scheduleCloseCreateMenu}
-          >
-            <div className="absolute inset-0 rounded-full border border-border/50 bg-card/50 shadow-[0_0_30px_rgba(15,23,42,0.12)] backdrop-blur-sm" />
-            <div className="absolute inset-4 rounded-full border border-primary/20" />
+          {isCreateHover && (
+            <div
+              className="absolute left-1/2 top-1/2 h-44 w-44 -translate-x-1/2 -translate-y-1/2 scale-100 opacity-100 transition-all duration-200"
+              onMouseEnter={openCreateMenu}
+              onMouseLeave={scheduleCloseCreateMenu}
+            >
+              <div className="absolute inset-0 rounded-full border border-border/50 bg-card/50 shadow-[0_0_30px_rgba(15,23,42,0.12)] backdrop-blur-sm" />
+              <div className="absolute inset-4 rounded-full border border-primary/20" />
 
-            <div className="absolute left-1/2 top-0 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center gap-2">
-              <button
-                type="button"
-                onClick={() => {
-                  handleStartStatic();
-                  setIsCreateHover(false);
-                }}
-                className="pointer-events-auto flex h-11 w-11 items-center justify-center rounded-full border border-border/70 bg-card/90 text-primary shadow-lg transition hover:border-primary/60 hover:text-primary"
-              >
-                <LinkIcon className="h-5 w-5" />
-              </button>
-              <span className="rounded-full border border-border/60 bg-card/95 px-3 py-1 text-[10px] uppercase tracking-[0.35em] text-muted-foreground shadow-sm">
-                Static
-              </span>
-            </div>
+              <div className="absolute left-1/2 top-0 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    handleStartStatic();
+                    setIsCreateHover(false);
+                  }}
+                  className="pointer-events-auto flex h-11 w-11 items-center justify-center rounded-full border border-border/70 bg-card/90 text-primary shadow-lg transition hover:border-primary/60 hover:text-primary"
+                >
+                  <LinkIcon className="h-5 w-5" />
+                </button>
+                <span className="rounded-full border border-border/60 bg-card/95 px-3 py-1 text-[10px] uppercase tracking-[0.35em] text-muted-foreground shadow-sm">
+                  Static
+                </span>
+              </div>
 
-            <div className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2 flex flex-col items-center gap-2">
-              <button
-                type="button"
-                aria-disabled="true"
-                onClick={() => setIsCreateHover(false)}
-                className="pointer-events-auto flex h-11 w-11 items-center justify-center rounded-full border border-border/70 bg-card/80 text-muted-foreground opacity-60 shadow-lg cursor-not-allowed"
-              >
-                <Sparkles className="h-5 w-5" />
-              </button>
-              <span className="rounded-full border border-border/60 bg-card/95 px-3 py-1 text-[10px] uppercase tracking-[0.35em] text-muted-foreground/70 shadow-sm">
-                Dynamic
-              </span>
-            </div>
+              <div className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2 flex flex-col items-center gap-2">
+                <button
+                  type="button"
+                  aria-disabled="true"
+                  onClick={() => setIsCreateHover(false)}
+                  className="pointer-events-auto flex h-11 w-11 items-center justify-center rounded-full border border-border/70 bg-card/80 text-muted-foreground opacity-60 shadow-lg cursor-not-allowed"
+                >
+                  <Sparkles className="h-5 w-5" />
+                </button>
+                <span className="rounded-full border border-border/60 bg-card/95 px-3 py-1 text-[10px] uppercase tracking-[0.35em] text-muted-foreground/70 shadow-sm">
+                  Dynamic
+                </span>
+              </div>
 
-            <div className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1/2 flex flex-col items-center gap-2">
-              <button
-                type="button"
-                onClick={() => {
-                  handleStartVcard();
-                  setIsCreateHover(false);
-                }}
-                className="pointer-events-auto flex h-11 w-11 items-center justify-center rounded-full border border-border/70 bg-card/90 text-primary shadow-lg transition hover:border-primary/60 hover:text-primary"
-              >
-                <User className="h-5 w-5" />
-              </button>
-              <span className="rounded-full border border-border/60 bg-card/95 px-3 py-1 text-[10px] uppercase tracking-[0.35em] text-muted-foreground shadow-sm">
-                Vcard
-              </span>
+              <div className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1/2 flex flex-col items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    handleStartVcard();
+                    setIsCreateHover(false);
+                  }}
+                  className="pointer-events-auto flex h-11 w-11 items-center justify-center rounded-full border border-border/70 bg-card/90 text-primary shadow-lg transition hover:border-primary/60 hover:text-primary"
+                >
+                  <User className="h-5 w-5" />
+                </button>
+                <span className="rounded-full border border-border/60 bg-card/95 px-3 py-1 text-[10px] uppercase tracking-[0.35em] text-muted-foreground shadow-sm">
+                  Vcard
+                </span>
+              </div>
             </div>
-          </div>
+          )}
         </div>
       </div>
     );
@@ -489,6 +515,20 @@ const Index = () => {
               </span>
             </div>
             <p className="text-xs uppercase tracking-[0.4em] text-muted-foreground">Loading insights</p>
+          </div>
+        </div>
+      )}
+
+      {showWelcomeIntro && (
+        <div className="fixed inset-0 z-[55] flex items-center justify-center bg-background/80 backdrop-blur-sm">
+          <div className="text-center space-y-4">
+            <div className="text-3xl sm:text-4xl font-semibold tracking-tight">
+              <span className="relative inline-block">
+                <span className="text-muted-foreground/70">{welcomeMessage}</span>
+                <span className="absolute inset-0 logo-fill">{welcomeMessage}</span>
+              </span>
+            </div>
+            <p className="text-xs uppercase tracking-[0.4em] text-muted-foreground">Loading your workspace</p>
           </div>
         </div>
       )}
@@ -565,7 +605,7 @@ const Index = () => {
                 navigate('/login');
               }}
             >
-              Already have an account? Sign In
+              Already have an account? <span className="text-primary">Sign In</span>
             </button>
             <div className="text-center">
               <a
