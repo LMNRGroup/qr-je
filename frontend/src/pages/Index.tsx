@@ -88,6 +88,8 @@ const Index = () => {
   const [welcomeSubline, setWelcomeSubline] = useState('');
   const [actionRingText, setActionRingText] = useState('');
   const [quickActionHover, setQuickActionHover] = useState<string | null>(null);
+  const [selectedQuickAction, setSelectedQuickAction] = useState<string | null>(null);
+  const [actionRingOrigin, setActionRingOrigin] = useState({ x: 50, y: 50 });
   const [generatedShortUrl, setGeneratedShortUrl] = useState('');
   const [generatedLongUrl, setGeneratedLongUrl] = useState('');
   const [showVcardCustomizer, setShowVcardCustomizer] = useState(false);
@@ -423,6 +425,44 @@ const Index = () => {
   }, [activeTab, analyticsSeen]);
 
   useEffect(() => {
+    if (activeTab !== 'studio') {
+      setSelectedQuickAction(null);
+    }
+  }, [activeTab]);
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      if (isCreateOpen) {
+        setIsCreateOpen(false);
+        setActionRingText('');
+        return;
+      }
+      if (showVcardCustomizer) {
+        setShowVcardCustomizer(false);
+        return;
+      }
+      if (showMenuBuilder) {
+        setShowMenuBuilder(false);
+        return;
+      }
+      if (showAccountModal) {
+        setShowAccountModal(false);
+        return;
+      }
+      if (showUpsell) {
+        setShowUpsell(false);
+        return;
+      }
+      if (selectedPlanComparison) {
+        setSelectedPlanComparison(null);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isCreateOpen, selectedPlanComparison, showAccountModal, showMenuBuilder, showUpsell, showVcardCustomizer]);
+
+  useEffect(() => {
     if (!pendingCreateScroll) return;
     if (activeTab !== 'studio') return;
 
@@ -551,6 +591,7 @@ const Index = () => {
     setWebsiteTouched(false);
     setEmailTouched(false);
     setPhoneTouched(false);
+    setSelectedQuickAction('website');
     setPendingCreateScroll(true);
   };
 
@@ -561,6 +602,29 @@ const Index = () => {
     setWebsiteTouched(false);
     setEmailTouched(false);
     setPhoneTouched(false);
+    setSelectedQuickAction('vcard');
+    setPendingCreateScroll(true);
+  };
+
+  const handleStartEmail = () => {
+    setQrMode('static');
+    setQrType('email');
+    setActiveTab('studio');
+    setWebsiteTouched(false);
+    setEmailTouched(false);
+    setPhoneTouched(false);
+    setSelectedQuickAction('email');
+    setPendingCreateScroll(true);
+  };
+
+  const handleStartPhone = () => {
+    setQrMode('static');
+    setQrType('phone');
+    setActiveTab('studio');
+    setWebsiteTouched(false);
+    setEmailTouched(false);
+    setPhoneTouched(false);
+    setSelectedQuickAction('phone');
     setPendingCreateScroll(true);
   };
 
@@ -729,6 +793,7 @@ const Index = () => {
     setQrMode('dynamic');
     setQrType('menu');
     setActiveTab('studio');
+    setSelectedQuickAction('menu');
     setPendingCreateScroll(true);
   };
 
@@ -758,6 +823,40 @@ const Index = () => {
       if (deltaX < 0) return (prev + 1) % total;
       return (prev - 1 + total) % total;
     });
+  };
+
+  const DecodeText = ({ text, active }: { text: string; active: boolean }) => {
+    const [display, setDisplay] = useState(text);
+
+    useEffect(() => {
+      if (!active) {
+        setDisplay(text);
+        return;
+      }
+      const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+      let frame = 0;
+      const totalFrames = Math.max(6, Math.min(14, text.length + 6));
+      const interval = window.setInterval(() => {
+        frame += 1;
+        const revealCount = Math.floor((frame / totalFrames) * text.length);
+        const next = text
+          .split('')
+          .map((char, index) => {
+            if (char === ' ') return ' ';
+            if (index < revealCount) return char;
+            return chars[Math.floor(Math.random() * chars.length)];
+          })
+          .join('');
+        setDisplay(next);
+        if (frame >= totalFrames) {
+          window.clearInterval(interval);
+          setDisplay(text);
+        }
+      }, 30);
+      return () => window.clearInterval(interval);
+    }, [text, active]);
+
+    return <span>{display}</span>;
   };
 
   const vcardFrontStyle = {
@@ -856,7 +955,14 @@ const Index = () => {
     align?: 'center' | 'right';
     label?: string;
   }) => {
+    const triggerRef = useRef<HTMLButtonElement>(null);
     const openCreateMenu = () => {
+      if (triggerRef.current) {
+        const rect = triggerRef.current.getBoundingClientRect();
+        const originX = ((rect.left + rect.width / 2) / window.innerWidth) * 100;
+        const originY = ((rect.top + rect.height / 2) / window.innerHeight) * 100;
+        setActionRingOrigin({ x: originX, y: originY });
+      }
       setIsCreateOpen(true);
       setActionRingText('Create New QR Code');
     };
@@ -894,6 +1000,7 @@ const Index = () => {
             onClick={() => {
               openCreateMenu();
             }}
+            ref={triggerRef}
           >
             <Plus className="h-5 w-5" />
           </button>
@@ -905,158 +1012,178 @@ const Index = () => {
           )}
         </div>
 
-        {isCreateOpen && typeof document !== 'undefined'
+        {typeof document !== 'undefined'
           ? createPortal(
-            <div
-              className="fixed inset-0 z-[90] flex items-center justify-center bg-background/70 backdrop-blur-xl"
-              onClick={closeCreateMenu}
-            >
-              <div
-                className="relative h-72 w-72 sm:h-80 sm:w-80"
-                onClick={(event) => event.stopPropagation()}
-              >
-                <div className="absolute inset-0 rounded-full border border-border/50 bg-card/50 shadow-[0_0_60px_rgba(15,23,42,0.2)] backdrop-blur-sm" />
-                <div className="absolute inset-6 rounded-full border border-primary/20" />
-                <div className="absolute inset-0 flex items-center justify-center px-8 text-center">
-                  <AnimatePresence mode="wait">
-                    {actionRingText ? (
-                      <motion.span
-                        key={actionRingText}
-                        initial={{ opacity: 0, filter: 'blur(8px)', y: 8 }}
-                        animate={{ opacity: 1, filter: 'blur(0px)', y: 0 }}
-                        exit={{ opacity: 0, filter: 'blur(10px)', y: -8 }}
-                        transition={{ duration: 0.25 }}
-                        className="text-xs uppercase tracking-[0.3em] text-foreground text-center"
+            <AnimatePresence>
+              {isCreateOpen ? (
+                <motion.div
+                  className="fixed inset-0 z-[90] flex items-center justify-center bg-background/70 backdrop-blur-xl"
+                  onClick={closeCreateMenu}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                >
+                  <motion.div
+                    className="relative h-72 w-72 sm:h-80 sm:w-80"
+                    onClick={(event) => event.stopPropagation()}
+                    initial={{ scale: 0.2, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    exit={{ scale: 0.2, opacity: 0 }}
+                    transition={{ duration: 0.25 }}
+                    style={{ transformOrigin: `${actionRingOrigin.x}% ${actionRingOrigin.y}%` }}
+                  >
+                    <button
+                      type="button"
+                      className="absolute -top-8 right-0 text-xs uppercase tracking-[0.3em] text-muted-foreground transition hover:text-foreground"
+                      onClick={closeCreateMenu}
+                    >
+                      X
+                    </button>
+                    <div className="absolute inset-0 rounded-full border border-border/50 bg-card/50 shadow-[0_0_60px_rgba(15,23,42,0.2)] backdrop-blur-sm" />
+                    <div className="absolute inset-6 rounded-full border border-primary/20" />
+                    <div className="absolute inset-0 flex items-center justify-center px-8 text-center">
+                      <AnimatePresence mode="wait">
+                        {actionRingText ? (
+                          <motion.span
+                            key={actionRingText}
+                            initial={{ opacity: 0, filter: 'blur(8px)', y: 8 }}
+                            animate={{ opacity: 1, filter: 'blur(0px)', y: 0 }}
+                            exit={{ opacity: 0, filter: 'blur(10px)', y: -8 }}
+                            transition={{ duration: 0.25 }}
+                            className="text-xs uppercase tracking-[0.3em] text-foreground text-center"
+                          >
+                            <DecodeText text={actionRingText} active />
+                          </motion.span>
+                        ) : null}
+                      </AnimatePresence>
+                    </div>
+
+                    <div className="absolute left-1/2 top-0 -translate-x-1/2 -translate-y-1/2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          handleStartStatic();
+                          closeCreateMenu();
+                        }}
+                        onMouseEnter={() => setActionRingText('Create New URL QR Code')}
+                        onMouseLeave={() => setActionRingText('Create New QR Code')}
+                        className="pointer-events-auto flex h-12 w-12 items-center justify-center rounded-full border border-border/70 bg-card/90 text-primary shadow-lg transition hover:border-primary/60 hover:text-primary"
                       >
-                        {actionRingText}
-                      </motion.span>
-                    ) : null}
-                  </AnimatePresence>
-                </div>
+                        <LinkIcon className="h-5 w-5" />
+                      </button>
+                    </div>
 
-                <div className="absolute left-1/2 top-0 -translate-x-1/2 -translate-y-1/2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      handleStartStatic();
-                      closeCreateMenu();
-                    }}
-                    onMouseEnter={() => setActionRingText('Create New URL QR Code')}
-                    onMouseLeave={() => setActionRingText('Create New QR Code')}
-                    className="pointer-events-auto flex h-12 w-12 items-center justify-center rounded-full border border-border/70 bg-card/90 text-primary shadow-lg transition hover:border-primary/60 hover:text-primary"
-                  >
-                    <LinkIcon className="h-5 w-5" />
-                  </button>
-                </div>
+                    <div className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2">
+                      <button
+                        type="button"
+                        aria-disabled="true"
+                        onClick={() => {
+                          toast.info('Dynamic QR is coming soon.');
+                          setSelectedQuickAction('dynamic');
+                          closeCreateMenu();
+                        }}
+                        onMouseEnter={() => setActionRingText('Create Dynamic QR Code')}
+                        onMouseLeave={() => setActionRingText('Create New QR Code')}
+                        className="pointer-events-auto flex h-12 w-12 items-center justify-center rounded-full border border-border/70 bg-card/80 text-muted-foreground opacity-60 shadow-lg cursor-not-allowed"
+                      >
+                        <Sparkles className="h-5 w-5" />
+                      </button>
+                    </div>
 
-                <div className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2">
-                  <button
-                    type="button"
-                    aria-disabled="true"
-                    onClick={() => {
-                      toast.info('Dynamic QR is coming soon.');
-                      closeCreateMenu();
-                    }}
-                    onMouseEnter={() => setActionRingText('Create Dynamic QR Code')}
-                    onMouseLeave={() => setActionRingText('Create New QR Code')}
-                    className="pointer-events-auto flex h-12 w-12 items-center justify-center rounded-full border border-border/70 bg-card/80 text-muted-foreground opacity-60 shadow-lg cursor-not-allowed"
-                  >
-                    <Sparkles className="h-5 w-5" />
-                  </button>
-                </div>
+                    <div className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1/2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          handleStartVcard();
+                          closeCreateMenu();
+                        }}
+                        onMouseEnter={() => setActionRingText('Create New VCard QR Code')}
+                        onMouseLeave={() => setActionRingText('Create New QR Code')}
+                        className="pointer-events-auto flex h-12 w-12 items-center justify-center rounded-full border border-border/70 bg-card/90 text-primary shadow-lg transition hover:border-primary/60 hover:text-primary"
+                      >
+                        <User className="h-5 w-5" />
+                      </button>
+                    </div>
 
-                <div className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1/2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      handleStartVcard();
-                      closeCreateMenu();
-                    }}
-                    onMouseEnter={() => setActionRingText('Create New VCard QR Code')}
-                    onMouseLeave={() => setActionRingText('Create New QR Code')}
-                    className="pointer-events-auto flex h-12 w-12 items-center justify-center rounded-full border border-border/70 bg-card/90 text-primary shadow-lg transition hover:border-primary/60 hover:text-primary"
-                  >
-                    <User className="h-5 w-5" />
-                  </button>
-                </div>
+                    <div className="absolute left-1/2 bottom-0 -translate-x-1/2 translate-y-1/2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          toast.info('Upgrade to a Pro Plan to unlock this feature.');
+                          closeCreateMenu();
+                        }}
+                        onMouseEnter={() => setActionRingText('Upload a File QR Code')}
+                        onMouseLeave={() => setActionRingText('Create New QR Code')}
+                        className="pointer-events-auto flex h-12 w-12 items-center justify-center rounded-full border border-border/70 bg-card/80 text-muted-foreground shadow-lg transition hover:border-primary/60 hover:text-primary"
+                      >
+                        <File className="h-5 w-5" />
+                      </button>
+                    </div>
 
-                <div className="absolute left-1/2 bottom-0 -translate-x-1/2 translate-y-1/2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      toast.info('Upgrade to a Pro Plan to unlock this feature.');
-                      closeCreateMenu();
-                    }}
-                    onMouseEnter={() => setActionRingText('Upload a File QR Code')}
-                    onMouseLeave={() => setActionRingText('Create New QR Code')}
-                    className="pointer-events-auto flex h-12 w-12 items-center justify-center rounded-full border border-border/70 bg-card/80 text-muted-foreground shadow-lg transition hover:border-primary/60 hover:text-primary"
-                  >
-                    <File className="h-5 w-5" />
-                  </button>
-                </div>
+                    <div className="absolute right-6 top-6">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          handleStartPhone();
+                          closeCreateMenu();
+                        }}
+                        onMouseEnter={() => setActionRingText('Create New Phone Call QR Code')}
+                        onMouseLeave={() => setActionRingText('Create New QR Code')}
+                        className="pointer-events-auto flex h-11 w-11 items-center justify-center rounded-full border border-border/70 bg-card/90 text-primary shadow-lg transition hover:border-primary/60"
+                      >
+                        <Phone className="h-4 w-4" />
+                      </button>
+                    </div>
 
-                <div className="absolute right-6 top-6">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      handleStartPhone();
-                      closeCreateMenu();
-                    }}
-                    onMouseEnter={() => setActionRingText('Create New Phone Call QR Code')}
-                    onMouseLeave={() => setActionRingText('Create New QR Code')}
-                    className="pointer-events-auto flex h-11 w-11 items-center justify-center rounded-full border border-border/70 bg-card/90 text-primary shadow-lg transition hover:border-primary/60"
-                  >
-                    <Phone className="h-4 w-4" />
-                  </button>
-                </div>
+                    <div className="absolute right-6 bottom-6">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          handleStartEmail();
+                          closeCreateMenu();
+                        }}
+                        onMouseEnter={() => setActionRingText('Create New Email QR Code')}
+                        onMouseLeave={() => setActionRingText('Create New QR Code')}
+                        className="pointer-events-auto flex h-11 w-11 items-center justify-center rounded-full border border-border/70 bg-card/90 text-primary shadow-lg transition hover:border-primary/60"
+                      >
+                        <Mail className="h-4 w-4" />
+                      </button>
+                    </div>
 
-                <div className="absolute right-6 bottom-6">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      handleStartEmail();
-                      closeCreateMenu();
-                    }}
-                    onMouseEnter={() => setActionRingText('Create New Email QR Code')}
-                    onMouseLeave={() => setActionRingText('Create New QR Code')}
-                    className="pointer-events-auto flex h-11 w-11 items-center justify-center rounded-full border border-border/70 bg-card/90 text-primary shadow-lg transition hover:border-primary/60"
-                  >
-                    <Mail className="h-4 w-4" />
-                  </button>
-                </div>
+                    <div className="absolute left-6 bottom-6">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          openMenuBuilder();
+                          closeCreateMenu();
+                        }}
+                        onMouseEnter={() => setActionRingText('Create a custom QR code for your menu')}
+                        onMouseLeave={() => setActionRingText('Create New QR Code')}
+                        className="pointer-events-auto flex h-11 w-11 items-center justify-center rounded-full border border-border/70 bg-card/90 text-primary shadow-lg transition hover:border-primary/60"
+                      >
+                        <Utensils className="h-4 w-4" />
+                      </button>
+                    </div>
 
-                <div className="absolute left-6 bottom-6">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      openMenuBuilder();
-                      closeCreateMenu();
-                    }}
-                    onMouseEnter={() => setActionRingText('Create a custom QR code for your menu')}
-                    onMouseLeave={() => setActionRingText('Create New QR Code')}
-                    className="pointer-events-auto flex h-11 w-11 items-center justify-center rounded-full border border-border/70 bg-card/90 text-primary shadow-lg transition hover:border-primary/60"
-                  >
-                    <Utensils className="h-4 w-4" />
-                  </button>
-                </div>
-
-                <div className="absolute left-6 top-6">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setActiveTab('adaptive');
-                      setPendingCreateScroll(false);
-                      closeCreateMenu();
-                    }}
-                    onMouseEnter={() => setActionRingText('Create Adaptive QRC™')}
-                    onMouseLeave={() => setActionRingText('Create New QR Code')}
-                    className="pointer-events-auto flex h-11 w-11 items-center justify-center rounded-full border border-amber-300/60 bg-card/90 text-amber-300 shadow-lg transition hover:border-amber-300"
-                  >
-                    <QrCode className="h-4 w-4" />
-                  </button>
-                </div>
-              </div>
-            </div>,
+                    <div className="absolute left-6 top-6">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setActiveTab('adaptive');
+                          setPendingCreateScroll(false);
+                          closeCreateMenu();
+                        }}
+                        onMouseEnter={() => setActionRingText('Create Adaptive QRC™')}
+                        onMouseLeave={() => setActionRingText('Create New QR Code')}
+                        className="pointer-events-auto flex h-11 w-11 items-center justify-center rounded-full border border-amber-300/60 bg-card/90 text-amber-300 shadow-lg transition hover:border-amber-300"
+                      >
+                        <QrCode className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </motion.div>
+                </motion.div>
+              ) : null}
+            </AnimatePresence>,
             document.body
           )
           : null}
@@ -1115,8 +1242,21 @@ const Index = () => {
       )}
 
       {!isBooting && showUpsell && (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-background/70 backdrop-blur-md px-4">
-          <div className="glass-panel rounded-3xl p-8 w-full max-w-md text-center space-y-4">
+        <div
+          className="fixed inset-0 z-[70] flex items-center justify-center bg-background/70 backdrop-blur-md px-4"
+          onClick={() => setShowUpsell(false)}
+        >
+          <div
+            className="glass-panel rounded-3xl p-8 w-full max-w-md text-center space-y-4 relative"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <button
+              type="button"
+              className="absolute right-4 top-4 text-xs uppercase tracking-[0.3em] text-muted-foreground transition hover:text-foreground"
+              onClick={() => setShowUpsell(false)}
+            >
+              X
+            </button>
             <p className="text-xs uppercase tracking-[0.35em] text-muted-foreground">Go Pro</p>
             <h2 className="text-2xl font-semibold">Unlimited analytics, insights, and more.</h2>
             <p className="text-sm text-muted-foreground">
@@ -1191,9 +1331,16 @@ const Index = () => {
           onClick={() => setShowAccountModal(false)}
         >
           <div
-            className="glass-panel rounded-3xl p-8 w-full max-w-lg space-y-5"
+            className="glass-panel rounded-3xl p-8 w-full max-w-lg space-y-5 relative"
             onClick={(event) => event.stopPropagation()}
           >
+            <button
+              type="button"
+              className="absolute right-4 top-4 text-xs uppercase tracking-[0.3em] text-muted-foreground transition hover:text-foreground"
+              onClick={() => setShowAccountModal(false)}
+            >
+              X
+            </button>
             <div>
               <p className="text-xs uppercase tracking-[0.35em] text-muted-foreground">My Account</p>
               <h2 className="text-2xl font-semibold">Create your account</h2>
@@ -1241,13 +1388,6 @@ const Index = () => {
               >
                 Create Account
               </Button>
-              <Button
-                variant="ghost"
-                className="flex-1 text-xs uppercase tracking-[0.3em]"
-                onClick={() => setShowAccountModal(false)}
-              >
-                Close
-              </Button>
             </div>
             <button
               type="button"
@@ -1277,9 +1417,16 @@ const Index = () => {
           onClick={() => setShowVcardCustomizer(false)}
         >
           <div
-            className="glass-panel rounded-3xl p-6 sm:p-8 w-full max-w-6xl space-y-6"
+            className="glass-panel rounded-3xl p-6 sm:p-8 w-full max-w-6xl space-y-6 relative"
             onClick={(event) => event.stopPropagation()}
           >
+            <button
+              type="button"
+              className="absolute right-4 top-4 text-xs uppercase tracking-[0.3em] text-muted-foreground transition hover:text-foreground"
+              onClick={() => setShowVcardCustomizer(false)}
+            >
+              X
+            </button>
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
               <div>
                 <p className="text-xs uppercase tracking-[0.35em] text-muted-foreground">VCard</p>
@@ -1288,13 +1435,6 @@ const Index = () => {
                   Tap the preview to flip between front and back.
                 </p>
               </div>
-              <Button
-                variant="ghost"
-                className="text-xs uppercase tracking-[0.3em]"
-                onClick={() => setShowVcardCustomizer(false)}
-              >
-                Close
-              </Button>
             </div>
 
             <div className="grid lg:grid-cols-[0.9fr_1.1fr] gap-6">
@@ -1629,9 +1769,16 @@ const Index = () => {
           onClick={() => setShowMenuBuilder(false)}
         >
           <div
-            className="glass-panel rounded-3xl p-6 sm:p-8 w-full max-w-6xl space-y-6"
+            className="glass-panel rounded-3xl p-6 sm:p-8 w-full max-w-6xl space-y-6 relative"
             onClick={(event) => event.stopPropagation()}
           >
+            <button
+              type="button"
+              className="absolute right-4 top-4 text-xs uppercase tracking-[0.3em] text-muted-foreground transition hover:text-foreground"
+              onClick={() => setShowMenuBuilder(false)}
+            >
+              X
+            </button>
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
               <div>
                 <p className="text-xs uppercase tracking-[0.35em] text-muted-foreground">Menu</p>
@@ -1640,13 +1787,6 @@ const Index = () => {
                   Upload pages, add your logo, and preview swipe or flip motion.
                 </p>
               </div>
-              <Button
-                variant="ghost"
-                className="text-xs uppercase tracking-[0.3em]"
-                onClick={() => setShowMenuBuilder(false)}
-              >
-                Close
-              </Button>
             </div>
 
             <div className="grid lg:grid-cols-[0.9fr_1.1fr] gap-6">
@@ -2103,6 +2243,7 @@ const Index = () => {
                 onClick: () => {
                   setQrMode('dynamic');
                   setQrType('website');
+                  setSelectedQuickAction('dynamic');
                   setPendingCreateScroll(true);
                   toast.info('Dynamic QR is in preview mode.');
                 },
@@ -2121,7 +2262,11 @@ const Index = () => {
                 onClick={action.onClick}
                 onMouseEnter={() => setQuickActionHover(action.id)}
                 onMouseLeave={() => setQuickActionHover(null)}
-                className="group relative flex flex-col items-center justify-center rounded-full border border-border/60 bg-secondary/30 h-14 w-14 transition hover:border-primary/60 hover:bg-secondary/40"
+                className={`group relative flex flex-col items-center justify-center rounded-full border h-14 w-14 transition hover:border-primary/60 hover:bg-secondary/40 ${
+                  selectedQuickAction === action.id
+                    ? 'border-primary/70 bg-secondary/50 shadow-[0_0_16px_rgba(99,102,241,0.25)]'
+                    : 'border-border/60 bg-secondary/30'
+                }`}
               >
                 <action.Icon className="h-5 w-5 text-primary" />
                 <AnimatePresence mode="wait">
@@ -2134,7 +2279,7 @@ const Index = () => {
                       transition={{ duration: 0.2 }}
                       className="pointer-events-none absolute -bottom-7 whitespace-nowrap text-[10px] uppercase tracking-[0.3em] text-muted-foreground"
                     >
-                      {action.hint}
+                      <DecodeText text={action.hint} active />
                     </motion.span>
                   ) : null}
                 </AnimatePresence>
@@ -2193,6 +2338,7 @@ const Index = () => {
                         setWebsiteTouched(false);
                         setEmailTouched(false);
                         setPhoneTouched(false);
+                        setSelectedQuickAction('dynamic');
                         toast.info('Dynamic QR is in preview mode.');
                       }}
                     >
@@ -2215,6 +2361,7 @@ const Index = () => {
                           setWebsiteTouched(false);
                           setEmailTouched(false);
                           setPhoneTouched(false);
+                          setSelectedQuickAction('website');
                         }}
                         className={`rounded-t-2xl border px-4 py-3 text-left transition-all ${
                           qrType === 'website'
@@ -2227,7 +2374,10 @@ const Index = () => {
                       </button>
                       <button
                         type="button"
-                        onClick={() => setQrType('vcard')}
+                        onClick={() => {
+                          setQrType('vcard');
+                          setSelectedQuickAction('vcard');
+                        }}
                         className={`rounded-t-2xl border px-4 py-3 text-left transition-all ${
                           qrType === 'vcard'
                             ? 'border-border/70 bg-card/80'
@@ -2242,6 +2392,7 @@ const Index = () => {
                         onClick={() => {
                           setQrType('email');
                           setEmailTouched(false);
+                          setSelectedQuickAction('email');
                         }}
                         className={`rounded-t-2xl border px-4 py-3 text-left transition-all ${
                           qrType === 'email'
@@ -2257,6 +2408,7 @@ const Index = () => {
                         onClick={() => {
                           setQrType('phone');
                           setPhoneTouched(false);
+                          setSelectedQuickAction('phone');
                         }}
                         className={`rounded-t-2xl border px-4 py-3 text-left transition-all ${
                           qrType === 'phone'
@@ -2271,6 +2423,7 @@ const Index = () => {
                         type="button"
                         onClick={() => {
                           setQrType('menu');
+                          setSelectedQuickAction('menu');
                         }}
                         className={`rounded-t-2xl border px-4 py-3 text-left transition-all ${
                           qrType === 'menu'
@@ -3087,12 +3240,16 @@ const Index = () => {
             </div>
 
             {selectedPlanComparison && (
-              <div className="fixed inset-0 z-[80] flex items-center justify-center bg-background/70 backdrop-blur-md px-4">
+              <div
+                className="fixed inset-0 z-[80] flex items-center justify-center bg-background/70 backdrop-blur-md px-4"
+                onClick={() => setSelectedPlanComparison(null)}
+              >
                 <motion.div
                   initial={{ opacity: 0, scale: 0.9, rotateY: 12 }}
                   animate={{ opacity: 1, scale: 1, rotateY: 0 }}
                   transition={{ duration: 0.35, ease: 'easeOut' }}
                   className="glass-panel rounded-3xl p-6 sm:p-8 w-full max-w-3xl space-y-5"
+                  onClick={(event) => event.stopPropagation()}
                 >
                   <div className="flex items-center justify-between">
                     <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">
@@ -3100,10 +3257,10 @@ const Index = () => {
                     </p>
                     <button
                       type="button"
-                      className="text-xs uppercase tracking-[0.3em] text-muted-foreground hover:text-primary"
+                      className="text-xs uppercase tracking-[0.3em] text-muted-foreground hover:text-foreground"
                       onClick={() => setSelectedPlanComparison(null)}
                     >
-                      Close
+                      X
                     </button>
                   </div>
                   {selectedPlanComparison === 'pro' ? (
