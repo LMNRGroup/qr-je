@@ -69,6 +69,7 @@ const Index = () => {
     fullName: '',
     email: '',
   });
+  const hoverTimeoutRef = useRef<number | null>(null);
   const [vcard, setVcard] = useState({
     name: '',
     phone: '',
@@ -295,6 +296,7 @@ const Index = () => {
     setQrMode('static');
     setQrType('vcard');
     setActiveTab('studio');
+    setWebsiteTouched(false);
     setPendingCreateScroll(true);
   };
 
@@ -314,87 +316,113 @@ const Index = () => {
   }: {
     align?: 'center' | 'right';
     label?: string;
-  }) => (
-    <div
-      className={`relative z-[60] group flex items-center gap-3 ${
-        align === 'right' ? 'ml-auto' : ''
-      }`}
-      onMouseEnter={() => setIsCreateHover(true)}
-      onMouseLeave={() => setIsCreateHover(false)}
-      onFocus={() => setIsCreateHover(true)}
-      onBlur={() => setIsCreateHover(false)}
-    >
-      <span className="absolute -inset-16 rounded-full opacity-0" aria-hidden="true" />
-      <span className="text-[11px] uppercase tracking-[0.35em] text-muted-foreground/80 transition group-hover:opacity-0">
-        {label}
-      </span>
+  }) => {
+    const openCreateMenu = () => {
+      if (hoverTimeoutRef.current) {
+        window.clearTimeout(hoverTimeoutRef.current);
+        hoverTimeoutRef.current = null;
+      }
+      setIsCreateHover(true);
+    };
 
-      <div className="relative">
-        <button
-          type="button"
-          aria-label="Create new QR code"
-          className="relative z-10 flex h-12 w-12 items-center justify-center rounded-full border border-border/60 bg-card/80 text-primary shadow-sm transition hover:border-primary/50 hover:bg-card/90 hover:shadow-lg"
-          onClick={() => {
-            handleStartStatic();
-            setIsCreateHover(false);
-          }}
-        >
-          <Plus className="h-5 w-5" />
-        </button>
+    const scheduleCloseCreateMenu = () => {
+      if (hoverTimeoutRef.current) {
+        window.clearTimeout(hoverTimeoutRef.current);
+      }
+      hoverTimeoutRef.current = window.setTimeout(() => {
+        setIsCreateHover(false);
+      }, 120);
+    };
 
-        <div className="pointer-events-none absolute left-1/2 top-1/2 h-44 w-44 -translate-x-1/2 -translate-y-1/2 scale-90 opacity-0 transition-all duration-200 group-hover:scale-100 group-hover:opacity-100 group-focus-within:scale-100 group-focus-within:opacity-100">
-          <div className="absolute inset-0 rounded-full border border-border/50 bg-card/50 shadow-[0_0_30px_rgba(15,23,42,0.12)] backdrop-blur-sm" />
-          <div className="absolute inset-4 rounded-full border border-primary/20" />
+    return (
+      <div
+        className={`relative z-[60] group flex items-center gap-3 ${
+          align === 'right' ? 'ml-auto' : ''
+        }`}
+        onBlur={scheduleCloseCreateMenu}
+      >
+        <span className="text-[11px] uppercase tracking-[0.35em] text-muted-foreground/80 transition group-hover:opacity-0">
+          {label}
+        </span>
 
-          <div className="absolute left-1/2 top-0 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center gap-2">
-            <button
-              type="button"
-              onClick={() => {
-                handleStartStatic();
-                setIsCreateHover(false);
-              }}
-              className="pointer-events-auto flex h-11 w-11 items-center justify-center rounded-full border border-border/70 bg-card/90 text-primary shadow-lg transition hover:border-primary/60 hover:text-primary"
-            >
-              <LinkIcon className="h-5 w-5" />
-            </button>
-            <span className="rounded-full border border-border/60 bg-card/95 px-3 py-1 text-[10px] uppercase tracking-[0.35em] text-muted-foreground shadow-sm">
-              Static
-            </span>
-          </div>
+        <div className="relative">
+          <button
+            type="button"
+            aria-label="Create new QR code"
+            className="relative z-10 flex h-12 w-12 items-center justify-center rounded-full border border-border/60 bg-card/80 text-primary shadow-sm transition hover:border-primary/50 hover:bg-card/90 hover:shadow-lg"
+            onMouseEnter={openCreateMenu}
+            onMouseLeave={scheduleCloseCreateMenu}
+            onFocus={openCreateMenu}
+            onClick={() => {
+              handleStartStatic();
+              setIsCreateHover(false);
+            }}
+          >
+            <Plus className="h-5 w-5" />
+          </button>
 
-          <div className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2 flex flex-col items-center gap-2">
-            <button
-              type="button"
-              aria-disabled="true"
-              onClick={() => setIsCreateHover(false)}
-              className="pointer-events-auto flex h-11 w-11 items-center justify-center rounded-full border border-border/70 bg-card/80 text-muted-foreground opacity-60 shadow-lg cursor-not-allowed"
-            >
-              <Sparkles className="h-5 w-5" />
-            </button>
-            <span className="rounded-full border border-border/60 bg-card/95 px-3 py-1 text-[10px] uppercase tracking-[0.35em] text-muted-foreground/70 shadow-sm">
-              Dynamic
-            </span>
-          </div>
+          <div
+            className={`absolute left-1/2 top-1/2 h-44 w-44 -translate-x-1/2 -translate-y-1/2 transition-all duration-200 ${
+              isCreateHover
+                ? 'pointer-events-auto scale-100 opacity-100'
+                : 'pointer-events-none scale-90 opacity-0'
+            }`}
+            onMouseEnter={openCreateMenu}
+            onMouseLeave={scheduleCloseCreateMenu}
+          >
+            <div className="absolute inset-0 rounded-full border border-border/50 bg-card/50 shadow-[0_0_30px_rgba(15,23,42,0.12)] backdrop-blur-sm" />
+            <div className="absolute inset-4 rounded-full border border-primary/20" />
 
-          <div className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1/2 flex flex-col items-center gap-2">
-            <button
-              type="button"
-              onClick={() => {
-                handleStartVcard();
-                setIsCreateHover(false);
-              }}
-              className="pointer-events-auto flex h-11 w-11 items-center justify-center rounded-full border border-border/70 bg-card/90 text-primary shadow-lg transition hover:border-primary/60 hover:text-primary"
-            >
-              <User className="h-5 w-5" />
-            </button>
-            <span className="rounded-full border border-border/60 bg-card/95 px-3 py-1 text-[10px] uppercase tracking-[0.35em] text-muted-foreground shadow-sm">
-              Vcard
-            </span>
+            <div className="absolute left-1/2 top-0 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  handleStartStatic();
+                  setIsCreateHover(false);
+                }}
+                className="pointer-events-auto flex h-11 w-11 items-center justify-center rounded-full border border-border/70 bg-card/90 text-primary shadow-lg transition hover:border-primary/60 hover:text-primary"
+              >
+                <LinkIcon className="h-5 w-5" />
+              </button>
+              <span className="rounded-full border border-border/60 bg-card/95 px-3 py-1 text-[10px] uppercase tracking-[0.35em] text-muted-foreground shadow-sm">
+                Static
+              </span>
+            </div>
+
+            <div className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2 flex flex-col items-center gap-2">
+              <button
+                type="button"
+                aria-disabled="true"
+                onClick={() => setIsCreateHover(false)}
+                className="pointer-events-auto flex h-11 w-11 items-center justify-center rounded-full border border-border/70 bg-card/80 text-muted-foreground opacity-60 shadow-lg cursor-not-allowed"
+              >
+                <Sparkles className="h-5 w-5" />
+              </button>
+              <span className="rounded-full border border-border/60 bg-card/95 px-3 py-1 text-[10px] uppercase tracking-[0.35em] text-muted-foreground/70 shadow-sm">
+                Dynamic
+              </span>
+            </div>
+
+            <div className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1/2 flex flex-col items-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  handleStartVcard();
+                  setIsCreateHover(false);
+                }}
+                className="pointer-events-auto flex h-11 w-11 items-center justify-center rounded-full border border-border/70 bg-card/90 text-primary shadow-lg transition hover:border-primary/60 hover:text-primary"
+              >
+                <User className="h-5 w-5" />
+              </button>
+              <span className="rounded-full border border-border/60 bg-card/95 px-3 py-1 text-[10px] uppercase tracking-[0.35em] text-muted-foreground shadow-sm">
+                Vcard
+              </span>
+            </div>
           </div>
         </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -659,20 +687,7 @@ const Index = () => {
                   </div>
                 ))}
               </div>
-              <div className="rounded-xl border border-border/60 bg-secondary/30 p-4">
-                <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Quick Actions</p>
-                <div className="mt-3 flex flex-wrap gap-3">
-                  {['Website QR', 'Virtual Card', 'Campaign Landing'].map((label) => (
-                    <span
-                      key={label}
-                      className="px-3 py-1.5 text-xs uppercase tracking-[0.2em] rounded-full border border-primary/40 text-primary"
-                    >
-                      {label}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            </div>
+      </div>
 
             <div className="glass-panel rounded-2xl p-6 space-y-4">
               <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Studio Guide</p>
@@ -1284,8 +1299,9 @@ const Index = () => {
               <p className="text-xs uppercase tracking-[0.4em] text-muted-foreground">Settings</p>
               <h2 className="text-3xl font-semibold tracking-tight">Preferences</h2>
             </div>
-            <div className="glass-panel rounded-2xl p-6 text-sm text-muted-foreground">
-              Theme, account, and export preferences will live here soon.
+            <div className="glass-panel rounded-2xl p-6 text-sm text-muted-foreground space-y-3">
+              <p>From here you can customize your experience and preferences.</p>
+              <p>Please log in or create an account to unlock settings, exports, and team features.</p>
             </div>
           </section>
         )}
