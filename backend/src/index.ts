@@ -14,7 +14,7 @@ const app = new Hono<AppBindings>()
 const usersService = createUsersService(getUsersStorage())
 const authMiddleware = createAuthMiddleware({
   usersService,
-  publicPaths: ['/r/']
+  publicPaths: ['/health', '/r/']
 })
 app.use('*', authMiddleware)
 
