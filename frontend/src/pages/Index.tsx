@@ -1032,15 +1032,7 @@ const Index = () => {
                     transition={{ duration: 0.25 }}
                     style={{ transformOrigin: `${actionRingOrigin.x}% ${actionRingOrigin.y}%` }}
                   >
-                    <button
-                      type="button"
-                      className="absolute -top-8 right-0 text-xs uppercase tracking-[0.3em] text-muted-foreground transition hover:text-foreground"
-                      onClick={closeCreateMenu}
-                    >
-                      X
-                    </button>
                     <div className="absolute inset-0 rounded-full border border-border/50 bg-card/50 shadow-[0_0_60px_rgba(15,23,42,0.2)] backdrop-blur-sm" />
-                    <div className="absolute inset-6 rounded-full border border-primary/20" />
                     <div className="absolute inset-0 flex items-center justify-center px-8 text-center">
                       <AnimatePresence mode="wait">
                         {actionRingText ? (
@@ -1080,6 +1072,9 @@ const Index = () => {
                         onClick={() => {
                           toast.info('Dynamic QR is coming soon.');
                           setSelectedQuickAction('dynamic');
+                          setQrMode('dynamic');
+                          setQrType('website');
+                          setPendingCreateScroll(true);
                           closeCreateMenu();
                         }}
                         onMouseEnter={() => setActionRingText('Create Dynamic QR Code')}
@@ -2317,7 +2312,7 @@ const Index = () => {
                     <Button
                       size="sm"
                       className={qrMode === 'static'
-                        ? 'bg-card/80 text-foreground border border-border/70 border-b-transparent rounded-t-xl uppercase tracking-[0.2em] text-xs'
+                        ? 'bg-card/80 text-foreground border border-primary/50 border-b-transparent rounded-t-xl uppercase tracking-[0.2em] text-xs shadow-[0_0_14px_rgba(99,102,241,0.18)]'
                         : 'bg-secondary/40 border border-border/60 text-muted-foreground rounded-t-xl uppercase tracking-[0.2em] text-xs hover:text-primary'}
                       onClick={() => {
                         setQrMode('static');
@@ -2330,7 +2325,7 @@ const Index = () => {
                     <Button
                       size="sm"
                       className={qrMode === 'dynamic'
-                        ? 'bg-card/80 text-foreground border border-border/70 border-b-transparent rounded-t-xl uppercase tracking-[0.2em] text-xs'
+                        ? 'bg-card/80 text-foreground border border-primary/50 border-b-transparent rounded-t-xl uppercase tracking-[0.2em] text-xs shadow-[0_0_14px_rgba(99,102,241,0.18)]'
                         : 'bg-secondary/40 border border-border/60 text-muted-foreground rounded-t-xl uppercase tracking-[0.2em] text-xs hover:text-primary'}
                       onClick={() => {
                         setQrMode('dynamic');
