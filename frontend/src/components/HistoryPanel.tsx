@@ -22,19 +22,34 @@ export function HistoryPanel({ onSelect }: HistoryPanelProps) {
 
   const loadHistory = async () => {
     setIsLoading(true);
-    const response = await getQRHistory();
-    if (response.success) {
-      setHistory(response.data);
+    try {
+      const response = await getQRHistory();
+      if (response.success) {
+        setHistory(response.data);
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to load history';
+      if (message.includes('VITE_API_BASE_URL')) {
+        toast.error('API base URL is missing. Add VITE_API_BASE_URL to frontend/.env.local.');
+      } else {
+        toast.error(message);
+      }
+    } finally {
+      setIsLoading(false);
     }
-    setIsLoading(false);
   };
 
   const handleDelete = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    const response = await deleteQRFromHistory(id);
-    if (response.success) {
-      setHistory((prev) => prev.filter((item) => item.id !== id));
-      toast.success('Removed from history');
+    try {
+      const response = await deleteQRFromHistory(id);
+      if (response.success) {
+        setHistory((prev) => prev.filter((item) => item.id !== id));
+        toast.success('Removed from history');
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to delete QR code';
+      toast.error(message);
     }
   };
 
