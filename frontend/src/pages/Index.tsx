@@ -21,6 +21,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { useAuth } from '@/contexts/AuthContext';
 import { generateQR } from '@/lib/api';
 import { QROptions, defaultQROptions } from '@/types/qr';
 import { motion } from 'framer-motion';
@@ -39,7 +40,12 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
+const UPSell_INTERVAL_MS = 30 * 60 * 1000;
+const UPSell_LAST_SHOWN_KEY = 'qr.upsell.lastShownAt';
+const UPSell_SESSION_KEY = 'qr.upsell.sessionShown';
+
 const Index = () => {
+  const { user, loading: authLoading } = useAuth();
   const [options, setOptions] = useState<QROptions>(defaultQROptions);
   const [isGenerating, setIsGenerating] = useState(false);
   const [hasGenerated, setHasGenerated] = useState(false);
@@ -50,12 +56,13 @@ const Index = () => {
   const [websiteUrl, setWebsiteUrl] = useState('');
   const [websiteTouched, setWebsiteTouched] = useState(false);
   const [isBooting, setIsBooting] = useState(true);
-  const [showUpsell, setShowUpsell] = useState(true);
+  const [showUpsell, setShowUpsell] = useState(false);
   const [isCreateHover, setIsCreateHover] = useState(false);
   const [showAnalyticsIntro, setShowAnalyticsIntro] = useState(false);
   const [analyticsSeen, setAnalyticsSeen] = useState(false);
   const [showAccountModal, setShowAccountModal] = useState(false);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
+  const [pendingCreateScroll, setPendingCreateScroll] = useState(false);
   const [accountForm, setAccountForm] = useState({
     username: '',
     firstName: '',
@@ -161,12 +168,61 @@ const Index = () => {
   }, []);
 
   useEffect(() => {
-    if (activeTab !== 'analytics' || analyticsSeen) return;
+    if (authLoading) return;
+    if (user) {
+      setShowUpsell(false);
+      return;
+    }
+
+    const sessionShown = sessionStorage.getItem(UPSell_SESSION_KEY);
+    if (sessionShown) {
+      setShowUpsell(false);
+      return;
+    }
+
+    const lastShownRaw = localStorage.getItem(UPSell_LAST_SHOWN_KEY);
+    const lastShownAt = lastShownRaw ? Number(lastShownRaw) : 0;
+    const now = Date.now();
+
+    if (!lastShownAt || now - lastShownAt >= UPSell_INTERVAL_MS) {
+      setShowUpsell(true);
+      sessionStorage.setItem(UPSell_SESSION_KEY, 'true');
+      localStorage.setItem(UPSell_LAST_SHOWN_KEY, String(now));
+    } else {
+      setShowUpsell(false);
+    }
+  }, [authLoading, user]);
+
+  useEffect(() => {
+    if (activeTab !== 'analytics') {
+      setShowAnalyticsIntro(false);
+      return;
+    }
+
+    if (analyticsSeen) {
+      setShowAnalyticsIntro(false);
+      return;
+    }
+
     setShowAnalyticsIntro(true);
-    setAnalyticsSeen(true);
-    const timer = window.setTimeout(() => setShowAnalyticsIntro(false), 1100);
+    const timer = window.setTimeout(() => {
+      setShowAnalyticsIntro(false);
+      setAnalyticsSeen(true);
+    }, 1100);
     return () => window.clearTimeout(timer);
   }, [activeTab, analyticsSeen]);
+
+  useEffect(() => {
+    if (!pendingCreateScroll) return;
+    if (activeTab !== 'studio') return;
+
+    const timer = window.setTimeout(() => {
+      createSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 50);
+
+    setPendingCreateScroll(false);
+    return () => window.clearTimeout(timer);
+  }, [activeTab, pendingCreateScroll]);
 
   const handleGenerate = async () => {
     if (!canGenerate) {
@@ -229,8 +285,17 @@ const Index = () => {
 
   const handleStartStatic = () => {
     setQrMode('static');
+    setQrType('website');
     setActiveTab('studio');
-    createSectionRef.current?.scrollIntoView({ behavior: 'smooth' });
+    setWebsiteTouched(false);
+    setPendingCreateScroll(true);
+  };
+
+  const handleStartVcard = () => {
+    setQrMode('static');
+    setQrType('vcard');
+    setActiveTab('studio');
+    setPendingCreateScroll(true);
   };
 
   const handleCopyUrl = async () => {
@@ -253,7 +318,7 @@ const Index = () => {
     <div
       className={`relative z-[60] group flex items-center gap-3 ${
         align === 'right' ? 'ml-auto' : ''
-      } after:absolute after:left-1/2 after:top-1/2 after:h-36 after:w-36 after:-translate-x-1/2 after:-translate-y-1/2 after:content-['']`}
+      }`}
       onMouseEnter={() => setIsCreateHover(true)}
       onMouseLeave={() => setIsCreateHover(false)}
       onFocus={() => setIsCreateHover(true)}
@@ -266,43 +331,64 @@ const Index = () => {
       <button
         type="button"
         aria-label="Create new QR code"
-        className="flex h-12 w-12 items-center justify-center rounded-full border border-border/60 bg-card/80 text-primary shadow-sm transition hover:border-primary/50 hover:bg-card/90 hover:shadow-lg"
+        className="relative z-10 flex h-12 w-12 items-center justify-center rounded-full border border-border/60 bg-card/80 text-primary shadow-sm transition hover:border-primary/50 hover:bg-card/90 hover:shadow-lg"
+        onClick={() => {
+          handleStartStatic();
+          setIsCreateHover(false);
+        }}
       >
         <Plus className="h-5 w-5" />
       </button>
 
-      <div className="pointer-events-none absolute inset-0 opacity-0 transition group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100">
-        <button
-          type="button"
-          onClick={() => {
-            handleStartStatic();
-            setIsCreateHover(false);
-          }}
-          className="absolute left-1/2 top-0 -translate-x-1/2 flex h-11 w-11 items-center justify-center rounded-full border border-border/60 bg-card/90 text-[10px] uppercase tracking-[0.35em] text-foreground shadow-lg backdrop-blur transition hover:border-primary/60 hover:text-primary"
-        >
-          Static
-        </button>
-        <button
-          type="button"
-          aria-disabled="true"
-          onClick={() => setIsCreateHover(false)}
-          className="absolute right-0 top-1/2 -translate-y-1/2 flex h-11 w-11 items-center justify-center rounded-full border border-border/60 bg-card/80 text-[10px] uppercase tracking-[0.35em] text-muted-foreground opacity-60 shadow-lg backdrop-blur cursor-not-allowed"
-        >
-          Dynamic
-        </button>
-        <button
-          type="button"
-          onClick={() => {
-            setQrMode('static');
-            setQrType('vcard');
-            setActiveTab('studio');
-            createSectionRef.current?.scrollIntoView({ behavior: 'smooth' });
-            setIsCreateHover(false);
-          }}
-          className="absolute left-0 top-1/2 -translate-y-1/2 flex h-11 w-11 items-center justify-center rounded-full border border-border/60 bg-card/90 text-[10px] uppercase tracking-[0.35em] text-foreground shadow-lg backdrop-blur transition hover:border-primary/60 hover:text-primary"
-        >
-          Vcard
-        </button>
+      <div className="pointer-events-none absolute left-1/2 top-1/2 h-44 w-44 -translate-x-1/2 -translate-y-1/2 scale-90 opacity-0 transition-all duration-200 group-hover:scale-100 group-hover:opacity-100 group-focus-within:scale-100 group-focus-within:opacity-100">
+        <div className="absolute inset-0 rounded-full border border-border/50 bg-card/50 shadow-[0_0_30px_rgba(15,23,42,0.12)] backdrop-blur-sm" />
+        <div className="absolute inset-4 rounded-full border border-primary/20" />
+
+        <div className="absolute left-1/2 top-0 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center gap-2">
+          <button
+            type="button"
+            onClick={() => {
+              handleStartStatic();
+              setIsCreateHover(false);
+            }}
+            className="pointer-events-auto flex h-11 w-11 items-center justify-center rounded-full border border-border/70 bg-card/90 text-primary shadow-lg transition hover:border-primary/60 hover:text-primary"
+          >
+            <LinkIcon className="h-5 w-5" />
+          </button>
+          <span className="rounded-full border border-border/60 bg-card/95 px-3 py-1 text-[10px] uppercase tracking-[0.35em] text-muted-foreground shadow-sm">
+            Static
+          </span>
+        </div>
+
+        <div className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2 flex flex-col items-center gap-2">
+          <button
+            type="button"
+            aria-disabled="true"
+            onClick={() => setIsCreateHover(false)}
+            className="pointer-events-auto flex h-11 w-11 items-center justify-center rounded-full border border-border/70 bg-card/80 text-muted-foreground opacity-60 shadow-lg cursor-not-allowed"
+          >
+            <Sparkles className="h-5 w-5" />
+          </button>
+          <span className="rounded-full border border-border/60 bg-card/95 px-3 py-1 text-[10px] uppercase tracking-[0.35em] text-muted-foreground/70 shadow-sm">
+            Dynamic
+          </span>
+        </div>
+
+        <div className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1/2 flex flex-col items-center gap-2">
+          <button
+            type="button"
+            onClick={() => {
+              handleStartVcard();
+              setIsCreateHover(false);
+            }}
+            className="pointer-events-auto flex h-11 w-11 items-center justify-center rounded-full border border-border/70 bg-card/90 text-primary shadow-lg transition hover:border-primary/60 hover:text-primary"
+          >
+            <User className="h-5 w-5" />
+          </button>
+          <span className="rounded-full border border-border/60 bg-card/95 px-3 py-1 text-[10px] uppercase tracking-[0.35em] text-muted-foreground shadow-sm">
+            Vcard
+          </span>
+        </div>
       </div>
     </div>
   );
@@ -548,9 +634,9 @@ const Index = () => {
               </div>
               <div className="grid sm:grid-cols-3 gap-4">
                 {[
-                  { label: 'Total Codes', value: '24' },
-                  { label: 'Scans Today', value: '128' },
-                  { label: 'Dynamic Live', value: '03' },
+                  { label: 'Total Codes', value: '0' },
+                  { label: 'Scans Today', value: '0' },
+                  { label: 'Dynamic Live', value: '0' },
                 ].map((item) => (
                   <div key={item.label} className="rounded-xl border border-border/60 bg-secondary/40 p-4">
                     <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">{item.label}</p>
@@ -1078,9 +1164,9 @@ const Index = () => {
 
                   <div className="grid sm:grid-cols-3 gap-4">
                     {[
-                      { label: 'Scan Count', value: '1,284' },
-                      { label: 'Unique Users', value: '894' },
-                      { label: 'Avg. Daily', value: '86' },
+                      { label: 'Scan Count', value: '0' },
+                      { label: 'Unique Users', value: '0' },
+                      { label: 'Avg. Daily', value: '0' },
                     ].map((item) => (
                       <div key={item.label} className="rounded-xl border border-border/60 bg-secondary/30 p-4">
                         <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">{item.label}</p>
@@ -1092,7 +1178,7 @@ const Index = () => {
                   <div>
                     <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground mb-3">Scans over time</p>
                     <div className="flex items-end gap-2 h-32">
-                      {[24, 38, 56, 44, 68, 84, 72, 96].map((value, index) => (
+                      {[0, 0, 0, 0, 0, 0, 0, 0].map((value, index) => (
                         <div
                           key={`${value}-${index}`}
                           className="flex-1 rounded-full bg-gradient-to-t from-primary/30 to-primary/80"
@@ -1108,15 +1194,15 @@ const Index = () => {
                       <div className="mt-3 space-y-2 text-sm">
                         <div className="flex items-center justify-between">
                           <span>iOS</span>
-                          <span className="text-primary">52%</span>
+                          <span className="text-primary">0%</span>
                         </div>
                         <div className="flex items-center justify-between">
                           <span>Android</span>
-                          <span className="text-primary">37%</span>
+                          <span className="text-primary">0%</span>
                         </div>
                         <div className="flex items-center justify-between">
                           <span>Desktop</span>
-                          <span className="text-primary">11%</span>
+                          <span className="text-primary">0%</span>
                         </div>
                       </div>
                     </div>
@@ -1125,15 +1211,15 @@ const Index = () => {
                       <div className="mt-3 space-y-2 text-sm">
                         <div className="flex items-center justify-between">
                           <span>San Juan, PR</span>
-                          <span className="text-primary">#1</span>
+                          <span className="text-primary">0</span>
                         </div>
                         <div className="flex items-center justify-between">
                           <span>Brooklyn, NYC</span>
-                          <span className="text-primary">#2</span>
+                          <span className="text-primary">0</span>
                         </div>
                         <div className="flex items-center justify-between">
                           <span>Miami, FL</span>
-                          <span className="text-primary">#3</span>
+                          <span className="text-primary">0</span>
                         </div>
                       </div>
                     </div>
