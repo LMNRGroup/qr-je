@@ -218,9 +218,8 @@ const Index = () => {
 
     const timer = window.setTimeout(() => {
       createSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      setPendingCreateScroll(false);
     }, 50);
-
-    setPendingCreateScroll(false);
     return () => window.clearTimeout(timer);
   }, [activeTab, pendingCreateScroll]);
 
