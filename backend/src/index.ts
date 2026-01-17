@@ -1,4 +1,5 @@
 import { Hono } from 'hono'
+import { cors } from 'hono/cors'
 
 import { registerUrlsRoutes } from './domains/urls/routes'
 import { createUrlsService } from './domains/urls/service'
@@ -10,6 +11,16 @@ import { createAuthMiddleware } from './shared/http/auth'
 import type { AppBindings } from './shared/http/types'
 
 const app = new Hono<AppBindings>()
+
+app.use(
+  '*',
+  cors({
+    origin: '*',
+    allowMethods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowHeaders: ['Content-Type', 'Authorization']
+  })
+)
+app.options('*', (c) => c.text('', 204))
 
 const usersService = createUsersService(getUsersStorage())
 const authMiddleware = createAuthMiddleware({
