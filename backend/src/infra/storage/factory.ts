@@ -8,10 +8,14 @@ import { UsersStorage } from '../../domains/users/storage/interface'
 import { InMemoryVcardsStorageAdapter } from '../../domains/vcards/storage/memory.adapter'
 import { SupabaseVcardsStorageAdapter } from '../../domains/vcards/storage/supabase.adapter'
 import { VcardsStorage } from '../../domains/vcards/storage/interface'
+import { InMemoryBillingStorageAdapter } from '../../domains/billing/storage/memory.adapter'
+import { SupabaseBillingStorageAdapter } from '../../domains/billing/storage/supabase.adapter'
+import { BillingStorage } from '../../domains/billing/storage/interface'
 
 let urlsStorage: UrlsStorage | null = null
 let usersStorage: UsersStorage | null = null
 let vcardsStorage: VcardsStorage | null = null
+let billingStorage: BillingStorage | null = null
 
 const shouldUseSupabase = () => Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY)
 
@@ -62,4 +66,15 @@ export const getVcardsStorage = () => {
   }
 
   return vcardsStorage
+}
+
+export const getBillingStorage = () => {
+  if (!billingStorage) {
+    billingStorage = shouldUseSupabase()
+      ? new SupabaseBillingStorageAdapter()
+      : new InMemoryBillingStorageAdapter()
+    logStorageChoice('billing', shouldUseSupabase() ? 'supabase' : 'memory')
+  }
+
+  return billingStorage
 }
