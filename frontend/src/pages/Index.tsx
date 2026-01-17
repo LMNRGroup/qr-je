@@ -55,7 +55,7 @@ const Index = () => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [hasGenerated, setHasGenerated] = useState(false);
   const [lastGeneratedContent, setLastGeneratedContent] = useState('');
-  const [activeTab, setActiveTab] = useState<'studio' | 'codes' | 'analytics' | 'settings' | 'upgrade'>('studio');
+  const [activeTab, setActiveTab] = useState<'studio' | 'codes' | 'analytics' | 'settings' | 'upgrade' | 'adaptive'>('studio');
   const [qrMode, setQrMode] = useState<'static' | 'dynamic' | null>(null);
   const [qrType, setQrType] = useState<'website' | 'vcard' | 'email' | 'phone' | null>(null);
   const [websiteUrl, setWebsiteUrl] = useState('');
@@ -108,6 +108,50 @@ const Index = () => {
     photoX: 50,
     photoY: 50,
   });
+  const [adaptiveSlotCount, setAdaptiveSlotCount] = useState(2);
+  const [adaptiveSlots, setAdaptiveSlots] = useState([
+    {
+      id: 'A',
+      name: 'Morning Menu',
+      type: 'url',
+      url: 'https://qrcode.luminarapps.com/menu-morning',
+      note: 'Breakfast lineup',
+    },
+    {
+      id: 'B',
+      name: 'Weekend Promo',
+      type: 'url',
+      url: 'https://qrcode.luminarapps.com/weekend-promo',
+      note: 'Weekend specials',
+    },
+    {
+      id: 'C',
+      name: 'Staff View',
+      type: 'url',
+      url: 'https://qrcode.luminarapps.com/staff',
+      note: 'Internal staff dashboard',
+    },
+  ]);
+  const [adaptiveDateRulesEnabled, setAdaptiveDateRulesEnabled] = useState(true);
+  const [adaptiveDateRules, setAdaptiveDateRules] = useState([
+    {
+      id: crypto.randomUUID(),
+      slot: 'A',
+      startDate: '',
+      endDate: '',
+      startTime: '08:00',
+      endTime: '12:00',
+      days: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'],
+    },
+  ]);
+  const [adaptiveDefaultSlot, setAdaptiveDefaultSlot] = useState<'A' | 'B' | 'C'>('B');
+  const [adaptiveFirstReturnEnabled, setAdaptiveFirstReturnEnabled] = useState(true);
+  const [adaptiveFirstSlot, setAdaptiveFirstSlot] = useState<'A' | 'B' | 'C'>('A');
+  const [adaptiveReturnSlot, setAdaptiveReturnSlot] = useState<'A' | 'B' | 'C'>('B');
+  const [adaptiveAdminEnabled, setAdaptiveAdminEnabled] = useState(false);
+  const [adaptiveAdminSlot, setAdaptiveAdminSlot] = useState<'A' | 'B' | 'C'>('C');
+  const [adaptiveAdminIps, setAdaptiveAdminIps] = useState<string[]>(['192.168.1.24']);
+  const [adaptiveAdminIpInput, setAdaptiveAdminIpInput] = useState('');
   const qrRef = useRef<QRPreviewHandle>(null);
   const createSectionRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
@@ -500,6 +544,79 @@ const Index = () => {
       ? makeVcardGradient(vcardStyle.backColor, vcardStyle.backGradient)
       : vcardStyle.backColor,
   } as const;
+
+  const adaptiveGradientText = 'bg-gradient-to-r from-amber-200 via-yellow-400 to-amber-500 text-transparent bg-clip-text';
+  const adaptiveGlowText = 'font-semibold text-transparent bg-clip-text bg-gradient-to-r from-amber-200 via-yellow-400 to-amber-500 drop-shadow-[0_0_10px_rgba(251,191,36,0.35)]';
+  const adaptiveSlotsVisible = adaptiveSlots.slice(0, adaptiveSlotCount);
+  const adaptiveNowSlot = adaptiveDateRulesEnabled ? adaptiveDateRules[0]?.slot ?? adaptiveDefaultSlot : adaptiveDefaultSlot;
+  const adaptiveReturningSlot = adaptiveFirstReturnEnabled ? adaptiveReturnSlot : adaptiveDefaultSlot;
+  const adaptiveAdminPreviewSlot = adaptiveAdminEnabled ? adaptiveAdminSlot : adaptiveDefaultSlot;
+
+  const handleAdaptiveSlotChange = (id: string, field: 'name' | 'type' | 'url' | 'note', value: string) => {
+    setAdaptiveSlots((prev) =>
+      prev.map((slot) => (slot.id === id ? { ...slot, [field]: value } : slot))
+    );
+  };
+
+  const handleAdaptiveRuleChange = (
+    id: string,
+    field: 'slot' | 'startDate' | 'endDate' | 'startTime' | 'endTime' | 'days',
+    value: string | string[]
+  ) => {
+    setAdaptiveDateRules((prev) =>
+      prev.map((rule) => (rule.id === id ? { ...rule, [field]: value } : rule))
+    );
+  };
+
+  const handleAdaptiveDayToggle = (ruleId: string, day: string) => {
+    setAdaptiveDateRules((prev) =>
+      prev.map((rule) => {
+        if (rule.id !== ruleId) return rule;
+        const days = rule.days.includes(day)
+          ? rule.days.filter((entry) => entry !== day)
+          : [...rule.days, day];
+        return { ...rule, days };
+      })
+    );
+  };
+
+  const handleAddAdaptiveRule = () => {
+    setAdaptiveDateRules((prev) => [
+      ...prev,
+      {
+        id: crypto.randomUUID(),
+        slot: adaptiveDefaultSlot,
+        startDate: '',
+        endDate: '',
+        startTime: '12:00',
+        endTime: '18:00',
+        days: [],
+      },
+    ]);
+  };
+
+  const handleRemoveAdaptiveRule = (id: string) => {
+    setAdaptiveDateRules((prev) => prev.filter((rule) => rule.id !== id));
+  };
+
+  const handleAddAdaptiveIp = () => {
+    const value = adaptiveAdminIpInput.trim();
+    if (!value) return;
+    if (!adaptiveAdminIps.includes(value)) {
+      setAdaptiveAdminIps((prev) => [...prev, value]);
+    }
+    setAdaptiveAdminIpInput('');
+  };
+
+  const handleAdaptiveMockOpen = () => {
+    setAdaptiveSlotCount(3);
+    setAdaptiveDefaultSlot('B');
+    setAdaptiveFirstReturnEnabled(true);
+    setAdaptiveAdminEnabled(true);
+    setAdaptiveAdminIps(['10.0.0.24', '192.168.1.24']);
+    setActiveTab('adaptive');
+    setPendingCreateScroll(false);
+  };
 
   const CreateMenu = ({
     align = 'center',
@@ -1211,10 +1328,12 @@ const Index = () => {
               { id: 'studio', label: 'Studio' },
               { id: 'codes', label: 'Arsenal' },
               { id: 'analytics', label: 'Intel' },
-              { id: 'settings', label: 'Config' },
-              { id: 'upgrade', label: 'Upgrade' },
+              { id: 'settings', label: 'Loadout' },
+              { id: 'adaptive', label: 'Adaptive' },
+              { id: 'upgrade', label: 'Upgrade Loadout' },
             ].map((item) => {
               const isActive = activeTab === item.id;
+              const isAdaptive = item.id === 'adaptive';
               return (
                 <button
                   key={item.id}
@@ -1224,9 +1343,16 @@ const Index = () => {
                     isActive
                       ? 'text-foreground before:opacity-100'
                       : 'text-muted-foreground hover:text-foreground hover:before:opacity-80'
-                  }`}
+                  } ${isAdaptive ? 'font-semibold' : ''}`}
                 >
-                  {item.label}
+                  {isAdaptive ? (
+                    <span className="inline-flex items-center gap-2">
+                      <Star className="h-3.5 w-3.5 text-amber-300 fill-amber-300 drop-shadow-[0_0_6px_rgba(251,191,36,0.45)]" />
+                      <span className={adaptiveGlowText}>Adaptive</span>
+                    </span>
+                  ) : (
+                    item.label
+                  )}
                 </button>
               );
             })}
@@ -1845,6 +1971,29 @@ const Index = () => {
               <p className="text-xs uppercase tracking-[0.4em] text-muted-foreground">Arsenal</p>
               <h2 className="text-3xl font-semibold tracking-tight">Your QR Arsenal</h2>
             </div>
+            <div className="grid gap-4 md:grid-cols-2">
+              <button
+                type="button"
+                onClick={handleAdaptiveMockOpen}
+                className="group text-left rounded-2xl border border-amber-400/60 bg-secondary/20 p-4 shadow-[0_0_20px_rgba(251,191,36,0.15)] transition hover:border-amber-300"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="inline-flex items-center gap-2 text-xs uppercase tracking-[0.3em]">
+                    <Star className="h-4 w-4 fill-amber-300 text-amber-300" />
+                    <span className={adaptiveGradientText}>Adaptive QRC™</span>
+                  </span>
+                  <span className="rounded-full border border-amber-300/50 px-2 py-1 text-[10px] uppercase tracking-[0.3em] text-amber-200">
+                    Adaptive
+                  </span>
+                </div>
+                <p className="mt-3 text-sm font-semibold text-foreground">
+                  <span className={adaptiveGradientText}>Adaptive QRC™</span> · Lunch Routing
+                </p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Routes by time, returning visitors, and admin IPs.
+                </p>
+              </button>
+            </div>
             {!hasGenerated ? (
               <div className="glass-panel rounded-2xl p-8 text-center space-y-4">
                 <p className="text-sm text-muted-foreground">No QR codes yet.</p>
@@ -1987,9 +2136,9 @@ const Index = () => {
         )}
 
         {activeTab === 'settings' && (
-          <section id="config" className="space-y-6">
+          <section id="loadout" className="space-y-6">
             <div>
-              <p className="text-xs uppercase tracking-[0.4em] text-muted-foreground">Config</p>
+              <p className="text-xs uppercase tracking-[0.4em] text-muted-foreground">Loadout</p>
               <h2 className="text-3xl font-semibold tracking-tight">Preferences</h2>
             </div>
             <div className="glass-panel rounded-2xl p-6 text-sm text-muted-foreground space-y-4">
@@ -2145,6 +2294,431 @@ const Index = () => {
                   ))}
                 </tbody>
               </table>
+            </div>
+          </section>
+        )}
+
+        {activeTab === 'adaptive' && (
+          <section id="adaptive" className="space-y-10">
+            <div className="text-center space-y-4">
+              <p className="text-xs uppercase tracking-[0.4em] text-muted-foreground">Adaptive</p>
+              <h2 className={`text-4xl sm:text-5xl font-semibold tracking-tight ${adaptiveGradientText}`}>
+                Adaptive QRC™
+              </h2>
+              <p className={`text-xs uppercase tracking-[0.3em] ${adaptiveGradientText}`}>
+                Adaptive QRC™ Studio
+              </p>
+              <p className="text-sm text-muted-foreground max-w-2xl mx-auto">
+                QR Codes, reimagined. <span className={adaptiveGradientText}>Adaptive QRC™</span> lets you change what a code shows based on time, date,
+                and who’s scanning — the future of dynamic QR.
+              </p>
+              <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">
+                Add <span className={adaptiveGradientText}>Adaptive QRC™</span> to your ARSENAL (Pro Plan recommended).
+              </p>
+            </div>
+
+            <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
+              <div className="glass-panel rounded-2xl p-6 space-y-8">
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-lg font-semibold">Content Slots</h3>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="border-border text-xs uppercase tracking-[0.2em]"
+                        onClick={() => setAdaptiveSlotCount((prev) => Math.min(prev + 1, 3))}
+                        disabled={adaptiveSlotCount >= 3}
+                      >
+                        Add Slot
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-xs uppercase tracking-[0.2em]"
+                        onClick={() => setAdaptiveSlotCount((prev) => Math.max(prev - 1, 1))}
+                        disabled={adaptiveSlotCount <= 1}
+                      >
+                        Remove
+                      </Button>
+                    </div>
+                  </div>
+                  <div className="space-y-4">
+                    {adaptiveSlotsVisible.map((slot) => (
+                      <div key={slot.id} className="rounded-2xl border border-border/60 bg-secondary/20 p-4 space-y-3">
+                        <div className="flex items-center justify-between">
+                          <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">
+                            Slot {slot.id}
+                          </p>
+                          <span className={`text-[10px] uppercase tracking-[0.3em] ${adaptiveGradientText}`}>
+                            Adaptive QRC™
+                          </span>
+                        </div>
+                        <Input
+                          value={slot.name}
+                          onChange={(event) =>
+                            handleAdaptiveSlotChange(slot.id, 'name', event.target.value)
+                          }
+                          placeholder="Slot name"
+                          className="bg-secondary/40 border-border"
+                        />
+                        <div className="grid gap-3 sm:grid-cols-[140px_1fr]">
+                          <select
+                            className="h-11 rounded-xl border border-border bg-secondary/40 px-3 text-sm"
+                            value={slot.type}
+                            onChange={(event) =>
+                              handleAdaptiveSlotChange(slot.id, 'type', event.target.value)
+                            }
+                          >
+                            <option value="url">URL</option>
+                          </select>
+                          <Input
+                            value={slot.url}
+                            onChange={(event) =>
+                              handleAdaptiveSlotChange(slot.id, 'url', event.target.value)
+                            }
+                            placeholder="https://"
+                            className="bg-secondary/40 border-border"
+                          />
+                        </div>
+                        <Input
+                          value={slot.note}
+                          onChange={(event) =>
+                            handleAdaptiveSlotChange(slot.id, 'note', event.target.value)
+                          }
+                          placeholder="Optional label or note"
+                          className="bg-secondary/40 border-border"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-lg font-semibold">Rules</h3>
+                    <span className="text-xs uppercase tracking-[0.3em] text-muted-foreground">
+                      Routing logic
+                    </span>
+                  </div>
+
+                  <div className="rounded-2xl border border-border/60 bg-secondary/20 p-4 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-semibold">Use Date/Time Rules</p>
+                        <p className="text-xs text-muted-foreground">
+                          Route by date ranges, days, and time windows.
+                        </p>
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={adaptiveDateRulesEnabled}
+                        onChange={(event) => setAdaptiveDateRulesEnabled(event.target.checked)}
+                        className="accent-primary"
+                      />
+                    </div>
+                    {adaptiveDateRulesEnabled && (
+                      <div className="space-y-4">
+                        {adaptiveDateRules.map((rule) => (
+                          <div key={rule.id} className="rounded-xl border border-border/60 bg-background/30 p-4 space-y-3">
+                            <div className="flex items-center justify-between">
+                              <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">
+                                Date Rule
+                              </p>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="text-xs uppercase tracking-[0.2em]"
+                                onClick={() => handleRemoveAdaptiveRule(rule.id)}
+                                disabled={adaptiveDateRules.length === 1}
+                              >
+                                Remove
+                              </Button>
+                            </div>
+                            <div className="grid gap-3 sm:grid-cols-2">
+                              <div className="space-y-2">
+                                <label className="text-[11px] uppercase tracking-[0.3em] text-muted-foreground">
+                                  Start Date
+                                </label>
+                                <Input
+                                  type="date"
+                                  value={rule.startDate}
+                                  onChange={(event) =>
+                                    handleAdaptiveRuleChange(rule.id, 'startDate', event.target.value)
+                                  }
+                                  className="bg-secondary/40 border-border"
+                                />
+                              </div>
+                              <div className="space-y-2">
+                                <label className="text-[11px] uppercase tracking-[0.3em] text-muted-foreground">
+                                  End Date
+                                </label>
+                                <Input
+                                  type="date"
+                                  value={rule.endDate}
+                                  onChange={(event) =>
+                                    handleAdaptiveRuleChange(rule.id, 'endDate', event.target.value)
+                                  }
+                                  className="bg-secondary/40 border-border"
+                                />
+                              </div>
+                            </div>
+                            <div className="grid gap-3 sm:grid-cols-2">
+                              <div className="space-y-2">
+                                <label className="text-[11px] uppercase tracking-[0.3em] text-muted-foreground">
+                                  Start Time
+                                </label>
+                                <Input
+                                  type="time"
+                                  value={rule.startTime}
+                                  onChange={(event) =>
+                                    handleAdaptiveRuleChange(rule.id, 'startTime', event.target.value)
+                                  }
+                                  className="bg-secondary/40 border-border"
+                                />
+                              </div>
+                              <div className="space-y-2">
+                                <label className="text-[11px] uppercase tracking-[0.3em] text-muted-foreground">
+                                  End Time
+                                </label>
+                                <Input
+                                  type="time"
+                                  value={rule.endTime}
+                                  onChange={(event) =>
+                                    handleAdaptiveRuleChange(rule.id, 'endTime', event.target.value)
+                                  }
+                                  className="bg-secondary/40 border-border"
+                                />
+                              </div>
+                            </div>
+                            <div className="space-y-2">
+                              <label className="text-[11px] uppercase tracking-[0.3em] text-muted-foreground">
+                                Days of Week
+                              </label>
+                              <div className="flex flex-wrap gap-2">
+                                {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day) => (
+                                  <button
+                                    key={day}
+                                    type="button"
+                                    onClick={() => handleAdaptiveDayToggle(rule.id, day)}
+                                    className={`rounded-full border px-3 py-1 text-[11px] uppercase tracking-[0.3em] ${
+                                      rule.days.includes(day)
+                                        ? 'border-amber-300/70 text-amber-200 bg-amber-400/10'
+                                        : 'border-border/60 text-muted-foreground'
+                                    }`}
+                                  >
+                                    {day}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                            <div className="space-y-2">
+                              <label className="text-[11px] uppercase tracking-[0.3em] text-muted-foreground">
+                                Route to Slot
+                              </label>
+                              <select
+                                className="h-11 w-full rounded-xl border border-border bg-secondary/40 px-3 text-sm"
+                                value={rule.slot}
+                                onChange={(event) =>
+                                  handleAdaptiveRuleChange(rule.id, 'slot', event.target.value)
+                                }
+                              >
+                                {adaptiveSlotsVisible.map((slot) => (
+                                  <option key={slot.id} value={slot.id}>
+                                    Slot {slot.id}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                          </div>
+                        ))}
+                        <Button
+                          variant="outline"
+                          className="border-border text-xs uppercase tracking-[0.2em]"
+                          onClick={handleAddAdaptiveRule}
+                        >
+                          Add Date Rule
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="rounded-2xl border border-border/60 bg-secondary/20 p-4 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-semibold">First Scan vs Returning</p>
+                        <p className="text-xs text-muted-foreground">
+                          We remember returning visitors using a privacy-friendly device token.
+                        </p>
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={adaptiveFirstReturnEnabled}
+                        onChange={(event) => setAdaptiveFirstReturnEnabled(event.target.checked)}
+                        className="accent-primary"
+                      />
+                    </div>
+                    {adaptiveFirstReturnEnabled && (
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        <div className="space-y-2">
+                          <label className="text-[11px] uppercase tracking-[0.3em] text-muted-foreground">
+                            First Scan
+                          </label>
+                          <select
+                            className="h-11 w-full rounded-xl border border-border bg-secondary/40 px-3 text-sm"
+                            value={adaptiveFirstSlot}
+                            onChange={(event) => setAdaptiveFirstSlot(event.target.value as 'A' | 'B' | 'C')}
+                          >
+                            {adaptiveSlotsVisible.map((slot) => (
+                              <option key={slot.id} value={slot.id}>
+                                Slot {slot.id}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        <div className="space-y-2">
+                          <label className="text-[11px] uppercase tracking-[0.3em] text-muted-foreground">
+                            Returning
+                          </label>
+                          <select
+                            className="h-11 w-full rounded-xl border border-border bg-secondary/40 px-3 text-sm"
+                            value={adaptiveReturnSlot}
+                            onChange={(event) => setAdaptiveReturnSlot(event.target.value as 'A' | 'B' | 'C')}
+                          >
+                            {adaptiveSlotsVisible.map((slot) => (
+                              <option key={slot.id} value={slot.id}>
+                                Slot {slot.id}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="rounded-2xl border border-border/60 bg-secondary/20 p-4 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-semibold">Authorized Admin IPs</p>
+                        <p className="text-xs text-muted-foreground">
+                          Prioritize admin scans for internal routing.
+                        </p>
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={adaptiveAdminEnabled}
+                        onChange={(event) => setAdaptiveAdminEnabled(event.target.checked)}
+                        className="accent-primary"
+                      />
+                    </div>
+                    {adaptiveAdminEnabled && (
+                      <div className="space-y-3">
+                        <div className="flex flex-col sm:flex-row gap-3">
+                          <Input
+                            value={adaptiveAdminIpInput}
+                            onChange={(event) => setAdaptiveAdminIpInput(event.target.value)}
+                            placeholder="Add IP address"
+                            className="bg-secondary/40 border-border"
+                          />
+                          <Button
+                            variant="outline"
+                            className="border-border text-xs uppercase tracking-[0.2em]"
+                            onClick={handleAddAdaptiveIp}
+                          >
+                            Add IP
+                          </Button>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          {adaptiveAdminIps.map((ip) => (
+                            <span
+                              key={ip}
+                              className="rounded-full border border-border/60 px-3 py-1 text-[11px] uppercase tracking-[0.3em] text-muted-foreground"
+                            >
+                              {ip}
+                            </span>
+                          ))}
+                        </div>
+                        <div className="space-y-2">
+                          <label className="text-[11px] uppercase tracking-[0.3em] text-muted-foreground">
+                            Admin Slot
+                          </label>
+                          <select
+                            className="h-11 w-full rounded-xl border border-border bg-secondary/40 px-3 text-sm"
+                            value={adaptiveAdminSlot}
+                            onChange={(event) => setAdaptiveAdminSlot(event.target.value as 'A' | 'B' | 'C')}
+                          >
+                            {adaptiveSlotsVisible.map((slot) => (
+                              <option key={slot.id} value={slot.id}>
+                                Slot {slot.id}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="rounded-2xl border border-border/60 bg-secondary/20 p-4 space-y-3">
+                    <p className="text-sm font-semibold">Rule Priority</p>
+                    <p className="text-xs text-muted-foreground">How it works</p>
+                    <ul className="text-xs text-muted-foreground space-y-2">
+                      <li>1. Authorized Admin IPs</li>
+                      <li>2. First-time vs Returning</li>
+                      <li>3. Date/Time Rules</li>
+                      <li>4. Default Slot fallback</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-6">
+                <div className="glass-panel rounded-2xl p-6 space-y-4">
+                  <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Default Slot</p>
+                  <select
+                    className="h-12 w-full rounded-xl border border-border bg-secondary/40 px-3 text-sm"
+                    value={adaptiveDefaultSlot}
+                    onChange={(event) => setAdaptiveDefaultSlot(event.target.value as 'A' | 'B' | 'C')}
+                  >
+                    {adaptiveSlotsVisible.map((slot) => (
+                      <option key={slot.id} value={slot.id}>
+                        Slot {slot.id}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="glass-panel rounded-2xl p-6 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <p className={`text-xs uppercase tracking-[0.3em] ${adaptiveGradientText}`}>
+                      Adaptive QRC™
+                    </p>
+                    <span className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground">
+                      Preview
+                    </span>
+                  </div>
+                  <div className="space-y-2 text-sm text-muted-foreground">
+                    <p>If scanned now: <span className="text-foreground font-semibold">Slot {adaptiveNowSlot}</span></p>
+                    <p>If scanned by returning visitor: <span className="text-foreground font-semibold">Slot {adaptiveReturningSlot}</span></p>
+                    <p>If scanned from authorized IP: <span className="text-foreground font-semibold">Slot {adaptiveAdminPreviewSlot}</span></p>
+                  </div>
+                </div>
+
+                <div className="glass-panel rounded-2xl p-6 space-y-3">
+                  <Button
+                    className="w-full bg-gradient-primary text-primary-foreground uppercase tracking-[0.2em] text-xs"
+                    onClick={() => toast.success('Adaptive QRC™ saved (mock).')}
+                  >
+                    Save <span className={adaptiveGradientText}>Adaptive QRC™</span>
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="w-full border-border uppercase tracking-[0.2em] text-xs"
+                    onClick={() => toast.info('Preview routing loaded (mock).')}
+                  >
+                    Preview Routing
+                  </Button>
+                </div>
+              </div>
             </div>
           </section>
         )}
