@@ -12,6 +12,10 @@ export class InMemoryUrlsStorageAdapter implements UrlsStorage {
     return this.records.get(this.keyFor(id, random)) ?? null
   }
 
+  async getById(id: string) {
+    return Array.from(this.records.values()).find((url) => url.id === id) ?? null
+  }
+
   async existsById(id: string) {
     return Array.from(this.records.values()).some((url) => url.id === id)
   }
@@ -22,6 +26,21 @@ export class InMemoryUrlsStorageAdapter implements UrlsStorage {
 
   async getAll() {
     return Array.from(this.records.values())
+  }
+
+  async updateById(id: string, userId: string, updates: Partial<Url>) {
+    const entry = Array.from(this.records.values()).find(
+      (url) => url.id === id && url.userId === userId
+    )
+    if (!entry) {
+      return null
+    }
+    const updated: Url = {
+      ...entry,
+      ...updates
+    }
+    this.records.set(this.keyFor(updated.id, updated.random), updated)
+    return updated
   }
 
   async deleteById(id: string) {

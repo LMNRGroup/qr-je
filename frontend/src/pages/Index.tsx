@@ -1,7 +1,7 @@
 import { ColorPicker } from '@/components/ColorPicker';
 import { CornerStylePicker } from '@/components/CornerStylePicker';
 import { ErrorCorrectionSelector } from '@/components/ErrorCorrectionSelector';
-import { HistoryPanel } from '@/components/HistoryPanel';
+import { ArsenalPanel } from '@/components/ArsenalPanel';
 import { LogoUpload } from '@/components/LogoUpload';
 import { QRPreview, QRPreviewHandle } from '@/components/QRPreview';
 import { SizeSlider } from '@/components/SizeSlider';
@@ -569,7 +569,11 @@ const Index = () => {
             content: vcardUrl,
           },
         })
-        : await generateQR(longFormContent, options, qrType ?? undefined);
+        : await generateQR(
+          longFormContent,
+          options,
+          qrMode === 'dynamic' ? 'dynamic' : 'static'
+        );
       if (response.success) {
         if ('url' in response && response.url) {
           setGeneratedShortUrl(response.url.shortUrl);
@@ -642,16 +646,6 @@ const Index = () => {
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
     toast.success('CSV exported');
-  };
-
-  const handleHistorySelect = (historicOptions: QROptions) => {
-    setOptions(historicOptions);
-    setQrMode('static');
-    setQrType('website');
-    setWebsiteUrl(historicOptions.content);
-    setLastGeneratedContent(historicOptions.content);
-    setHasGenerated(true);
-    toast.info('Loaded from history');
   };
 
   const handleStartStatic = () => {
@@ -3095,10 +3089,6 @@ const Index = () => {
 
         {activeTab === 'codes' && (
           <section id="arsenal" className="space-y-6">
-            <div>
-              <p className="text-xs uppercase tracking-[0.4em] text-muted-foreground">Arsenal</p>
-              <h2 className="text-3xl font-semibold tracking-tight">Your QR Arsenal</h2>
-            </div>
             <div className="grid gap-4 md:grid-cols-2">
               <button
                 type="button"
@@ -3122,13 +3112,13 @@ const Index = () => {
                 </p>
               </button>
             </div>
-            {!hasGenerated ? (
+            {isLoggedIn ? (
+              <ArsenalPanel />
+            ) : (
               <div className="glass-panel rounded-2xl p-8 text-center space-y-4">
                 <p className="text-sm text-muted-foreground">No QR codes yet.</p>
                 <p className="text-lg font-semibold">Create your first QR Code to get started.</p>
               </div>
-            ) : (
-              <HistoryPanel onSelect={handleHistorySelect} />
             )}
           </section>
         )}

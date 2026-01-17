@@ -1,5 +1,5 @@
 import { UrlConflictError, UrlNotFoundError } from './errors'
-import { CreateUrlInput, ResolveUrlInput, Url } from './models'
+import { CreateUrlInput, ResolveUrlInput, UpdateUrlPayload, Url } from './models'
 import { UrlsStorage } from './storage/interface'
 
 const BASE62_ALPHABET = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ'
@@ -12,6 +12,7 @@ export type UrlsService = {
   resolveUrl: (input: ResolveUrlInput) => Promise<Url>
   getUrlsForUser: (userId: string) => Promise<Url[]>
   getAllUrls: () => Promise<Url[]>
+  updateUrl: (id: string, userId: string, updates: UpdateUrlPayload) => Promise<Url>
   deleteUrl: (id: string) => Promise<void>
 }
 
@@ -32,6 +33,7 @@ export const createUrlsService = (storage: UrlsStorage): UrlsService => {
         userId: input.userId,
         virtualCardId: input.virtualCardId ?? null,
         targetUrl: input.targetUrl,
+        name: input.name ?? null,
         createdAt: new Date().toISOString(),
         options: input.options ?? null,
         kind: input.kind ?? null
@@ -62,6 +64,16 @@ export const createUrlsService = (storage: UrlsStorage): UrlsService => {
     return storage.getAll()
   }
 
+  const updateUrl = async (id: string, userId: string, updates: UpdateUrlPayload) => {
+    const updated = await storage.updateById(id, userId, updates)
+
+    if (!updated) {
+      throw new UrlNotFoundError('Short url not found')
+    }
+
+    return updated
+  }
+
   const deleteUrl = async (id: string) => {
     await storage.deleteById(id)
   }
@@ -71,6 +83,7 @@ export const createUrlsService = (storage: UrlsStorage): UrlsService => {
     resolveUrl,
     getUrlsForUser,
     getAllUrls,
+    updateUrl,
     deleteUrl
   }
 }

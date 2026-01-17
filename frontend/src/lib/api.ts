@@ -11,6 +11,7 @@ type UrlResponse = {
   createdAt: string;
   options?: Record<string, unknown> | null;
   kind?: string | null;
+  name?: string | null;
 };
 
 type VcardResponse = {
@@ -31,12 +32,45 @@ const requireBaseUrl = () => {
   return API_BASE_URL.replace(/\/+$/, '');
 };
 
+const getStoredToken = () => {
+  if (typeof window === 'undefined') {
+    return null;
+  }
+  const direct = localStorage.getItem('qrc.auth.token');
+  if (direct) {
+    return direct;
+  }
+  const sessionRaw = localStorage.getItem('qrc.auth.session');
+  if (sessionRaw) {
+    try {
+      const parsed = JSON.parse(sessionRaw);
+      if (parsed?.access_token) {
+        return parsed.access_token;
+      }
+    } catch {
+      // ignore
+    }
+  }
+  const supabaseKey = Object.keys(localStorage).find(
+    (key) => key.startsWith('sb-') && key.endsWith('-auth-token')
+  );
+  if (!supabaseKey) {
+    return null;
+  }
+  try {
+    const parsed = JSON.parse(localStorage.getItem(supabaseKey) ?? '');
+    return parsed?.access_token ?? null;
+  } catch {
+    return null;
+  }
+};
+
 const getAuthHeaders = async () => {
   if (!isSupabaseConfigured) {
     return {};
   }
   const { data } = await supabase.auth.getSession();
-  const token = data.session?.access_token;
+  const token = data.session?.access_token ?? getStoredToken();
   return token ? { Authorization: `Bearer ${token}` } : {};
 };
 
@@ -73,12 +107,16 @@ const toHistoryItem = (entry: UrlResponse): QRHistoryItem => ({
     ...(entry.options ?? {}),
   } as QROptions,
   createdAt: entry.createdAt,
+  shortUrl: entry.shortUrl,
+  name: entry.name ?? null,
+  kind: entry.kind ?? null,
 });
 
 export async function generateQR(
   content: string,
   options: Partial<QROptions>,
-  kind?: string
+  kind?: string,
+  name?: string | null
 ): Promise<{ success: boolean; data?: QRHistoryItem }> {
   const response = await request('/urls', {
     method: 'POST',
@@ -86,9 +124,27 @@ export async function generateQR(
       targetUrl: content,
       options,
       kind: kind ?? null,
+      name: name ?? null,
     }),
   });
 
+  const data = (await response.json()) as UrlResponse;
+  return { success: true, data: toHistoryItem(data) };
+}
+
+export async function updateQR(
+  id: string,
+  payload: {
+    targetUrl?: string;
+    name?: string | null;
+    options?: Record<string, unknown> | null;
+    kind?: string | null;
+  }
+): Promise<{ success: boolean; data?: QRHistoryItem }> {
+  const response = await request(`/urls/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(payload),
+  });
   const data = (await response.json()) as UrlResponse;
   return { success: true, data: toHistoryItem(data) };
 }

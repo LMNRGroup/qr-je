@@ -48,6 +48,7 @@ export const createVcardHandler = (vcardsService: VcardsService, urlsService: Ur
         id: url.id,
         random: url.random,
         targetUrl: url.targetUrl,
+        name: url.name ?? null,
         shortUrl: buildShortUrl(url.id, url.random),
         createdAt: url.createdAt,
         options: url.options ?? null,

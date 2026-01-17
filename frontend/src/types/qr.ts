@@ -14,6 +14,9 @@ export interface QRHistoryItem {
   content: string;
   options: QROptions;
   createdAt: string;
+  shortUrl?: string;
+  name?: string | null;
+  kind?: string | null;
   thumbnail?: string;
 }
 

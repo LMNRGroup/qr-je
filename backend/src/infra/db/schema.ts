@@ -1,4 +1,4 @@
-import { index, pgTable, primaryKey, text, timestamp } from 'drizzle-orm/pg-core'
+import { index, jsonb, pgTable, primaryKey, text, timestamp } from 'drizzle-orm/pg-core'
 
 export const users = pgTable('users', {
   id: text('id').primaryKey(),
@@ -17,6 +17,9 @@ export const urls = pgTable(
       .references(() => users.id, { onDelete: 'cascade' }),
     virtualCardId: text('virtual_card_id'),
     targetUrl: text('target_url').notNull(),
+    name: text('name'),
+    kind: text('kind'),
+    options: jsonb('options').$type<Record<string, unknown> | null>(),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow()
   },
   (table) => ({

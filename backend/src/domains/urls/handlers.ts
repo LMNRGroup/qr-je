@@ -3,7 +3,7 @@ import type { Context } from 'hono'
 import { buildShortUrl } from '../../config/env'
 import { UrlConflictError, UrlNotFoundError, UrlValidationError } from './errors'
 import { UrlsService } from './service'
-import { parseCreateUrlInput, parseResolveParams } from './validators'
+import { parseCreateUrlInput, parseResolveParams, parseUpdateUrlInput } from './validators'
 import type { AppBindings } from '../../shared/http/types'
 
 export const createUrlHandler = (service: UrlsService) => {
@@ -24,6 +24,7 @@ export const createUrlHandler = (service: UrlsService) => {
           id: url.id,
           random: url.random,
           targetUrl: url.targetUrl,
+          name: url.name ?? null,
           virtualCardId: url.virtualCardId ?? null,
           shortUrl: buildShortUrl(url.id, url.random),
           createdAt: url.createdAt,
@@ -81,12 +82,55 @@ export const listUrlsHandler = (service: UrlsService) => {
         id: url.id,
         random: url.random,
         targetUrl: url.targetUrl,
+        name: url.name ?? null,
         shortUrl: buildShortUrl(url.id, url.random),
         createdAt: url.createdAt,
         options: url.options ?? null,
         kind: url.kind ?? null
       }))
     )
+  }
+}
+
+export const updateUrlHandler = (service: UrlsService) => {
+  return async (c: Context<AppBindings>) => {
+    try {
+      const userId = c.get('userId')
+
+      if (!userId) {
+        return c.json({ message: 'Unauthorized' }, 401)
+      }
+
+      const id = c.req.param('id')
+      if (!id) {
+        return c.json({ message: 'id is required' }, 400)
+      }
+
+      const payload = await c.req.json()
+      const updates = parseUpdateUrlInput(payload)
+      const url = await service.updateUrl(id, userId, updates)
+
+      return c.json({
+        id: url.id,
+        random: url.random,
+        targetUrl: url.targetUrl,
+        name: url.name ?? null,
+        shortUrl: buildShortUrl(url.id, url.random),
+        createdAt: url.createdAt,
+        options: url.options ?? null,
+        kind: url.kind ?? null
+      })
+    } catch (error) {
+      if (error instanceof UrlValidationError) {
+        return c.json({ message: error.message }, 400)
+      }
+
+      if (error instanceof UrlNotFoundError) {
+        return c.json({ message: error.message }, 404)
+      }
+
+      throw error
+    }
   }
 }
 

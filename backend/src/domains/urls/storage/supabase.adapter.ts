@@ -7,6 +7,7 @@ type UrlRow = {
   random: string
   user_id: string
   target_url: string
+  name?: string | null
   created_at: string
   options?: Record<string, unknown> | null
   kind?: string | null
@@ -31,6 +32,7 @@ export class SupabaseUrlsStorageAdapter implements UrlsStorage {
         random: url.random,
         user_id: url.userId,
         target_url: url.targetUrl,
+        name: url.name ?? null,
         created_at: url.createdAt,
         options: url.options ?? null,
         kind: url.kind ?? null
@@ -41,6 +43,13 @@ export class SupabaseUrlsStorageAdapter implements UrlsStorage {
   async getByIdAndRandom(id: string, random: string) {
     const rows = await this.requestJson<UrlRow[]>(
       `urls?select=*&id=eq.${encodeURIComponent(id)}&random=eq.${encodeURIComponent(random)}&limit=1`
+    )
+    return rows[0] ? this.mapRow(rows[0]) : null
+  }
+
+  async getById(id: string) {
+    const rows = await this.requestJson<UrlRow[]>(
+      `urls?select=*&id=eq.${encodeURIComponent(id)}&limit=1`
     )
     return rows[0] ? this.mapRow(rows[0]) : null
   }
@@ -70,12 +79,31 @@ export class SupabaseUrlsStorageAdapter implements UrlsStorage {
     })
   }
 
+  async updateById(id: string, userId: string, updates: Partial<Url>) {
+    const payload: Record<string, unknown> = {}
+    if (updates.targetUrl !== undefined) payload.target_url = updates.targetUrl
+    if (updates.name !== undefined) payload.name = updates.name
+    if (updates.options !== undefined) payload.options = updates.options
+    if (updates.kind !== undefined) payload.kind = updates.kind
+
+    const rows = await this.requestJson<UrlRow[]>(
+      `urls?id=eq.${encodeURIComponent(id)}&user_id=eq.${encodeURIComponent(userId)}&select=*`,
+      {
+        method: 'PATCH',
+        headers: { Prefer: 'return=representation' },
+        body: JSON.stringify(payload)
+      }
+    )
+    return rows[0] ? this.mapRow(rows[0]) : null
+  }
+
   private mapRow(row: UrlRow): Url {
     return {
       id: row.id,
       random: row.random,
       userId: row.user_id,
       targetUrl: row.target_url,
+      name: row.name ?? null,
       createdAt: row.created_at,
       options: row.options ?? null,
       kind: row.kind ?? null

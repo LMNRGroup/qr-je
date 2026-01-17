@@ -13,6 +13,9 @@ export class DrizzleUrlsStorageAdapter implements UrlsStorage {
       userId: url.userId,
       virtualCardId: url.virtualCardId,
       targetUrl: url.targetUrl,
+      name: url.name ?? null,
+      options: url.options ?? null,
+      kind: url.kind ?? null,
       createdAt: new Date(url.createdAt)
     })
   }
@@ -22,6 +25,20 @@ export class DrizzleUrlsStorageAdapter implements UrlsStorage {
       .select()
       .from(urls)
       .where(and(eq(urls.id, id), eq(urls.random, random)))
+      .limit(1)
+
+    if (!rows[0]) {
+      return null
+    }
+
+    return this.toDomain(rows[0])
+  }
+
+  async getById(id: string) {
+    const rows = await db
+      .select()
+      .from(urls)
+      .where(eq(urls.id, id))
       .limit(1)
 
     if (!rows[0]) {
@@ -60,6 +77,26 @@ export class DrizzleUrlsStorageAdapter implements UrlsStorage {
     await db.delete(urls).where(eq(urls.id, id))
   }
 
+  async updateById(id: string, userId: string, updates: Partial<Url>) {
+    const payload: Partial<typeof urls.$inferInsert> = {}
+    if (updates.targetUrl !== undefined) payload.targetUrl = updates.targetUrl
+    if (updates.name !== undefined) payload.name = updates.name ?? null
+    if (updates.options !== undefined) payload.options = updates.options ?? null
+    if (updates.kind !== undefined) payload.kind = updates.kind ?? null
+
+    const rows = await db
+      .update(urls)
+      .set(payload)
+      .where(and(eq(urls.id, id), eq(urls.userId, userId)))
+      .returning()
+
+    if (!rows[0]) {
+      return null
+    }
+
+    return this.toDomain(rows[0])
+  }
+
   private toDomain(row: typeof urls.$inferSelect): Url {
     return {
       id: row.id,
@@ -67,9 +104,10 @@ export class DrizzleUrlsStorageAdapter implements UrlsStorage {
       userId: row.userId,
       virtualCardId: row.virtualCardId,
       targetUrl: row.targetUrl,
+      name: row.name ?? null,
       createdAt: row.createdAt.toISOString(),
-      options: null,
-      kind: null
+      options: row.options ?? null,
+      kind: row.kind ?? null
     }
   }
 }

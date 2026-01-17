@@ -5,6 +5,7 @@ create table if not exists public.urls (
   random text not null,
   user_id uuid not null,
   target_url text not null,
+  name text,
   options jsonb,
   kind text,
   created_at timestamptz not null default now()
