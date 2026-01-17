@@ -24,6 +24,7 @@ export const createUrlHandler = (service: UrlsService) => {
           id: url.id,
           random: url.random,
           targetUrl: url.targetUrl,
+          virtualCardId: url.virtualCardId,
           shortUrl: buildShortUrl(url.id, url.random)
         },
         201

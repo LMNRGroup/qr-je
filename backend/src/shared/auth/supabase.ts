@@ -1,4 +1,4 @@
-import { getSupabaseConfig } from '../../config/supabase'
+import { getSupabaseAuthConfig } from '../../config/supabase'
 
 type Jwk = {
   kid?: string
@@ -14,6 +14,7 @@ type SupabaseTokenClaims = {
   aud?: string | string[]
   iss?: string
   exp?: number
+  email?: string
   user_metadata?: {
     full_name?: string
     name?: string
@@ -26,10 +27,11 @@ let cachedJwks: { keys: Jwk[]; fetchedAt: number } | null = null
 export type VerifiedUser = {
   userId: string
   name: string | null
+  email: string | null
 }
 
 export const verifySupabaseToken = async (token: string): Promise<VerifiedUser> => {
-  const config = getSupabaseConfig()
+  const config = getSupabaseAuthConfig()
   const { header, payload, signature, signingInput } = parseJwt(token)
 
   if (header.alg !== 'RS256') {
@@ -60,10 +62,12 @@ export const verifySupabaseToken = async (token: string): Promise<VerifiedUser> 
   }
 
   const name = payload.user_metadata?.full_name ?? payload.user_metadata?.name ?? null
+  const email = payload.email ?? null
 
   return {
     userId: payload.sub,
-    name
+    name,
+    email
   }
 }
 
@@ -142,7 +146,7 @@ const getJwks = async (jwksUrl: string, force: boolean) => {
   return data.keys
 }
 
-const verifySignature = async (jwk: Jwk, signingInput: string, signature: Uint8Array) => {
+const verifySignature = async (jwk: Jwk, signingInput: string, signature: BufferSource) => {
   if (jwk.kty !== 'RSA' || !jwk.n || !jwk.e) {
     throw new Error('Unsupported JWK format')
   }
@@ -159,6 +163,7 @@ const verifySignature = async (jwk: Jwk, signingInput: string, signature: Uint8A
   )
 
   const encoder = new TextEncoder()
+  const signingInputBytes = encoder.encode(signingInput)
 
-  return crypto.subtle.verify('RSASSA-PKCS1-v1_5', key, signature, encoder.encode(signingInput))
+  return crypto.subtle.verify('RSASSA-PKCS1-v1_5', key, signature, signingInputBytes)
 }

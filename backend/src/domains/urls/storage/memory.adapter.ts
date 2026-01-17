@@ -16,10 +16,6 @@ export class InMemoryUrlsStorageAdapter implements UrlsStorage {
     return this.records.has(this.keyFor(id, random))
   }
 
-  async getAll() {
-    return Array.from(this.records.values()) as Url[]
-  }
-
   async getByUserId(userId: string) {
     return Array.from(this.records.values()).filter((url) => url.userId === userId)
   }
