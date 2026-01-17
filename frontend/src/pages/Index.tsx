@@ -38,6 +38,7 @@ import {
   User,
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 
 const UPSell_INTERVAL_MS = 30 * 60 * 1000;
@@ -79,6 +80,7 @@ const Index = () => {
   });
   const qrRef = useRef<QRPreviewHandle>(null);
   const createSectionRef = useRef<HTMLDivElement>(null);
+  const navigate = useNavigate();
 
   const normalizeUrl = (value: string) => {
     const trimmed = value.trim();
@@ -322,6 +324,7 @@ const Index = () => {
       onFocus={() => setIsCreateHover(true)}
       onBlur={() => setIsCreateHover(false)}
     >
+      <span className="absolute -inset-16 rounded-full opacity-0" aria-hidden="true" />
       <span className="text-[11px] uppercase tracking-[0.35em] text-muted-foreground/80 transition group-hover:opacity-0">
         {label}
       </span>
@@ -526,6 +529,16 @@ const Index = () => {
                 Close
               </Button>
             </div>
+            <button
+              type="button"
+              className="w-full text-[11px] uppercase tracking-[0.3em] text-muted-foreground transition hover:text-primary"
+              onClick={() => {
+                setShowAccountModal(false);
+                navigate('/login');
+              }}
+            >
+              Already have an account? Sign In
+            </button>
             <div className="text-center">
               <a
                 href="/terms"
