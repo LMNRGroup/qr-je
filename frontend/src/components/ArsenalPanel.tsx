@@ -2,20 +2,38 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ArrowDownAz,
   ArrowDownUp,
+  ArrowLeft,
+  ArrowRight,
   ArrowUpAz,
+  Contact,
   Download,
   ExternalLink,
+  File,
   LayoutGrid,
+  Link,
   List,
   Loader2,
+  Mail,
+  Phone,
   QrCode,
   Trash2,
+  Utensils,
   Zap,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { QRHistoryItem, QROptions } from '@/types/qr';
 import { deleteQRFromHistory, getQRHistory, updateQR } from '@/lib/api';
 import { Button } from '@/components/ui/button';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
@@ -28,6 +46,7 @@ import { QRPreview, QRPreviewHandle } from '@/components/QRPreview';
 
 type ViewMode = 'grid' | 'list';
 type SortMode = 'newest' | 'oldest' | 'alpha';
+const PAGE_SIZE = 10;
 
 const getDisplayName = (item: QRHistoryItem) => {
   return item.name?.trim() || item.content || `QR-${item.id.slice(0, 6)}`;
@@ -35,7 +54,68 @@ const getDisplayName = (item: QRHistoryItem) => {
 
 const isWebUrl = (value: string) => /^https?:\/\//i.test(value);
 
-export function ArsenalPanel() {
+const parseKind = (kind?: string | null) => {
+  if (!kind) return { mode: 'static', type: 'url' };
+  if (kind === 'vcard') return { mode: 'static', type: 'vcard' };
+  if (kind === 'dynamic' || kind === 'static') return { mode: kind, type: 'url' };
+  if (kind.includes(':')) {
+    const [mode, type] = kind.split(':');
+    return {
+      mode: mode === 'dynamic' ? 'dynamic' : 'static',
+      type: type || 'url',
+    };
+  }
+  return { mode: 'static', type: kind };
+};
+
+const typeStyles: Record<string, { label: string; icon: typeof Link; card: string; badge: string }> = {
+  url: {
+    label: 'URL',
+    icon: Link,
+    card: 'border-amber-300/50',
+    badge: 'bg-amber-300/10 text-amber-200 border-amber-300/50',
+  },
+  phone: {
+    label: 'Phone',
+    icon: Phone,
+    card: 'border-emerald-300/50',
+    badge: 'bg-emerald-400/10 text-emerald-200 border-emerald-300/50',
+  },
+  email: {
+    label: 'Email',
+    icon: Mail,
+    card: 'border-sky-300/50',
+    badge: 'bg-sky-400/10 text-sky-200 border-sky-300/50',
+  },
+  file: {
+    label: 'File',
+    icon: File,
+    card: 'border-indigo-300/50',
+    badge: 'bg-indigo-400/10 text-indigo-200 border-indigo-300/50',
+  },
+  menu: {
+    label: 'Menu',
+    icon: Utensils,
+    card: 'border-orange-300/50',
+    badge: 'bg-orange-400/10 text-orange-200 border-orange-300/50',
+  },
+  vcard: {
+    label: 'VCard',
+    icon: Contact,
+    card: 'border-violet-300/50',
+    badge: 'bg-violet-400/10 text-violet-200 border-violet-300/50',
+  },
+};
+
+export function ArsenalPanel({
+  refreshKey,
+  onStatsChange,
+  onRefreshRequest,
+}: {
+  refreshKey?: number;
+  onStatsChange?: (stats: { total: number; dynamic: number }) => void;
+  onRefreshRequest?: () => void;
+}) {
   const [items, setItems] = useState<QRHistoryItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
@@ -44,6 +124,8 @@ export function ArsenalPanel() {
   const [editName, setEditName] = useState('');
   const [editContent, setEditContent] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [page, setPage] = useState(1);
+  const [deleteTarget, setDeleteTarget] = useState<QRHistoryItem | null>(null);
   const previewRef = useRef<QRPreviewHandle>(null);
 
   useEffect(() => {
@@ -68,7 +150,7 @@ export function ArsenalPanel() {
       }
     };
     loadHistory();
-  }, []);
+  }, [refreshKey]);
 
   const sortedItems = useMemo(() => {
     const copy = [...items];
@@ -82,14 +164,28 @@ export function ArsenalPanel() {
     return copy;
   }, [items, sortMode]);
 
+  const pageCount = Math.max(1, Math.ceil(sortedItems.length / PAGE_SIZE));
+  const currentPage = Math.min(page, pageCount);
+  const pagedItems = sortedItems.slice(
+    (currentPage - 1) * PAGE_SIZE,
+    currentPage * PAGE_SIZE
+  );
+
   const selectedItem = sortedItems.find((item) => item.id === selectedId) ?? null;
-  const isDynamic = selectedItem?.kind === 'dynamic';
+  const selectedKind = parseKind(selectedItem?.kind ?? null);
+  const isDynamic = selectedKind.mode === 'dynamic';
 
   const handleSelect = (item: QRHistoryItem) => {
     setSelectedId(item.id);
     setEditName(getDisplayName(item));
     setEditContent(item.content);
   };
+
+  useEffect(() => {
+    if (page > pageCount) {
+      setPage(pageCount);
+    }
+  }, [page, pageCount]);
 
   const handleDelete = async (item: QRHistoryItem) => {
     try {
@@ -101,6 +197,7 @@ export function ArsenalPanel() {
         setEditContent('');
       }
       toast.success('QR deleted');
+      onRefreshRequest?.();
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to delete QR';
       toast.error(message);
@@ -162,20 +259,35 @@ export function ArsenalPanel() {
   };
 
   const renderCardBadge = (item: QRHistoryItem) => {
-    const dynamic = item.kind === 'dynamic';
+    const parsed = parseKind(item.kind ?? null);
+    const typeMeta = typeStyles[parsed.type] ?? typeStyles.url;
+    const ModeIcon = parsed.mode === 'dynamic' ? Zap : QrCode;
+    const TypeIcon = typeMeta.icon;
     return (
-      <span
-        className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-[10px] uppercase tracking-[0.3em] ${
-          dynamic
-            ? 'border-cyan-400/60 text-cyan-200 bg-cyan-500/10'
-            : 'border-amber-300/60 text-amber-200 bg-amber-300/10'
-        }`}
-      >
-        {dynamic ? <Zap className="h-3 w-3" /> : <QrCode className="h-3 w-3" />}
-        {dynamic ? 'Dynamic' : 'Static'}
-      </span>
+      <div className="flex flex-wrap items-center gap-2 text-[10px] uppercase tracking-[0.3em]">
+        <span
+          className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 ${
+            parsed.mode === 'dynamic'
+              ? 'border-cyan-400/60 text-cyan-200 bg-cyan-500/10'
+              : 'border-border/60 text-muted-foreground bg-secondary/40'
+          }`}
+        >
+          <ModeIcon className="h-3 w-3" />
+          {parsed.mode === 'dynamic' ? 'Dynamic' : 'Static'}
+        </span>
+        <span className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 ${typeMeta.badge}`}>
+          <TypeIcon className="h-3 w-3" />
+          {typeMeta.label}
+        </span>
+      </div>
     );
   };
+
+  useEffect(() => {
+    if (!onStatsChange) return;
+    const dynamicCount = items.filter((item) => parseKind(item.kind ?? null).mode === 'dynamic').length;
+    onStatsChange({ total: items.length, dynamic: dynamicCount });
+  }, [items, onStatsChange]);
 
   return (
     <div className="space-y-6">
@@ -245,13 +357,20 @@ export function ArsenalPanel() {
         <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
           <div className="glass-panel rounded-2xl p-4">
             <ScrollArea className="h-[520px]">
-              <div className={viewMode === 'grid' ? 'grid gap-4 md:grid-cols-2' : 'space-y-2'}>
-                {sortedItems.map((item) => {
+              <div
+                className={
+                  viewMode === 'grid'
+                    ? 'grid gap-4 md:grid-cols-2 auto-rows-fr'
+                    : 'space-y-2'
+                }
+              >
+                {pagedItems.map((item) => {
                   const isSelected = item.id === selectedId;
-                  const dynamic = item.kind === 'dynamic';
+                  const parsed = parseKind(item.kind ?? null);
+                  const typeMeta = typeStyles[parsed.type] ?? typeStyles.url;
                   const cardOptions: QROptions = {
                     ...item.options,
-                    size: 96,
+                    size: 92,
                     content: item.content,
                   };
                   return (
@@ -259,19 +378,23 @@ export function ArsenalPanel() {
                       key={item.id}
                       type="button"
                       onClick={() => handleSelect(item)}
-                      className={`group w-full rounded-2xl border p-4 text-left transition ${
+                      className={`group w-full rounded-2xl border p-4 text-left transition overflow-hidden ${
                         isSelected
                           ? 'border-primary/60 bg-primary/5 shadow-[0_0_18px_rgba(59,130,246,0.12)]'
-                          : 'border-border/60 hover:border-primary/40 hover:bg-secondary/40'
+                          : `${typeMeta.card} hover:border-primary/40 hover:bg-secondary/40`
+                      } ${
+                        viewMode === 'grid' ? 'min-h-[210px] h-full flex flex-col justify-between' : ''
                       }`}
                     >
                       <div className="flex items-start justify-between gap-3">
-                        <div className="space-y-2">
-                          <p className="text-sm font-semibold">{getDisplayName(item)}</p>
+                        <div className="space-y-2 min-w-0">
+                          <p className="text-sm font-semibold truncate">{getDisplayName(item)}</p>
                           <p className="text-xs text-muted-foreground truncate">{item.content}</p>
                           {renderCardBadge(item)}
                         </div>
-                        <div className={`rounded-2xl border p-2 ${dynamic ? 'border-cyan-400/40' : 'border-amber-300/40'}`}>
+                        <div
+                          className={`rounded-2xl border p-2 shrink-0 ${typeMeta.card}`}
+                        >
                           <QRPreview options={cardOptions} showCaption={false} />
                         </div>
                       </div>
@@ -280,6 +403,33 @@ export function ArsenalPanel() {
                 })}
               </div>
             </ScrollArea>
+            {pageCount > 1 && (
+              <div className="mt-4 flex items-center justify-between text-xs uppercase tracking-[0.3em] text-muted-foreground">
+                <span>
+                  Page {currentPage} / {pageCount}
+                </span>
+                <div className="flex items-center gap-2">
+                  <Button
+                    size="icon"
+                    variant="outline"
+                    className="h-8 w-8 border-border"
+                    onClick={() => setPage((prev) => Math.max(1, prev - 1))}
+                    disabled={currentPage === 1}
+                  >
+                    <ArrowLeft className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    size="icon"
+                    variant="outline"
+                    className="h-8 w-8 border-border"
+                    onClick={() => setPage((prev) => Math.min(pageCount, prev + 1))}
+                    disabled={currentPage === pageCount}
+                  >
+                    <ArrowRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="glass-panel rounded-2xl p-6 space-y-6">
@@ -329,14 +479,23 @@ export function ArsenalPanel() {
                 <div className="space-y-3">
                   <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Live Preview</p>
                   <div className="rounded-2xl border border-border/60 bg-secondary/20 overflow-hidden">
+                    <div className="flex items-center gap-1.5 bg-card/80 px-3 py-2 text-[10px] uppercase tracking-[0.35em] text-muted-foreground">
+                      <span className="h-2 w-2 rounded-full bg-rose-400/70" />
+                      <span className="h-2 w-2 rounded-full bg-amber-400/70" />
+                      <span className="h-2 w-2 rounded-full bg-emerald-400/70" />
+                      <span className="ml-2">Preview</span>
+                    </div>
                     {isWebUrl(selectedItem.content) ? (
                       <img
-                        src={`https://image.thum.io/get/width/900/${encodeURIComponent(selectedItem.content)}`}
+                        src={`https://image.thum.io/get/width/1200/${selectedItem.content}`}
                         alt="Destination preview"
-                        className="h-40 w-full object-cover"
+                        className="aspect-video w-full object-cover"
+                        onError={(event) => {
+                          (event.currentTarget as HTMLImageElement).src = '';
+                        }}
                       />
                     ) : (
-                      <div className="flex h-40 flex-col items-center justify-center gap-2 text-muted-foreground text-sm">
+                      <div className="flex aspect-video w-full flex-col items-center justify-center gap-2 text-muted-foreground text-sm">
                         <ExternalLink className="h-6 w-6 text-primary" />
                         Preview available for web URLs only.
                       </div>
@@ -374,7 +533,7 @@ export function ArsenalPanel() {
                     size="sm"
                     variant="outline"
                     className="border-destructive/40 text-destructive hover:bg-destructive/10"
-                    onClick={() => handleDelete(selectedItem)}
+                    onClick={() => setDeleteTarget(selectedItem)}
                   >
                     <Trash2 className="mr-2 h-4 w-4" />
                     Delete
@@ -389,6 +548,31 @@ export function ArsenalPanel() {
           </div>
         </div>
       )}
+
+      <AlertDialog open={Boolean(deleteTarget)} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <AlertDialogContent className="bg-card border-border">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this QR code?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This removes the QR code and its short URL permanently. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setDeleteTarget(null)}>No, keep it</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={async () => {
+                if (deleteTarget) {
+                  await handleDelete(deleteTarget);
+                  setDeleteTarget(null);
+                }
+              }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Yes, delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

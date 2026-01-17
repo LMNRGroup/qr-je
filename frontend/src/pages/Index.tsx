@@ -23,7 +23,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { useAuth } from '@/contexts/AuthContext';
 import supabase, { isSupabaseConfigured } from '@/lib/supabase';
-import { createVcard, generateQR } from '@/lib/api';
+import { createVcard, generateQR, getQRHistory } from '@/lib/api';
 import { QROptions, defaultQROptions } from '@/types/qr';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
@@ -69,13 +69,16 @@ const Index = () => {
   const [lastGeneratedContent, setLastGeneratedContent] = useState('');
   const [activeTab, setActiveTab] = useState<'studio' | 'codes' | 'analytics' | 'settings' | 'upgrade' | 'adaptive'>('studio');
   const [qrMode, setQrMode] = useState<'static' | 'dynamic' | null>(null);
-  const [qrType, setQrType] = useState<'website' | 'vcard' | 'email' | 'phone' | 'menu' | null>(null);
+  const [qrType, setQrType] = useState<'website' | 'vcard' | 'email' | 'phone' | 'file' | 'menu' | null>(null);
   const [websiteUrl, setWebsiteUrl] = useState('');
   const [websiteTouched, setWebsiteTouched] = useState(false);
   const [emailAddress, setEmailAddress] = useState('');
   const [emailTouched, setEmailTouched] = useState(false);
   const [phoneNumber, setPhoneNumber] = useState('');
   const [phoneTouched, setPhoneTouched] = useState(false);
+  const [fileDataUrl, setFileDataUrl] = useState('');
+  const [fileName, setFileName] = useState('');
+  const [fileTouched, setFileTouched] = useState(false);
   const [isBooting, setIsBooting] = useState(true);
   const [showIntroAd, setShowIntroAd] = useState(false);
   const [introStep, setIntroStep] = useState(0);
@@ -91,6 +94,8 @@ const Index = () => {
   const [quickActionHover, setQuickActionHover] = useState<string | null>(null);
   const [selectedQuickAction, setSelectedQuickAction] = useState<string | null>(null);
   const [actionRingOrigin, setActionRingOrigin] = useState({ x: 50, y: 50 });
+  const [arsenalStats, setArsenalStats] = useState({ total: 0, dynamic: 0 });
+  const [arsenalRefreshKey, setArsenalRefreshKey] = useState(0);
   const [navHint, setNavHint] = useState('');
   const [profileForm, setProfileForm] = useState({
     fullName: '',
@@ -275,6 +280,8 @@ const Index = () => {
         ? (isEmailValid ? `mailto:${emailAddress.trim()}` : '')
         : qrType === 'phone'
           ? (isPhoneValid ? `tel:${normalizedPhone}` : '')
+          : qrType === 'file'
+            ? fileDataUrl
           : qrType === 'menu'
             ? menuPreviewUrl
             : '';
@@ -287,6 +294,8 @@ const Index = () => {
         ? isEmailValid
         : qrType === 'phone'
           ? isPhoneValid
+          : qrType === 'file'
+            ? fileDataUrl.length > 0
           : qrType === 'menu'
             ? menuFiles.length > 0
             : false;
@@ -305,6 +314,42 @@ const Index = () => {
       : '';
   const isLoggedIn = Boolean(user);
   const requiresAuthTabs = new Set(['codes', 'analytics', 'settings', 'adaptive']);
+
+  const parseKind = useCallback((kind?: string | null) => {
+    if (!kind) return { mode: 'static', type: 'url' };
+    if (kind === 'vcard') return { mode: 'static', type: 'vcard' };
+    if (kind === 'dynamic' || kind === 'static') return { mode: kind, type: 'url' };
+    if (kind.includes(':')) {
+      const [mode, type] = kind.split(':');
+      return {
+        mode: mode === 'dynamic' ? 'dynamic' : 'static',
+        type: type || 'url',
+      };
+    }
+    return { mode: 'static', type: kind };
+  }, []);
+
+  const refreshArsenalStats = useCallback(async () => {
+    if (!isLoggedIn) {
+      setArsenalStats({ total: 0, dynamic: 0 });
+      return;
+    }
+    try {
+      const response = await getQRHistory();
+      if (response.success) {
+        const dynamicCount = response.data.filter(
+          (item) => parseKind(item.kind ?? null).mode === 'dynamic'
+        ).length;
+        setArsenalStats({ total: response.data.length, dynamic: dynamicCount });
+      }
+    } catch {
+      // ignore stats errors
+    }
+  }, [isLoggedIn, parseKind]);
+
+  useEffect(() => {
+    refreshArsenalStats();
+  }, [refreshArsenalStats, arsenalRefreshKey]);
 
   const updateOption = useCallback(<K extends keyof QROptions>(key: K, value: QROptions[K]) => {
     setOptions((prev) => ({ ...prev, [key]: value }));
@@ -547,6 +592,8 @@ const Index = () => {
           ? 'Please enter a valid email address'
           : qrType === 'phone'
             ? 'Please enter a valid phone number'
+            : qrType === 'file'
+              ? 'Please upload a file to continue'
             : qrType === 'menu'
               ? 'Please upload menu pages to continue'
               : 'Please add a name or profile slug';
@@ -575,7 +622,8 @@ const Index = () => {
         : await generateQR(
           longFormContent,
           options,
-          qrMode === 'dynamic' ? 'dynamic' : 'static'
+          `${qrMode ?? 'static'}:${qrType === 'website' ? 'url' : qrType ?? 'url'}`,
+          qrType === 'file' ? fileName || 'File QR' : null
         );
       if (response.success) {
         if ('url' in response && response.url) {
@@ -587,6 +635,7 @@ const Index = () => {
         }
         toast.success('QR code generated!');
         setHasGenerated(true);
+        setArsenalRefreshKey((prev) => prev + 1);
       } else {
         toast.error('Failed to generate QR code');
       }
@@ -691,7 +740,20 @@ const Index = () => {
     setWebsiteTouched(false);
     setEmailTouched(false);
     setPhoneTouched(false);
+    setFileTouched(false);
     setSelectedQuickAction('phone');
+    setPendingCreateScroll(true);
+  };
+
+  const handleStartFile = () => {
+    setQrMode('static');
+    setQrType('file');
+    setActiveTab('studio');
+    setWebsiteTouched(false);
+    setEmailTouched(false);
+    setPhoneTouched(false);
+    setFileTouched(false);
+    setSelectedQuickAction('file');
     setPendingCreateScroll(true);
   };
 
@@ -859,6 +921,21 @@ const Index = () => {
       setMenuFlip(false);
       setMenuCarouselIndex(0);
     });
+  };
+
+  const handleFileUpload = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (readerEvent) => {
+      const result = readerEvent.target?.result;
+      if (!result || typeof result !== 'string') {
+        return;
+      }
+      setFileDataUrl(result);
+      setFileName(file.name);
+    };
+    reader.readAsDataURL(file);
   };
 
   const openMenuBuilder = () => {
@@ -1093,7 +1170,10 @@ const Index = () => {
               {isCreateOpen ? (
                 <motion.div
                   className="fixed inset-0 z-[90] flex items-center justify-center bg-background/70 backdrop-blur-xl"
-                  onClick={closeCreateMenu}
+                  onClick={(event) => {
+                    if (event.target !== event.currentTarget) return;
+                    closeCreateMenu();
+                  }}
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
@@ -1193,7 +1273,7 @@ const Index = () => {
                           toast.info('Create an account or log in to unlock File QR.');
                           return;
                         }
-                        toast.info('Upgrade to a Pro Plan to unlock this feature.');
+                        handleStartFile();
                         closeCreateMenu();
                       }}
                       onMouseEnter={() => setActionRingText(isLoggedIn ? 'Upload a File QR Code' : 'Log in to unlock File QR')}
@@ -2311,9 +2391,9 @@ const Index = () => {
               </div>
               <div className="grid sm:grid-cols-3 gap-4">
                 {[
-                  { label: 'Total Codes', value: '0', tab: 'codes' },
+                  { label: 'Total Codes', value: `${arsenalStats.total}`, tab: 'codes' },
                   { label: 'Scans Today', value: '0', tab: 'analytics' },
-                  { label: 'Dynamic Live', value: '0', tab: 'analytics' },
+                  { label: 'Dynamic Live', value: `${arsenalStats.dynamic}`, tab: 'analytics' },
                 ].map((item) => (
                   <button
                     key={item.label}
@@ -2394,7 +2474,7 @@ const Index = () => {
                     toast.info('Create an account or log in to unlock File QR.');
                     return;
                   }
-                  toast.info('Upgrade to a Pro Plan to unlock this feature.');
+                  handleStartFile();
                 },
               },
               {
@@ -2589,6 +2669,7 @@ const Index = () => {
                         onClick={() => {
                           setQrType('phone');
                           setPhoneTouched(false);
+                          setFileTouched(false);
                           setSelectedQuickAction('phone');
                         }}
                         className={`rounded-t-2xl border px-4 py-3 text-left transition-all ${
@@ -2604,9 +2685,32 @@ const Index = () => {
                         type="button"
                         onClick={() => {
                           if (!isLoggedIn) {
+                            toast.info('Create an account or log in to start creating File QR codes.');
+                            return;
+                          }
+                          setQrMode('static');
+                          setQrType('file');
+                          setFileTouched(false);
+                          setSelectedQuickAction('file');
+                        }}
+                        title={isLoggedIn ? undefined : 'Log in to unlock File QR'}
+                        className={`rounded-t-2xl border px-4 py-3 text-left transition-all ${
+                          qrType === 'file'
+                            ? 'border-border/70 bg-card/80'
+                            : 'border-border/60 bg-secondary/30 hover:border-primary/60'
+                        }`}
+                      >
+                        <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">File</p>
+                        <p className="mt-2 font-semibold">Share a file</p>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (!isLoggedIn) {
                             toast.info('Create an account or log in to start building QR Menus.');
                             return;
                           }
+                          setQrMode('dynamic');
                           setQrType('menu');
                           setSelectedQuickAction('menu');
                         }}
@@ -2697,6 +2801,33 @@ const Index = () => {
                           Please enter a valid phone number.
                         </p>
                       )}
+                    </div>
+                  ) : qrType === 'file' ? (
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-3">
+                        <File className="h-4 w-4 text-primary" />
+                        <h3 className="font-semibold">Step 3 · Upload File</h3>
+                      </div>
+                      <Input
+                        type="file"
+                        accept="image/*,application/pdf"
+                        onChange={handleFileUpload}
+                        onBlur={() => setFileTouched(true)}
+                        className="h-14 text-lg border-border bg-secondary/50 focus:border-primary input-glow"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Upload a file to embed directly into your QR code.
+                      </p>
+                      {fileTouched && !fileDataUrl && (
+                        <p className="text-xs text-destructive">
+                          Please upload a file to continue.
+                        </p>
+                      )}
+                      {fileName ? (
+                        <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">
+                          Selected: {fileName}
+                        </p>
+                      ) : null}
                     </div>
                   ) : qrType === 'menu' ? (
                     <div className="space-y-4">
@@ -3116,7 +3247,11 @@ const Index = () => {
               </button>
             </div>
             {isLoggedIn ? (
-              <ArsenalPanel />
+              <ArsenalPanel
+                refreshKey={arsenalRefreshKey}
+                onStatsChange={setArsenalStats}
+                onRefreshRequest={() => setArsenalRefreshKey((prev) => prev + 1)}
+              />
             ) : (
               <div className="glass-panel rounded-2xl p-8 text-center space-y-4">
                 <p className="text-sm text-muted-foreground">No QR codes yet.</p>
@@ -4020,3 +4155,24 @@ const Index = () => {
 };
 
 export default Index;
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (!isLoggedIn) {
+                            toast.info('Create an account or log in to start creating File QR codes.');
+                            return;
+                          }
+                          setQrType('file');
+                          setFileTouched(false);
+                          setSelectedQuickAction('file');
+                        }}
+                        title={isLoggedIn ? undefined : 'Log in to unlock File QR'}
+                        className={`rounded-t-2xl border px-4 py-3 text-left transition-all ${
+                          qrType === 'file'
+                            ? 'border-border/70 bg-card/80'
+                            : 'border-border/60 bg-secondary/30 hover:border-primary/60'
+                        }`}
+                      >
+                        <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">File</p>
+                        <p className="mt-2 font-semibold">Share a file</p>
+                      </button>
