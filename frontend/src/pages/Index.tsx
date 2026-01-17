@@ -968,12 +968,14 @@ const Index = () => {
           <button
             type="button"
             aria-label="Create new QR code"
-            className={`relative z-10 flex h-12 w-12 items-center justify-center rounded-full border border-border/60 bg-card/80 text-primary shadow-sm transition hover:border-amber-300 hover:bg-amber-300/10 hover:text-amber-200 hover:shadow-lg ${isCreateOpen ? 'opacity-0' : 'opacity-100'}`}
+            className={`relative z-10 flex h-12 w-12 items-center justify-center rounded-full border border-border/60 bg-card/80 text-primary shadow-sm transition hover:border-amber-300 hover:bg-amber-300/10 hover:text-amber-200 hover:shadow-lg ${isCreateOpen ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
             onMouseEnter={() => {
+              if (isCreateOpen) return;
               setIsCreateHovering(true);
               setActionRingText('Create New');
             }}
             onMouseLeave={() => {
+              if (isCreateOpen) return;
               setIsCreateHovering(false);
               if (!isCreateOpen) setActionRingText('');
             }}
