@@ -2237,9 +2237,10 @@ const Index = () => {
                 onClick={action.onClick}
                 onMouseEnter={() => setQuickActionHover(action.id)}
                 onMouseLeave={() => setQuickActionHover(null)}
+                aria-pressed={selectedQuickAction === action.id}
                 className={`group relative flex flex-col items-center justify-center rounded-full border h-14 w-14 transition hover:border-primary/60 hover:bg-secondary/40 ${
                   selectedQuickAction === action.id
-                    ? 'border-primary/70 bg-secondary/50 shadow-[0_0_16px_rgba(99,102,241,0.25)]'
+                    ? 'border-primary/70 bg-secondary/50 ring-1 ring-primary/40 shadow-[0_0_16px_rgba(99,102,241,0.25)]'
                     : 'border-border/60 bg-secondary/30'
                 }`}
               >
