@@ -13,6 +13,7 @@ export const createUsersService = (storage: UsersStorage): UsersService => {
     const user: User = {
       id: input.id,
       name: input.name ?? existing?.name ?? null,
+      email: input.email ?? existing?.email ?? null,
       createdAt: existing?.createdAt ?? new Date().toISOString()
     }
 

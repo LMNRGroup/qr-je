@@ -11,7 +11,6 @@ export type UrlsService = {
   createUrl: (input: CreateUrlInput) => Promise<Url>
   resolveUrl: (input: ResolveUrlInput) => Promise<Url>
   getUrlsForUser: (userId: string) => Promise<Url[]>
-  getAllUrls: () => Promise<Url[]>
 }
 
 export const createUrlsService = (storage: UrlsStorage): UrlsService => {
@@ -29,6 +28,7 @@ export const createUrlsService = (storage: UrlsStorage): UrlsService => {
         id,
         random,
         userId: input.userId,
+        virtualCardId: input.virtualCardId ?? null,
         targetUrl: input.targetUrl,
         createdAt: new Date().toISOString()
       }
@@ -50,11 +50,6 @@ export const createUrlsService = (storage: UrlsStorage): UrlsService => {
     return url
   }
 
-  const getAllUrls = async () => {
-    const urls = await storage.getAll()
-    return urls
-  }
-
   const getUrlsForUser = async (userId: string) => {
     return storage.getByUserId(userId)
   }
@@ -62,8 +57,7 @@ export const createUrlsService = (storage: UrlsStorage): UrlsService => {
   return {
     createUrl,
     resolveUrl,
-    getUrlsForUser,
-    getAllUrls
+    getUrlsForUser
   }
 }
 

@@ -26,7 +26,11 @@ export const createAuthMiddleware = ({ usersService, publicPaths = [] }: AuthMid
 
     try {
       const verified = await verifySupabaseToken(token)
-      await usersService.upsertUser({ id: verified.userId, name: verified.name })
+      await usersService.upsertUser({
+        id: verified.userId,
+        name: verified.name,
+        email: verified.email
+      })
       c.set('userId', verified.userId)
       await next()
     } catch (error) {

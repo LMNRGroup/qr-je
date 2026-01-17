@@ -10,7 +10,7 @@ const ensureProjectUrl = () => {
   return SUPABASE_PROJECT_URL.replace(/\/+$/, '')
 }
 
-export const getSupabaseConfig = () => {
+export const getSupabaseAuthConfig = () => {
   const projectUrl = ensureProjectUrl()
   const issuer = SUPABASE_JWT_ISSUER ?? `${projectUrl}/auth/v1`
 
