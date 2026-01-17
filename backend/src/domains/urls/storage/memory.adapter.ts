@@ -20,6 +20,10 @@ export class InMemoryUrlsStorageAdapter implements UrlsStorage {
     return Array.from(this.records.values()).filter((url) => url.userId === userId)
   }
 
+  async getAll() {
+    return Array.from(this.records.values())
+  }
+
   async deleteById(id: string) {
     for (const [key, value] of this.records.entries()) {
       if (value.id === id) {

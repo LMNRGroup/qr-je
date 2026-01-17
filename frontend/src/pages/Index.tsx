@@ -70,7 +70,8 @@ const Index = () => {
   const [showAnalyticsIntro, setShowAnalyticsIntro] = useState(false);
   const [analyticsSeen, setAnalyticsSeen] = useState(false);
   const [showWelcomeIntro, setShowWelcomeIntro] = useState(false);
-  const [welcomeMessage, setWelcomeMessage] = useState('');
+  const [welcomeHeadline, setWelcomeHeadline] = useState('');
+  const [welcomeSubline, setWelcomeSubline] = useState('');
   const [generatedShortUrl, setGeneratedShortUrl] = useState('');
   const [generatedLongUrl, setGeneratedLongUrl] = useState('');
   const [showVcardCustomizer, setShowVcardCustomizer] = useState(false);
@@ -282,7 +283,8 @@ const Index = () => {
       ? `${firstName.charAt(0).toUpperCase()}${firstName.slice(1)}`
       : 'there';
 
-    setWelcomeMessage(isNewUser ? `Welcome ${displayName}` : 'Welcome Back! Loading your Studio');
+    setWelcomeHeadline(`Welcome Back, ${displayName}!`);
+    setWelcomeSubline(`${displayName}, welcome to our family.`);
     setShowWelcomeIntro(true);
     sessionStorage.setItem('qr.welcome.shown', 'true');
     const timer = window.setTimeout(() => setShowWelcomeIntro(false), 1100);
@@ -823,11 +825,16 @@ const Index = () => {
           <div className="text-center space-y-4">
             <div className="text-3xl sm:text-4xl font-semibold tracking-tight">
               <span className="relative inline-block">
-                <span className="text-muted-foreground/70">{welcomeMessage}</span>
-                <span className="absolute inset-0 logo-fill">{welcomeMessage}</span>
+                <span className="text-muted-foreground/70">{welcomeHeadline}</span>
+                <span className="absolute inset-0 logo-fill">{welcomeHeadline}</span>
               </span>
             </div>
-            <p className="text-xs uppercase tracking-[0.4em] text-muted-foreground">Loading your workspace</p>
+            <div className="text-base sm:text-lg font-semibold tracking-tight">
+              <span className="relative inline-block">
+                <span className="text-muted-foreground/70">{welcomeSubline}</span>
+                <span className="absolute inset-0 logo-fill">{welcomeSubline}</span>
+              </span>
+            </div>
           </div>
         </div>
       )}
