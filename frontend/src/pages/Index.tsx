@@ -628,6 +628,26 @@ const Index = () => {
     setPendingCreateScroll(true);
   };
 
+  const handleStartEmail = () => {
+    setQrMode('static');
+    setQrType('email');
+    setActiveTab('studio');
+    setWebsiteTouched(false);
+    setEmailTouched(false);
+    setPhoneTouched(false);
+    setPendingCreateScroll(true);
+  };
+
+  const handleStartPhone = () => {
+    setQrMode('static');
+    setQrType('phone');
+    setActiveTab('studio');
+    setWebsiteTouched(false);
+    setEmailTouched(false);
+    setPhoneTouched(false);
+    setPendingCreateScroll(true);
+  };
+
   const handleCopyUrl = async () => {
     if (!generatedContent) return;
     try {
