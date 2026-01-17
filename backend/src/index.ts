@@ -20,7 +20,7 @@ app.use(
     allowHeaders: ['Content-Type', 'Authorization']
   })
 )
-app.options('*', (c) => c.text('', 204))
+app.options('*', (c) => c.text(''))
 
 const usersService = createUsersService(getUsersStorage())
 const authMiddleware = createAuthMiddleware({
