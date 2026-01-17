@@ -12,6 +12,8 @@ export const parseCreateUrlInput = (payload: unknown): CreateUrlPayload => {
 
   const targetUrl = payload.targetUrl
   const virtualCardId = payload.virtualCardId
+  const options = payload.options
+  const kind = payload.kind
 
   if (typeof targetUrl !== 'string' || targetUrl.trim().length === 0) {
     throw new UrlValidationError('targetUrl must be a non-empty string')
@@ -27,7 +29,15 @@ export const parseCreateUrlInput = (payload: unknown): CreateUrlPayload => {
     throw new UrlValidationError('targetUrl must be a valid URL')
   }
 
-  return { targetUrl, virtualCardId: virtualCardId ?? null }
+  const parsedOptions = isRecord(options) ? options : null
+  const parsedKind = typeof kind === 'string' && kind.trim().length > 0 ? kind.trim() : null
+
+  return {
+    targetUrl,
+    virtualCardId: virtualCardId ?? null,
+    options: parsedOptions,
+    kind: parsedKind
+  }
 }
 
 export const parseResolveParams = (params: Record<string, string | undefined>): ResolveUrlInput => {

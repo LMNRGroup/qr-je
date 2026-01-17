@@ -24,8 +24,11 @@ export const createUrlHandler = (service: UrlsService) => {
           id: url.id,
           random: url.random,
           targetUrl: url.targetUrl,
-          virtualCardId: url.virtualCardId,
-          shortUrl: buildShortUrl(url.id, url.random)
+          virtualCardId: url.virtualCardId ?? null,
+          shortUrl: buildShortUrl(url.id, url.random),
+          createdAt: url.createdAt,
+          options: url.options ?? null,
+          kind: url.kind ?? null
         },
         201
       )
@@ -73,6 +76,34 @@ export const listUrlsHandler = (service: UrlsService) => {
     }
 
     const urls = await service.getUrlsForUser(userId)
-    return c.json(urls)
+    return c.json(
+      urls.map((url) => ({
+        id: url.id,
+        random: url.random,
+        targetUrl: url.targetUrl,
+        shortUrl: buildShortUrl(url.id, url.random),
+        createdAt: url.createdAt,
+        options: url.options ?? null,
+        kind: url.kind ?? null
+      }))
+    )
+  }
+}
+
+export const deleteUrlHandler = (service: UrlsService) => {
+  return async (c: Context<AppBindings>) => {
+    const userId = c.get('userId')
+
+    if (!userId) {
+      return c.json({ message: 'Unauthorized' }, 401)
+    }
+
+    const id = c.req.param('id')
+    if (!id) {
+      return c.json({ message: 'id is required' }, 400)
+    }
+
+    await service.deleteUrl(id)
+    return c.json({ success: true })
   }
 }

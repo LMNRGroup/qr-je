@@ -1,79 +1,117 @@
+import supabase from '@/lib/supabase';
 import { QRHistoryItem, QROptions } from '@/types/qr';
 
-// Mock API responses
-const mockHistory: QRHistoryItem[] = [
-  {
-    id: '1',
-    content: 'https://example.com',
-    options: {
-      content: 'https://example.com',
-      size: 256,
-      fgColor: '#D4AF37',
-      bgColor: '#0A192F',
-      errorCorrectionLevel: 'M',
-      cornerStyle: 'square',
-    },
-    createdAt: new Date(Date.now() - 3600000).toISOString(),
-  },
-  {
-    id: '2',
-    content: 'https://github.com',
-    options: {
-      content: 'https://github.com',
-      size: 300,
-      fgColor: '#D4AF37',
-      bgColor: '#0A192F',
-      errorCorrectionLevel: 'H',
-      cornerStyle: 'rounded',
-    },
-    createdAt: new Date(Date.now() - 7200000).toISOString(),
-  },
-  {
-    id: '3',
-    content: 'Hello World!',
-    options: {
-      content: 'Hello World!',
-      size: 200,
-      fgColor: '#D4AF37',
-      bgColor: '#0A192F',
-      errorCorrectionLevel: 'L',
-      cornerStyle: 'dots',
-    },
-    createdAt: new Date(Date.now() - 86400000).toISOString(),
-  },
-];
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '';
 
-// Simulated API delay
-const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+type UrlResponse = {
+  id: string;
+  random: string;
+  targetUrl: string;
+  shortUrl: string;
+  createdAt: string;
+  options?: Record<string, unknown> | null;
+  kind?: string | null;
+};
 
-export async function generateQR(content: string, options: Partial<QROptions>): Promise<{ success: boolean; data?: QRHistoryItem }> {
-  await delay(500);
-  
-  const newItem: QRHistoryItem = {
-    id: crypto.randomUUID(),
-    content,
-    options: {
-      content,
-      size: options.size || 256,
-      fgColor: options.fgColor || '#D4AF37',
-      bgColor: options.bgColor || '#0A192F',
-      errorCorrectionLevel: options.errorCorrectionLevel || 'M',
-      cornerStyle: options.cornerStyle || 'square',
-      logo: options.logo,
-      logoSize: options.logoSize,
+type VcardResponse = {
+  id: string;
+  userId: string;
+  slug: string;
+  publicUrl: string;
+  shortId: string;
+  shortRandom: string;
+  data: Record<string, unknown>;
+  createdAt: string;
+};
+
+const requireBaseUrl = () => {
+  if (!API_BASE_URL) {
+    throw new Error('VITE_API_BASE_URL is not configured');
+  }
+  return API_BASE_URL.replace(/\/+$/, '');
+};
+
+const getAuthHeaders = async () => {
+  const { data } = await supabase.auth.getSession();
+  const token = data.session?.access_token;
+  return token ? { Authorization: `Bearer ${token}` } : {};
+};
+
+const request = async (path: string, init?: RequestInit) => {
+  const baseUrl = requireBaseUrl();
+  const authHeaders = await getAuthHeaders();
+  const response = await fetch(`${baseUrl}${path}`, {
+    ...init,
+    headers: {
+      'Content-Type': 'application/json',
+      ...authHeaders,
+      ...(init?.headers ?? {}),
     },
-    createdAt: new Date().toISOString(),
-  };
+  });
 
-  return { success: true, data: newItem };
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(errorText || 'Request failed');
+  }
+
+  return response;
+};
+
+const toHistoryItem = (entry: UrlResponse): QRHistoryItem => ({
+  id: entry.id,
+  content: entry.targetUrl,
+  options: {
+    content: entry.targetUrl,
+    size: 256,
+    fgColor: '#D4AF37',
+    bgColor: '#0A192F',
+    errorCorrectionLevel: 'M',
+    cornerStyle: 'square',
+    ...(entry.options ?? {}),
+  } as QROptions,
+  createdAt: entry.createdAt,
+});
+
+export async function generateQR(
+  content: string,
+  options: Partial<QROptions>,
+  kind?: string
+): Promise<{ success: boolean; data?: QRHistoryItem }> {
+  const response = await request('/urls', {
+    method: 'POST',
+    body: JSON.stringify({
+      targetUrl: content,
+      options,
+      kind: kind ?? null,
+    }),
+  });
+
+  const data = (await response.json()) as UrlResponse;
+  return { success: true, data: toHistoryItem(data) };
+}
+
+export async function createVcard(payload: {
+  slug?: string | null;
+  publicUrl: string;
+  data: Record<string, unknown>;
+  options?: Record<string, unknown> | null;
+}): Promise<{ success: boolean; url?: UrlResponse; vcard?: VcardResponse }> {
+  const response = await request('/vcards', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+
+  const data = (await response.json()) as { url: UrlResponse; vcard: VcardResponse };
+  return { success: true, url: data.url, vcard: data.vcard };
 }
 
 export async function getQRHistory(): Promise<{ success: boolean; data: QRHistoryItem[] }> {
-  await delay(300);
-  return { success: true, data: mockHistory };
+  const response = await request('/urls');
+  const data = (await response.json()) as UrlResponse[];
+  return { success: true, data: data.map(toHistoryItem) };
 }
 
 export async function deleteQRFromHistory(id: string): Promise<{ success: boolean }> {
-  await delay(200);
+  await request(`/urls/${id}`, { method: 'DELETE' });
   return { success: true };
 }

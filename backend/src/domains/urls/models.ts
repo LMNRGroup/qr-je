@@ -5,14 +5,18 @@ export type Url = {
   id: UrlId
   random: UrlRandom
   userId: string
-  virtualCardId: string | null
   targetUrl: string
   createdAt: string
+  virtualCardId?: string | null
+  options?: Record<string, unknown> | null
+  kind?: string | null
 }
 
 export type CreateUrlPayload = {
   targetUrl: string
   virtualCardId?: string | null
+  options?: Record<string, unknown> | null
+  kind?: string | null
 }
 
 export type CreateUrlInput = CreateUrlPayload & {
