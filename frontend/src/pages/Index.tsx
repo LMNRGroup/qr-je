@@ -22,6 +22,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { useAuth } from '@/contexts/AuthContext';
+import supabase, { isSupabaseConfigured } from '@/lib/supabase';
 import { createVcard, generateQR } from '@/lib/api';
 import { QROptions, defaultQROptions } from '@/types/qr';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -90,6 +91,12 @@ const Index = () => {
   const [quickActionHover, setQuickActionHover] = useState<string | null>(null);
   const [selectedQuickAction, setSelectedQuickAction] = useState<string | null>(null);
   const [actionRingOrigin, setActionRingOrigin] = useState({ x: 50, y: 50 });
+  const [navHint, setNavHint] = useState('');
+  const [profileForm, setProfileForm] = useState({
+    fullName: '',
+    password: '',
+    confirmPassword: '',
+  });
   const [generatedShortUrl, setGeneratedShortUrl] = useState('');
   const [generatedLongUrl, setGeneratedLongUrl] = useState('');
   const [showVcardCustomizer, setShowVcardCustomizer] = useState(false);
@@ -293,6 +300,8 @@ const Index = () => {
     : hasSelectedType
       ? 'https://preview.qrcodestudio.app'
       : '';
+  const isLoggedIn = Boolean(user);
+  const requiresAuthTabs = new Set(['codes', 'analytics', 'settings', 'adaptive']);
 
   const updateOption = useCallback(<K extends keyof QROptions>(key: K, value: QROptions[K]) => {
     setOptions((prev) => ({ ...prev, [key]: value }));
@@ -309,7 +318,26 @@ const Index = () => {
   }, [generatedContent, lastGeneratedContent]);
 
   useEffect(() => {
-    const introSeenKey = 'qr.intro.firstSeen';
+    if (authLoading) return;
+    const introSessionKey = 'qr.intro.session';
+    if (sessionStorage.getItem(introSessionKey)) {
+      setIsBooting(false);
+      setShowIntroAd(false);
+      setShowStudioBoot(false);
+      return;
+    }
+
+    const createdAt = user?.created_at ? new Date(user.created_at).getTime() : 0;
+    const lastSignIn = user?.last_sign_in_at ? new Date(user.last_sign_in_at).getTime() : 0;
+    const isNewUser = Boolean(createdAt && lastSignIn && Math.abs(lastSignIn - createdAt) < 2 * 60 * 1000);
+    if (!isNewUser) {
+      setIsBooting(false);
+      setShowIntroAd(false);
+      setShowStudioBoot(false);
+      sessionStorage.setItem(introSessionKey, 'true');
+      return;
+    }
+
     setShowIntroAd(true);
     setIsBooting(true);
     setShowStudioBoot(false);
@@ -325,7 +353,7 @@ const Index = () => {
         setShowStudioBoot(false);
         setIsBooting(false);
       }, 1100);
-      localStorage.setItem(introSeenKey, 'true');
+      sessionStorage.setItem(introSessionKey, 'true');
     }, 2600);
 
     return () => {
@@ -335,7 +363,7 @@ const Index = () => {
         window.clearTimeout(studioTimer);
       }
     };
-  }, []);
+  }, [authLoading, user]);
 
   useEffect(() => {
     if (authLoading || isBooting) return;
@@ -343,23 +371,29 @@ const Index = () => {
       sessionStorage.removeItem('qr.welcome.shown');
       return;
     }
-    if (sessionStorage.getItem('qr.welcome.shown')) return;
+    const sessionKey = `qr.welcome.session.${user.id}`;
+    if (sessionStorage.getItem(sessionKey)) return;
 
     const metadata = user.user_metadata as Record<string, string> | undefined;
     const rawName = metadata?.first_name || metadata?.full_name || metadata?.name || '';
     const fallbackName = user.email ? user.email.split('@')[0] : 'there';
     const firstName = (rawName.trim() ? rawName.split(' ')[0] : fallbackName).trim();
-    const createdAt = user.created_at ? new Date(user.created_at).getTime() : 0;
-    const lastSignIn = user.last_sign_in_at ? new Date(user.last_sign_in_at).getTime() : 0;
-    const isNewUser = createdAt && lastSignIn && Math.abs(lastSignIn - createdAt) < 2 * 60 * 1000;
     const displayName = firstName
       ? `${firstName.charAt(0).toUpperCase()}${firstName.slice(1)}`
       : 'there';
 
-    setWelcomeHeadline(`Welcome Back, ${displayName}!`);
-    setWelcomeSubline(`${displayName}, welcome to our family.`);
+    const firstLoginKey = `qr.welcome.first.${user.id}`;
+    const isFirstLogin = !localStorage.getItem(firstLoginKey);
+    if (isFirstLogin) {
+      setWelcomeHeadline(`Yo ${displayName}!`);
+      setWelcomeSubline('Not everyone makes great decisions… but today you did.\nWelcome to QRC Studio.');
+      localStorage.setItem(firstLoginKey, 'true');
+    } else {
+      setWelcomeHeadline(`Good to see you, ${displayName}`);
+      setWelcomeSubline('');
+    }
     setShowWelcomeIntro(true);
-    sessionStorage.setItem('qr.welcome.shown', 'true');
+    sessionStorage.setItem(sessionKey, 'true');
     const timer = window.setTimeout(() => setShowWelcomeIntro(false), 1100);
     return () => window.clearTimeout(timer);
   }, [authLoading, isBooting, user]);
@@ -431,6 +465,35 @@ const Index = () => {
   }, [activeTab]);
 
   useEffect(() => {
+    if (isLoggedIn) return;
+    if (requiresAuthTabs.has(activeTab)) {
+      setActiveTab('studio');
+    }
+  }, [activeTab, isLoggedIn, requiresAuthTabs]);
+
+  useEffect(() => {
+    if (!isLoggedIn || !user) {
+      setProfileForm({ fullName: '', password: '', confirmPassword: '' });
+      return;
+    }
+    const metadata = user.user_metadata as Record<string, string> | undefined;
+    const fullName = metadata?.full_name || metadata?.name || '';
+    setProfileForm((prev) => ({ ...prev, fullName }));
+  }, [isLoggedIn, user]);
+
+  useEffect(() => {
+    if (!user) return;
+    const storedTheme = window.localStorage.getItem(`theme:${user.id}`);
+    if (!storedTheme) return;
+    const root = document.documentElement;
+    if (storedTheme === 'dark') {
+      root.classList.add('dark');
+    } else if (storedTheme === 'light') {
+      root.classList.remove('dark');
+    }
+  }, [user]);
+
+  useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return;
       if (isCreateOpen) {
@@ -487,41 +550,48 @@ const Index = () => {
       toast.error(message);
       return;
     }
-    if (qrMode === 'dynamic') {
-      toast.info('Dynamic QR codes are coming soon. Generating static QR for now.');
-    }
     if (!longFormContent.trim()) {
       toast.error('Please enter content to generate');
       return;
     }
     setIsGenerating(true);
-    const response = qrType === 'vcard'
-      ? await createVcard({
-        slug: vcardSlug || null,
-        publicUrl: vcardUrl,
-        data: {
-          profile: vcard,
-          style: vcardStyle,
-        },
-        options: {
-          ...options,
-          content: vcardUrl,
-        },
-      })
-      : await generateQR(longFormContent, options, qrType ?? undefined);
-    setIsGenerating(false);
-    if (response.success) {
-      if ('url' in response && response.url) {
-        setGeneratedShortUrl(response.url.shortUrl);
-        setGeneratedLongUrl(response.url.targetUrl);
-        setLastGeneratedContent(response.url.shortUrl);
-      } else if ('data' in response && response.data) {
-        setLastGeneratedContent(response.data.content);
+    try {
+      const response = qrType === 'vcard'
+        ? await createVcard({
+          slug: vcardSlug || null,
+          publicUrl: vcardUrl,
+          data: {
+            profile: vcard,
+            style: vcardStyle,
+          },
+          options: {
+            ...options,
+            content: vcardUrl,
+          },
+        })
+        : await generateQR(longFormContent, options, qrType ?? undefined);
+      if (response.success) {
+        if ('url' in response && response.url) {
+          setGeneratedShortUrl(response.url.shortUrl);
+          setGeneratedLongUrl(response.url.targetUrl);
+          setLastGeneratedContent(response.url.shortUrl);
+        } else if ('data' in response && response.data) {
+          setLastGeneratedContent(response.data.content);
+        }
+        toast.success('QR code generated!');
+        setHasGenerated(true);
+      } else {
+        toast.error('Failed to generate QR code');
       }
-      toast.success('QR code generated!');
-      setHasGenerated(true);
-    } else {
-      toast.error('Failed to generate QR code');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to generate QR code';
+      if (message.includes('VITE_API_BASE_URL')) {
+        toast.error('API base URL is missing. Add VITE_API_BASE_URL to frontend/.env.local.');
+      } else {
+        toast.error(message);
+      }
+    } finally {
+      setIsGenerating(false);
     }
   };
 
@@ -636,6 +706,32 @@ const Index = () => {
     } catch {
       toast.error('Failed to copy link');
     }
+  };
+
+  const handleProfileSave = async () => {
+    if (!isLoggedIn || !user) return;
+    if (!isSupabaseConfigured) {
+      toast.error('Profile updates require a connected backend.');
+      return;
+    }
+    if (profileForm.password && profileForm.password !== profileForm.confirmPassword) {
+      toast.error('Passwords do not match.');
+      return;
+    }
+    const updates: Record<string, unknown> = {};
+    if (profileForm.fullName.trim()) {
+      updates.data = { full_name: profileForm.fullName.trim() };
+    }
+    if (profileForm.password) {
+      updates.password = profileForm.password;
+    }
+    const { error } = await supabase.auth.updateUser(updates);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    toast.success('Preferences saved.');
+    setProfileForm((prev) => ({ ...prev, password: '', confirmPassword: '' }));
   };
 
   const vcardColorPresets = [
@@ -1048,53 +1144,67 @@ const Index = () => {
                     </div>
 
                     <div className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2">
-                      <button
-                        type="button"
-                        aria-disabled="true"
-                        onClick={() => {
-                          toast.info('Dynamic QR is coming soon.');
-                          setSelectedQuickAction('dynamic');
-                          setQrMode('dynamic');
-                          setQrType('website');
-                          setPendingCreateScroll(true);
-                          closeCreateMenu();
-                        }}
-                        onMouseEnter={() => setActionRingText('Create Dynamic QR Code')}
-                        onMouseLeave={() => setActionRingText('Create New QR Code')}
-                        className="pointer-events-auto flex h-12 w-12 items-center justify-center rounded-full border border-border/70 bg-card/80 text-muted-foreground opacity-60 shadow-lg cursor-not-allowed"
-                      >
-                        <Sparkles className="h-5 w-5" />
-                      </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (!isLoggedIn) {
+                          toast.info('Create an account or log in to start creating Dynamic QR Codes.');
+                          return;
+                        }
+                        setSelectedQuickAction('dynamic');
+                        setQrMode('dynamic');
+                        setQrType('website');
+                        setPendingCreateScroll(true);
+                        closeCreateMenu();
+                      }}
+                      onMouseEnter={() => setActionRingText(isLoggedIn ? 'Create Dynamic QR Code' : 'Log in to unlock Dynamic QR')}
+                      onMouseLeave={() => setActionRingText('Create New QR Code')}
+                      className={`pointer-events-auto flex h-12 w-12 items-center justify-center rounded-full border shadow-lg transition ${
+                        isLoggedIn
+                          ? 'border-border/70 bg-card/90 text-primary hover:border-primary/60 hover:text-primary'
+                          : 'border-border/70 bg-card/80 text-muted-foreground opacity-60 cursor-not-allowed'
+                      }`}
+                    >
+                      <Sparkles className="h-5 w-5" />
+                    </button>
                     </div>
 
                     <div className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1/2">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          handleStartVcard();
-                          closeCreateMenu();
-                        }}
-                        onMouseEnter={() => setActionRingText('Create New VCard QR Code')}
-                        onMouseLeave={() => setActionRingText('Create New QR Code')}
-                        className="pointer-events-auto flex h-12 w-12 items-center justify-center rounded-full border border-border/70 bg-card/90 text-primary shadow-lg transition hover:border-primary/60 hover:text-primary"
-                      >
-                        <User className="h-5 w-5" />
-                      </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (!isLoggedIn) {
+                          toast.info('Create an account or log in to start creating VCards.');
+                          return;
+                        }
+                        handleStartVcard();
+                        closeCreateMenu();
+                      }}
+                      onMouseEnter={() => setActionRingText(isLoggedIn ? 'Create New VCard QR Code' : 'Log in to unlock VCard')}
+                      onMouseLeave={() => setActionRingText('Create New QR Code')}
+                      className="pointer-events-auto flex h-12 w-12 items-center justify-center rounded-full border border-border/70 bg-card/90 text-primary shadow-lg transition hover:border-primary/60 hover:text-primary"
+                    >
+                      <User className="h-5 w-5" />
+                    </button>
                     </div>
 
                     <div className="absolute left-1/2 bottom-0 -translate-x-1/2 translate-y-1/2">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          toast.info('Upgrade to a Pro Plan to unlock this feature.');
-                          closeCreateMenu();
-                        }}
-                        onMouseEnter={() => setActionRingText('Upload a File QR Code')}
-                        onMouseLeave={() => setActionRingText('Create New QR Code')}
-                        className="pointer-events-auto flex h-12 w-12 items-center justify-center rounded-full border border-border/70 bg-card/80 text-muted-foreground shadow-lg transition hover:border-primary/60 hover:text-primary"
-                      >
-                        <File className="h-5 w-5" />
-                      </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (!isLoggedIn) {
+                          toast.info('Create an account or log in to unlock File QR.');
+                          return;
+                        }
+                        toast.info('Upgrade to a Pro Plan to unlock this feature.');
+                        closeCreateMenu();
+                      }}
+                      onMouseEnter={() => setActionRingText(isLoggedIn ? 'Upload a File QR Code' : 'Log in to unlock File QR')}
+                      onMouseLeave={() => setActionRingText('Create New QR Code')}
+                      className="pointer-events-auto flex h-12 w-12 items-center justify-center rounded-full border border-border/70 bg-card/80 text-muted-foreground shadow-lg transition hover:border-primary/60 hover:text-primary"
+                    >
+                      <File className="h-5 w-5" />
+                    </button>
                     </div>
 
                     <div className="absolute right-6 top-6">
@@ -1128,34 +1238,42 @@ const Index = () => {
                     </div>
 
                     <div className="absolute left-6 bottom-6">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          openMenuBuilder();
-                          closeCreateMenu();
-                        }}
-                        onMouseEnter={() => setActionRingText('Create a custom QR code for your menu')}
-                        onMouseLeave={() => setActionRingText('Create New QR Code')}
-                        className="pointer-events-auto flex h-11 w-11 items-center justify-center rounded-full border border-border/70 bg-card/90 text-primary shadow-lg transition hover:border-primary/60"
-                      >
-                        <Utensils className="h-4 w-4" />
-                      </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (!isLoggedIn) {
+                          toast.info('Create an account or log in to start building QR Menus.');
+                          return;
+                        }
+                        openMenuBuilder();
+                        closeCreateMenu();
+                      }}
+                      onMouseEnter={() => setActionRingText(isLoggedIn ? 'Create a custom QR code for your menu' : 'Log in to unlock QR Menus')}
+                      onMouseLeave={() => setActionRingText('Create New QR Code')}
+                      className="pointer-events-auto flex h-11 w-11 items-center justify-center rounded-full border border-border/70 bg-card/90 text-primary shadow-lg transition hover:border-primary/60"
+                    >
+                      <Utensils className="h-4 w-4" />
+                    </button>
                     </div>
 
                     <div className="absolute left-6 top-6">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setActiveTab('adaptive');
-                          setPendingCreateScroll(false);
-                          closeCreateMenu();
-                        }}
-                        onMouseEnter={() => setActionRingText('Create Adaptive QRC™')}
-                        onMouseLeave={() => setActionRingText('Create New QR Code')}
-                        className="pointer-events-auto flex h-11 w-11 items-center justify-center rounded-full border border-amber-300/60 bg-card/90 text-amber-300 shadow-lg transition hover:border-amber-300"
-                      >
-                        <QrCode className="h-4 w-4" />
-                      </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (!isLoggedIn) {
+                          toast.info('Create an account or log in to unlock Adaptive QRC™.');
+                          return;
+                        }
+                        setActiveTab('adaptive');
+                        setPendingCreateScroll(false);
+                        closeCreateMenu();
+                      }}
+                      onMouseEnter={() => setActionRingText(isLoggedIn ? 'Create Adaptive QRC™' : 'Log in to unlock Adaptive QRC™')}
+                      onMouseLeave={() => setActionRingText('Create New QR Code')}
+                      className="pointer-events-auto flex h-11 w-11 items-center justify-center rounded-full border border-amber-300/60 bg-card/90 text-amber-300 shadow-lg transition hover:border-amber-300"
+                    >
+                      <QrCode className="h-4 w-4" />
+                    </button>
                     </div>
                   </motion.div>
                 </motion.div>
@@ -1286,18 +1404,20 @@ const Index = () => {
       {showWelcomeIntro && (
         <div className="fixed inset-0 z-[55] flex items-center justify-center bg-background/80 backdrop-blur-sm">
           <div className="text-center space-y-4">
-            <div className="text-3xl sm:text-4xl font-semibold tracking-tight">
+            <div className="text-3xl sm:text-4xl font-semibold tracking-tight whitespace-pre-line">
               <span className="relative inline-block">
                 <span className="text-muted-foreground/70">{welcomeHeadline}</span>
                 <span className="absolute inset-0 logo-fill">{welcomeHeadline}</span>
               </span>
             </div>
-            <div className="text-base sm:text-lg font-semibold tracking-tight">
+            {welcomeSubline ? (
+              <div className="text-base sm:text-lg font-semibold tracking-tight whitespace-pre-line">
               <span className="relative inline-block">
                 <span className="text-muted-foreground/70">{welcomeSubline}</span>
                 <span className="absolute inset-0 logo-fill">{welcomeSubline}</span>
               </span>
             </div>
+            ) : null}
           </div>
         </div>
       )}
@@ -1318,72 +1438,108 @@ const Index = () => {
             >
               X
             </button>
-            <div>
-              <p className="text-xs uppercase tracking-[0.35em] text-muted-foreground">My Account</p>
-              <h2 className="text-2xl font-semibold">Create your account</h2>
-              <p className="text-sm text-muted-foreground">
-                Save your QR codes, track analytics, and sync across devices.
-              </p>
-            </div>
-            <div className="space-y-3">
-              <Input
-                value={accountForm.username}
-                onChange={(e) => setAccountForm((prev) => ({ ...prev, username: e.target.value }))}
-                placeholder="Username"
-                maxLength={24}
-                className="bg-secondary/40 border-border"
-              />
-              <Input
-                value={accountForm.fullName}
-                onChange={(e) => setAccountForm((prev) => ({ ...prev, fullName: e.target.value }))}
-                placeholder="Full Name"
-                className="bg-secondary/40 border-border"
-              />
-              <Input
-                value={accountForm.email}
-                onChange={(e) => setAccountForm((prev) => ({ ...prev, email: e.target.value }))}
-                placeholder="Email Address"
-                type="email"
-                className="bg-secondary/40 border-border"
-              />
-            </div>
-            <label className="flex items-start gap-3 text-xs text-muted-foreground">
-              <input
-                type="checkbox"
-                checked={acceptedTerms}
-                onChange={(e) => setAcceptedTerms(e.target.checked)}
-                className="mt-0.5 accent-primary"
-              />
-              <span>
-                I agree to the Terms & Conditions and subscribe for free updates.
-              </span>
-            </label>
-            <div className="flex flex-col sm:flex-row gap-3">
-              <Button
-                className="flex-1 bg-gradient-primary text-primary-foreground uppercase tracking-[0.2em] text-xs"
-                disabled={!acceptedTerms}
-              >
-                Create Account
-              </Button>
-            </div>
-            <button
-              type="button"
-              className="w-full text-[11px] uppercase tracking-[0.3em] text-muted-foreground transition hover:text-primary"
-              onClick={() => {
-                setShowAccountModal(false);
-                navigate('/login');
-              }}
-            >
-              Already have an account? <span className="text-primary">Sign In</span>
-            </button>
-            <div className="text-center">
-              <a
-                href="/terms"
-                className="text-[11px] text-muted-foreground underline decoration-dotted underline-offset-4 hover:text-primary"
-              >
-                View Terms & Conditions
-              </a>
-            </div>
+            {isLoggedIn ? (
+              <>
+                <div>
+                  <p className="text-xs uppercase tracking-[0.35em] text-muted-foreground">Welcome</p>
+                  <h2 className="text-2xl font-semibold">{user?.email ?? 'Account'}</h2>
+                  <p className="text-sm text-muted-foreground">
+                    Manage preferences, security, and sign out.
+                  </p>
+                </div>
+                <div className="space-y-3 text-sm">
+                  <button
+                    type="button"
+                    className="w-full text-left text-primary hover:text-primary/80 transition"
+                    onClick={() => {
+                      setActiveTab('settings');
+                      setShowAccountModal(false);
+                    }}
+                  >
+                    Go to Settings
+                  </button>
+                  <button
+                    type="button"
+                    className="w-full text-left text-muted-foreground hover:text-foreground transition"
+                    onClick={async () => {
+                      await signOut();
+                      setShowAccountModal(false);
+                    }}
+                  >
+                    Sign Out
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div>
+                  <p className="text-xs uppercase tracking-[0.35em] text-muted-foreground">My Account</p>
+                  <h2 className="text-2xl font-semibold">Create your account</h2>
+                  <p className="text-sm text-muted-foreground">
+                    Save your QR codes, track analytics, and sync across devices.
+                  </p>
+                </div>
+                <div className="space-y-3">
+                  <Input
+                    value={accountForm.username}
+                    onChange={(e) => setAccountForm((prev) => ({ ...prev, username: e.target.value }))}
+                    placeholder="Username"
+                    maxLength={24}
+                    className="bg-secondary/40 border-border"
+                  />
+                  <Input
+                    value={accountForm.fullName}
+                    onChange={(e) => setAccountForm((prev) => ({ ...prev, fullName: e.target.value }))}
+                    placeholder="Full Name"
+                    className="bg-secondary/40 border-border"
+                  />
+                  <Input
+                    value={accountForm.email}
+                    onChange={(e) => setAccountForm((prev) => ({ ...prev, email: e.target.value }))}
+                    placeholder="Email Address"
+                    type="email"
+                    className="bg-secondary/40 border-border"
+                  />
+                </div>
+                <label className="flex items-start gap-3 text-xs text-muted-foreground">
+                  <input
+                    type="checkbox"
+                    checked={acceptedTerms}
+                    onChange={(e) => setAcceptedTerms(e.target.checked)}
+                    className="mt-0.5 accent-primary"
+                  />
+                  <span>
+                    I agree to the Terms & Conditions and subscribe for free updates.
+                  </span>
+                </label>
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <Button
+                    className="flex-1 bg-gradient-primary text-primary-foreground uppercase tracking-[0.2em] text-xs"
+                    disabled={!acceptedTerms}
+                  >
+                    Create Account
+                  </Button>
+                </div>
+                <button
+                  type="button"
+                  className="w-full text-[11px] uppercase tracking-[0.3em] text-muted-foreground transition hover:text-primary"
+                  onClick={() => {
+                    setShowAccountModal(false);
+                    navigate('/login');
+                  }}
+                >
+                  Already have an account? <span className="text-primary">Sign In</span>
+                </button>
+                <div className="text-center">
+                  <a
+                    href="/terms"
+                    className="text-[11px] text-muted-foreground underline decoration-dotted underline-offset-4 hover:text-primary"
+                  >
+                    View Terms & Conditions
+                  </a>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}
@@ -2038,6 +2194,7 @@ const Index = () => {
               <p className="text-xs text-muted-foreground uppercase tracking-[0.3em]">The last QR you&apos;ll ever print</p>
             </div>
           </button>
+          <div className="relative hidden lg:flex flex-col items-center">
           <nav className="hidden lg:flex items-end gap-6 text-xs uppercase tracking-[0.35em] text-muted-foreground">
             <div className="pb-1">
               <CreateMenu label="" />
@@ -2052,11 +2209,12 @@ const Index = () => {
             ].map((item) => {
               const isActive = activeTab === item.id;
               const isAdaptive = item.id === 'adaptive';
+              const isLocked = requiresAuthTabs.has(item.id) && !isLoggedIn;
               const iconConfig = item.id === 'studio'
                 ? { Icon: Paintbrush, color: 'text-muted-foreground' }
                 : item.id === 'codes'
                   ? { Icon: QrCode, color: 'text-muted-foreground' }
-                  : item.id === 'analytics'
+                : item.id === 'analytics'
                     ? { Icon: BarChart3, color: 'text-muted-foreground' }
                     : item.id === 'settings'
                       ? { Icon: Settings, color: 'text-muted-foreground' }
@@ -2067,7 +2225,19 @@ const Index = () => {
                 <button
                   key={item.id}
                   type="button"
-                  onClick={() => setActiveTab(item.id as typeof activeTab)}
+                  onClick={() => {
+                    if (isLocked) {
+                      toast.info('Create an account or log in to unlock this section.');
+                      return;
+                    }
+                    setActiveTab(item.id as typeof activeTab);
+                  }}
+                  onMouseEnter={() => {
+                    if (isLocked) {
+                      setNavHint('Create an account or log in to unlock this section.');
+                    }
+                  }}
+                  onMouseLeave={() => setNavHint('')}
                   className={`group relative flex items-center justify-center min-w-[92px] px-1 pb-2 text-center transition-all before:absolute before:-top-2 before:left-0 before:h-[2px] before:w-full before:rounded-full before:bg-gradient-to-r before:from-primary before:to-amber-200 before:opacity-0 before:transition ${
                     isActive
                       ? 'text-foreground before:opacity-100'
@@ -2086,8 +2256,14 @@ const Index = () => {
               );
             })}
           </nav>
+          {navHint ? (
+            <div className="absolute top-full mt-1 text-[10px] uppercase tracking-[0.3em] text-muted-foreground">
+              {navHint}
+            </div>
+          ) : null}
+          </div>
           <div className="flex items-center gap-3">
-            <ThemeToggle />
+            <ThemeToggle storageKey={isLoggedIn && user?.id ? `theme:${user.id}` : 'theme:guest'} />
             <div className="relative group">
               <button
                 type="button"
@@ -2201,36 +2377,57 @@ const Index = () => {
               {
                 id: 'vcard',
                 label: 'VCard',
-                hint: 'VCard',
+                hint: isLoggedIn ? 'VCard' : 'Log in to unlock VCard',
                 Icon: User,
-                onClick: handleStartVcard,
+                onClick: () => {
+                  if (!isLoggedIn) {
+                    toast.info('Create an account or log in to start creating VCards.');
+                    return;
+                  }
+                  handleStartVcard();
+                },
               },
               {
                 id: 'file',
                 label: 'File',
-                hint: 'File',
+                hint: isLoggedIn ? 'File' : 'Log in to unlock File QR',
                 Icon: File,
-                onClick: () => toast.info('Upgrade to a Pro Plan to unlock this feature.'),
+                onClick: () => {
+                  if (!isLoggedIn) {
+                    toast.info('Create an account or log in to unlock File QR.');
+                    return;
+                  }
+                  toast.info('Upgrade to a Pro Plan to unlock this feature.');
+                },
               },
               {
                 id: 'dynamic',
                 label: 'Dynamic',
-                hint: 'Dynamic',
+                hint: isLoggedIn ? 'Dynamic' : 'Log in to unlock Dynamic',
                 Icon: Sparkles,
                 onClick: () => {
+                  if (!isLoggedIn) {
+                    toast.info('Create an account or log in to start creating Dynamic QR Codes.');
+                    return;
+                  }
                   setQrMode('dynamic');
                   setQrType('website');
                   setSelectedQuickAction('dynamic');
                   setPendingCreateScroll(true);
-                  toast.info('Dynamic QR is in preview mode.');
                 },
               },
               {
                 id: 'menu',
                 label: 'Menu',
-                hint: 'Menu',
+                hint: isLoggedIn ? 'Menu' : 'Log in to unlock Menu',
                 Icon: Utensils,
-                onClick: openMenuBuilder,
+                onClick: () => {
+                  if (!isLoggedIn) {
+                    toast.info('Create an account or log in to start building QR Menus.');
+                    return;
+                  }
+                  openMenuBuilder();
+                },
               },
             ].map((action) => (
               <button
@@ -2311,14 +2508,18 @@ const Index = () => {
                         ? 'bg-card/80 text-foreground border border-primary/50 border-b-transparent rounded-t-xl uppercase tracking-[0.2em] text-xs shadow-[0_0_14px_rgba(99,102,241,0.18)]'
                         : 'bg-secondary/40 border border-border/60 text-muted-foreground rounded-t-xl uppercase tracking-[0.2em] text-xs hover:text-primary'}
                       onClick={() => {
+                        if (!isLoggedIn) {
+                          toast.info('Create an account or log in to unlock Dynamic QR Codes.');
+                          return;
+                        }
                         setQrMode('dynamic');
                         setQrType(null);
                         setWebsiteTouched(false);
                         setEmailTouched(false);
                         setPhoneTouched(false);
                         setSelectedQuickAction('dynamic');
-                        toast.info('Dynamic QR is in preview mode.');
                       }}
+                      title={isLoggedIn ? undefined : 'Log in to unlock Dynamic QR Codes'}
                     >
                       Dynamic
                     </Button>
@@ -2353,9 +2554,14 @@ const Index = () => {
                       <button
                         type="button"
                         onClick={() => {
+                          if (!isLoggedIn) {
+                            toast.info('Create an account or log in to start creating VCards.');
+                            return;
+                          }
                           setQrType('vcard');
                           setSelectedQuickAction('vcard');
                         }}
+                        title={isLoggedIn ? undefined : 'Log in to unlock VCard'}
                         className={`rounded-t-2xl border px-4 py-3 text-left transition-all ${
                           qrType === 'vcard'
                             ? 'border-border/70 bg-card/80'
@@ -2400,9 +2606,14 @@ const Index = () => {
                       <button
                         type="button"
                         onClick={() => {
+                          if (!isLoggedIn) {
+                            toast.info('Create an account or log in to start building QR Menus.');
+                            return;
+                          }
                           setQrType('menu');
                           setSelectedQuickAction('menu');
                         }}
+                        title={isLoggedIn ? undefined : 'Log in to unlock QR Menus'}
                         className={`rounded-t-2xl border px-4 py-3 text-left transition-all ${
                           qrType === 'menu'
                             ? 'border-border/70 bg-card/80'
@@ -3062,26 +3273,71 @@ const Index = () => {
               <p className="text-xs uppercase tracking-[0.4em] text-muted-foreground">Config</p>
               <h2 className="text-3xl font-semibold tracking-tight">Preferences</h2>
             </div>
-            <div className="glass-panel rounded-2xl p-6 text-sm text-muted-foreground space-y-4">
-              <p>From here you can customize your experience and preferences.</p>
-              <p>Please log in or create an account to unlock settings, exports, and team features.</p>
-              <div className="flex flex-col sm:flex-row gap-2 text-sm">
-                <button
-                  type="button"
-                  className="text-primary hover:text-primary/80 transition"
-                  onClick={() => navigate('/login')}
-                >
-                  Log In
-                </button>
-                <button
-                  type="button"
-                  className="text-primary hover:text-primary/80 transition"
-                  onClick={() => navigate('/login')}
-                >
-                  Sign Up
-                </button>
+            {!isLoggedIn ? (
+              <div className="glass-panel rounded-2xl p-6 text-sm text-muted-foreground space-y-4">
+                <p>From here you can customize your experience and preferences.</p>
+                <p>Please log in or create an account to unlock settings, exports, and team features.</p>
+                <div className="flex flex-col sm:flex-row gap-2 text-sm">
+                  <button
+                    type="button"
+                    className="text-primary hover:text-primary/80 transition"
+                    onClick={() => navigate('/login')}
+                  >
+                    Log In
+                  </button>
+                  <button
+                    type="button"
+                    className="text-primary hover:text-primary/80 transition"
+                    onClick={() => navigate('/login')}
+                  >
+                    Sign Up
+                  </button>
+                </div>
               </div>
-            </div>
+            ) : (
+              <div className="glass-panel rounded-2xl p-6 text-sm text-muted-foreground space-y-6">
+                <div className="space-y-2">
+                  <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Theme</p>
+                  <ThemeToggle storageKey={`theme:${user?.id ?? 'default'}`} />
+                </div>
+                <div className="space-y-4">
+                  <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Profile</p>
+                  <Input
+                    value={profileForm.fullName}
+                    onChange={(event) =>
+                      setProfileForm((prev) => ({ ...prev, fullName: event.target.value }))
+                    }
+                    placeholder="Full Name"
+                    className="bg-secondary/40 border-border"
+                  />
+                  <Input
+                    value={profileForm.password}
+                    onChange={(event) =>
+                      setProfileForm((prev) => ({ ...prev, password: event.target.value }))
+                    }
+                    placeholder="New Password"
+                    type="password"
+                    className="bg-secondary/40 border-border"
+                  />
+                  <Input
+                    value={profileForm.confirmPassword}
+                    onChange={(event) =>
+                      setProfileForm((prev) => ({ ...prev, confirmPassword: event.target.value }))
+                    }
+                    placeholder="Confirm Password"
+                    type="password"
+                    className="bg-secondary/40 border-border"
+                  />
+                  <Button
+                    type="button"
+                    className="bg-gradient-primary text-primary-foreground uppercase tracking-[0.2em] text-xs"
+                    onClick={handleProfileSave}
+                  >
+                    Save Preferences
+                  </Button>
+                </div>
+              </div>
+            )}
           </section>
         )}
 

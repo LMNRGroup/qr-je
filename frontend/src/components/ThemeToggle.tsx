@@ -3,27 +3,31 @@ import { Moon, Sun } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { motion } from 'framer-motion';
 
-const getInitialTheme = () => {
+const getInitialTheme = (storageKey: string) => {
   if (typeof window === 'undefined') return true;
-  const stored = window.localStorage.getItem('theme');
+  const stored = window.localStorage.getItem(storageKey);
   if (stored === 'light') return false;
   if (stored === 'dark') return true;
   return window.matchMedia?.('(prefers-color-scheme: dark)').matches ?? true;
 };
 
-export function ThemeToggle() {
-  const [isDark, setIsDark] = useState(getInitialTheme);
+export function ThemeToggle({ storageKey = 'theme' }: { storageKey?: string }) {
+  const [isDark, setIsDark] = useState(() => getInitialTheme(storageKey));
+
+  useEffect(() => {
+    setIsDark(getInitialTheme(storageKey));
+  }, [storageKey]);
 
   useEffect(() => {
     const root = document.documentElement;
     if (isDark) {
       root.classList.add('dark');
-      window.localStorage.setItem('theme', 'dark');
+      window.localStorage.setItem(storageKey, 'dark');
     } else {
       root.classList.remove('dark');
-      window.localStorage.setItem('theme', 'light');
+      window.localStorage.setItem(storageKey, 'light');
     }
-  }, [isDark]);
+  }, [isDark, storageKey]);
 
   return (
     <Button
