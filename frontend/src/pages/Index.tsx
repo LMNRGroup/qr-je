@@ -63,6 +63,7 @@ const UPSell_SESSION_KEY = 'qr.upsell.sessionShown';
 
 const Index = () => {
   const { user, loading: authLoading } = useAuth();
+  const isLoggedIn = Boolean(user);
   const [options, setOptions] = useState<QROptions>(defaultQROptions);
   const [isGenerating, setIsGenerating] = useState(false);
   const [hasGenerated, setHasGenerated] = useState(false);
@@ -312,7 +313,6 @@ const Index = () => {
     : hasSelectedType
       ? 'https://preview.qrcodestudio.app'
       : '';
-  const isLoggedIn = Boolean(user);
   const requiresAuthTabs = new Set(['codes', 'analytics', 'settings', 'adaptive']);
 
   const parseKind = useCallback((kind?: string | null) => {

@@ -11,6 +11,10 @@ export type AuthMiddlewareOptions = {
 
 export const createAuthMiddleware = ({ usersService, publicPaths = [] }: AuthMiddlewareOptions) => {
   const middleware: MiddlewareHandler<AppBindings> = async (c, next) => {
+    if (c.req.method === 'OPTIONS') {
+      return c.body(null, 204)
+    }
+
     if (isPublicPath(c.req.path, publicPaths)) {
       await next()
       return
