@@ -31,10 +31,14 @@ export const parseCreateUrlInput = (payload: unknown): CreateUrlPayload => {
 
   const parsedOptions = isRecord(options) ? options : null
   const parsedKind = typeof kind === 'string' && kind.trim().length > 0 ? kind.trim() : null
+  const parsedVirtualCardId =
+    typeof virtualCardId === 'string' && virtualCardId.trim().length > 0
+      ? virtualCardId
+      : null
 
   return {
     targetUrl,
-    virtualCardId: virtualCardId ?? null,
+    virtualCardId: parsedVirtualCardId,
     options: parsedOptions,
     kind: parsedKind
   }
