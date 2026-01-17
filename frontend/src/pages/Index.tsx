@@ -29,15 +29,19 @@ import {
   ChevronDown,
   Copy,
   Download,
+  File,
   Link as LinkIcon,
   Loader2,
+  Mail,
   Monitor,
+  Phone,
   Plus,
   QrCode,
   Sparkles,
+  Star,
   User,
 } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 
@@ -51,11 +55,15 @@ const Index = () => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [hasGenerated, setHasGenerated] = useState(false);
   const [lastGeneratedContent, setLastGeneratedContent] = useState('');
-  const [activeTab, setActiveTab] = useState<'studio' | 'codes' | 'analytics' | 'settings'>('studio');
+  const [activeTab, setActiveTab] = useState<'studio' | 'codes' | 'analytics' | 'settings' | 'upgrade'>('studio');
   const [qrMode, setQrMode] = useState<'static' | 'dynamic' | null>(null);
-  const [qrType, setQrType] = useState<'website' | 'vcard' | null>(null);
+  const [qrType, setQrType] = useState<'website' | 'vcard' | 'email' | 'phone' | null>(null);
   const [websiteUrl, setWebsiteUrl] = useState('');
   const [websiteTouched, setWebsiteTouched] = useState(false);
+  const [emailAddress, setEmailAddress] = useState('');
+  const [emailTouched, setEmailTouched] = useState(false);
+  const [phoneNumber, setPhoneNumber] = useState('');
+  const [phoneTouched, setPhoneTouched] = useState(false);
   const [isBooting, setIsBooting] = useState(true);
   const [showUpsell, setShowUpsell] = useState(false);
   const [isCreateHover, setIsCreateHover] = useState(false);
@@ -63,6 +71,8 @@ const Index = () => {
   const [analyticsSeen, setAnalyticsSeen] = useState(false);
   const [showWelcomeIntro, setShowWelcomeIntro] = useState(false);
   const [welcomeMessage, setWelcomeMessage] = useState('');
+  const [showVcardCustomizer, setShowVcardCustomizer] = useState(false);
+  const [vcardPreviewSide, setVcardPreviewSide] = useState<'front' | 'back'>('front');
   const [showAccountModal, setShowAccountModal] = useState(false);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [pendingCreateScroll, setPendingCreateScroll] = useState(false);
@@ -80,6 +90,21 @@ const Index = () => {
     company: '',
     about: '',
     slug: '',
+  });
+  const [vcardStyle, setVcardStyle] = useState({
+    fontFamily: 'Arial, sans-serif',
+    radius: 18,
+    frontColor: '#111827',
+    frontGradient: '#2563eb',
+    frontUseGradient: true,
+    backColor: '#0f172a',
+    backGradient: '#4f46e5',
+    backUseGradient: true,
+    logoDataUrl: '',
+    profilePhotoDataUrl: '',
+    photoZoom: 110,
+    photoX: 50,
+    photoY: 50,
   });
   const qrRef = useRef<QRPreviewHandle>(null);
   const createSectionRef = useRef<HTMLDivElement>(null);
@@ -108,6 +133,15 @@ const Index = () => {
     }
   };
 
+  const isValidEmail = (value: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
+
+  const normalizePhone = (value: string) => value.replace(/[^\d+]/g, '').trim();
+
+  const isValidPhone = (value: string) => {
+    const digits = value.replace(/\D/g, '');
+    return digits.length >= 7;
+  };
+
   const slugify = (value: string) =>
     value
       .toLowerCase()
@@ -121,10 +155,13 @@ const Index = () => {
     () => normalizeUrl(websiteUrl),
     [websiteUrl]
   );
+  const normalizedPhone = useMemo(() => normalizePhone(phoneNumber), [phoneNumber]);
   const isWebsiteValid = useMemo(
     () => isValidWebsiteUrl(websiteUrl),
     [websiteUrl]
   );
+  const isEmailValid = useMemo(() => isValidEmail(emailAddress), [emailAddress]);
+  const isPhoneValid = useMemo(() => isValidPhone(phoneNumber), [phoneNumber]);
   const vcardSlug = useMemo(
     () => (vcard.slug ? slugify(vcard.slug) : slugify(vcard.name)),
     [vcard.slug, vcard.name]
@@ -136,12 +173,20 @@ const Index = () => {
     ? (isWebsiteValid ? normalizedWebsiteUrl : '')
     : qrType === 'vcard'
       ? vcardUrl
-      : '';
+      : qrType === 'email'
+        ? (isEmailValid ? `mailto:${emailAddress.trim()}` : '')
+        : qrType === 'phone'
+          ? (isPhoneValid ? `tel:${normalizedPhone}` : '')
+          : '';
   const canGenerate = qrType === 'website'
     ? isWebsiteValid
     : qrType === 'vcard'
       ? Boolean(vcardSlug)
-      : false;
+      : qrType === 'email'
+        ? isEmailValid
+        : qrType === 'phone'
+          ? isPhoneValid
+          : false;
   const previewUrl = qrType === 'website' ? normalizedWebsiteUrl : vcardUrl;
   const canShowPreview = qrType === 'website' && isWebsiteValid;
   const hasSelectedMode = qrMode !== null;
@@ -255,9 +300,14 @@ const Index = () => {
 
   const handleGenerate = async () => {
     if (!canGenerate) {
-      toast.error(qrType === 'website'
+      const message = qrType === 'website'
         ? 'Please enter a valid website URL'
-        : 'Please add a name or profile slug');
+        : qrType === 'email'
+          ? 'Please enter a valid email address'
+          : qrType === 'phone'
+            ? 'Please enter a valid phone number'
+            : 'Please add a name or profile slug';
+      toast.error(message);
       return;
     }
     if (qrMode === 'dynamic') {
@@ -317,6 +367,8 @@ const Index = () => {
     setQrType('website');
     setActiveTab('studio');
     setWebsiteTouched(false);
+    setEmailTouched(false);
+    setPhoneTouched(false);
     setPendingCreateScroll(true);
   };
 
@@ -325,6 +377,8 @@ const Index = () => {
     setQrType('vcard');
     setActiveTab('studio');
     setWebsiteTouched(false);
+    setEmailTouched(false);
+    setPhoneTouched(false);
     setPendingCreateScroll(true);
   };
 
@@ -337,6 +391,78 @@ const Index = () => {
       toast.error('Failed to copy link');
     }
   };
+
+  const vcardColorPresets = [
+    '#111827',
+    '#0f172a',
+    '#1e293b',
+    '#0b132a',
+    '#1f2937',
+    '#2563eb',
+    '#4f46e5',
+    '#0891b2',
+    '#0f766e',
+    '#a855f7',
+  ];
+
+  const vcardFontOptions = [
+    { label: 'Arial', value: 'Arial, sans-serif' },
+    { label: 'Helvetica', value: 'Helvetica, Arial, sans-serif' },
+    { label: 'Times New Roman', value: '"Times New Roman", Times, serif' },
+    { label: 'Georgia', value: 'Georgia, serif' },
+    { label: 'Trebuchet MS', value: '"Trebuchet MS", Arial, sans-serif' },
+    { label: 'Verdana', value: 'Verdana, Geneva, sans-serif' },
+    { label: 'Courier New', value: '"Courier New", Courier, monospace' },
+    { label: 'Lucida Console', value: '"Lucida Console", Monaco, monospace' },
+    { label: 'Tahoma', value: 'Tahoma, Geneva, sans-serif' },
+    { label: 'Garamond', value: 'Garamond, "Times New Roman", serif' },
+  ];
+
+  const makeVcardGradient = (from: string, to: string) => `linear-gradient(135deg, ${from}, ${to})`;
+
+  const handleVcardLogoChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = typeof reader.result === 'string' ? reader.result : '';
+      setVcardStyle((prev) => ({ ...prev, logoDataUrl: result }));
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleVcardPhotoChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = typeof reader.result === 'string' ? reader.result : '';
+      setVcardStyle((prev) => ({
+        ...prev,
+        profilePhotoDataUrl: result,
+        photoZoom: 110,
+        photoX: 50,
+        photoY: 50,
+      }));
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const vcardFrontStyle = {
+    fontFamily: vcardStyle.fontFamily,
+    borderRadius: `${vcardStyle.radius}px`,
+    background: vcardStyle.frontUseGradient
+      ? makeVcardGradient(vcardStyle.frontColor, vcardStyle.frontGradient)
+      : vcardStyle.frontColor,
+  } as const;
+
+  const vcardBackStyle = {
+    fontFamily: vcardStyle.fontFamily,
+    borderRadius: `${vcardStyle.radius}px`,
+    background: vcardStyle.backUseGradient
+      ? makeVcardGradient(vcardStyle.backColor, vcardStyle.backGradient)
+      : vcardStyle.backColor,
+  } as const;
 
   const CreateMenu = ({
     align = 'center',
@@ -418,7 +544,10 @@ const Index = () => {
                 <button
                   type="button"
                   aria-disabled="true"
-                  onClick={() => setIsCreateHover(false)}
+                  onClick={() => {
+                    toast.info('Dynamic QR is coming soon.');
+                    setIsCreateHover(false);
+                  }}
                   className="pointer-events-auto flex h-11 w-11 items-center justify-center rounded-full border border-border/70 bg-card/80 text-muted-foreground opacity-60 shadow-lg cursor-not-allowed"
                 >
                   <Sparkles className="h-5 w-5" />
@@ -443,6 +572,22 @@ const Index = () => {
                   Vcard
                 </span>
               </div>
+
+              <div className="absolute left-1/2 bottom-0 -translate-x-1/2 translate-y-1/2 flex flex-col items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    toast.info('Upgrade to a Pro Plan to unlock this feature.');
+                    setIsCreateHover(false);
+                  }}
+                  className="pointer-events-auto flex h-11 w-11 items-center justify-center rounded-full border border-border/70 bg-card/80 text-muted-foreground shadow-lg transition hover:border-primary/60 hover:text-primary"
+                >
+                  <File className="h-5 w-5" />
+                </button>
+                <span className="rounded-full border border-border/60 bg-card/95 px-3 py-1 text-[10px] uppercase tracking-[0.35em] text-muted-foreground shadow-sm">
+                  File
+                </span>
+              </div>
             </div>
           )}
         </div>
@@ -452,8 +597,8 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      {isCreateHover && !showUpsell && !isBooting && (
-        <div className="fixed inset-0 z-[40] bg-background/40 backdrop-blur-md transition" />
+      {isCreateHover && !showUpsell && !isBooting && activeTab === 'studio' && (
+        <div className="fixed inset-0 z-[40] pointer-events-none bg-background/40 backdrop-blur-md transition" />
       )}
 
       {isBooting && (
@@ -510,8 +655,8 @@ const Index = () => {
           <div className="text-center space-y-4">
             <div className="text-3xl sm:text-4xl font-semibold tracking-tight">
               <span className="relative inline-block">
-                <span className="text-muted-foreground/70">Analytics</span>
-                <span className="absolute inset-0 logo-fill">Analytics</span>
+                <span className="text-muted-foreground/70">Intel</span>
+                <span className="absolute inset-0 logo-fill">Intel</span>
               </span>
             </div>
             <p className="text-xs uppercase tracking-[0.4em] text-muted-foreground">Loading insights</p>
@@ -619,6 +764,387 @@ const Index = () => {
         </div>
       )}
 
+      {showVcardCustomizer && (
+        <div
+          className="fixed inset-0 z-[70] flex items-center justify-center bg-background/70 backdrop-blur-md px-4"
+          onClick={() => setShowVcardCustomizer(false)}
+        >
+          <div
+            className="glass-panel rounded-3xl p-6 sm:p-8 w-full max-w-6xl space-y-6"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <div>
+                <p className="text-xs uppercase tracking-[0.35em] text-muted-foreground">VCard</p>
+                <h2 className="text-2xl font-semibold">Customize your card</h2>
+                <p className="text-sm text-muted-foreground">
+                  Tap the preview to flip between front and back.
+                </p>
+              </div>
+              <Button
+                variant="ghost"
+                className="text-xs uppercase tracking-[0.3em]"
+                onClick={() => setShowVcardCustomizer(false)}
+              >
+                Close
+              </Button>
+            </div>
+
+            <div className="grid lg:grid-cols-[0.9fr_1.1fr] gap-6">
+              <div className="flex flex-col items-center gap-4">
+                <button
+                  type="button"
+                  className="relative h-[420px] w-[260px] sm:h-[460px] sm:w-[280px]"
+                  onClick={() => setVcardPreviewSide((prev) => (prev === 'front' ? 'back' : 'front'))}
+                  aria-label="Flip vcard preview"
+                >
+                  <div
+                    className="absolute inset-0 transition-transform duration-500"
+                    style={{
+                      transformStyle: 'preserve-3d',
+                      transform: vcardPreviewSide === 'back' ? 'rotateY(180deg)' : 'rotateY(0deg)',
+                    }}
+                  >
+                    <div
+                      className="absolute inset-0 flex flex-col justify-between p-6 text-left text-white shadow-xl"
+                      style={{ ...vcardFrontStyle, backfaceVisibility: 'hidden' }}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="space-y-1">
+                          <p className="text-xs uppercase tracking-[0.3em] text-white/70">VCard</p>
+                          <h3 className="text-2xl font-semibold">
+                            {vcard.name || 'Your Name'}
+                          </h3>
+                          <p className="text-sm text-white/80">
+                            {vcard.company || 'Your Company'}
+                          </p>
+                        </div>
+                        <div
+                          className="h-16 w-16 rounded-full border border-white/30 bg-white/10"
+                          style={{
+                            backgroundImage: vcardStyle.profilePhotoDataUrl
+                              ? `url(${vcardStyle.profilePhotoDataUrl})`
+                              : undefined,
+                            backgroundSize: `${vcardStyle.photoZoom}%`,
+                            backgroundPosition: `${vcardStyle.photoX}% ${vcardStyle.photoY}%`,
+                            backgroundRepeat: 'no-repeat',
+                          }}
+                        />
+                      </div>
+                      <div className="space-y-2 text-sm text-white/90">
+                        <p>{vcard.phone || '+1 (555) 123-4567'}</p>
+                        <p>{vcard.email || 'you@example.com'}</p>
+                        <p>{vcard.website || 'qrcodestudio.app'}</p>
+                      </div>
+                      <p className="text-[11px] uppercase tracking-[0.4em] text-white/70">
+                        Tap to flip
+                      </p>
+                    </div>
+
+                    <div
+                      className="absolute inset-0 flex flex-col items-center justify-center gap-4 p-6 text-white shadow-xl"
+                      style={{
+                        ...vcardBackStyle,
+                        transform: 'rotateY(180deg)',
+                        backfaceVisibility: 'hidden',
+                      }}
+                    >
+                      {vcardStyle.logoDataUrl ? (
+                        <img
+                          src={vcardStyle.logoDataUrl}
+                          alt="VCard logo"
+                          className="h-20 w-20 rounded-xl object-cover border border-white/20"
+                        />
+                      ) : (
+                        <div className="h-20 w-20 rounded-xl border border-white/20 flex items-center justify-center text-xs text-white/70">
+                          Logo
+                        </div>
+                      )}
+                      <p className="text-xs uppercase tracking-[0.4em] text-white/70">
+                        Tap to flip
+                      </p>
+                    </div>
+                  </div>
+                </button>
+                <p className="text-xs text-muted-foreground">Preview is interactive.</p>
+              </div>
+
+                <div className="space-y-6">
+                <div className="space-y-4">
+                  <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">
+                    Contact Photo
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Use a professional selfie for services/freelancers or your business logo for a company card.
+                  </p>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleVcardPhotoChange}
+                    className="text-xs text-muted-foreground"
+                  />
+                  <div className="flex items-center gap-4">
+                    <div
+                      className="h-20 w-20 rounded-full border border-border bg-secondary/40"
+                      style={{
+                        backgroundImage: vcardStyle.profilePhotoDataUrl
+                          ? `url(${vcardStyle.profilePhotoDataUrl})`
+                          : undefined,
+                        backgroundSize: `${vcardStyle.photoZoom}%`,
+                        backgroundPosition: `${vcardStyle.photoX}% ${vcardStyle.photoY}%`,
+                        backgroundRepeat: 'no-repeat',
+                      }}
+                    />
+                    <div className="flex-1 space-y-3">
+                      <div className="space-y-1">
+                        <p className="text-[11px] uppercase tracking-[0.3em] text-muted-foreground">
+                          Zoom
+                        </p>
+                        <input
+                          type="range"
+                          min={80}
+                          max={180}
+                          value={vcardStyle.photoZoom}
+                          onChange={(event) =>
+                            setVcardStyle((prev) => ({
+                              ...prev,
+                              photoZoom: Number(event.target.value),
+                            }))
+                          }
+                          className="w-full"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-[11px] uppercase tracking-[0.3em] text-muted-foreground">
+                          Position
+                        </p>
+                        <div className="grid grid-cols-2 gap-3">
+                          <input
+                            type="range"
+                            min={0}
+                            max={100}
+                            value={vcardStyle.photoX}
+                            onChange={(event) =>
+                              setVcardStyle((prev) => ({
+                                ...prev,
+                                photoX: Number(event.target.value),
+                              }))
+                            }
+                            className="w-full"
+                          />
+                          <input
+                            type="range"
+                            min={0}
+                            max={100}
+                            value={vcardStyle.photoY}
+                            onChange={(event) =>
+                              setVcardStyle((prev) => ({
+                                ...prev,
+                                photoY: Number(event.target.value),
+                              }))
+                            }
+                            className="w-full"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">
+                    Typography
+                  </p>
+                  <select
+                    className="w-full h-11 rounded-xl border border-border bg-secondary/40 px-3 text-sm"
+                    value={vcardStyle.fontFamily}
+                    onChange={(event) =>
+                      setVcardStyle((prev) => ({ ...prev, fontFamily: event.target.value }))
+                    }
+                  >
+                    {vcardFontOptions.map((font) => (
+                      <option key={font.label} value={font.value}>
+                        {font.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="space-y-3">
+                  <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">
+                    Corner Radius
+                  </p>
+                  <input
+                    type="range"
+                    min={8}
+                    max={32}
+                    value={vcardStyle.radius}
+                    onChange={(event) =>
+                      setVcardStyle((prev) => ({
+                        ...prev,
+                        radius: Number(event.target.value),
+                      }))
+                    }
+                    className="w-full"
+                  />
+                </div>
+
+                <div className="grid lg:grid-cols-2 gap-6">
+                  <div className="space-y-4">
+                    <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">
+                      Front Style
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {vcardColorPresets.map((color) => (
+                        <button
+                          key={`front-${color}`}
+                          type="button"
+                          aria-label={`Front color ${color}`}
+                          className={`h-8 w-8 rounded-full border ${
+                            vcardStyle.frontColor === color ? 'border-primary' : 'border-border'
+                          }`}
+                          style={{ backgroundColor: color }}
+                          onClick={() =>
+                            setVcardStyle((prev) => ({ ...prev, frontColor: color }))
+                          }
+                        />
+                      ))}
+                    </div>
+                    <Input
+                      value={vcardStyle.frontColor}
+                      onChange={(event) =>
+                        setVcardStyle((prev) => ({ ...prev, frontColor: event.target.value }))
+                      }
+                      placeholder="#111827"
+                      className="bg-secondary/40 border-border text-xs"
+                    />
+                    <div className="flex items-center gap-2">
+                      <input
+                        id="front-gradient"
+                        type="checkbox"
+                        checked={vcardStyle.frontUseGradient}
+                        onChange={(event) =>
+                          setVcardStyle((prev) => ({
+                            ...prev,
+                            frontUseGradient: event.target.checked,
+                          }))
+                        }
+                      />
+                      <label htmlFor="front-gradient" className="text-xs text-muted-foreground">
+                        Use gradient
+                      </label>
+                    </div>
+                    {vcardStyle.frontUseGradient && (
+                      <Input
+                        value={vcardStyle.frontGradient}
+                        onChange={(event) =>
+                          setVcardStyle((prev) => ({
+                            ...prev,
+                            frontGradient: event.target.value,
+                          }))
+                        }
+                        placeholder="#2563eb"
+                        className="bg-secondary/40 border-border text-xs"
+                      />
+                    )}
+                  </div>
+
+                  <div className="space-y-4">
+                    <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">
+                      Back Style
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {vcardColorPresets.map((color) => (
+                        <button
+                          key={`back-${color}`}
+                          type="button"
+                          aria-label={`Back color ${color}`}
+                          className={`h-8 w-8 rounded-full border ${
+                            vcardStyle.backColor === color ? 'border-primary' : 'border-border'
+                          }`}
+                          style={{ backgroundColor: color }}
+                          onClick={() =>
+                            setVcardStyle((prev) => ({ ...prev, backColor: color }))
+                          }
+                        />
+                      ))}
+                    </div>
+                    <Input
+                      value={vcardStyle.backColor}
+                      onChange={(event) =>
+                        setVcardStyle((prev) => ({ ...prev, backColor: event.target.value }))
+                      }
+                      placeholder="#0f172a"
+                      className="bg-secondary/40 border-border text-xs"
+                    />
+                    <div className="flex items-center gap-2">
+                      <input
+                        id="back-gradient"
+                        type="checkbox"
+                        checked={vcardStyle.backUseGradient}
+                        onChange={(event) =>
+                          setVcardStyle((prev) => ({
+                            ...prev,
+                            backUseGradient: event.target.checked,
+                          }))
+                        }
+                      />
+                      <label htmlFor="back-gradient" className="text-xs text-muted-foreground">
+                        Use gradient
+                      </label>
+                    </div>
+                    {vcardStyle.backUseGradient && (
+                      <Input
+                        value={vcardStyle.backGradient}
+                        onChange={(event) =>
+                          setVcardStyle((prev) => ({
+                            ...prev,
+                            backGradient: event.target.value,
+                          }))
+                        }
+                        placeholder="#4f46e5"
+                        className="bg-secondary/40 border-border text-xs"
+                      />
+                    )}
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">
+                    Back Logo
+                  </p>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleVcardLogoChange}
+                    className="text-xs text-muted-foreground"
+                  />
+                </div>
+
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <Button
+                    className="bg-gradient-primary text-primary-foreground uppercase tracking-[0.2em] text-xs"
+                    onClick={() => setShowVcardCustomizer(false)}
+                  >
+                    Save Customization
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="border-border uppercase tracking-[0.2em] text-xs"
+                    onClick={() => {
+                      setVcardPreviewSide('front');
+                      setShowVcardCustomizer(false);
+                    }}
+                  >
+                    Done
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Background gradient */}
       <div className="fixed inset-0 -z-10 overflow-hidden">
         <div className="absolute -top-24 left-8 h-[24rem] w-[24rem] rounded-full bg-[radial-gradient(circle_at_center,rgba(99,102,241,0.28),transparent_60%)] blur-3xl float-slow" />
@@ -646,9 +1172,10 @@ const Index = () => {
           <nav className="hidden lg:flex items-end gap-8 text-xs uppercase tracking-[0.35em] text-muted-foreground">
             {[
               { id: 'studio', label: 'Studio' },
-              { id: 'codes', label: 'My Codes' },
-              { id: 'analytics', label: 'Analytics' },
-              { id: 'settings', label: 'Settings' },
+              { id: 'codes', label: 'Arsenal' },
+              { id: 'analytics', label: 'Intel' },
+              { id: 'settings', label: 'Config' },
+              { id: 'upgrade', label: 'Upgrade' },
             ].map((item) => {
               const isActive = activeTab === item.id;
               return (
@@ -802,6 +1329,8 @@ const Index = () => {
                         onClick={() => {
                           setQrType('website');
                           setWebsiteTouched(false);
+                          setEmailTouched(false);
+                          setPhoneTouched(false);
                         }}
                         className={`rounded-t-2xl border px-4 py-3 text-left transition-all ${
                           qrType === 'website'
@@ -823,6 +1352,36 @@ const Index = () => {
                       >
                         <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Virtual Card</p>
                         <p className="mt-2 font-semibold">Share your profile</p>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setQrType('email');
+                          setEmailTouched(false);
+                        }}
+                        className={`rounded-t-2xl border px-4 py-3 text-left transition-all ${
+                          qrType === 'email'
+                            ? 'border-border/70 bg-card/80'
+                            : 'border-border/60 bg-secondary/30 hover:border-primary/60'
+                        }`}
+                      >
+                        <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Email</p>
+                        <p className="mt-2 font-semibold">Send an email</p>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setQrType('phone');
+                          setPhoneTouched(false);
+                        }}
+                        className={`rounded-t-2xl border px-4 py-3 text-left transition-all ${
+                          qrType === 'phone'
+                            ? 'border-border/70 bg-card/80'
+                            : 'border-border/60 bg-secondary/30 hover:border-primary/60'
+                        }`}
+                      >
+                        <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Phone</p>
+                        <p className="mt-2 font-semibold">Call a number</p>
                       </button>
                     </div>
                   </div>
@@ -853,6 +1412,52 @@ const Index = () => {
                       {websiteTouched && websiteUrl && !isWebsiteValid && (
                         <p className="text-xs text-destructive">
                           Please enter a valid website URL.
+                        </p>
+                      )}
+                    </div>
+                  ) : qrType === 'email' ? (
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-3">
+                        <Mail className="h-4 w-4 text-primary" />
+                        <h3 className="font-semibold">Step 3 · Enter Email</h3>
+                      </div>
+                      <Input
+                        value={emailAddress}
+                        onChange={(e) => setEmailAddress(e.target.value)}
+                        onBlur={() => setEmailTouched(true)}
+                        placeholder="you@example.com"
+                        className="h-14 text-lg pl-4 pr-12 border-border bg-secondary/50 focus:border-primary input-glow"
+                        inputMode="email"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        QR will open a new email to this address.
+                      </p>
+                      {emailTouched && emailAddress && !isEmailValid && (
+                        <p className="text-xs text-destructive">
+                          Please enter a valid email address.
+                        </p>
+                      )}
+                    </div>
+                  ) : qrType === 'phone' ? (
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-3">
+                        <Phone className="h-4 w-4 text-primary" />
+                        <h3 className="font-semibold">Step 3 · Enter Phone</h3>
+                      </div>
+                      <Input
+                        value={phoneNumber}
+                        onChange={(e) => setPhoneNumber(e.target.value)}
+                        onBlur={() => setPhoneTouched(true)}
+                        placeholder="+1 (555) 123-4567"
+                        className="h-14 text-lg pl-4 pr-12 border-border bg-secondary/50 focus:border-primary input-glow"
+                        inputMode="tel"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        QR will start a call to this number.
+                      </p>
+                      {phoneTouched && phoneNumber && !isPhoneValid && (
+                        <p className="text-xs text-destructive">
+                          Please enter a valid phone number.
                         </p>
                       )}
                     </div>
@@ -919,6 +1524,17 @@ const Index = () => {
                           className="bg-secondary/40 border-border text-xs text-muted-foreground"
                         />
                       </div>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="mt-2 border-border uppercase tracking-[0.2em] text-xs"
+                        onClick={() => {
+                          setShowVcardCustomizer(true);
+                          setVcardPreviewSide('front');
+                        }}
+                      >
+                        Customize VCard
+                      </Button>
                     </div>
                   )
                 ) : (
@@ -1187,10 +1803,10 @@ const Index = () => {
         )}
 
         {activeTab === 'codes' && (
-          <section id="my-codes" className="space-y-6">
+          <section id="arsenal" className="space-y-6">
             <div>
-              <p className="text-xs uppercase tracking-[0.4em] text-muted-foreground">My Codes</p>
-              <h2 className="text-3xl font-semibold tracking-tight">Your QR Library</h2>
+              <p className="text-xs uppercase tracking-[0.4em] text-muted-foreground">Arsenal</p>
+              <h2 className="text-3xl font-semibold tracking-tight">Your QR Arsenal</h2>
             </div>
             {!hasGenerated ? (
               <div className="glass-panel rounded-2xl p-8 text-center space-y-4">
@@ -1207,16 +1823,16 @@ const Index = () => {
         )}
 
         {activeTab === 'analytics' && (
-          <section id="analytics" className="space-y-6">
+          <section id="intel" className="space-y-6">
             <div>
-              <p className="text-xs uppercase tracking-[0.4em] text-muted-foreground">Analytics</p>
-              <h2 className="text-3xl font-semibold tracking-tight">Live Performance</h2>
+              <p className="text-xs uppercase tracking-[0.4em] text-muted-foreground">Intel</p>
+              <h2 className="text-3xl font-semibold tracking-tight">Live Intelligence</h2>
             </div>
 
             {!hasGenerated ? (
               <div className="glass-panel rounded-2xl p-8 text-center space-y-4">
-                <p className="text-sm text-muted-foreground">No analytics yet.</p>
-                <p className="text-lg font-semibold">Create your first QR Code to view analytics.</p>
+                <p className="text-sm text-muted-foreground">No intel yet.</p>
+                <p className="text-lg font-semibold">Create your first QR Code to view intel.</p>
                 <div className="flex items-center justify-center">
                   <CreateMenu label="Create New" />
                 </div>
@@ -1334,19 +1950,176 @@ const Index = () => {
         )}
 
         {activeTab === 'settings' && (
-          <section id="settings" className="space-y-6">
+          <section id="config" className="space-y-6">
             <div>
-              <p className="text-xs uppercase tracking-[0.4em] text-muted-foreground">Settings</p>
+              <p className="text-xs uppercase tracking-[0.4em] text-muted-foreground">Config</p>
               <h2 className="text-3xl font-semibold tracking-tight">Preferences</h2>
             </div>
-            <div className="glass-panel rounded-2xl p-6 text-sm text-muted-foreground space-y-3">
+            <div className="glass-panel rounded-2xl p-6 text-sm text-muted-foreground space-y-4">
               <p>From here you can customize your experience and preferences.</p>
               <p>Please log in or create an account to unlock settings, exports, and team features.</p>
+              <div className="flex flex-col sm:flex-row gap-3">
+                <Button
+                  className="bg-gradient-primary text-primary-foreground uppercase tracking-[0.2em] text-xs"
+                  onClick={() => navigate('/login')}
+                >
+                  Log In
+                </Button>
+                <Button
+                  variant="outline"
+                  className="border-border uppercase tracking-[0.2em] text-xs"
+                  onClick={() => navigate('/login')}
+                >
+                  Sign Up
+                </Button>
+              </div>
             </div>
           </section>
         )}
 
-        <footer className="mt-16 text-center text-xs text-muted-foreground">
+        {activeTab === 'upgrade' && (
+          <section id="upgrade" className="space-y-10">
+            <div className="text-center space-y-3">
+              <p className="text-xs uppercase tracking-[0.4em] text-muted-foreground">Upgrade</p>
+              <h2 className="text-3xl font-semibold tracking-tight">QR Code Studio by Luminar Apps</h2>
+              <p className="text-sm text-muted-foreground">Pricing comparison for every team size.</p>
+            </div>
+
+            <div className="text-center text-sm text-muted-foreground">
+              Current plan: <span className="text-foreground font-semibold">FREE FOREVER PLAN</span>
+            </div>
+
+            <div className="grid gap-6 lg:grid-cols-3">
+              <div className="glass-panel rounded-2xl p-6 space-y-5 border border-border/60">
+                <div className="space-y-2">
+                  <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Free Forever</p>
+                  <h3 className="text-2xl font-semibold">Free Forever</h3>
+                  <p className="text-sm text-primary uppercase tracking-[0.25em]">
+                    Free Forever – No Credit Card
+                  </p>
+                </div>
+                <div className="text-3xl font-semibold">$0 <span className="text-sm text-muted-foreground">/ month</span></div>
+                <ul className="space-y-2 text-sm text-muted-foreground">
+                  <li><span className="font-semibold text-foreground">1</span> Dynamic QR Code</li>
+                  <li><span className="font-semibold text-foreground">Unlimited</span> Scans</li>
+                  <li><span className="font-semibold text-foreground">Basic</span> Intel</li>
+                  <li><span className="font-semibold text-foreground">Standard</span> QR Styles</li>
+                  <li><span className="font-semibold text-foreground">Community</span> Support</li>
+                  <li><span className="font-semibold text-foreground">Watermark</span> Enabled</li>
+                </ul>
+                <Button
+                  disabled
+                  className="w-full bg-secondary/60 text-muted-foreground uppercase tracking-[0.2em] text-xs pointer-events-none"
+                >
+                  View Plan
+                </Button>
+              </div>
+
+              <div className="glass-panel rounded-2xl p-6 space-y-5 border-2 border-primary/80 shadow-[0_0_40px_rgba(59,130,246,0.25)]">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Pro</p>
+                  <span className="rounded-full bg-primary/10 text-primary text-[10px] uppercase tracking-[0.35em] px-3 py-1">
+                    Most Popular
+                  </span>
+                </div>
+                <h3 className="text-2xl font-semibold">Pro</h3>
+                <div className="text-3xl font-semibold">$7 <span className="text-sm text-muted-foreground">/ month</span></div>
+                <ul className="space-y-2 text-sm text-muted-foreground">
+                  <li><span className="font-semibold text-foreground">25</span> Dynamic QR Codes</li>
+                  <li><span className="font-semibold text-foreground">Unlimited</span> Scans</li>
+                  <li><span className="font-semibold text-foreground">Full</span> Intel (analytics)</li>
+                  <li><span className="font-semibold text-foreground">Bulk</span> QR Creation</li>
+                  <li><span className="font-semibold text-foreground">Custom</span> Colors & Logos</li>
+                  <li><span className="font-semibold text-foreground">Preset</span> Loadouts</li>
+                  <li><span className="font-semibold text-foreground">Priority</span> Updates</li>
+                  <li><span className="font-semibold text-foreground">No</span> Watermark</li>
+                </ul>
+                <Button
+                  disabled
+                  className="w-full bg-gradient-primary text-primary-foreground uppercase tracking-[0.2em] text-xs pointer-events-none"
+                >
+                  Coming Soon
+                </Button>
+              </div>
+
+              <div className="glass-panel rounded-2xl p-6 space-y-5 border border-amber-400/50 shadow-[0_0_30px_rgba(251,191,36,0.2)]">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-2">
+                    <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Command</p>
+                    <h3 className="text-2xl font-semibold">Command</h3>
+                  </div>
+                  <div className="flex items-center gap-2 text-amber-300 text-xs uppercase tracking-[0.3em]">
+                    <Star className="h-4 w-4 fill-amber-300" />
+                    Premium
+                  </div>
+                </div>
+                <div className="text-3xl font-semibold">$19 <span className="text-sm text-muted-foreground">/ month</span></div>
+                <ul className="space-y-2 text-sm text-muted-foreground">
+                  <li><span className="font-semibold text-foreground">Unlimited</span> Dynamic QR Codes</li>
+                  <li><span className="font-semibold text-foreground">Unlimited</span> Scans</li>
+                  <li><span className="font-semibold text-foreground">Advanced</span> Intel (reports & trends)</li>
+                  <li><span className="font-semibold text-foreground">Bulk</span> Creation (High-volume)</li>
+                  <li><span className="font-semibold text-foreground">API</span> Access</li>
+                  <li><span className="font-semibold text-foreground">Up to 5</span> Team Users</li>
+                  <li><span className="font-semibold text-foreground">Shared</span> Arsenal</li>
+                  <li><span className="font-semibold text-foreground">Priority</span> Support</li>
+                  <li><span className="font-semibold text-foreground">No</span> Watermark</li>
+                </ul>
+                <Button
+                  disabled
+                  className="w-full bg-secondary/60 text-muted-foreground uppercase tracking-[0.2em] text-xs pointer-events-none"
+                >
+                  View Plan
+                </Button>
+              </div>
+            </div>
+
+            <div className="glass-panel rounded-2xl p-6 overflow-x-auto">
+              <table className="w-full text-sm text-muted-foreground">
+                <thead>
+                  <tr className="text-left border-b border-border/60">
+                    <th className="py-3 pr-4 text-foreground">Feature</th>
+                    <th className="py-3 px-4 text-foreground">Free Forever</th>
+                    <th className="py-3 px-4 text-foreground">Pro</th>
+                    <th className="py-3 pl-4 text-foreground">Command</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {[
+                    ['Dynamic QR Codes', '1', '25', 'Unlimited'],
+                    ['Scans', 'Unlimited', 'Unlimited', 'Unlimited'],
+                    ['Intel', 'Basic', 'Full', 'Advanced'],
+                    ['Bulk Creation', '—', 'Included', 'High-volume'],
+                    ['Custom Colors & Logos', '—', 'Included', 'Included'],
+                    ['Preset Loadouts', '—', 'Included', 'Included'],
+                    ['API Access', '—', '—', 'Included'],
+                    ['Team Users', '—', '—', 'Up to 5'],
+                    ['Shared Arsenal', '—', '—', 'Included'],
+                    ['Support', 'Community', 'Priority Updates', 'Priority Support'],
+                    ['Watermark', 'Enabled', 'No', 'No'],
+                  ].map(([feature, free, pro, command]) => (
+                    <tr key={feature} className="border-b border-border/40">
+                      <td className="py-3 pr-4 text-foreground">{feature}</td>
+                      <td className="py-3 px-4">{free}</td>
+                      <td className="py-3 px-4">{pro}</td>
+                      <td className="py-3 pl-4">{command}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        )}
+
+        <div className="mt-12 text-center">
+          <a
+            href="/terms"
+            className="text-xs text-muted-foreground/70 hover:text-muted-foreground transition"
+          >
+            Terms & Conditions
+          </a>
+        </div>
+        <footer className="mt-4 text-center text-xs text-muted-foreground">
           © {new Date().getFullYear()} GDev x Luminar Apps.
         </footer>
       </main>
