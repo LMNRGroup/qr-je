@@ -205,9 +205,9 @@ const Index = () => {
     }
 
     setShowAnalyticsIntro(true);
+    setAnalyticsSeen(true);
     const timer = window.setTimeout(() => {
       setShowAnalyticsIntro(false);
-      setAnalyticsSeen(true);
     }, 1100);
     return () => window.clearTimeout(timer);
   }, [activeTab, analyticsSeen]);
