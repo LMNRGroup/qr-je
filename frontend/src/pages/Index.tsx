@@ -65,8 +65,7 @@ const Index = () => {
   const [pendingCreateScroll, setPendingCreateScroll] = useState(false);
   const [accountForm, setAccountForm] = useState({
     username: '',
-    firstName: '',
-    lastName: '',
+    fullName: '',
     email: '',
   });
   const [vcard, setVcard] = useState({
@@ -327,66 +326,68 @@ const Index = () => {
         {label}
       </span>
 
-      <button
-        type="button"
-        aria-label="Create new QR code"
-        className="relative z-10 flex h-12 w-12 items-center justify-center rounded-full border border-border/60 bg-card/80 text-primary shadow-sm transition hover:border-primary/50 hover:bg-card/90 hover:shadow-lg"
-        onClick={() => {
-          handleStartStatic();
-          setIsCreateHover(false);
-        }}
-      >
-        <Plus className="h-5 w-5" />
-      </button>
+      <div className="relative">
+        <button
+          type="button"
+          aria-label="Create new QR code"
+          className="relative z-10 flex h-12 w-12 items-center justify-center rounded-full border border-border/60 bg-card/80 text-primary shadow-sm transition hover:border-primary/50 hover:bg-card/90 hover:shadow-lg"
+          onClick={() => {
+            handleStartStatic();
+            setIsCreateHover(false);
+          }}
+        >
+          <Plus className="h-5 w-5" />
+        </button>
 
-      <div className="pointer-events-none absolute left-1/2 top-1/2 h-44 w-44 -translate-x-1/2 -translate-y-1/2 scale-90 opacity-0 transition-all duration-200 group-hover:scale-100 group-hover:opacity-100 group-focus-within:scale-100 group-focus-within:opacity-100">
-        <div className="absolute inset-0 rounded-full border border-border/50 bg-card/50 shadow-[0_0_30px_rgba(15,23,42,0.12)] backdrop-blur-sm" />
-        <div className="absolute inset-4 rounded-full border border-primary/20" />
+        <div className="pointer-events-none absolute left-1/2 top-1/2 h-44 w-44 -translate-x-1/2 -translate-y-1/2 scale-90 opacity-0 transition-all duration-200 group-hover:scale-100 group-hover:opacity-100 group-focus-within:scale-100 group-focus-within:opacity-100">
+          <div className="absolute inset-0 rounded-full border border-border/50 bg-card/50 shadow-[0_0_30px_rgba(15,23,42,0.12)] backdrop-blur-sm" />
+          <div className="absolute inset-4 rounded-full border border-primary/20" />
 
-        <div className="absolute left-1/2 top-0 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center gap-2">
-          <button
-            type="button"
-            onClick={() => {
-              handleStartStatic();
-              setIsCreateHover(false);
-            }}
-            className="pointer-events-auto flex h-11 w-11 items-center justify-center rounded-full border border-border/70 bg-card/90 text-primary shadow-lg transition hover:border-primary/60 hover:text-primary"
-          >
-            <LinkIcon className="h-5 w-5" />
-          </button>
-          <span className="rounded-full border border-border/60 bg-card/95 px-3 py-1 text-[10px] uppercase tracking-[0.35em] text-muted-foreground shadow-sm">
-            Static
-          </span>
-        </div>
+          <div className="absolute left-1/2 top-0 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                handleStartStatic();
+                setIsCreateHover(false);
+              }}
+              className="pointer-events-auto flex h-11 w-11 items-center justify-center rounded-full border border-border/70 bg-card/90 text-primary shadow-lg transition hover:border-primary/60 hover:text-primary"
+            >
+              <LinkIcon className="h-5 w-5" />
+            </button>
+            <span className="rounded-full border border-border/60 bg-card/95 px-3 py-1 text-[10px] uppercase tracking-[0.35em] text-muted-foreground shadow-sm">
+              Static
+            </span>
+          </div>
 
-        <div className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2 flex flex-col items-center gap-2">
-          <button
-            type="button"
-            aria-disabled="true"
-            onClick={() => setIsCreateHover(false)}
-            className="pointer-events-auto flex h-11 w-11 items-center justify-center rounded-full border border-border/70 bg-card/80 text-muted-foreground opacity-60 shadow-lg cursor-not-allowed"
-          >
-            <Sparkles className="h-5 w-5" />
-          </button>
-          <span className="rounded-full border border-border/60 bg-card/95 px-3 py-1 text-[10px] uppercase tracking-[0.35em] text-muted-foreground/70 shadow-sm">
-            Dynamic
-          </span>
-        </div>
+          <div className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2 flex flex-col items-center gap-2">
+            <button
+              type="button"
+              aria-disabled="true"
+              onClick={() => setIsCreateHover(false)}
+              className="pointer-events-auto flex h-11 w-11 items-center justify-center rounded-full border border-border/70 bg-card/80 text-muted-foreground opacity-60 shadow-lg cursor-not-allowed"
+            >
+              <Sparkles className="h-5 w-5" />
+            </button>
+            <span className="rounded-full border border-border/60 bg-card/95 px-3 py-1 text-[10px] uppercase tracking-[0.35em] text-muted-foreground/70 shadow-sm">
+              Dynamic
+            </span>
+          </div>
 
-        <div className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1/2 flex flex-col items-center gap-2">
-          <button
-            type="button"
-            onClick={() => {
-              handleStartVcard();
-              setIsCreateHover(false);
-            }}
-            className="pointer-events-auto flex h-11 w-11 items-center justify-center rounded-full border border-border/70 bg-card/90 text-primary shadow-lg transition hover:border-primary/60 hover:text-primary"
-          >
-            <User className="h-5 w-5" />
-          </button>
-          <span className="rounded-full border border-border/60 bg-card/95 px-3 py-1 text-[10px] uppercase tracking-[0.35em] text-muted-foreground shadow-sm">
-            Vcard
-          </span>
+          <div className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1/2 flex flex-col items-center gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                handleStartVcard();
+                setIsCreateHover(false);
+              }}
+              className="pointer-events-auto flex h-11 w-11 items-center justify-center rounded-full border border-border/70 bg-card/90 text-primary shadow-lg transition hover:border-primary/60 hover:text-primary"
+            >
+              <User className="h-5 w-5" />
+            </button>
+            <span className="rounded-full border border-border/60 bg-card/95 px-3 py-1 text-[10px] uppercase tracking-[0.35em] text-muted-foreground shadow-sm">
+              Vcard
+            </span>
+          </div>
         </div>
       </div>
     </div>
@@ -462,8 +463,14 @@ const Index = () => {
       )}
 
       {showAccountModal && (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-background/70 backdrop-blur-md px-4">
-          <div className="glass-panel rounded-3xl p-8 w-full max-w-lg space-y-5">
+        <div
+          className="fixed inset-0 z-[70] flex items-center justify-center bg-background/70 backdrop-blur-md px-4"
+          onClick={() => setShowAccountModal(false)}
+        >
+          <div
+            className="glass-panel rounded-3xl p-8 w-full max-w-lg space-y-5"
+            onClick={(event) => event.stopPropagation()}
+          >
             <div>
               <p className="text-xs uppercase tracking-[0.35em] text-muted-foreground">My Account</p>
               <h2 className="text-2xl font-semibold">Create your account</h2>
@@ -471,30 +478,24 @@ const Index = () => {
                 Save your QR codes, track analytics, and sync across devices.
               </p>
             </div>
-            <div className="grid sm:grid-cols-2 gap-4">
+            <div className="space-y-3">
               <Input
                 value={accountForm.username}
                 onChange={(e) => setAccountForm((prev) => ({ ...prev, username: e.target.value }))}
-                placeholder="Username (max 24)"
+                placeholder="Username"
                 maxLength={24}
                 className="bg-secondary/40 border-border"
               />
               <Input
-                value={accountForm.firstName}
-                onChange={(e) => setAccountForm((prev) => ({ ...prev, firstName: e.target.value }))}
-                placeholder="First Name"
-                className="bg-secondary/40 border-border"
-              />
-              <Input
-                value={accountForm.lastName}
-                onChange={(e) => setAccountForm((prev) => ({ ...prev, lastName: e.target.value }))}
-                placeholder="Last Name"
+                value={accountForm.fullName}
+                onChange={(e) => setAccountForm((prev) => ({ ...prev, fullName: e.target.value }))}
+                placeholder="Full Name"
                 className="bg-secondary/40 border-border"
               />
               <Input
                 value={accountForm.email}
                 onChange={(e) => setAccountForm((prev) => ({ ...prev, email: e.target.value }))}
-                placeholder="Email"
+                placeholder="Email Address"
                 type="email"
                 className="bg-secondary/40 border-border"
               />
@@ -525,12 +526,14 @@ const Index = () => {
                 Close
               </Button>
             </div>
-            <a
-              href="/terms"
-              className="text-[11px] text-muted-foreground underline decoration-dotted underline-offset-4 hover:text-primary"
-            >
-              View Terms & Conditions
-            </a>
+            <div className="text-center">
+              <a
+                href="/terms"
+                className="text-[11px] text-muted-foreground underline decoration-dotted underline-offset-4 hover:text-primary"
+              >
+                View Terms & Conditions
+              </a>
+            </div>
           </div>
         </div>
       )}
@@ -1275,7 +1278,7 @@ const Index = () => {
         )}
 
         <footer className="mt-16 text-center text-xs text-muted-foreground">
-          © 2026 Girón x Luminar Apps.
+          © {new Date().getFullYear()} GDev x Luminar Apps.
         </footer>
       </main>
     </div>
