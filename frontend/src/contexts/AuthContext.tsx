@@ -1,4 +1,4 @@
-import supabase from '@/lib/supabase';
+import supabase, { isSupabaseConfigured } from '@/lib/supabase';
 import { AuthError, Session, User } from '@supabase/supabase-js';
 import { createContext, ReactNode, useContext, useEffect, useState } from 'react';
 
@@ -19,6 +19,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (!isSupabaseConfigured) {
+      setLoading(false);
+      return;
+    }
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
@@ -37,16 +41,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signIn = async (email: string, password: string) => {
+    if (!isSupabaseConfigured) {
+      return { error: new AuthError('Supabase is not configured') };
+    }
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     return { error };
   };
 
   const signUp = async (email: string, password: string) => {
+    if (!isSupabaseConfigured) {
+      return { error: new AuthError('Supabase is not configured') };
+    }
     const { error } = await supabase.auth.signUp({ email, password });
     return { error };
   };
 
   const signOut = async () => {
+    if (!isSupabaseConfigured) {
+      return;
+    }
     await supabase.auth.signOut();
   };
 

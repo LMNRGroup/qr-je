@@ -24,24 +24,35 @@ import { Textarea } from '@/components/ui/textarea';
 import { useAuth } from '@/contexts/AuthContext';
 import { createVcard, generateQR } from '@/lib/api';
 import { QROptions, defaultQROptions } from '@/types/qr';
-import { motion } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
 import {
   ChevronDown,
   Copy,
   Download,
   File,
+  Facebook,
+  Globe,
+  Instagram,
   Link as LinkIcon,
   Loader2,
   Mail,
+  Music2,
+  Paintbrush,
+  BarChart3,
+  Info,
   Monitor,
   Phone,
   Plus,
   QrCode,
+  Settings,
   Sparkles,
   Star,
+  Utensils,
   User,
+  Users,
 } from 'lucide-react';
-import { ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { ChangeEvent, PointerEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 
@@ -57,7 +68,7 @@ const Index = () => {
   const [lastGeneratedContent, setLastGeneratedContent] = useState('');
   const [activeTab, setActiveTab] = useState<'studio' | 'codes' | 'analytics' | 'settings' | 'upgrade' | 'adaptive'>('studio');
   const [qrMode, setQrMode] = useState<'static' | 'dynamic' | null>(null);
-  const [qrType, setQrType] = useState<'website' | 'vcard' | 'email' | 'phone' | null>(null);
+  const [qrType, setQrType] = useState<'website' | 'vcard' | 'email' | 'phone' | 'menu' | null>(null);
   const [websiteUrl, setWebsiteUrl] = useState('');
   const [websiteTouched, setWebsiteTouched] = useState(false);
   const [emailAddress, setEmailAddress] = useState('');
@@ -65,17 +76,23 @@ const Index = () => {
   const [phoneNumber, setPhoneNumber] = useState('');
   const [phoneTouched, setPhoneTouched] = useState(false);
   const [isBooting, setIsBooting] = useState(true);
+  const [showIntroAd, setShowIntroAd] = useState(false);
+  const [introStep, setIntroStep] = useState(0);
   const [showUpsell, setShowUpsell] = useState(false);
-  const [isCreateHover, setIsCreateHover] = useState(false);
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [isCreateHovering, setIsCreateHovering] = useState(false);
   const [showAnalyticsIntro, setShowAnalyticsIntro] = useState(false);
   const [analyticsSeen, setAnalyticsSeen] = useState(false);
   const [showWelcomeIntro, setShowWelcomeIntro] = useState(false);
   const [welcomeHeadline, setWelcomeHeadline] = useState('');
   const [welcomeSubline, setWelcomeSubline] = useState('');
+  const [actionRingText, setActionRingText] = useState('');
+  const [quickActionHover, setQuickActionHover] = useState<string | null>(null);
   const [generatedShortUrl, setGeneratedShortUrl] = useState('');
   const [generatedLongUrl, setGeneratedLongUrl] = useState('');
   const [showVcardCustomizer, setShowVcardCustomizer] = useState(false);
   const [vcardPreviewSide, setVcardPreviewSide] = useState<'front' | 'back'>('front');
+  const [showStudioBoot, setShowStudioBoot] = useState(false);
   const [showAccountModal, setShowAccountModal] = useState(false);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [pendingCreateScroll, setPendingCreateScroll] = useState(false);
@@ -84,7 +101,6 @@ const Index = () => {
     fullName: '',
     email: '',
   });
-  const hoverTimeoutRef = useRef<number | null>(null);
   const [vcard, setVcard] = useState({
     name: '',
     phone: '',
@@ -153,6 +169,22 @@ const Index = () => {
   const [adaptiveAdminSlot, setAdaptiveAdminSlot] = useState<'A' | 'B' | 'C'>('C');
   const [adaptiveAdminIps, setAdaptiveAdminIps] = useState<string[]>(['192.168.1.24']);
   const [adaptiveAdminIpInput, setAdaptiveAdminIpInput] = useState('');
+  const [selectedPlanComparison, setSelectedPlanComparison] = useState<'pro' | 'command' | null>(null);
+  const photoDragRef = useRef<HTMLDivElement>(null);
+  const photoDragState = useRef({ dragging: false, startX: 0, startY: 0, startPhotoX: 50, startPhotoY: 50 });
+  const [showMenuBuilder, setShowMenuBuilder] = useState(false);
+  const [menuType, setMenuType] = useState<'restaurant' | 'service'>('restaurant');
+  const [menuFiles, setMenuFiles] = useState<{ url: string; type: 'image' | 'pdf' }[]>([]);
+  const [menuFlip, setMenuFlip] = useState(false);
+  const [menuCarouselIndex, setMenuCarouselIndex] = useState(0);
+  const menuSwipeRef = useRef({ dragging: false, startX: 0, currentX: 0 });
+  const [menuLogoDataUrl, setMenuLogoDataUrl] = useState('');
+  const [menuSocials, setMenuSocials] = useState({
+    instagram: '',
+    facebook: '',
+    tiktok: '',
+    website: '',
+  });
   const qrRef = useRef<QRPreviewHandle>(null);
   const createSectionRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
@@ -216,6 +248,13 @@ const Index = () => {
   const vcardUrl = vcardSlug
     ? `https://qrcode.luminarapps.com/${vcardSlug}`
     : '';
+  const menuPreviewUrl = menuFiles.length
+    ? `https://qrcode.luminarapps.com/menu-preview`
+    : '';
+  const menuHasFiles = menuFiles.length > 0;
+  const menuHasPdf = menuFiles.length === 1 && menuFiles[0]?.type === 'pdf';
+  const menuHasFlip = menuFiles.length === 2 && menuFiles.every((file) => file.type === 'image');
+  const menuHasCarousel = menuFiles.length >= 3 && menuFiles.every((file) => file.type === 'image');
   const generatedContent = qrType === 'website'
     ? (isWebsiteValid ? normalizedWebsiteUrl : '')
     : qrType === 'vcard'
@@ -224,7 +263,9 @@ const Index = () => {
         ? (isEmailValid ? `mailto:${emailAddress.trim()}` : '')
         : qrType === 'phone'
           ? (isPhoneValid ? `tel:${normalizedPhone}` : '')
-          : '';
+          : qrType === 'menu'
+            ? menuPreviewUrl
+            : '';
   const longFormContent = qrType === 'vcard' ? (generatedLongUrl || vcardUrl) : generatedContent;
   const canGenerate = qrType === 'website'
     ? isWebsiteValid
@@ -234,8 +275,14 @@ const Index = () => {
         ? isEmailValid
         : qrType === 'phone'
           ? isPhoneValid
-          : false;
-  const previewUrl = qrType === 'website' ? normalizedWebsiteUrl : vcardUrl;
+          : qrType === 'menu'
+            ? menuFiles.length > 0
+            : false;
+  const previewUrl = qrType === 'website'
+    ? normalizedWebsiteUrl
+    : qrType === 'menu'
+      ? menuPreviewUrl
+      : vcardUrl;
   const canShowPreview = qrType === 'website' && isWebsiteValid;
   const hasSelectedMode = qrMode !== null;
   const hasSelectedType = qrType !== null;
@@ -260,8 +307,32 @@ const Index = () => {
   }, [generatedContent, lastGeneratedContent]);
 
   useEffect(() => {
-    const timer = window.setTimeout(() => setIsBooting(false), 1100);
-    return () => window.clearTimeout(timer);
+    const introSeenKey = 'qr.intro.firstSeen';
+    setShowIntroAd(true);
+    setIsBooting(true);
+    setShowStudioBoot(false);
+    const steps = [0, 1, 2, 3];
+    const timers = steps.map((step, index) =>
+      window.setTimeout(() => setIntroStep(step), index * 650)
+    );
+    let studioTimer: number | null = null;
+    const doneTimer = window.setTimeout(() => {
+      setShowIntroAd(false);
+      setShowStudioBoot(true);
+      studioTimer = window.setTimeout(() => {
+        setShowStudioBoot(false);
+        setIsBooting(false);
+      }, 1100);
+      localStorage.setItem(introSeenKey, 'true');
+    }, 2600);
+
+    return () => {
+      timers.forEach((timer) => window.clearTimeout(timer));
+      window.clearTimeout(doneTimer);
+      if (studioTimer) {
+        window.clearTimeout(studioTimer);
+      }
+    };
   }, []);
 
   useEffect(() => {
@@ -370,7 +441,9 @@ const Index = () => {
           ? 'Please enter a valid email address'
           : qrType === 'phone'
             ? 'Please enter a valid phone number'
-            : 'Please add a name or profile slug';
+            : qrType === 'menu'
+              ? 'Please upload menu pages to continue'
+              : 'Please add a name or profile slug';
       toast.error(message);
       return;
     }
@@ -435,6 +508,32 @@ const Index = () => {
     }
   };
 
+  const handleExportCsv = (range: 'day' | 'week' | 'month') => {
+    const now = new Date();
+    const rangeLabel = range === 'day' ? 'Today' : range === 'week' ? 'This Week' : 'This Month';
+    const rows = [
+      ['Range', rangeLabel],
+      ['Exported At', now.toISOString()],
+      [],
+      ['Time', 'Region', 'Scans', 'Device'],
+      ['08:12', 'Frankfurt', '48', 'Mobile'],
+      ['10:04', 'Singapore', '36', 'Mobile'],
+      ['12:18', 'Dallas', '21', 'Desktop'],
+      ['16:42', 'Toronto', '18', 'Mobile'],
+    ];
+    const csv = rows.map((row) => row.join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `intel-${range}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    toast.success('CSV exported');
+  };
+
   const handleHistorySelect = (historicOptions: QROptions) => {
     setOptions(historicOptions);
     setQrMode('static');
@@ -458,6 +557,26 @@ const Index = () => {
   const handleStartVcard = () => {
     setQrMode('static');
     setQrType('vcard');
+    setActiveTab('studio');
+    setWebsiteTouched(false);
+    setEmailTouched(false);
+    setPhoneTouched(false);
+    setPendingCreateScroll(true);
+  };
+
+  const handleStartEmail = () => {
+    setQrMode('static');
+    setQrType('email');
+    setActiveTab('studio');
+    setWebsiteTouched(false);
+    setEmailTouched(false);
+    setPhoneTouched(false);
+    setPendingCreateScroll(true);
+  };
+
+  const handleStartPhone = () => {
+    setQrMode('static');
+    setQrType('phone');
     setActiveTab('studio');
     setWebsiteTouched(false);
     setEmailTouched(false);
@@ -529,6 +648,116 @@ const Index = () => {
       }));
     };
     reader.readAsDataURL(file);
+  };
+
+  const handlePhotoPointerDown = (event: PointerEvent<HTMLDivElement>) => {
+    if (!photoDragRef.current) return;
+    photoDragRef.current.setPointerCapture(event.pointerId);
+    photoDragState.current = {
+      dragging: true,
+      startX: event.clientX,
+      startY: event.clientY,
+      startPhotoX: vcardStyle.photoX,
+      startPhotoY: vcardStyle.photoY,
+    };
+  };
+
+  const handlePhotoPointerMove = (event: PointerEvent<HTMLDivElement>) => {
+    if (!photoDragState.current.dragging || !photoDragRef.current) return;
+    const rect = photoDragRef.current.getBoundingClientRect();
+    const deltaX = ((event.clientX - photoDragState.current.startX) / rect.width) * 100;
+    const deltaY = ((event.clientY - photoDragState.current.startY) / rect.height) * 100;
+    setVcardStyle((prev) => ({
+      ...prev,
+      photoX: Math.min(100, Math.max(0, photoDragState.current.startPhotoX + deltaX)),
+      photoY: Math.min(100, Math.max(0, photoDragState.current.startPhotoY + deltaY)),
+    }));
+  };
+
+  const handlePhotoPointerUp = (event: PointerEvent<HTMLDivElement>) => {
+    if (!photoDragRef.current) return;
+    photoDragRef.current.releasePointerCapture(event.pointerId);
+    photoDragState.current.dragging = false;
+  };
+
+  const handleMenuLogoChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = typeof reader.result === 'string' ? reader.result : '';
+      setMenuLogoDataUrl(result);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleMenuFilesChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files ?? []);
+    if (files.length === 0) return;
+    if (files.length > 15) {
+      toast.error('You can upload up to 15 files.');
+      return;
+    }
+
+    const hasPdf = files.some((file) => file.type === 'application/pdf');
+    if (hasPdf && files.length > 1) {
+      toast.error('Upload a single PDF or up to 15 images.');
+      return;
+    }
+
+    Promise.all(
+      files.map(
+        (file) =>
+          new Promise<{ url: string; type: 'image' | 'pdf' }>((resolve) => {
+            const reader = new FileReader();
+            reader.onload = () => {
+              const result = typeof reader.result === 'string' ? reader.result : '';
+              resolve({ url: result, type: file.type === 'application/pdf' ? 'pdf' : 'image' });
+            };
+            reader.readAsDataURL(file);
+          })
+      )
+    ).then((results) => {
+      setMenuFiles(results);
+      setMenuFlip(false);
+      setMenuCarouselIndex(0);
+    });
+  };
+
+  const openMenuBuilder = () => {
+    setShowMenuBuilder(true);
+    setQrMode('dynamic');
+    setQrType('menu');
+    setActiveTab('studio');
+    setPendingCreateScroll(true);
+  };
+
+  const handleMenuSwipeStart = (event: PointerEvent<HTMLDivElement>) => {
+    if (!menuHasCarousel) return;
+    event.currentTarget.setPointerCapture(event.pointerId);
+    menuSwipeRef.current = {
+      dragging: true,
+      startX: event.clientX,
+      currentX: event.clientX,
+    };
+  };
+
+  const handleMenuSwipeMove = (event: PointerEvent<HTMLDivElement>) => {
+    if (!menuSwipeRef.current.dragging) return;
+    menuSwipeRef.current.currentX = event.clientX;
+  };
+
+  const handleMenuSwipeEnd = (event: PointerEvent<HTMLDivElement>) => {
+    if (!menuSwipeRef.current.dragging) return;
+    event.currentTarget.releasePointerCapture(event.pointerId);
+    const deltaX = menuSwipeRef.current.currentX - menuSwipeRef.current.startX;
+    menuSwipeRef.current.dragging = false;
+    if (Math.abs(deltaX) < 40) return;
+    setMenuCarouselIndex((prev) => {
+      const total = menuFiles.length || 1;
+      if (deltaX < 0) return (prev + 1) % total;
+      return (prev - 1 + total) % total;
+    });
   };
 
   const vcardFrontStyle = {
@@ -628,20 +857,13 @@ const Index = () => {
     label?: string;
   }) => {
     const openCreateMenu = () => {
-      if (hoverTimeoutRef.current) {
-        window.clearTimeout(hoverTimeoutRef.current);
-        hoverTimeoutRef.current = null;
-      }
-      setIsCreateHover(true);
+      setIsCreateOpen(true);
+      setActionRingText('Create New QR Code');
     };
 
-    const scheduleCloseCreateMenu = () => {
-      if (hoverTimeoutRef.current) {
-        window.clearTimeout(hoverTimeoutRef.current);
-      }
-      hoverTimeoutRef.current = window.setTimeout(() => {
-        setIsCreateHover(false);
-      }, 120);
+    const closeCreateMenu = () => {
+      setIsCreateOpen(false);
+      setActionRingText('');
     };
 
     return (
@@ -649,115 +871,239 @@ const Index = () => {
         className={`relative z-[60] group flex items-center gap-3 ${
           align === 'right' ? 'ml-auto' : ''
         }`}
-        onBlur={scheduleCloseCreateMenu}
       >
-        <span className="text-[11px] uppercase tracking-[0.35em] text-muted-foreground/80 transition group-hover:opacity-0">
-          {label}
-        </span>
+        {label ? (
+          <span className="text-[11px] uppercase tracking-[0.35em] text-muted-foreground/80 transition group-hover:opacity-0">
+            {label}
+          </span>
+        ) : null}
 
         <div className="relative">
           <button
             type="button"
             aria-label="Create new QR code"
-            className="relative z-10 flex h-12 w-12 items-center justify-center rounded-full border border-border/60 bg-card/80 text-primary shadow-sm transition hover:border-primary/50 hover:bg-card/90 hover:shadow-lg"
-            onMouseEnter={openCreateMenu}
-            onMouseLeave={scheduleCloseCreateMenu}
-            onFocus={openCreateMenu}
+            className={`relative z-10 flex h-12 w-12 items-center justify-center rounded-full border border-border/60 bg-card/80 text-primary shadow-sm transition hover:border-amber-300 hover:bg-amber-300/10 hover:text-amber-200 hover:shadow-lg ${isCreateOpen ? 'opacity-0' : 'opacity-100'}`}
+            onMouseEnter={() => {
+              setIsCreateHovering(true);
+              setActionRingText('Create New');
+            }}
+            onMouseLeave={() => {
+              setIsCreateHovering(false);
+              if (!isCreateOpen) setActionRingText('');
+            }}
             onClick={() => {
-              handleStartStatic();
-              setIsCreateHover(false);
+              openCreateMenu();
             }}
           >
             <Plus className="h-5 w-5" />
           </button>
 
-          {isCreateHover && (
-            <div
-              className="absolute left-1/2 top-1/2 h-44 w-44 -translate-x-1/2 -translate-y-1/2 scale-100 opacity-100 transition-all duration-200"
-              onMouseEnter={openCreateMenu}
-              onMouseLeave={scheduleCloseCreateMenu}
-            >
-              <div className="absolute inset-0 rounded-full border border-border/50 bg-card/50 shadow-[0_0_30px_rgba(15,23,42,0.12)] backdrop-blur-sm" />
-              <div className="absolute inset-4 rounded-full border border-primary/20" />
-
-              <div className="absolute left-1/2 top-0 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    handleStartStatic();
-                    setIsCreateHover(false);
-                  }}
-                  className="pointer-events-auto flex h-11 w-11 items-center justify-center rounded-full border border-border/70 bg-card/90 text-primary shadow-lg transition hover:border-primary/60 hover:text-primary"
-                >
-                  <LinkIcon className="h-5 w-5" />
-                </button>
-                <span className="rounded-full border border-border/60 bg-card/95 px-3 py-1 text-[10px] uppercase tracking-[0.35em] text-muted-foreground shadow-sm">
-                  Static
-                </span>
-              </div>
-
-              <div className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2 flex flex-col items-center gap-2">
-                <button
-                  type="button"
-                  aria-disabled="true"
-                  onClick={() => {
-                    toast.info('Dynamic QR is coming soon.');
-                    setIsCreateHover(false);
-                  }}
-                  className="pointer-events-auto flex h-11 w-11 items-center justify-center rounded-full border border-border/70 bg-card/80 text-muted-foreground opacity-60 shadow-lg cursor-not-allowed"
-                >
-                  <Sparkles className="h-5 w-5" />
-                </button>
-                <span className="rounded-full border border-border/60 bg-card/95 px-3 py-1 text-[10px] uppercase tracking-[0.35em] text-muted-foreground/70 shadow-sm">
-                  Dynamic
-                </span>
-              </div>
-
-              <div className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1/2 flex flex-col items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    handleStartVcard();
-                    setIsCreateHover(false);
-                  }}
-                  className="pointer-events-auto flex h-11 w-11 items-center justify-center rounded-full border border-border/70 bg-card/90 text-primary shadow-lg transition hover:border-primary/60 hover:text-primary"
-                >
-                  <User className="h-5 w-5" />
-                </button>
-                <span className="rounded-full border border-border/60 bg-card/95 px-3 py-1 text-[10px] uppercase tracking-[0.35em] text-muted-foreground shadow-sm">
-                  Vcard
-                </span>
-              </div>
-
-              <div className="absolute left-1/2 bottom-0 -translate-x-1/2 translate-y-1/2 flex flex-col items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    toast.info('Upgrade to a Pro Plan to unlock this feature.');
-                    setIsCreateHover(false);
-                  }}
-                  className="pointer-events-auto flex h-11 w-11 items-center justify-center rounded-full border border-border/70 bg-card/80 text-muted-foreground shadow-lg transition hover:border-primary/60 hover:text-primary"
-                >
-                  <File className="h-5 w-5" />
-                </button>
-                <span className="rounded-full border border-border/60 bg-card/95 px-3 py-1 text-[10px] uppercase tracking-[0.35em] text-muted-foreground shadow-sm">
-                  File
-                </span>
-              </div>
-            </div>
+          {isCreateHovering && !isCreateOpen && (
+            <span className="pointer-events-none absolute left-1/2 top-full mt-2 -translate-x-1/2 whitespace-nowrap text-[10px] uppercase tracking-[0.3em] text-muted-foreground">
+              Create New
+            </span>
           )}
         </div>
+
+        {isCreateOpen && typeof document !== 'undefined'
+          ? createPortal(
+            <div
+              className="fixed inset-0 z-[90] flex items-center justify-center bg-background/70 backdrop-blur-xl"
+              onClick={closeCreateMenu}
+            >
+              <div
+                className="relative h-72 w-72 sm:h-80 sm:w-80"
+                onClick={(event) => event.stopPropagation()}
+              >
+                <div className="absolute inset-0 rounded-full border border-border/50 bg-card/50 shadow-[0_0_60px_rgba(15,23,42,0.2)] backdrop-blur-sm" />
+                <div className="absolute inset-6 rounded-full border border-primary/20" />
+                <div className="absolute inset-0 flex items-center justify-center px-8 text-center">
+                  <AnimatePresence mode="wait">
+                    {actionRingText ? (
+                      <motion.span
+                        key={actionRingText}
+                        initial={{ opacity: 0, filter: 'blur(8px)', y: 8 }}
+                        animate={{ opacity: 1, filter: 'blur(0px)', y: 0 }}
+                        exit={{ opacity: 0, filter: 'blur(10px)', y: -8 }}
+                        transition={{ duration: 0.25 }}
+                        className="text-xs uppercase tracking-[0.3em] text-foreground text-center"
+                      >
+                        {actionRingText}
+                      </motion.span>
+                    ) : null}
+                  </AnimatePresence>
+                </div>
+
+                <div className="absolute left-1/2 top-0 -translate-x-1/2 -translate-y-1/2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      handleStartStatic();
+                      closeCreateMenu();
+                    }}
+                    onMouseEnter={() => setActionRingText('Create New URL QR Code')}
+                    onMouseLeave={() => setActionRingText('Create New QR Code')}
+                    className="pointer-events-auto flex h-12 w-12 items-center justify-center rounded-full border border-border/70 bg-card/90 text-primary shadow-lg transition hover:border-primary/60 hover:text-primary"
+                  >
+                    <LinkIcon className="h-5 w-5" />
+                  </button>
+                </div>
+
+                <div className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2">
+                  <button
+                    type="button"
+                    aria-disabled="true"
+                    onClick={() => {
+                      toast.info('Dynamic QR is coming soon.');
+                      closeCreateMenu();
+                    }}
+                    onMouseEnter={() => setActionRingText('Create Dynamic QR Code')}
+                    onMouseLeave={() => setActionRingText('Create New QR Code')}
+                    className="pointer-events-auto flex h-12 w-12 items-center justify-center rounded-full border border-border/70 bg-card/80 text-muted-foreground opacity-60 shadow-lg cursor-not-allowed"
+                  >
+                    <Sparkles className="h-5 w-5" />
+                  </button>
+                </div>
+
+                <div className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1/2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      handleStartVcard();
+                      closeCreateMenu();
+                    }}
+                    onMouseEnter={() => setActionRingText('Create New VCard QR Code')}
+                    onMouseLeave={() => setActionRingText('Create New QR Code')}
+                    className="pointer-events-auto flex h-12 w-12 items-center justify-center rounded-full border border-border/70 bg-card/90 text-primary shadow-lg transition hover:border-primary/60 hover:text-primary"
+                  >
+                    <User className="h-5 w-5" />
+                  </button>
+                </div>
+
+                <div className="absolute left-1/2 bottom-0 -translate-x-1/2 translate-y-1/2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      toast.info('Upgrade to a Pro Plan to unlock this feature.');
+                      closeCreateMenu();
+                    }}
+                    onMouseEnter={() => setActionRingText('Upload a File QR Code')}
+                    onMouseLeave={() => setActionRingText('Create New QR Code')}
+                    className="pointer-events-auto flex h-12 w-12 items-center justify-center rounded-full border border-border/70 bg-card/80 text-muted-foreground shadow-lg transition hover:border-primary/60 hover:text-primary"
+                  >
+                    <File className="h-5 w-5" />
+                  </button>
+                </div>
+
+                <div className="absolute right-6 top-6">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      handleStartPhone();
+                      closeCreateMenu();
+                    }}
+                    onMouseEnter={() => setActionRingText('Create New Phone Call QR Code')}
+                    onMouseLeave={() => setActionRingText('Create New QR Code')}
+                    className="pointer-events-auto flex h-11 w-11 items-center justify-center rounded-full border border-border/70 bg-card/90 text-primary shadow-lg transition hover:border-primary/60"
+                  >
+                    <Phone className="h-4 w-4" />
+                  </button>
+                </div>
+
+                <div className="absolute right-6 bottom-6">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      handleStartEmail();
+                      closeCreateMenu();
+                    }}
+                    onMouseEnter={() => setActionRingText('Create New Email QR Code')}
+                    onMouseLeave={() => setActionRingText('Create New QR Code')}
+                    className="pointer-events-auto flex h-11 w-11 items-center justify-center rounded-full border border-border/70 bg-card/90 text-primary shadow-lg transition hover:border-primary/60"
+                  >
+                    <Mail className="h-4 w-4" />
+                  </button>
+                </div>
+
+                <div className="absolute left-6 bottom-6">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      openMenuBuilder();
+                      closeCreateMenu();
+                    }}
+                    onMouseEnter={() => setActionRingText('Create a custom QR code for your menu')}
+                    onMouseLeave={() => setActionRingText('Create New QR Code')}
+                    className="pointer-events-auto flex h-11 w-11 items-center justify-center rounded-full border border-border/70 bg-card/90 text-primary shadow-lg transition hover:border-primary/60"
+                  >
+                    <Utensils className="h-4 w-4" />
+                  </button>
+                </div>
+
+                <div className="absolute left-6 top-6">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveTab('adaptive');
+                      setPendingCreateScroll(false);
+                      closeCreateMenu();
+                    }}
+                    onMouseEnter={() => setActionRingText('Create Adaptive QRC™')}
+                    onMouseLeave={() => setActionRingText('Create New QR Code')}
+                    className="pointer-events-auto flex h-11 w-11 items-center justify-center rounded-full border border-amber-300/60 bg-card/90 text-amber-300 shadow-lg transition hover:border-amber-300"
+                  >
+                    <QrCode className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+            </div>,
+            document.body
+          )
+          : null}
       </div>
     );
   };
 
   return (
     <div className="min-h-screen bg-background">
-      {isCreateHover && !showUpsell && !isBooting && activeTab === 'studio' && (
-        <div className="fixed inset-0 z-[40] pointer-events-none bg-background/40 backdrop-blur-md transition" />
+      <style>{`
+        @keyframes radarSweep {
+          0% { transform: rotate(0deg); opacity: 0.15; }
+          50% { opacity: 0.35; }
+          100% { transform: rotate(360deg); opacity: 0.15; }
+        }
+        .radar-sweep {
+          background: conic-gradient(from 0deg, rgba(251,191,36,0) 0deg, rgba(251,191,36,0.45) 25deg, rgba(251,191,36,0) 60deg);
+          animation: radarSweep 3.5s linear infinite;
+          mix-blend-mode: screen;
+        }
+      `}</style>
+      {showIntroAd && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-background/95 backdrop-blur-sm">
+          <div className="text-center space-y-4">
+            <p className="text-xs uppercase tracking-[0.6em] text-muted-foreground">Introducing</p>
+            <div className="space-y-1 text-2xl sm:text-3xl font-semibold tracking-[0.2em] text-foreground">
+              <div className={`transition-all duration-500 ${introStep >= 0 ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+                THE LAST
+              </div>
+              <div className={`transition-all duration-500 ${introStep >= 1 ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+                QR CODE
+              </div>
+              <div className={`transition-all duration-500 ${introStep >= 2 ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+                YOU&apos;LL EVER
+              </div>
+            </div>
+            <div className={`text-4xl sm:text-5xl font-semibold tracking-[0.2em] ${introStep >= 3 ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'} transition-all duration-500`}>
+              <span className="relative inline-block">
+                <span className="text-muted-foreground/70">PRINT!</span>
+                <span className="absolute inset-0 logo-fill">PRINT!</span>
+              </span>
+            </div>
+          </div>
+        </div>
       )}
 
-      {isBooting && (
+      {showStudioBoot && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-background/95 backdrop-blur-sm">
           <div className="text-3xl sm:text-4xl font-semibold tracking-tight">
             <span className="relative inline-block">
@@ -1046,7 +1392,11 @@ const Index = () => {
                   />
                   <div className="flex items-center gap-4">
                     <div
-                      className="h-20 w-20 rounded-full border border-border bg-secondary/40"
+                      ref={photoDragRef}
+                      className="h-20 w-20 rounded-full border border-border bg-secondary/40 cursor-grab active:cursor-grabbing"
+                      onPointerDown={handlePhotoPointerDown}
+                      onPointerMove={handlePhotoPointerMove}
+                      onPointerUp={handlePhotoPointerUp}
                       style={{
                         backgroundImage: vcardStyle.profilePhotoDataUrl
                           ? `url(${vcardStyle.profilePhotoDataUrl})`
@@ -1074,39 +1424,6 @@ const Index = () => {
                           }
                           className="w-full"
                         />
-                      </div>
-                      <div className="space-y-1">
-                        <p className="text-[11px] uppercase tracking-[0.3em] text-muted-foreground">
-                          Position
-                        </p>
-                        <div className="grid grid-cols-2 gap-3">
-                          <input
-                            type="range"
-                            min={0}
-                            max={100}
-                            value={vcardStyle.photoX}
-                            onChange={(event) =>
-                              setVcardStyle((prev) => ({
-                                ...prev,
-                                photoX: Number(event.target.value),
-                              }))
-                            }
-                            className="w-full"
-                          />
-                          <input
-                            type="range"
-                            min={0}
-                            max={100}
-                            value={vcardStyle.photoY}
-                            onChange={(event) =>
-                              setVcardStyle((prev) => ({
-                                ...prev,
-                                photoY: Number(event.target.value),
-                              }))
-                            }
-                            className="w-full"
-                          />
-                        </div>
                       </div>
                     </div>
                   </div>
@@ -1306,6 +1623,275 @@ const Index = () => {
         </div>
       )}
 
+      {showMenuBuilder && (
+        <div
+          className="fixed inset-0 z-[70] flex items-center justify-center bg-background/70 backdrop-blur-md px-4"
+          onClick={() => setShowMenuBuilder(false)}
+        >
+          <div
+            className="glass-panel rounded-3xl p-6 sm:p-8 w-full max-w-6xl space-y-6"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <div>
+                <p className="text-xs uppercase tracking-[0.35em] text-muted-foreground">Menu</p>
+                <h2 className="text-2xl font-semibold">Dynamic Menu Builder</h2>
+                <p className="text-sm text-muted-foreground">
+                  Upload pages, add your logo, and preview swipe or flip motion.
+                </p>
+              </div>
+              <Button
+                variant="ghost"
+                className="text-xs uppercase tracking-[0.3em]"
+                onClick={() => setShowMenuBuilder(false)}
+              >
+                Close
+              </Button>
+            </div>
+
+            <div className="grid lg:grid-cols-[0.9fr_1.1fr] gap-6">
+              <div className="flex flex-col items-center gap-5">
+                <div className="w-full rounded-2xl border border-border/60 bg-secondary/30 p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Preview</p>
+                    <span className="text-[10px] uppercase tracking-[0.3em] text-primary">
+                      {menuType === 'restaurant' ? 'Restaurant' : 'Services'}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-center">
+                    <div className="relative h-[420px] w-[260px] sm:h-[460px] sm:w-[280px] rounded-2xl border border-border/70 bg-card/80 overflow-hidden shadow-xl">
+                      {menuLogoDataUrl ? (
+                        <div className="absolute left-4 top-4 h-12 w-12 rounded-full border border-white/30 bg-white/10 shadow-lg">
+                          <div
+                            className="h-full w-full rounded-full bg-cover bg-center"
+                            style={{ backgroundImage: `url(${menuLogoDataUrl})` }}
+                          />
+                        </div>
+                      ) : null}
+
+                      {menuHasPdf ? (
+                        <div className="flex h-full w-full flex-col items-center justify-center gap-3 text-center text-muted-foreground">
+                          <File className="h-10 w-10 text-primary" />
+                          <p className="text-sm font-semibold text-foreground">PDF Menu</p>
+                          <p className="text-xs">Tap to open the PDF on scan.</p>
+                        </div>
+                      ) : menuHasFlip ? (
+                        <button
+                          type="button"
+                          className="relative h-full w-full"
+                          onClick={() => setMenuFlip((prev) => !prev)}
+                          aria-label="Flip menu preview"
+                        >
+                          <div
+                            className="absolute inset-0 transition-transform duration-500"
+                            style={{
+                              transformStyle: 'preserve-3d',
+                              transform: menuFlip ? 'rotateY(180deg)' : 'rotateY(0deg)',
+                            }}
+                          >
+                            <div
+                              className="absolute inset-0"
+                              style={{ backfaceVisibility: 'hidden' }}
+                            >
+                              <img
+                                src={menuFiles[0]?.url}
+                                alt="Menu front"
+                                className="h-full w-full object-cover"
+                              />
+                            </div>
+                            <div
+                              className="absolute inset-0"
+                              style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)' }}
+                            >
+                              <img
+                                src={menuFiles[1]?.url}
+                                alt="Menu back"
+                                className="h-full w-full object-cover"
+                              />
+                            </div>
+                          </div>
+                          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 rounded-full border border-white/20 bg-black/40 px-3 py-1 text-[10px] uppercase tracking-[0.3em] text-white/80">
+                            Tap to flip
+                          </div>
+                        </button>
+                      ) : menuHasCarousel ? (
+                        <div
+                          className="relative h-full w-full touch-pan-y"
+                          onPointerDown={handleMenuSwipeStart}
+                          onPointerMove={handleMenuSwipeMove}
+                          onPointerUp={handleMenuSwipeEnd}
+                          onPointerLeave={handleMenuSwipeEnd}
+                        >
+                          {menuFiles.map((file, index) => (
+                            <img
+                              key={`${file.url}-${index}`}
+                              src={file.url}
+                              alt={`Menu page ${index + 1}`}
+                              className={`absolute inset-0 h-full w-full object-cover transition-all duration-700 ${index === menuCarouselIndex ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-full'}`}
+                            />
+                          ))}
+                          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 rounded-full border border-white/20 bg-black/40 px-3 py-1 text-[10px] uppercase tracking-[0.3em] text-white/80">
+                            Swipe to continue
+                          </div>
+                        </div>
+                      ) : menuHasFiles ? (
+                        <img
+                          src={menuFiles[0]?.url}
+                          alt="Menu preview"
+                          className="h-full w-full object-cover"
+                        />
+                      ) : (
+                        <div className="flex h-full w-full flex-col items-center justify-center gap-3 text-center text-muted-foreground">
+                          <Utensils className="h-10 w-10 text-primary" />
+                          <p className="text-sm font-semibold text-foreground">Upload menu pages</p>
+                          <p className="text-xs">Add up to 15 images or a single PDF.</p>
+                        </div>
+                      )}
+
+                      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/60 to-transparent px-4 py-3 text-[10px] uppercase tracking-[0.3em] text-white/80">
+                        Luminar Apps watermark · Free Forever
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-center gap-3 text-xs text-muted-foreground">
+                    <div className={`flex items-center gap-1 ${menuSocials.instagram ? 'text-primary' : 'opacity-40'}`}>
+                      <Instagram className="h-4 w-4" />
+                      Instagram
+                    </div>
+                    <div className={`flex items-center gap-1 ${menuSocials.facebook ? 'text-primary' : 'opacity-40'}`}>
+                      <Facebook className="h-4 w-4" />
+                      Facebook
+                    </div>
+                    <div className={`flex items-center gap-1 ${menuSocials.tiktok ? 'text-primary' : 'opacity-40'}`}>
+                      <Music2 className="h-4 w-4" />
+                      TikTok
+                    </div>
+                    <div className={`flex items-center gap-1 ${menuSocials.website ? 'text-primary' : 'opacity-40'}`}>
+                      <Globe className="h-4 w-4" />
+                      Website
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-6">
+                <div className="glass-panel rounded-2xl p-5 space-y-4">
+                  <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Menu Type</p>
+                  <div className="flex flex-wrap gap-3">
+                    <Button
+                      type="button"
+                      size="sm"
+                      className={menuType === 'restaurant'
+                        ? 'bg-card/80 text-foreground border border-border/70 uppercase tracking-[0.2em] text-xs'
+                        : 'bg-secondary/40 border border-border/60 text-muted-foreground uppercase tracking-[0.2em] text-xs hover:text-primary'}
+                      onClick={() => setMenuType('restaurant')}
+                    >
+                      Restaurant
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      className={menuType === 'service'
+                        ? 'bg-card/80 text-foreground border border-border/70 uppercase tracking-[0.2em] text-xs'
+                        : 'bg-secondary/40 border border-border/60 text-muted-foreground uppercase tracking-[0.2em] text-xs hover:text-primary'}
+                      onClick={() => setMenuType('service')}
+                    >
+                      Services
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="glass-panel rounded-2xl p-5 space-y-4">
+                  <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Branding</p>
+                  <div className="flex flex-wrap items-center gap-4">
+                    <label className="flex flex-col gap-2 text-xs uppercase tracking-[0.3em] text-muted-foreground">
+                      Upload Logo
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleMenuLogoChange}
+                        className="text-xs"
+                      />
+                    </label>
+                    {menuLogoDataUrl ? (
+                      <span className="text-xs text-muted-foreground">Logo ready</span>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">Logo optional</span>
+                    )}
+                  </div>
+                </div>
+
+                <div className="glass-panel rounded-2xl p-5 space-y-4">
+                  <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Menu Pages</p>
+                  <p className="text-sm text-muted-foreground">
+                    Upload up to 15 JPG/PNG pages or a single PDF file.
+                  </p>
+                  <input
+                    type="file"
+                    accept="image/*,application/pdf"
+                    multiple
+                    onChange={handleMenuFilesChange}
+                    className="text-xs"
+                  />
+                  <div className="text-xs text-muted-foreground">
+                    {menuHasFiles
+                      ? `Uploaded ${menuFiles.length} file${menuFiles.length === 1 ? '' : 's'}`
+                      : 'No menu pages uploaded yet.'}
+                  </div>
+                </div>
+
+                <div className="glass-panel rounded-2xl p-5 space-y-4">
+                  <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Social Links</p>
+                  <div className="grid sm:grid-cols-2 gap-3">
+                    <div className="flex items-center gap-2 rounded-xl border border-border/60 bg-secondary/30 px-3">
+                      <Instagram className="h-4 w-4 text-primary" />
+                      <Input
+                        value={menuSocials.instagram}
+                        onChange={(e) => setMenuSocials((prev) => ({ ...prev, instagram: e.target.value }))}
+                        placeholder="Instagram URL"
+                        className="border-0 bg-transparent"
+                      />
+                    </div>
+                    <div className="flex items-center gap-2 rounded-xl border border-border/60 bg-secondary/30 px-3">
+                      <Facebook className="h-4 w-4 text-primary" />
+                      <Input
+                        value={menuSocials.facebook}
+                        onChange={(e) => setMenuSocials((prev) => ({ ...prev, facebook: e.target.value }))}
+                        placeholder="Facebook URL"
+                        className="border-0 bg-transparent"
+                      />
+                    </div>
+                    <div className="flex items-center gap-2 rounded-xl border border-border/60 bg-secondary/30 px-3">
+                      <Music2 className="h-4 w-4 text-primary" />
+                      <Input
+                        value={menuSocials.tiktok}
+                        onChange={(e) => setMenuSocials((prev) => ({ ...prev, tiktok: e.target.value }))}
+                        placeholder="TikTok URL"
+                        className="border-0 bg-transparent"
+                      />
+                    </div>
+                    <div className="flex items-center gap-2 rounded-xl border border-border/60 bg-secondary/30 px-3">
+                      <Globe className="h-4 w-4 text-primary" />
+                      <Input
+                        value={menuSocials.website}
+                        onChange={(e) => setMenuSocials((prev) => ({ ...prev, website: e.target.value }))}
+                        placeholder="Website URL"
+                        className="border-0 bg-transparent"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between rounded-2xl border border-border/60 bg-secondary/20 px-5 py-4 text-xs uppercase tracking-[0.3em] text-muted-foreground">
+                  <span>Interactive preview enabled</span>
+                  <span className="text-primary">Swipe · Flip · Tap</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Background gradient */}
       <div className="fixed inset-0 -z-10 overflow-hidden">
         <div className="absolute -top-24 left-8 h-[24rem] w-[24rem] rounded-full bg-[radial-gradient(circle_at_center,rgba(99,102,241,0.28),transparent_60%)] blur-3xl float-slow" />
@@ -1321,45 +1907,64 @@ const Index = () => {
         }`}
       >
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
+          <button
+            type="button"
+            className="flex items-center gap-3 text-left"
+            onClick={() => setActiveTab('studio')}
+            aria-label="Go to Studio"
+          >
             <div className="h-10 w-10 rounded-xl bg-gradient-primary flex items-center justify-center glow">
               <QrCode className="h-5 w-5 text-primary-foreground" />
             </div>
             <div>
               <h1 className="text-lg font-bold gradient-text tracking-wide">QR Code Studio</h1>
-              <p className="text-xs text-muted-foreground uppercase tracking-[0.3em]">Generate • Customize • Share</p>
+              <p className="text-xs text-muted-foreground uppercase tracking-[0.3em]">The last QR you&apos;ll ever print</p>
             </div>
-          </div>
-          <nav className="hidden lg:flex items-end gap-8 text-xs uppercase tracking-[0.35em] text-muted-foreground">
+          </button>
+          <nav className="hidden lg:flex items-end gap-6 text-xs uppercase tracking-[0.35em] text-muted-foreground">
+            <div className="pb-1">
+              <CreateMenu label="" />
+            </div>
             {[
               { id: 'studio', label: 'Studio' },
               { id: 'codes', label: 'Arsenal' },
               { id: 'analytics', label: 'Intel' },
-              { id: 'settings', label: 'Loadout' },
-              { id: 'adaptive', label: 'Adaptive' },
-              { id: 'upgrade', label: 'Upgrade Loadout' },
+              { id: 'adaptive', label: 'Adaptive QRC™' },
+              { id: 'upgrade', label: 'Upgrade' },
+              { id: 'settings', label: 'Config' },
             ].map((item) => {
               const isActive = activeTab === item.id;
               const isAdaptive = item.id === 'adaptive';
+              const iconConfig = item.id === 'studio'
+                ? { Icon: Paintbrush, color: 'text-muted-foreground' }
+                : item.id === 'codes'
+                  ? { Icon: QrCode, color: 'text-muted-foreground' }
+                  : item.id === 'analytics'
+                    ? { Icon: BarChart3, color: 'text-muted-foreground' }
+                    : item.id === 'settings'
+                      ? { Icon: Settings, color: 'text-muted-foreground' }
+                      : item.id === 'adaptive'
+                        ? { Icon: QrCode, color: 'text-amber-300' }
+                        : { Icon: Star, color: 'text-amber-300' };
               return (
                 <button
                   key={item.id}
                   type="button"
                   onClick={() => setActiveTab(item.id as typeof activeTab)}
-                  className={`relative px-1 pb-2 transition-all before:absolute before:-top-2 before:left-0 before:h-[2px] before:w-full before:rounded-full before:bg-gradient-to-r before:from-primary before:to-amber-200 before:opacity-0 before:transition ${
+                  className={`group relative flex items-center justify-center min-w-[92px] px-1 pb-2 text-center transition-all before:absolute before:-top-2 before:left-0 before:h-[2px] before:w-full before:rounded-full before:bg-gradient-to-r before:from-primary before:to-amber-200 before:opacity-0 before:transition ${
                     isActive
                       ? 'text-foreground before:opacity-100'
                       : 'text-muted-foreground hover:text-foreground hover:before:opacity-80'
                   } ${isAdaptive ? 'font-semibold' : ''}`}
                 >
-                  {isAdaptive ? (
-                    <span className="inline-flex items-center gap-2">
-                      <Star className="h-3.5 w-3.5 text-amber-300 fill-amber-300 drop-shadow-[0_0_6px_rgba(251,191,36,0.45)]" />
-                      <span className={adaptiveGlowText}>Adaptive</span>
+                  <span className="relative inline-flex h-7 w-full items-center justify-center overflow-hidden">
+                    <span className={`transform transition-all duration-200 ${isAdaptive ? adaptiveGradientText : ''} group-hover:-translate-y-4 group-hover:opacity-0`}>
+                      {item.label}
                     </span>
-                  ) : (
-                    item.label
-                  )}
+                    <span className={`absolute inset-0 flex items-center justify-center translate-y-4 opacity-0 transition-all duration-200 group-hover:translate-y-0 group-hover:opacity-100 ${iconConfig.color}`}>
+                      <iconConfig.Icon className={`h-6 w-6 ${item.id === 'upgrade' ? 'fill-current' : ''}`} />
+                    </span>
+                  </span>
                 </button>
               );
             })}
@@ -1394,37 +1999,47 @@ const Index = () => {
       >
         {activeTab === 'studio' && (
           <>
-            <section id="studio" className="space-y-8">
+        <section id="studio" className="space-y-8">
           <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
             <div>
               <p className="text-xs uppercase tracking-[0.4em] text-muted-foreground">Studio</p>
               <h2 className="text-3xl font-semibold tracking-tight">Creative Workspace</h2>
             </div>
-            <CreateMenu label="Create New QR" />
           </div>
 
           <div className="grid lg:grid-cols-[1.1fr_0.9fr] gap-6">
-            <div className="glass-panel rounded-2xl p-6 space-y-6">
+            <button
+              type="button"
+              onClick={() => setActiveTab('analytics')}
+              className="glass-panel rounded-2xl p-6 space-y-6 text-left transition hover:border-primary/60 hover:shadow-lg hover:-translate-y-1"
+            >
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Overview</p>
                   <h3 className="text-lg font-semibold">Your QR Arsenal</h3>
                 </div>
-                <span className="text-xs uppercase tracking-[0.3em] text-primary">Active</span>
               </div>
               <div className="grid sm:grid-cols-3 gap-4">
                 {[
-                  { label: 'Total Codes', value: '0' },
-                  { label: 'Scans Today', value: '0' },
-                  { label: 'Dynamic Live', value: '0' },
+                  { label: 'Total Codes', value: '0', tab: 'codes' },
+                  { label: 'Scans Today', value: '0', tab: 'analytics' },
+                  { label: 'Dynamic Live', value: '0', tab: 'analytics' },
                 ].map((item) => (
-                  <div key={item.label} className="rounded-xl border border-border/60 bg-secondary/40 p-4">
+                  <button
+                    key={item.label}
+                    type="button"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      setActiveTab(item.tab as typeof activeTab);
+                    }}
+                    className="rounded-xl border border-border/60 bg-secondary/40 p-4 text-left transition hover:border-primary/60 hover:bg-secondary/50"
+                  >
                     <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">{item.label}</p>
                     <p className="text-2xl font-semibold mt-2">{item.value}</p>
-                  </div>
+                  </button>
                 ))}
               </div>
-      </div>
+            </button>
 
             <div className="glass-panel rounded-2xl p-6 space-y-4">
               <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Studio Guide</p>
@@ -1435,6 +2050,96 @@ const Index = () => {
                 <p>3. Customize, generate, and export.</p>
               </div>
             </div>
+          </div>
+        </section>
+
+        <section className="mt-10 space-y-4">
+          <div>
+            <p className="text-xs uppercase tracking-[0.4em] text-muted-foreground">Quick Actions</p>
+            <h3 className="text-lg font-semibold">Jump into a new QR</h3>
+          </div>
+          <div className="flex flex-wrap justify-center gap-6">
+            {[
+              {
+                id: 'website',
+                label: 'Website',
+                hint: 'Website',
+                Icon: LinkIcon,
+                onClick: handleStartStatic,
+              },
+              {
+                id: 'phone',
+                label: 'Phone',
+                hint: 'Phone',
+                Icon: Phone,
+                onClick: handleStartPhone,
+              },
+              {
+                id: 'email',
+                label: 'Email',
+                hint: 'Email',
+                Icon: Mail,
+                onClick: handleStartEmail,
+              },
+              {
+                id: 'vcard',
+                label: 'VCard',
+                hint: 'VCard',
+                Icon: User,
+                onClick: handleStartVcard,
+              },
+              {
+                id: 'file',
+                label: 'File',
+                hint: 'File',
+                Icon: File,
+                onClick: () => toast.info('Upgrade to a Pro Plan to unlock this feature.'),
+              },
+              {
+                id: 'dynamic',
+                label: 'Dynamic',
+                hint: 'Dynamic',
+                Icon: Sparkles,
+                onClick: () => {
+                  setQrMode('dynamic');
+                  setQrType('website');
+                  setPendingCreateScroll(true);
+                  toast.info('Dynamic QR is in preview mode.');
+                },
+              },
+              {
+                id: 'menu',
+                label: 'Menu',
+                hint: 'Menu',
+                Icon: Utensils,
+                onClick: openMenuBuilder,
+              },
+            ].map((action) => (
+              <button
+                key={action.id}
+                type="button"
+                onClick={action.onClick}
+                onMouseEnter={() => setQuickActionHover(action.id)}
+                onMouseLeave={() => setQuickActionHover(null)}
+                className="group relative flex flex-col items-center justify-center rounded-full border border-border/60 bg-secondary/30 h-14 w-14 transition hover:border-primary/60 hover:bg-secondary/40"
+              >
+                <action.Icon className="h-5 w-5 text-primary" />
+                <AnimatePresence mode="wait">
+                  {quickActionHover === action.id ? (
+                    <motion.span
+                      key={action.hint}
+                      initial={{ opacity: 0, filter: 'blur(8px)', y: 6 }}
+                      animate={{ opacity: 1, filter: 'blur(0px)', y: 0 }}
+                      exit={{ opacity: 0, filter: 'blur(10px)', y: -6 }}
+                      transition={{ duration: 0.2 }}
+                      className="pointer-events-none absolute -bottom-7 whitespace-nowrap text-[10px] uppercase tracking-[0.3em] text-muted-foreground"
+                    >
+                      {action.hint}
+                    </motion.span>
+                  ) : null}
+                </AnimatePresence>
+              </button>
+            ))}
           </div>
         </section>
 
@@ -1479,8 +2184,17 @@ const Index = () => {
                     </Button>
                     <Button
                       size="sm"
-                      className="bg-secondary/40 border border-border/60 text-muted-foreground rounded-t-xl uppercase tracking-[0.2em] text-xs cursor-not-allowed"
-                      onClick={() => toast.info('Dynamic QR is a placeholder for now.')}
+                      className={qrMode === 'dynamic'
+                        ? 'bg-card/80 text-foreground border border-border/70 border-b-transparent rounded-t-xl uppercase tracking-[0.2em] text-xs'
+                        : 'bg-secondary/40 border border-border/60 text-muted-foreground rounded-t-xl uppercase tracking-[0.2em] text-xs hover:text-primary'}
+                      onClick={() => {
+                        setQrMode('dynamic');
+                        setQrType(null);
+                        setWebsiteTouched(false);
+                        setEmailTouched(false);
+                        setPhoneTouched(false);
+                        toast.info('Dynamic QR is in preview mode.');
+                      }}
                     >
                       Dynamic
                     </Button>
@@ -1552,6 +2266,20 @@ const Index = () => {
                       >
                         <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Phone</p>
                         <p className="mt-2 font-semibold">Call a number</p>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setQrType('menu');
+                        }}
+                        className={`rounded-t-2xl border px-4 py-3 text-left transition-all ${
+                          qrType === 'menu'
+                            ? 'border-border/70 bg-card/80'
+                            : 'border-border/60 bg-secondary/30 hover:border-primary/60'
+                        }`}
+                      >
+                        <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Menu</p>
+                        <p className="mt-2 font-semibold">Dynamic QR menu</p>
                       </button>
                     </div>
                   </div>
@@ -1630,6 +2358,31 @@ const Index = () => {
                           Please enter a valid phone number.
                         </p>
                       )}
+                    </div>
+                  ) : qrType === 'menu' ? (
+                    <div className="space-y-4">
+                      <div className="flex items-center gap-3">
+                        <Utensils className="h-4 w-4 text-primary" />
+                        <h3 className="font-semibold">Step 3 · Build Menu Experience</h3>
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        Upload your menu pages, add a logo, and preview the swipe/flip experience.
+                      </p>
+                      <div className="flex flex-wrap items-center gap-3">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="border-border uppercase tracking-[0.2em] text-xs"
+                          onClick={openMenuBuilder}
+                        >
+                          Open Menu Builder
+                        </Button>
+                        <span className="text-xs text-muted-foreground">
+                          {menuFiles.length > 0
+                            ? `${menuFiles.length} page${menuFiles.length === 1 ? '' : 's'} uploaded`
+                            : 'No menu pages uploaded yet'}
+                        </span>
+                      </div>
                     </div>
                   ) : (
                     <div className="space-y-4">
@@ -1783,6 +2536,32 @@ const Index = () => {
                 transition={{ delay: 0.1 }}
                 className="flex flex-col items-center"
               >
+                {qrType === 'menu' && (
+                  <div className="mb-4 w-full max-w-md rounded-2xl border border-border/60 bg-secondary/20 p-4">
+                    <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Menu Preview</p>
+                    <div className="mt-3 rounded-xl border border-border/60 bg-card/80 overflow-hidden">
+                      {menuHasPdf ? (
+                        <div className="flex h-40 flex-col items-center justify-center gap-2 text-muted-foreground">
+                          <File className="h-8 w-8 text-primary" />
+                          <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">PDF Menu</p>
+                        </div>
+                      ) : menuHasFiles ? (
+                        <img
+                          src={menuFiles[0]?.url}
+                          alt="Menu preview"
+                          className="h-40 w-full object-cover"
+                        />
+                      ) : (
+                        <div className="flex h-40 flex-col items-center justify-center gap-2 text-muted-foreground">
+                          <Utensils className="h-8 w-8 text-primary" />
+                          <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">
+                            Upload menu pages to preview
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
                 {hasSelectedMode && hasSelectedType ? (
                   <QRPreview
                     ref={qrRef}
@@ -1990,7 +2769,7 @@ const Index = () => {
                     <span className={adaptiveGradientText}>Adaptive QRC™</span>
                   </span>
                   <span className="rounded-full border border-amber-300/50 px-2 py-1 text-[10px] uppercase tracking-[0.3em] text-amber-200">
-                    Adaptive
+                    Adaptive QRC™
                   </span>
                 </div>
                 <p className="mt-3 text-sm font-semibold text-foreground">
@@ -2005,9 +2784,6 @@ const Index = () => {
               <div className="glass-panel rounded-2xl p-8 text-center space-y-4">
                 <p className="text-sm text-muted-foreground">No QR codes yet.</p>
                 <p className="text-lg font-semibold">Create your first QR Code to get started.</p>
-                <div className="flex items-center justify-center">
-                  <CreateMenu label="Create New" />
-                </div>
               </div>
             ) : (
               <HistoryPanel onSelect={handleHistorySelect} />
@@ -2017,141 +2793,148 @@ const Index = () => {
 
         {activeTab === 'analytics' && (
           <section id="intel" className="space-y-6">
-            <div>
-              <p className="text-xs uppercase tracking-[0.4em] text-muted-foreground">Intel</p>
-              <h2 className="text-3xl font-semibold tracking-tight">Live Intelligence</h2>
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-xs uppercase tracking-[0.4em] text-muted-foreground">Intel</p>
+                <h2 className="text-3xl font-semibold tracking-tight">Live Intelligence</h2>
+              </div>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" className="border-border text-xs uppercase tracking-[0.3em]">
+                    Export CSV
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="bg-card/95 border-border">
+                  <DropdownMenuItem onClick={() => handleExportCsv('day')}>Today</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleExportCsv('week')}>This Week</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleExportCsv('month')}>This Month</DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
 
-            {!hasGenerated ? (
-              <div className="glass-panel rounded-2xl p-8 text-center space-y-4">
-                <p className="text-sm text-muted-foreground">No intel yet.</p>
-                <p className="text-lg font-semibold">Create your first QR Code to view intel.</p>
-                <div className="flex items-center justify-center">
-                  <CreateMenu label="Create New" />
-                </div>
-              </div>
-            ) : (
-              <div className="grid lg:grid-cols-[1.2fr_0.8fr] gap-6">
-                <div className="glass-panel rounded-2xl p-6 space-y-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">QR Code</p>
-                      <h3 className="text-lg font-semibold">Active Campaign</h3>
-                    </div>
-                    <span className="text-xs uppercase tracking-[0.3em] text-primary">Live</span>
+            <div className="grid lg:grid-cols-[1.2fr_0.8fr] gap-6">
+              <div className="glass-panel rounded-2xl p-6 space-y-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Intel</p>
+                    <h3 className="text-lg font-semibold">Command Map</h3>
                   </div>
+                  <span className="text-xs uppercase tracking-[0.3em] text-primary">Live</span>
+                </div>
 
-                  <div className="grid sm:grid-cols-3 gap-4">
+                <div className="rounded-2xl border border-border/60 bg-secondary/20 p-4 space-y-3">
+                  <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Radar</p>
+                  <div className="relative h-56 rounded-2xl border border-amber-300/30 bg-[radial-gradient(circle_at_center,rgba(251,191,36,0.12),rgba(17,24,39,0.9))] overflow-hidden">
+                    <div className="absolute inset-6 rounded-full border border-amber-200/30" />
+                    <div className="absolute inset-12 rounded-full border border-amber-200/20" />
+                    <div className="absolute inset-20 rounded-full border border-amber-200/10" />
+                    <div className="absolute left-1/2 top-1/2 h-[140%] w-[140%] -translate-x-1/2 -translate-y-1/2 rounded-full border border-amber-300/10" />
+                    <div className="absolute inset-0 radar-sweep" />
                     {[
-                      { label: 'Scan Count', value: '0' },
-                      { label: 'Unique Users', value: '0' },
-                      { label: 'Avg. Daily', value: '0' },
-                    ].map((item) => (
-                      <div key={item.label} className="rounded-xl border border-border/60 bg-secondary/30 p-4">
-                        <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">{item.label}</p>
-                        <p className="text-2xl font-semibold mt-2">{item.value}</p>
-                      </div>
+                      { top: '30%', left: '20%' },
+                      { top: '60%', left: '62%' },
+                      { top: '45%', left: '78%' },
+                      { top: '72%', left: '38%' },
+                    ].map((ping, index) => (
+                      <div
+                        key={`${ping.top}-${ping.left}-${index}`}
+                        className="absolute h-3 w-3 rounded-full bg-amber-300 shadow-[0_0_16px_rgba(251,191,36,0.8)]"
+                        style={{ top: ping.top, left: ping.left }}
+                      />
                     ))}
                   </div>
+                </div>
 
-                  <div>
-                    <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground mb-3">Scans over time</p>
-                    <div className="flex items-end gap-2 h-32">
-                      {[0, 0, 0, 0, 0, 0, 0, 0].map((value, index) => (
+                <div className="grid sm:grid-cols-3 gap-4">
+                  {[
+                    { label: 'Active Nodes', value: '12' },
+                    { label: 'Signals', value: '4.2k' },
+                    { label: 'Response Time', value: '0.8s' },
+                  ].map((item) => (
+                    <div key={item.label} className="rounded-xl border border-border/60 bg-secondary/30 p-4">
+                      <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">{item.label}</p>
+                      <p className="text-2xl font-semibold mt-2">{item.value}</p>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="grid sm:grid-cols-2 gap-4">
+                  <div className="rounded-xl border border-border/60 bg-secondary/30 p-4">
+                    <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Top Regions</p>
+                    <div className="mt-3 space-y-2 text-sm">
+                      <div className="flex items-center justify-between">
+                        <span>Frankfurt</span>
+                        <span className="text-primary">38%</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span>Singapore</span>
+                        <span className="text-primary">24%</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span>Dallas</span>
+                        <span className="text-primary">18%</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="rounded-xl border border-border/60 bg-secondary/30 p-4">
+                    <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Signal Trends</p>
+                    <div className="mt-4 h-20 flex items-end gap-2">
+                      {[30, 50, 22, 60, 80, 45, 68].map((value, index) => (
                         <div
                           key={`${value}-${index}`}
-                          className="flex-1 rounded-full bg-gradient-to-t from-primary/30 to-primary/80"
+                          className="flex-1 rounded-full bg-gradient-to-t from-amber-300/20 to-amber-300/80"
                           style={{ height: `${value}%` }}
                         />
                       ))}
                     </div>
                   </div>
+                </div>
+              </div>
 
-                  <div className="grid sm:grid-cols-2 gap-4">
-                    <div className="rounded-xl border border-border/60 bg-secondary/30 p-4">
-                      <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Top OS</p>
-                      <div className="mt-3 space-y-2 text-sm">
-                        <div className="flex items-center justify-between">
-                          <span>iOS</span>
-                          <span className="text-primary">0%</span>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span>Android</span>
-                          <span className="text-primary">0%</span>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span>Desktop</span>
-                          <span className="text-primary">0%</span>
-                        </div>
-                      </div>
+              <div className="space-y-6">
+                <div className="glass-panel rounded-2xl p-6">
+                  <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Mission Snapshot</p>
+                  <div className="mt-4 space-y-3 text-sm text-muted-foreground">
+                    <div className="flex items-center justify-between">
+                      <span>Signal Strength</span>
+                      <span className="text-primary">92%</span>
                     </div>
-                    <div className="rounded-xl border border-border/60 bg-secondary/30 p-4">
-                      <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Scans by location</p>
-                      <div className="mt-3 space-y-2 text-sm">
-                        <div className="flex items-center justify-between">
-                          <span>San Juan, PR</span>
-                          <span className="text-primary">0</span>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span>Brooklyn, NYC</span>
-                          <span className="text-primary">0</span>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span>Miami, FL</span>
-                          <span className="text-primary">0</span>
-                        </div>
-                      </div>
+                    <div className="flex items-center justify-between">
+                      <span>Scan Velocity</span>
+                      <span className="text-primary">+18%</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span>Adaptive Nodes</span>
+                      <span className="text-primary">4</span>
                     </div>
                   </div>
                 </div>
 
-                <div className="space-y-6">
-                  <div className="glass-panel rounded-2xl p-6">
-                    <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">QR Preview</p>
-                    <div className="mt-4 flex justify-center">
-                      <QRPreview
-                        options={options}
-                        contentOverride={generatedContent}
-                        showCaption={false}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="glass-panel rounded-2xl p-6">
-                    <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Scan Map</p>
-                    <div className="relative mt-4 h-48 rounded-2xl border border-border/60 bg-gradient-to-br from-secondary/40 via-secondary/10 to-primary/20 overflow-hidden">
-                      <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_30%,rgba(99,102,241,0.35),transparent_45%)]" />
-                      <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_60%,rgba(236,72,153,0.25),transparent_40%)]" />
-                      {[
-                        { top: '25%', left: '22%' },
-                        { top: '48%', left: '68%' },
-                        { top: '62%', left: '38%' },
-                        { top: '30%', left: '58%' },
-                      ].map((pin, index) => (
-                        <div
-                          key={`${pin.top}-${pin.left}-${index}`}
-                          className="absolute h-3 w-3 rounded-full bg-primary shadow-[0_0_12px_rgba(168,85,247,0.8)]"
-                          style={{ top: pin.top, left: pin.left }}
-                        />
-                      ))}
-                    </div>
+                <div className="glass-panel rounded-2xl p-6">
+                  <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">QR Preview</p>
+                  <div className="mt-4 flex justify-center">
+                    <QRPreview
+                      options={options}
+                      contentOverride={generatedContent || 'https://preview.qrcodestudio.app'}
+                      showCaption={false}
+                    />
                   </div>
                 </div>
               </div>
-            )}
+            </div>
           </section>
         )}
 
         {activeTab === 'settings' && (
-          <section id="loadout" className="space-y-6">
+          <section id="config" className="space-y-6">
             <div>
-              <p className="text-xs uppercase tracking-[0.4em] text-muted-foreground">Loadout</p>
+              <p className="text-xs uppercase tracking-[0.4em] text-muted-foreground">Config</p>
               <h2 className="text-3xl font-semibold tracking-tight">Preferences</h2>
             </div>
             <div className="glass-panel rounded-2xl p-6 text-sm text-muted-foreground space-y-4">
               <p>From here you can customize your experience and preferences.</p>
               <p>Please log in or create an account to unlock settings, exports, and team features.</p>
-              <div className="flex flex-col sm:flex-row gap-3 text-xs uppercase tracking-[0.3em]">
+              <div className="flex flex-col sm:flex-row gap-2 text-sm">
                 <button
                   type="button"
                   className="text-primary hover:text-primary/80 transition"
@@ -2184,7 +2967,9 @@ const Index = () => {
             </div>
 
             <div className="grid gap-6 lg:grid-cols-3">
-              <div className="glass-panel rounded-2xl p-6 space-y-5 border border-border/60">
+              <div
+                className="glass-panel rounded-2xl p-6 space-y-5 border border-border/60 transition-transform duration-200 hover:scale-[1.02] hover:border-amber-300/60 hover:shadow-[0_0_25px_rgba(251,191,36,0.15)]"
+              >
                 <div className="space-y-2">
                   <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Free Forever</p>
                   <h3 className="text-2xl font-semibold">Free Forever</h3>
@@ -2196,10 +2981,25 @@ const Index = () => {
                 <ul className="space-y-2 text-sm text-muted-foreground">
                   <li><span className="font-semibold text-foreground">1</span> Dynamic QR Code</li>
                   <li><span className="font-semibold text-foreground">Unlimited</span> Scans</li>
+                  <li className="flex items-center gap-2">
+                    <User className="h-4 w-4 text-muted-foreground" />
+                    <span className="font-semibold text-foreground">1</span> Seat
+                  </li>
                   <li><span className="font-semibold text-foreground">Basic</span> Intel</li>
                   <li><span className="font-semibold text-foreground">Standard</span> QR Styles</li>
                   <li><span className="font-semibold text-foreground">Community</span> Support</li>
                   <li><span className="font-semibold text-foreground">Watermark</span> Enabled</li>
+                  <li className="flex items-center gap-2">
+                    <span className="font-semibold text-foreground">1</span>
+                    <span className={adaptiveGradientText}>Adaptive QRC™</span>
+                    <span className="text-[10px] uppercase tracking-[0.3em] text-foreground">Autodestroy in 7 days</span>
+                    <span className="relative group">
+                      <Info className="h-3.5 w-3.5 text-muted-foreground" />
+                      <span className="pointer-events-none absolute left-1/2 top-full mt-2 w-52 -translate-x-1/2 rounded-lg border border-border/70 bg-card px-3 py-2 text-[11px] text-muted-foreground opacity-0 shadow-lg transition group-hover:opacity-100">
+                        This is a taste of Pro power. Avoid autodestroy by upgrading to Pro or Command.
+                      </span>
+                    </span>
+                  </li>
                 </ul>
                 <Button
                   disabled
@@ -2209,7 +3009,13 @@ const Index = () => {
                 </Button>
               </div>
 
-              <div className="glass-panel rounded-2xl p-6 space-y-5 border-2 border-primary/80 shadow-[0_0_40px_rgba(59,130,246,0.25)]">
+              <div
+                className="glass-panel rounded-2xl p-6 space-y-5 border-2 border-primary/80 shadow-[0_0_40px_rgba(59,130,246,0.25)] transition-transform duration-200 hover:scale-[1.03] hover:shadow-[0_0_50px_rgba(59,130,246,0.35)] cursor-pointer"
+                onClick={() => setSelectedPlanComparison('pro')}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(event) => event.key === 'Enter' && setSelectedPlanComparison('pro')}
+              >
                 <div className="flex items-center justify-between">
                   <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Pro</p>
                   <span className="rounded-full bg-primary/10 text-primary text-[10px] uppercase tracking-[0.35em] px-3 py-1">
@@ -2221,36 +3027,51 @@ const Index = () => {
                 <ul className="space-y-2 text-sm text-muted-foreground">
                   <li><span className="font-semibold text-foreground">25</span> Dynamic QR Codes</li>
                   <li><span className="font-semibold text-foreground">Unlimited</span> Scans</li>
+                  <li className="flex items-center gap-2">
+                    <User className="h-4 w-4 text-muted-foreground" />
+                    <span className="font-semibold text-foreground">1</span> Seat
+                  </li>
                   <li><span className="font-semibold text-foreground">Full</span> Intel (analytics)</li>
                   <li><span className="font-semibold text-foreground">Bulk</span> QR Creation</li>
                   <li><span className="font-semibold text-foreground">Custom</span> Colors & Logos</li>
                   <li><span className="font-semibold text-foreground">Preset</span> Loadouts</li>
                   <li><span className="font-semibold text-foreground">Priority</span> Updates</li>
                   <li><span className="font-semibold text-foreground">No</span> Watermark</li>
+                  <li><span className={adaptiveGradientText}>Adaptive QRC™</span> Unlimited Scans</li>
+                  <li><span className="font-semibold text-foreground">+ $3</span> per extra Adaptive QRC™</li>
                 </ul>
-                <Button
-                  disabled
-                  className="w-full bg-gradient-primary text-primary-foreground uppercase tracking-[0.2em] text-xs pointer-events-none"
-                >
-                  Coming Soon
-                </Button>
+                <div className="text-xs uppercase tracking-[0.3em] text-primary">Compare</div>
               </div>
 
-              <div className="glass-panel rounded-2xl p-6 space-y-5 border border-amber-400/50 shadow-[0_0_30px_rgba(251,191,36,0.2)]">
+              <div
+                className="group glass-panel rounded-2xl p-6 space-y-5 border border-amber-400/50 shadow-[0_0_30px_rgba(251,191,36,0.2)] transition-transform duration-200 hover:scale-[1.02] hover:border-amber-300/80 hover:shadow-[0_0_35px_rgba(251,191,36,0.35)] cursor-pointer"
+                onClick={() => setSelectedPlanComparison('command')}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(event) => event.key === 'Enter' && setSelectedPlanComparison('command')}
+              >
                 <div className="flex items-center justify-between">
                   <div className="space-y-2">
                     <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Command</p>
                     <h3 className="text-2xl font-semibold">Command</h3>
                   </div>
-                  <div className="flex items-center gap-2 text-amber-300 text-xs uppercase tracking-[0.3em]">
-                    <Star className="h-4 w-4 fill-amber-300" />
-                    Premium
+                  <div className="text-amber-300 text-[11px] uppercase tracking-[0.3em] text-right">
+                    <span className="block transition-all duration-200 group-hover:-translate-y-2 group-hover:opacity-0">
+                      Business Plan
+                    </span>
+                    <span className="block -mt-3 opacity-0 transition-all duration-200 group-hover:opacity-100">
+                      The best QRC Plan on Earth...Literally
+                    </span>
                   </div>
                 </div>
                 <div className="text-3xl font-semibold">$19 <span className="text-sm text-muted-foreground">/ month</span></div>
                 <ul className="space-y-2 text-sm text-muted-foreground">
                   <li><span className="font-semibold text-foreground">Unlimited</span> Dynamic QR Codes</li>
                   <li><span className="font-semibold text-foreground">Unlimited</span> Scans</li>
+                  <li className="flex items-center gap-2">
+                    <Users className="h-4 w-4 text-muted-foreground" />
+                    <span className="font-semibold text-foreground">5</span> Seats
+                  </li>
                   <li><span className="font-semibold text-foreground">Advanced</span> Intel (reports & trends)</li>
                   <li><span className="font-semibold text-foreground">Bulk</span> Creation (High-volume)</li>
                   <li><span className="font-semibold text-foreground">API</span> Access</li>
@@ -2258,15 +3079,81 @@ const Index = () => {
                   <li><span className="font-semibold text-foreground">Shared</span> Arsenal</li>
                   <li><span className="font-semibold text-foreground">Priority</span> Support</li>
                   <li><span className="font-semibold text-foreground">No</span> Watermark</li>
+                  <li><span className={adaptiveGradientText}>Adaptive QRC™</span> Unlimited Scans</li>
+                  <li><span className="font-semibold text-foreground">+ $2</span> per extra Adaptive QRC™</li>
                 </ul>
-                <Button
-                  disabled
-                  className="w-full bg-secondary/60 text-muted-foreground uppercase tracking-[0.2em] text-xs pointer-events-none"
-                >
-                  View Plan
-                </Button>
+                <div className="text-xs uppercase tracking-[0.3em] text-amber-200">Compare</div>
               </div>
             </div>
+
+            {selectedPlanComparison && (
+              <div className="fixed inset-0 z-[80] flex items-center justify-center bg-background/70 backdrop-blur-md px-4">
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.9, rotateY: 12 }}
+                  animate={{ opacity: 1, scale: 1, rotateY: 0 }}
+                  transition={{ duration: 0.35, ease: 'easeOut' }}
+                  className="glass-panel rounded-3xl p-6 sm:p-8 w-full max-w-3xl space-y-5"
+                >
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">
+                      Compare vs Free Forever
+                    </p>
+                    <button
+                      type="button"
+                      className="text-xs uppercase tracking-[0.3em] text-muted-foreground hover:text-primary"
+                      onClick={() => setSelectedPlanComparison(null)}
+                    >
+                      Close
+                    </button>
+                  </div>
+                  {selectedPlanComparison === 'pro' ? (
+                    <div className="grid gap-4 md:grid-cols-2 text-sm text-muted-foreground">
+                      <div className="rounded-xl border border-border/60 bg-secondary/20 p-4 space-y-2">
+                        <p className="text-foreground font-semibold">Free Forever</p>
+                        <ul className="space-y-1">
+                          <li>1 Dynamic QR Code</li>
+                          <li>Basic Intel</li>
+                          <li>Watermark Enabled</li>
+                          <li><span className={adaptiveGradientText}>Adaptive QRC™</span> autodestroy in 7 days</li>
+                        </ul>
+                      </div>
+                      <div className="rounded-xl border border-primary/60 bg-primary/10 p-4 space-y-2">
+                        <p className="text-foreground font-semibold">Pro</p>
+                        <ul className="space-y-1">
+                          <li>25 Dynamic QR Codes</li>
+                          <li>Full Intel + Bulk Creation</li>
+                          <li>No Watermark</li>
+                          <li><span className={adaptiveGradientText}>Adaptive QRC™</span> unlimited scans</li>
+                          <li>$3 per extra Adaptive QRC™</li>
+                        </ul>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="grid gap-4 md:grid-cols-2 text-sm text-muted-foreground">
+                      <div className="rounded-xl border border-border/60 bg-secondary/20 p-4 space-y-2">
+                        <p className="text-foreground font-semibold">Free Forever</p>
+                        <ul className="space-y-1">
+                          <li>1 Dynamic QR Code</li>
+                          <li>Basic Intel</li>
+                          <li>Watermark Enabled</li>
+                          <li><span className={adaptiveGradientText}>Adaptive QRC™</span> autodestroy in 7 days</li>
+                        </ul>
+                      </div>
+                      <div className="rounded-xl border border-amber-300/60 bg-amber-400/10 p-4 space-y-2">
+                        <p className="text-foreground font-semibold">Command</p>
+                        <ul className="space-y-1">
+                          <li>Unlimited Dynamic QR Codes</li>
+                          <li>Advanced Intel + API Access</li>
+                          <li>No Watermark + Priority Support</li>
+                          <li><span className={adaptiveGradientText}>Adaptive QRC™</span> unlimited scans</li>
+                          <li>$2 per extra Adaptive QRC™</li>
+                        </ul>
+                      </div>
+                    </div>
+                  )}
+                </motion.div>
+              </div>
+            )}
 
             <div className="glass-panel rounded-2xl p-6 overflow-x-auto">
               <table className="w-full text-sm text-muted-foreground">
@@ -2286,6 +3173,8 @@ const Index = () => {
                     ['Bulk Creation', '—', 'Included', 'High-volume'],
                     ['Custom Colors & Logos', '—', 'Included', 'Included'],
                     ['Preset Loadouts', '—', 'Included', 'Included'],
+                    ['Adaptive QRC™', '1 (Autodestroy 7 Days)', '1 Included', '5 Included'],
+                    ['Extra Adaptive QRC™', '—', '$3 / mo', '$2 / mo'],
                     ['API Access', '—', '—', 'Included'],
                     ['Team Users', '—', '—', 'Up to 5'],
                     ['Shared Arsenal', '—', '—', 'Included'],
@@ -2308,7 +3197,7 @@ const Index = () => {
         {activeTab === 'adaptive' && (
           <section id="adaptive" className="space-y-10">
             <div className="text-center space-y-4">
-              <p className="text-xs uppercase tracking-[0.4em] text-muted-foreground">Adaptive</p>
+              <p className="text-xs uppercase tracking-[0.4em] text-muted-foreground">Adaptive QRC™</p>
               <h2 className={`text-4xl sm:text-5xl font-semibold tracking-tight ${adaptiveGradientText}`}>
                 Adaptive QRC™
               </h2>
@@ -2712,10 +3601,10 @@ const Index = () => {
 
                 <div className="glass-panel rounded-2xl p-6 space-y-3">
                   <Button
-                    className="w-full bg-gradient-primary text-primary-foreground uppercase tracking-[0.2em] text-xs"
+                    className="group w-full bg-black text-white uppercase tracking-[0.2em] text-xs transition hover:bg-amber-400"
                     onClick={() => toast.success('Adaptive QRC™ saved (mock).')}
                   >
-                    Save <span className={adaptiveGradientText}>Adaptive QRC™</span>
+                    Save <span className="text-amber-300 transition group-hover:text-white">Adaptive QRC™</span>
                   </Button>
                   <Button
                     variant="outline"

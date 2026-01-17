@@ -99,11 +99,11 @@
   }
 
   .gradient-text {
-    @apply bg-gradient-to-r from-primary via-amber-200 to-amber-100 bg-clip-text text-transparent;
+    @apply bg-gradient-to-r from-primary via-amber-400 to-amber-300 bg-clip-text text-transparent;
   }
 
   .gradient-border {
-    @apply relative before:absolute before:inset-0 before:rounded-[inherit] before:p-[1px] before:bg-gradient-to-r before:from-primary before:to-amber-200 before:-z-10;
+    @apply relative before:absolute before:inset-0 before:rounded-[inherit] before:p-[1px] before:bg-gradient-to-r before:from-primary before:to-amber-400 before:-z-10;
   }
 
   .glow {

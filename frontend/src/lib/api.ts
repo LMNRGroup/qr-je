@@ -1,4 +1,4 @@
-import supabase from '@/lib/supabase';
+import supabase, { isSupabaseConfigured } from '@/lib/supabase';
 import { QRHistoryItem, QROptions } from '@/types/qr';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '';
@@ -32,6 +32,9 @@ const requireBaseUrl = () => {
 };
 
 const getAuthHeaders = async () => {
+  if (!isSupabaseConfigured) {
+    return {};
+  }
   const { data } = await supabase.auth.getSession();
   const token = data.session?.access_token;
   return token ? { Authorization: `Bearer ${token}` } : {};
