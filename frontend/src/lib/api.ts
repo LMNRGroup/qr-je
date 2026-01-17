@@ -164,6 +164,16 @@ export async function createVcard(payload: {
   return { success: true, url: data.url, vcard: data.vcard };
 }
 
+export async function getPublicVcard(slug: string): Promise<VcardResponse> {
+  const baseUrl = requireBaseUrl();
+  const response = await fetch(`${baseUrl}/public/vcards/${encodeURIComponent(slug)}`);
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(errorText || 'Failed to load vcard');
+  }
+  return (await response.json()) as VcardResponse;
+}
+
 export async function getQRHistory(): Promise<{ success: boolean; data: QRHistoryItem[] }> {
   const response = await request('/urls');
   const data = (await response.json()) as UrlResponse[];

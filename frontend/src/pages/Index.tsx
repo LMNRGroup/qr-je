@@ -254,8 +254,11 @@ const Index = () => {
     () => (vcard.slug ? slugify(vcard.slug) : slugify(vcard.name)),
     [vcard.slug, vcard.name]
   );
+  const vcardBaseUrl = typeof window !== 'undefined'
+    ? window.location.origin
+    : (import.meta.env.VITE_PUBLIC_APP_URL ?? 'https://qrcode.luminarapps.com');
   const vcardUrl = vcardSlug
-    ? `https://qrcode.luminarapps.com/${vcardSlug}`
+    ? `${vcardBaseUrl}/v/${vcardSlug}`
     : '';
   const menuPreviewUrl = menuFiles.length
     ? `https://qrcode.luminarapps.com/menu-preview`

@@ -70,6 +70,22 @@ export const listVcardsHandler = (vcardsService: VcardsService) => {
   }
 }
 
+export const publicVcardHandler = (vcardsService: VcardsService) => {
+  return async (c: Context<AppBindings>) => {
+    const slug = c.req.param('slug')
+    if (!slug) {
+      return c.json({ message: 'slug is required' }, 400)
+    }
+
+    const vcard = await vcardsService.getBySlug(slug)
+    if (!vcard) {
+      return c.json({ message: 'Not found' }, 404)
+    }
+
+    return c.json(vcard)
+  }
+}
+
 export const deleteVcardHandler = (vcardsService: VcardsService, urlsService: UrlsService) => {
   return async (c: Context<AppBindings>) => {
     const userId = c.get('userId')

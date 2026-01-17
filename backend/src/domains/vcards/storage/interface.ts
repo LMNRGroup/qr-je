@@ -5,5 +5,6 @@ export type VcardsStorage = {
   getById: (id: string) => Promise<Vcard | null>
   getByUserId: (userId: string) => Promise<Vcard[]>
   getByUserIdAndSlug: (userId: string, slug: string) => Promise<Vcard | null>
+  getBySlug: (slug: string) => Promise<Vcard | null>
   deleteById: (id: string) => Promise<void>
 }
