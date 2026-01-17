@@ -34,12 +34,12 @@ export const verifySupabaseToken = async (token: string): Promise<VerifiedUser> 
   const config = getSupabaseAuthConfig()
   const { header, payload, signature, signingInput } = parseJwt(token)
 
-  if (header.alg !== 'RS256') {
+  if (header.alg !== 'RS256' && header.alg !== 'ES256') {
     throw new Error('Unsupported token algorithm')
   }
 
   const jwk = await getJwk(config.jwksUrl, header.kid)
-  const verified = await verifySignature(jwk, signingInput, signature)
+  const verified = await verifySignature(jwk, signingInput, signature, header.alg ?? 'RS256')
 
   if (!verified) {
     throw new Error('Invalid token signature')
@@ -146,24 +146,60 @@ const getJwks = async (jwksUrl: string, force: boolean) => {
   return data.keys
 }
 
-const verifySignature = async (jwk: Jwk, signingInput: string, signature: BufferSource) => {
-  if (jwk.kty !== 'RSA' || !jwk.n || !jwk.e) {
-    throw new Error('Unsupported JWK format')
-  }
-
-  const key = await crypto.subtle.importKey(
-    'jwk',
-    jwk,
-    {
-      name: 'RSASSA-PKCS1-v1_5',
-      hash: 'SHA-256'
-    },
-    false,
-    ['verify']
-  )
-
+const verifySignature = async (
+  jwk: Jwk,
+  signingInput: string,
+  signature: BufferSource,
+  alg: string
+) => {
   const encoder = new TextEncoder()
   const signingInputBytes = encoder.encode(signingInput)
 
-  return crypto.subtle.verify('RSASSA-PKCS1-v1_5', key, signature, signingInputBytes)
+  if (alg === 'RS256') {
+    if (jwk.kty !== 'RSA' || !jwk.n || !jwk.e) {
+      throw new Error('Unsupported JWK format')
+    }
+
+    const key = await crypto.subtle.importKey(
+      'jwk',
+      jwk,
+      {
+        name: 'RSASSA-PKCS1-v1_5',
+        hash: 'SHA-256'
+      },
+      false,
+      ['verify']
+    )
+
+    return crypto.subtle.verify('RSASSA-PKCS1-v1_5', key, signature, signingInputBytes)
+  }
+
+  if (alg === 'ES256') {
+    if (jwk.kty !== 'EC') {
+      throw new Error('Unsupported JWK format')
+    }
+
+    const key = await crypto.subtle.importKey(
+      'jwk',
+      jwk,
+      {
+        name: 'ECDSA',
+        namedCurve: 'P-256'
+      },
+      false,
+      ['verify']
+    )
+
+    return crypto.subtle.verify(
+      {
+        name: 'ECDSA',
+        hash: 'SHA-256'
+      },
+      key,
+      signature,
+      signingInputBytes
+    )
+  }
+
+  throw new Error('Unsupported token algorithm')
 }
