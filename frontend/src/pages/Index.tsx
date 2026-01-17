@@ -22,7 +22,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { useAuth } from '@/contexts/AuthContext';
-import { generateQR } from '@/lib/api';
+import { createVcard, generateQR } from '@/lib/api';
 import { QROptions, defaultQROptions } from '@/types/qr';
 import { motion } from 'framer-motion';
 import {
@@ -71,6 +71,8 @@ const Index = () => {
   const [analyticsSeen, setAnalyticsSeen] = useState(false);
   const [showWelcomeIntro, setShowWelcomeIntro] = useState(false);
   const [welcomeMessage, setWelcomeMessage] = useState('');
+  const [generatedShortUrl, setGeneratedShortUrl] = useState('');
+  const [generatedLongUrl, setGeneratedLongUrl] = useState('');
   const [showVcardCustomizer, setShowVcardCustomizer] = useState(false);
   const [vcardPreviewSide, setVcardPreviewSide] = useState<'front' | 'back'>('front');
   const [showAccountModal, setShowAccountModal] = useState(false);
@@ -172,12 +174,13 @@ const Index = () => {
   const generatedContent = qrType === 'website'
     ? (isWebsiteValid ? normalizedWebsiteUrl : '')
     : qrType === 'vcard'
-      ? vcardUrl
+      ? (generatedShortUrl || vcardUrl)
       : qrType === 'email'
         ? (isEmailValid ? `mailto:${emailAddress.trim()}` : '')
         : qrType === 'phone'
           ? (isPhoneValid ? `tel:${normalizedPhone}` : '')
           : '';
+  const longFormContent = qrType === 'vcard' ? (generatedLongUrl || vcardUrl) : generatedContent;
   const canGenerate = qrType === 'website'
     ? isWebsiteValid
     : qrType === 'vcard'
@@ -241,6 +244,21 @@ const Index = () => {
     const timer = window.setTimeout(() => setShowWelcomeIntro(false), 1100);
     return () => window.clearTimeout(timer);
   }, [authLoading, isBooting, user]);
+
+  useEffect(() => {
+    if (qrType !== 'vcard') {
+      if (generatedShortUrl || generatedLongUrl) {
+        setGeneratedShortUrl('');
+        setGeneratedLongUrl('');
+      }
+      return;
+    }
+
+    if (generatedLongUrl && generatedLongUrl !== vcardUrl) {
+      setGeneratedShortUrl('');
+      setGeneratedLongUrl('');
+    }
+  }, [qrType, vcardUrl, generatedLongUrl, generatedShortUrl]);
 
   useEffect(() => {
     if (authLoading) return;
@@ -313,16 +331,35 @@ const Index = () => {
     if (qrMode === 'dynamic') {
       toast.info('Dynamic QR codes are coming soon. Generating static QR for now.');
     }
-    if (!generatedContent.trim()) {
+    if (!longFormContent.trim()) {
       toast.error('Please enter content to generate');
       return;
     }
     setIsGenerating(true);
-    const response = await generateQR(generatedContent, options);
+    const response = qrType === 'vcard'
+      ? await createVcard({
+        slug: vcardSlug || null,
+        publicUrl: vcardUrl,
+        data: {
+          profile: vcard,
+          style: vcardStyle,
+        },
+        options: {
+          ...options,
+          content: vcardUrl,
+        },
+      })
+      : await generateQR(longFormContent, options, qrType ?? undefined);
     setIsGenerating(false);
     if (response.success) {
+      if ('url' in response && response.url) {
+        setGeneratedShortUrl(response.url.shortUrl);
+        setGeneratedLongUrl(response.url.targetUrl);
+        setLastGeneratedContent(response.url.shortUrl);
+      } else if ('data' in response && response.data) {
+        setLastGeneratedContent(response.data.content);
+      }
       toast.success('QR code generated!');
-      setLastGeneratedContent(generatedContent);
       setHasGenerated(true);
     } else {
       toast.error('Failed to generate QR code');
@@ -1958,20 +1995,21 @@ const Index = () => {
             <div className="glass-panel rounded-2xl p-6 text-sm text-muted-foreground space-y-4">
               <p>From here you can customize your experience and preferences.</p>
               <p>Please log in or create an account to unlock settings, exports, and team features.</p>
-              <div className="flex flex-col sm:flex-row gap-3">
-                <Button
-                  className="bg-gradient-primary text-primary-foreground uppercase tracking-[0.2em] text-xs"
+              <div className="flex flex-col sm:flex-row gap-3 text-xs uppercase tracking-[0.3em]">
+                <button
+                  type="button"
+                  className="text-primary hover:text-primary/80 transition"
                   onClick={() => navigate('/login')}
                 >
                   Log In
-                </Button>
-                <Button
-                  variant="outline"
-                  className="border-border uppercase tracking-[0.2em] text-xs"
+                </button>
+                <button
+                  type="button"
+                  className="text-primary hover:text-primary/80 transition"
                   onClick={() => navigate('/login')}
                 >
                   Sign Up
-                </Button>
+                </button>
               </div>
             </div>
           </section>

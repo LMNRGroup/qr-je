@@ -12,12 +12,21 @@ export class InMemoryUrlsStorageAdapter implements UrlsStorage {
     return this.records.get(this.keyFor(id, random)) ?? null
   }
 
-  async existsByIdRandom(id: string, random: string) {
-    return this.records.has(this.keyFor(id, random))
+  async existsById(id: string) {
+    return Array.from(this.records.values()).some((url) => url.id === id)
   }
 
   async getByUserId(userId: string) {
     return Array.from(this.records.values()).filter((url) => url.userId === userId)
+  }
+
+  async deleteById(id: string) {
+    for (const [key, value] of this.records.entries()) {
+      if (value.id === id) {
+        this.records.delete(key)
+        return
+      }
+    }
   }
 
   private keyFor(id: string, random: string) {

@@ -11,6 +11,8 @@ export type UrlsService = {
   createUrl: (input: CreateUrlInput) => Promise<Url>
   resolveUrl: (input: ResolveUrlInput) => Promise<Url>
   getUrlsForUser: (userId: string) => Promise<Url[]>
+  getAllUrls: () => Promise<Url[]>
+  deleteUrl: (id: string) => Promise<void>
 }
 
 export const createUrlsService = (storage: UrlsStorage): UrlsService => {
@@ -18,7 +20,7 @@ export const createUrlsService = (storage: UrlsStorage): UrlsService => {
     for (let attempt = 0; attempt < MAX_GENERATION_ATTEMPTS; attempt += 1) {
       const id = generateBase62(DEFAULT_ID_LENGTH)
       const random = generateBase62(DEFAULT_RANDOM_LENGTH)
-      const exists = await storage.existsByIdRandom(id, random)
+      const exists = await storage.existsById(id)
 
       if (exists) {
         continue
@@ -30,7 +32,9 @@ export const createUrlsService = (storage: UrlsStorage): UrlsService => {
         userId: input.userId,
         virtualCardId: input.virtualCardId ?? null,
         targetUrl: input.targetUrl,
-        createdAt: new Date().toISOString()
+        createdAt: new Date().toISOString(),
+        options: input.options ?? null,
+        kind: input.kind ?? null
       }
 
       await storage.createUrl(url)
@@ -54,10 +58,20 @@ export const createUrlsService = (storage: UrlsStorage): UrlsService => {
     return storage.getByUserId(userId)
   }
 
+  const getAllUrls = async () => {
+    return storage.getAll()
+  }
+
+  const deleteUrl = async (id: string) => {
+    await storage.deleteById(id)
+  }
+
   return {
     createUrl,
     resolveUrl,
-    getUrlsForUser
+    getUrlsForUser,
+    getAllUrls,
+    deleteUrl
   }
 }
 
