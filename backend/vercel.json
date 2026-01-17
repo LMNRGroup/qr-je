@@ -1,4 +1,9 @@
 {
+  "functions": {
+    "api/index.ts": {
+      "runtime": "nodejs"
+    }
+  },
   "routes": [
     { "src": "/(.*)", "dest": "/api/index.ts" }
   ]
