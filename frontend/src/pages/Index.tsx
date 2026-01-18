@@ -440,7 +440,7 @@ const Index = () => {
       setWelcomeSubline('Not everyone makes great decisions… but today you did.\nWelcome to QRC Studio.');
       localStorage.setItem(firstLoginKey, 'true');
     } else {
-      setWelcomeHeadline(`Good to see you, ${displayName}`);
+      setWelcomeHeadline(`Welcome back, ${displayName}!`);
       setWelcomeSubline('');
     }
     setShowWelcomeIntro(true);
@@ -1117,11 +1117,13 @@ const Index = () => {
         setActionRingOrigin({ x: originX, y: originY });
       }
       setIsCreateOpen(true);
+      setIsCreateHovering(false);
       setActionRingText('Create New QR Code');
     };
 
     const closeCreateMenu = () => {
       setIsCreateOpen(false);
+      setIsCreateHovering(false);
       setActionRingText('');
     };
 
