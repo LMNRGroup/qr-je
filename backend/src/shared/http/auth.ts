@@ -38,6 +38,8 @@ export const createAuthMiddleware = ({ usersService, publicPaths = [] }: AuthMid
       c.set('userId', verified.userId)
       await next()
     } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unknown token error'
+      console.error('[auth] token verification failed', message)
       return c.json({ message: 'Invalid token' }, 401)
     }
   }

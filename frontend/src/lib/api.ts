@@ -66,11 +66,14 @@ const getStoredToken = () => {
 };
 
 const getAuthHeaders = async () => {
-  if (!isSupabaseConfigured) {
-    return {};
+  let token: string | null = null;
+  if (isSupabaseConfigured) {
+    const { data } = await supabase.auth.getSession();
+    token = data.session?.access_token ?? null;
   }
-  const { data } = await supabase.auth.getSession();
-  const token = data.session?.access_token ?? getStoredToken();
+  if (!token) {
+    token = getStoredToken();
+  }
   return token ? { Authorization: `Bearer ${token}` } : {};
 };
 
