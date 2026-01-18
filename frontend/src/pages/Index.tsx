@@ -98,6 +98,12 @@ const Index = () => {
   const [goodbyeHeadline, setGoodbyeHeadline] = useState('');
   const [goodbyeSubline, setGoodbyeSubline] = useState('');
   const [hoveredAction, setHoveredAction] = useState<string | null>(null);
+  const easterEggEmail = (import.meta.env.VITE_EASTER_EGG_EMAIL ?? '').toLowerCase().trim();
+  const easterEggUserId = (import.meta.env.VITE_EASTER_EGG_USER_ID ?? '').trim();
+  const showEasterEggBanner = Boolean(
+    (easterEggEmail && user?.email && user.email.toLowerCase() === easterEggEmail) ||
+    (easterEggUserId && user?.id === easterEggUserId)
+  );
   const [actionRingText, setActionRingText] = useState('');
   const [quickActionHover, setQuickActionHover] = useState<string | null>(null);
   const [selectedQuickAction, setSelectedQuickAction] = useState<string | null>(null);
@@ -1604,6 +1610,14 @@ const Index = () => {
           </div>
         </div>
       )}
+
+      {showEasterEggBanner ? (
+        <div className="fixed top-0 left-0 right-0 z-[70] flex justify-center px-4 pt-4">
+          <div className="rounded-full border border-amber-200/40 bg-amber-200/10 px-4 py-2 text-[11px] uppercase tracking-[0.3em] text-amber-200 shadow-lg">
+            Le Machine carried the frontend + backend 😮‍💨
+          </div>
+        </div>
+      ) : null}
 
       {showAccountModal && (
         <div
