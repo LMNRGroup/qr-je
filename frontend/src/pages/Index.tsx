@@ -61,6 +61,8 @@ const UPSell_INTERVAL_MS = 30 * 60 * 1000;
 const UPSell_LAST_SHOWN_KEY = 'qr.upsell.lastShownAt';
 const UPSell_SESSION_KEY = 'qr.upsell.sessionShown';
 const isLoggedIn = false;
+const qrType = null;
+const qrMode = null;
 
 const Index = () => {
   const { user, loading: authLoading } = useAuth();
