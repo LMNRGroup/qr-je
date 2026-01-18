@@ -353,9 +353,9 @@ const Index = () => {
         : qrType === 'phone'
           ? (isPhoneValid ? `tel:${normalizedPhone}` : '')
           : qrType === 'file'
-            ? fileDataUrl
+            ? (generatedShortUrl || fileDataUrl)
           : qrType === 'menu'
-            ? menuPreviewUrl
+            ? (generatedShortUrl || menuPreviewUrl)
             : '';
   const longFormContent = qrType === 'vcard' ? (generatedLongUrl || vcardUrl) : generatedContent;
   const canGenerate = qrType === 'website'
@@ -892,7 +892,9 @@ const Index = () => {
               }
             }
           }
-          setLastGeneratedContent(nextItem.content);
+          const qrValue = nextItem.shortUrl ?? nextItem.content;
+          setGeneratedShortUrl(nextItem.shortUrl ?? '');
+          setLastGeneratedContent(qrValue);
         }
         toast.success('QR code generated!');
         setHasGenerated(true);
