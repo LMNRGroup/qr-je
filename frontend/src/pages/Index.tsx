@@ -97,6 +97,7 @@ const Index = () => {
   const [showGoodbyeIntro, setShowGoodbyeIntro] = useState(false);
   const [goodbyeHeadline, setGoodbyeHeadline] = useState('');
   const [goodbyeSubline, setGoodbyeSubline] = useState('');
+  const [hoveredAction, setHoveredAction] = useState<string | null>(null);
   const [actionRingText, setActionRingText] = useState('');
   const [quickActionHover, setQuickActionHover] = useState<string | null>(null);
   const [selectedQuickAction, setSelectedQuickAction] = useState<string | null>(null);
@@ -470,10 +471,45 @@ const Index = () => {
     setShowGoodbyeIntro(true);
     setShowAccountModal(false);
     await signOut();
+    Object.keys(localStorage).forEach((key) => {
+      if (key.startsWith('sb-') || key.startsWith('qrc.auth')) {
+        localStorage.removeItem(key);
+      }
+    });
     window.setTimeout(() => {
       window.location.reload();
     }, 2200);
   }, [signOut, user]);
+
+  useEffect(() => {
+    if (!isCreateOpen) return;
+    if (!hoveredAction) {
+      setActionRingText('Create New QR Code');
+      return;
+    }
+    const lockedText = {
+      dynamic: 'Log in to unlock Dynamic QR',
+      vcard: 'Log in to unlock VCard',
+      file: 'Log in to unlock File QR',
+      menu: 'Log in to unlock QR Menus',
+      adaptive: 'Log in to unlock Adaptive QRC™',
+    } as const;
+    const activeText = {
+      static: 'Create New URL QR Code',
+      dynamic: 'Create Dynamic QR Code',
+      vcard: 'Create New VCard QR Code',
+      file: 'Upload a File QR Code',
+      phone: 'Create New Phone Call QR Code',
+      email: 'Create New Email QR Code',
+      menu: 'Create a custom QR code for your menu',
+      adaptive: 'Create Adaptive QRC™',
+    } as const;
+    if (!isLoggedIn && hoveredAction in lockedText) {
+      setActionRingText(lockedText[hoveredAction as keyof typeof lockedText]);
+      return;
+    }
+    setActionRingText(activeText[hoveredAction as keyof typeof activeText] ?? 'Create New QR Code');
+  }, [hoveredAction, isCreateOpen, isLoggedIn]);
 
   useEffect(() => {
     if (qrType !== 'vcard') {
@@ -1144,12 +1180,14 @@ const Index = () => {
       }
       setIsCreateOpen(true);
       setIsCreateHovering(false);
+      setHoveredAction(null);
       setActionRingText('Create New QR Code');
     };
 
     const closeCreateMenu = () => {
       setIsCreateOpen(false);
       setIsCreateHovering(false);
+      setHoveredAction(null);
       setActionRingText('');
     };
 
@@ -1212,7 +1250,6 @@ const Index = () => {
                   <motion.div
                     className="relative h-72 w-72 sm:h-80 sm:w-80"
                     onClick={(event) => event.stopPropagation()}
-                    onPointerLeave={() => setActionRingText('Create New QR Code')}
                     initial={{ scale: 0.2, opacity: 0 }}
                     animate={{ scale: 1, opacity: 1 }}
                     exit={{ scale: 0.2, opacity: 0 }}
@@ -1244,7 +1281,8 @@ const Index = () => {
                           handleStartStatic();
                           closeCreateMenu();
                         }}
-                        onMouseEnter={() => setActionRingText('Create New URL QR Code')}
+                        onPointerEnter={() => setHoveredAction('static')}
+                        onPointerLeave={() => setHoveredAction(null)}
                         className="pointer-events-auto flex h-12 w-12 items-center justify-center rounded-full border border-border/70 bg-card/90 text-primary shadow-lg transition hover:border-primary/60 hover:text-primary"
                       >
                         <LinkIcon className="h-5 w-5" />
@@ -1265,7 +1303,8 @@ const Index = () => {
                         setPendingCreateScroll(true);
                         closeCreateMenu();
                       }}
-                      onMouseEnter={() => setActionRingText(isLoggedIn ? 'Create Dynamic QR Code' : 'Log in to unlock Dynamic QR')}
+                      onPointerEnter={() => setHoveredAction('dynamic')}
+                      onPointerLeave={() => setHoveredAction(null)}
                       className={`pointer-events-auto flex h-12 w-12 items-center justify-center rounded-full border shadow-lg transition ${
                         isLoggedIn
                           ? 'border-border/70 bg-card/90 text-primary hover:border-primary/60 hover:text-primary'
@@ -1287,7 +1326,8 @@ const Index = () => {
                         handleStartVcard();
                         closeCreateMenu();
                       }}
-                      onMouseEnter={() => setActionRingText(isLoggedIn ? 'Create New VCard QR Code' : 'Log in to unlock VCard')}
+                      onPointerEnter={() => setHoveredAction('vcard')}
+                      onPointerLeave={() => setHoveredAction(null)}
                       className="pointer-events-auto flex h-12 w-12 items-center justify-center rounded-full border border-border/70 bg-card/90 text-primary shadow-lg transition hover:border-primary/60 hover:text-primary"
                     >
                       <User className="h-5 w-5" />
@@ -1305,7 +1345,8 @@ const Index = () => {
                         handleStartFile();
                         closeCreateMenu();
                       }}
-                      onMouseEnter={() => setActionRingText(isLoggedIn ? 'Upload a File QR Code' : 'Log in to unlock File QR')}
+                      onPointerEnter={() => setHoveredAction('file')}
+                      onPointerLeave={() => setHoveredAction(null)}
                       className="pointer-events-auto flex h-12 w-12 items-center justify-center rounded-full border border-border/70 bg-card/80 text-muted-foreground shadow-lg transition hover:border-primary/60 hover:text-primary"
                     >
                       <File className="h-5 w-5" />
@@ -1319,7 +1360,8 @@ const Index = () => {
                           handleStartPhone();
                           closeCreateMenu();
                         }}
-                        onMouseEnter={() => setActionRingText('Create New Phone Call QR Code')}
+                        onPointerEnter={() => setHoveredAction('phone')}
+                        onPointerLeave={() => setHoveredAction(null)}
                         className="pointer-events-auto flex h-11 w-11 items-center justify-center rounded-full border border-border/70 bg-card/90 text-primary shadow-lg transition hover:border-primary/60"
                       >
                         <Phone className="h-4 w-4" />
@@ -1333,7 +1375,8 @@ const Index = () => {
                           handleStartEmail();
                           closeCreateMenu();
                         }}
-                        onMouseEnter={() => setActionRingText('Create New Email QR Code')}
+                        onPointerEnter={() => setHoveredAction('email')}
+                        onPointerLeave={() => setHoveredAction(null)}
                         className="pointer-events-auto flex h-11 w-11 items-center justify-center rounded-full border border-border/70 bg-card/90 text-primary shadow-lg transition hover:border-primary/60"
                       >
                         <Mail className="h-4 w-4" />
@@ -1351,7 +1394,8 @@ const Index = () => {
                           openMenuBuilder();
                           closeCreateMenu();
                         }}
-                        onMouseEnter={() => setActionRingText(isLoggedIn ? 'Create a custom QR code for your menu' : 'Log in to unlock QR Menus')}
+                      onPointerEnter={() => setHoveredAction('menu')}
+                      onPointerLeave={() => setHoveredAction(null)}
                         className="pointer-events-auto flex h-11 w-11 items-center justify-center rounded-full border border-border/70 bg-card/90 text-primary shadow-lg transition hover:border-primary/60"
                     >
                       <Utensils className="h-4 w-4" />
@@ -1370,7 +1414,8 @@ const Index = () => {
                           setPendingCreateScroll(false);
                           closeCreateMenu();
                         }}
-                        onMouseEnter={() => setActionRingText(isLoggedIn ? 'Create Adaptive QRC™' : 'Log in to unlock Adaptive QRC™')}
+                      onPointerEnter={() => setHoveredAction('adaptive')}
+                      onPointerLeave={() => setHoveredAction(null)}
                         className="pointer-events-auto flex h-11 w-11 items-center justify-center rounded-full border border-amber-300/60 bg-card/90 text-amber-300 shadow-lg transition hover:border-amber-300"
                     >
                       <QrCode className="h-4 w-4" />
