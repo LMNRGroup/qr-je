@@ -476,6 +476,8 @@ const Index = () => {
       return;
     }
     if (welcomeShownRef.current === user.id) return;
+    const sessionKey = `qr.welcome.session.${user.id}`;
+    if (sessionStorage.getItem(sessionKey)) return;
 
     const metadata = user.user_metadata as Record<string, string> | undefined;
     const rawName = metadata?.first_name || metadata?.full_name || metadata?.name || '';
@@ -502,6 +504,7 @@ const Index = () => {
     }
     setShowWelcomeIntro(true);
     welcomeShownRef.current = user.id;
+    sessionStorage.setItem(sessionKey, 'true');
   }, [authLoading, isBooting, user]);
 
   useEffect(() => {
@@ -542,6 +545,9 @@ const Index = () => {
   }, [isLoggedIn]);
 
   const handleSignOut = useCallback(async () => {
+    if (user?.id) {
+      sessionStorage.removeItem(`qr.welcome.session.${user.id}`);
+    }
     welcomeShownRef.current = null;
     const metadata = user?.user_metadata as Record<string, string> | undefined;
     const rawName = metadata?.first_name || metadata?.full_name || metadata?.name || '';
