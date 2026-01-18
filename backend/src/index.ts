@@ -27,7 +27,7 @@ app.options('*', (c) => c.text(''))
 const usersService = createUsersService(getUsersStorage())
 const authMiddleware = createAuthMiddleware({
   usersService,
-  publicPaths: ['/health', '/r/', '/public/', '/debug/auth', '/favicon.ico', '/favicon.png']
+  publicPaths: ['/health', '/r/', '/public/', '/adaptive/', '/debug/auth', '/favicon.ico', '/favicon.png']
 })
 app.use('*', authMiddleware)
 

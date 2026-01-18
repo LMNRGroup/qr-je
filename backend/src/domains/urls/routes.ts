@@ -1,6 +1,7 @@
 import { Hono } from 'hono'
 
 import {
+  adaptiveResolveHandler,
   createUrlHandler,
   deleteUrlHandler,
   publicUrlDetailsHandler,
@@ -20,6 +21,7 @@ export const registerUrlsRoutes = (
 ) => {
   app.post('/urls', createUrlHandler(service))
   app.get('/r/:id/:random', redirectUrlHandler(service, scansService))
+  app.get('/adaptive/:id/:random', adaptiveResolveHandler(service, scansService))
   app.get('/public/urls/:id/:random', publicUrlDetailsHandler(service))
   app.get('/urls/:id/:random/scans/count', getScanCountHandler(scansService, service))
   app.get('/urls/:id/:random/scans', listScansHandler(scansService, service))
