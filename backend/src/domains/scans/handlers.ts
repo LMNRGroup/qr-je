@@ -63,3 +63,15 @@ export const listScansHandler = (scansService: ScansService, urlsService: UrlsSe
     }
   }
 }
+
+export const getUserScanSummaryHandler = (scansService: ScansService) => {
+  return async (c: Context<AppBindings>) => {
+    const userId = c.get('userId')
+    if (!userId) {
+      return c.json({ message: 'Unauthorized' }, 401)
+    }
+
+    const total = await scansService.getTotalForUser(userId)
+    return c.json({ total })
+  }
+}
