@@ -1,6 +1,18 @@
 {
   "rewrites": [
     {
+      "source": "/r/:id/:random",
+      "destination": "https://api.luminarapps.com/r/:id/:random"
+    },
+    {
+      "source": "/adaptive/:id/:random",
+      "destination": "https://api.luminarapps.com/adaptive/:id/:random"
+    },
+    {
+      "source": "/public/:path*",
+      "destination": "https://api.luminarapps.com/public/:path*"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }

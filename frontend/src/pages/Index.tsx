@@ -502,9 +502,13 @@ const Index = () => {
     }
     setShowWelcomeIntro(true);
     welcomeShownRef.current = user.id;
+  }, [authLoading, isBooting, user]);
+
+  useEffect(() => {
+    if (!showWelcomeIntro) return;
     const timer = window.setTimeout(() => setShowWelcomeIntro(false), 2600);
     return () => window.clearTimeout(timer);
-  }, [authLoading, isBooting, user]);
+  }, [showWelcomeIntro]);
 
   useEffect(() => {
     if (!isLoggedIn) {
