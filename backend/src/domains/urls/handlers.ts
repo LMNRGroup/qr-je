@@ -188,7 +188,6 @@ const resolveAdaptiveTarget = (options: AdaptiveOptions, ip: string | null, isRe
   const defaultSlot = adaptive.defaultSlot ?? options.adaptiveDefaultSlot
   return resolveAdaptiveSlotUrl(options, defaultSlot)
 }
-
 export const redirectUrlHandler = (service: UrlsService, scansService?: ScansService) => {
   return async (c: Context<AppBindings>) => {
     try {
@@ -265,7 +264,6 @@ export const adaptiveResolveHandler = (service: UrlsService, scansService?: Scan
     }
   }
 }
-
 export const publicUrlDetailsHandler = (service: UrlsService) => {
   return async (c: Context<AppBindings>) => {
     try {
