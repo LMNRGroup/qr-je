@@ -110,6 +110,7 @@ const typeStyles: Record<string, { label: string; icon: typeof Link; card: strin
 export function ArsenalPanel({
   refreshKey,
   onStatsChange,
+  onScansChange,
   onRefreshRequest,
 }: {
   refreshKey?: number;
