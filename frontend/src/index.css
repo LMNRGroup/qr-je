@@ -122,12 +122,35 @@
     animation: glow-pulse 2s ease-in-out infinite;
   }
 
+  .animate-shake {
+    animation: shake 0.25s ease-in-out 2;
+  }
+
   @keyframes glow-pulse {
     0%, 100% {
       box-shadow: 0 0 20px hsl(var(--primary) / 0.3);
     }
     50% {
       box-shadow: 0 0 30px hsl(var(--primary) / 0.5);
+    }
+  }
+
+  @keyframes shake {
+    0%,
+    100% {
+      transform: translateX(0);
+    }
+    20% {
+      transform: translateX(-4px);
+    }
+    40% {
+      transform: translateX(4px);
+    }
+    60% {
+      transform: translateX(-3px);
+    }
+    80% {
+      transform: translateX(3px);
     }
   }
 

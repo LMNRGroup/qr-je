@@ -25,6 +25,18 @@ type VcardResponse = {
   createdAt: string;
 };
 
+export type UserProfile = {
+  id: string;
+  name: string | null;
+  email: string | null;
+  username: string | null;
+  timezone: string | null;
+  language: string | null;
+  theme: string | null;
+  usernameChangedAt: string | null;
+  createdAt: string;
+};
+
 const requireBaseUrl = () => {
   if (!API_BASE_URL) {
     throw new Error('VITE_API_BASE_URL is not configured');
@@ -104,21 +116,23 @@ const shouldUseSafeContent = (value: string) => {
 };
 
 const toHistoryItem = (entry: UrlResponse): QRHistoryItem => {
-  const safeContent = shouldUseSafeContent(entry.targetUrl)
-    ? entry.shortUrl
+  const qrContent = entry.shortUrl ?? entry.targetUrl;
+  const safeTarget = shouldUseSafeContent(entry.targetUrl)
+    ? entry.shortUrl ?? entry.targetUrl
     : entry.targetUrl;
 
   return {
     id: entry.id,
-    content: safeContent,
+    random: entry.random,
+    content: safeTarget,
     options: {
-      content: safeContent,
-    size: 256,
-    fgColor: '#2B2B2B',
-    bgColor: '#F3F3F0',
-    errorCorrectionLevel: 'M',
-    cornerStyle: 'square',
-    ...(entry.options ?? {}),
+      content: qrContent,
+      size: 256,
+      fgColor: '#2B2B2B',
+      bgColor: '#F3F3F0',
+      errorCorrectionLevel: 'M',
+      cornerStyle: 'square',
+      ...(entry.options ?? {}),
     } as QROptions,
     createdAt: entry.createdAt,
     shortUrl: entry.shortUrl,
@@ -193,6 +207,49 @@ export async function getQRHistory(): Promise<{ success: boolean; data: QRHistor
   const response = await request('/urls');
   const data = (await response.json()) as UrlResponse[];
   return { success: true, data: data.map(toHistoryItem) };
+}
+
+export async function getPublicUrlDetails(id: string, random: string): Promise<UrlResponse> {
+  const baseUrl = requireBaseUrl();
+  const response = await fetch(`${baseUrl}/public/urls/${encodeURIComponent(id)}/${encodeURIComponent(random)}`);
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(errorText || 'Failed to load asset');
+  }
+  return (await response.json()) as UrlResponse;
+}
+
+export async function getScanCount(id: string, random: string): Promise<number> {
+  const response = await request(`/urls/${encodeURIComponent(id)}/${encodeURIComponent(random)}/scans/count`);
+  const data = (await response.json()) as { count?: number };
+  return data.count ?? 0;
+}
+
+export async function getUserProfile(): Promise<UserProfile> {
+  const response = await request('/users/me');
+  return (await response.json()) as UserProfile;
+}
+
+export async function updateUserProfile(payload: {
+  name?: string | null;
+  username?: string | null;
+  timezone?: string | null;
+  language?: string | null;
+  theme?: string | null;
+}): Promise<UserProfile> {
+  const response = await request('/users/me', {
+    method: 'PATCH',
+    body: JSON.stringify(payload),
+  });
+  return (await response.json()) as UserProfile;
+}
+
+export async function checkUsernameAvailability(username: string): Promise<{ available: boolean; message?: string; username?: string }> {
+  const response = await request('/users/username/check', {
+    method: 'POST',
+    body: JSON.stringify({ username }),
+  });
+  return (await response.json()) as { available: boolean; message?: string; username?: string };
 }
 
 export async function deleteQRFromHistory(id: string): Promise<{ success: boolean }> {

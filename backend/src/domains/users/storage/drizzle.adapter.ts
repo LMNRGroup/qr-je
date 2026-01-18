@@ -13,13 +13,23 @@ export class DrizzleUsersStorageAdapter implements UsersStorage {
         id: user.id,
         name: user.name,
         email: user.email,
+        username: user.username,
+        timezone: user.timezone,
+        language: user.language,
+        theme: user.theme,
+        usernameChangedAt: user.usernameChangedAt ? new Date(user.usernameChangedAt) : null,
         createdAt: new Date(user.createdAt)
       })
       .onConflictDoUpdate({
         target: users.id,
         set: {
           name: user.name,
-          email: user.email
+          email: user.email,
+          username: user.username,
+          timezone: user.timezone,
+          language: user.language,
+          theme: user.theme,
+          usernameChangedAt: user.usernameChangedAt ? new Date(user.usernameChangedAt) : null
         }
       })
       .returning()
@@ -45,11 +55,57 @@ export class DrizzleUsersStorageAdapter implements UsersStorage {
     return this.toDomain(rows[0])
   }
 
+  async getByUsername(username: string) {
+    const rows = await db
+      .select()
+      .from(users)
+      .where(eq(users.username, username))
+      .limit(1)
+
+    if (!rows[0]) {
+      return null
+    }
+
+    return this.toDomain(rows[0])
+  }
+
+  async updateUser(id: string, updates: Partial<User>) {
+    const payload: Partial<typeof users.$inferInsert> = {}
+    if ('name' in updates) payload.name = updates.name
+    if ('email' in updates) payload.email = updates.email
+    if ('username' in updates) payload.username = updates.username
+    if ('timezone' in updates) payload.timezone = updates.timezone
+    if ('language' in updates) payload.language = updates.language
+    if ('theme' in updates) payload.theme = updates.theme
+    if ('usernameChangedAt' in updates) {
+      payload.usernameChangedAt = updates.usernameChangedAt
+        ? new Date(updates.usernameChangedAt)
+        : null
+    }
+
+    const rows = await db
+      .update(users)
+      .set(payload)
+      .where(eq(users.id, id))
+      .returning()
+
+    if (!rows[0]) {
+      return null
+    }
+
+    return this.toDomain(rows[0])
+  }
+
   private toDomain(row: typeof users.$inferSelect): User {
     return {
       id: row.id,
       name: row.name,
       email: row.email,
+      username: row.username ?? null,
+      timezone: row.timezone ?? null,
+      language: row.language ?? null,
+      theme: row.theme ?? null,
+      usernameChangedAt: row.usernameChangedAt ? row.usernameChangedAt.toISOString() : null,
       createdAt: row.createdAt.toISOString()
     }
   }

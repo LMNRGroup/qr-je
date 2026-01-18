@@ -11,6 +11,7 @@ export interface QROptions {
 
 export interface QRHistoryItem {
   id: string;
+  random?: string;
   content: string;
   options: QROptions;
   createdAt: string;
