@@ -78,6 +78,7 @@ const MAX_MENU_FILES = 15;
 const Index = () => {
   const { user, loading: authLoading, signOut } = useAuth();
   const isLoggedIn = Boolean(user);
+  const [hasSessionToken, setHasSessionToken] = useState(false);
   const [options, setOptions] = useState<QROptions>(defaultQROptions);
   const [isGenerating, setIsGenerating] = useState(false);
   const [hasGenerated, setHasGenerated] = useState(false);
@@ -384,6 +385,7 @@ const Index = () => {
       ? 'https://preview.qrcodestudio.app'
       : '';
   const requiresAuthTabs = new Set(['codes', 'analytics', 'settings', 'adaptive']);
+  const isSessionReady = isLoggedIn || hasSessionToken;
 
   const parseKind = useCallback((kind?: string | null) => {
     if (!kind) return { mode: 'static', type: 'url' };
@@ -400,7 +402,7 @@ const Index = () => {
   }, []);
 
   const refreshArsenalStats = useCallback(async () => {
-    if (!isLoggedIn) {
+    if (!isSessionReady) {
       setArsenalStats({ total: 0, dynamic: 0 });
       return;
     }
@@ -415,7 +417,7 @@ const Index = () => {
     } catch {
       // ignore stats errors
     }
-  }, [isLoggedIn, parseKind]);
+  }, [isSessionReady, parseKind]);
 
   useEffect(() => {
     refreshArsenalStats();
@@ -558,6 +560,33 @@ const Index = () => {
     };
   }, [isLoggedIn]);
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const direct = window.localStorage.getItem('qrc.auth.token');
+    if (direct) {
+      setHasSessionToken(true);
+      return;
+    }
+    const sessionRaw = window.localStorage.getItem('qrc.auth.session');
+    if (sessionRaw) {
+      try {
+        const parsed = JSON.parse(sessionRaw);
+        if (parsed?.access_token) {
+          setHasSessionToken(true);
+          return;
+        }
+      } catch {
+        // ignore
+      }
+    }
+    const supabaseKey = Object.keys(window.localStorage).find(
+      (key) => key.startsWith('sb-') && key.endsWith('-auth-token')
+    );
+    if (supabaseKey) {
+      setHasSessionToken(true);
+    }
+  }, []);
+
   const handleSignOut = useCallback(async () => {
     if (user?.id) {
       sessionStorage.removeItem(`qr.welcome.session.${user.id}`);
@@ -580,6 +609,7 @@ const Index = () => {
         localStorage.removeItem(key);
       }
     });
+    setHasSessionToken(false);
     setShowWelcomeIntro(false);
     window.setTimeout(() => {
       window.location.reload();
@@ -684,15 +714,17 @@ const Index = () => {
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
+    if (authLoading) return;
     window.localStorage.setItem('qrc.activeTab', activeTab);
-  }, [activeTab]);
+  }, [activeTab, authLoading]);
 
   useEffect(() => {
-    if (isLoggedIn) return;
+    if (authLoading) return;
+    if (isSessionReady) return;
     if (requiresAuthTabs.has(activeTab)) {
       setActiveTab('studio');
     }
-  }, [activeTab, isLoggedIn, requiresAuthTabs]);
+  }, [activeTab, authLoading, isSessionReady, requiresAuthTabs]);
 
   useEffect(() => {
     if (!isLoggedIn || !user) {
