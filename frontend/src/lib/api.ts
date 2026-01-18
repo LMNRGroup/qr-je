@@ -97,23 +97,35 @@ const request = async (path: string, init?: RequestInit) => {
   return response;
 };
 
-const toHistoryItem = (entry: UrlResponse): QRHistoryItem => ({
-  id: entry.id,
-  content: entry.targetUrl,
-  options: {
-    content: entry.targetUrl,
+const shouldUseSafeContent = (value: string) => {
+  if (!value) return false;
+  if (value.startsWith('data:')) return true;
+  return value.length > 2048;
+};
+
+const toHistoryItem = (entry: UrlResponse): QRHistoryItem => {
+  const safeContent = shouldUseSafeContent(entry.targetUrl)
+    ? entry.shortUrl
+    : entry.targetUrl;
+
+  return {
+    id: entry.id,
+    content: safeContent,
+    options: {
+      content: safeContent,
     size: 256,
     fgColor: '#2B2B2B',
     bgColor: '#F3F3F0',
     errorCorrectionLevel: 'M',
     cornerStyle: 'square',
     ...(entry.options ?? {}),
-  } as QROptions,
-  createdAt: entry.createdAt,
-  shortUrl: entry.shortUrl,
-  name: entry.name ?? null,
-  kind: entry.kind ?? null,
-});
+    } as QROptions,
+    createdAt: entry.createdAt,
+    shortUrl: entry.shortUrl,
+    name: entry.name ?? null,
+    kind: entry.kind ?? null,
+  };
+};
 
 export async function generateQR(
   content: string,

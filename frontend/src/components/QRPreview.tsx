@@ -103,7 +103,8 @@ export const QRPreview = forwardRef<QRPreviewHandle, QRPreviewProps>(
     }));
 
     const contentValue = (contentOverride ?? options.content).trim();
-    const hasContent = contentValue.length > 0;
+    const isTooLong = contentValue.length > 2048 || contentValue.startsWith('data:');
+    const hasContent = contentValue.length > 0 && !isTooLong;
 
     return (
       <div className="flex flex-col items-center gap-6">
@@ -148,6 +149,16 @@ export const QRPreview = forwardRef<QRPreviewHandle, QRPreviewProps>(
                     : undefined
                 }
               />
+            ) : isTooLong ? (
+              <div className="flex flex-col items-center justify-center text-muted-foreground gap-2 px-4 text-center">
+                <div className="w-16 h-16 border-2 border-dashed border-muted-foreground/30 rounded-lg flex items-center justify-center">
+                  <span className="text-2xl opacity-50">QR</span>
+                </div>
+                <span className="text-xs uppercase tracking-[0.2em]">Preview too large</span>
+                <span className="text-[11px] text-muted-foreground/70">
+                  This file is stored safely. Download to view.
+                </span>
+              </div>
             ) : (
               <div className="flex flex-col items-center justify-center text-muted-foreground gap-2">
                 <div className="w-16 h-16 border-2 border-dashed border-muted-foreground/30 rounded-lg flex items-center justify-center">

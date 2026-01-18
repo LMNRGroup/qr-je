@@ -691,8 +691,12 @@ const Index = () => {
           },
         })
         : await generateQR(
-          longFormContent,
-          options,
+          qrType === 'file'
+            ? `${window.location.origin}/file/${crypto.randomUUID()}`
+            : longFormContent,
+          qrType === 'file'
+            ? { ...options, fileName: fileName || 'File QR' }
+            : options,
           `${qrMode ?? 'static'}:${qrType === 'website' ? 'url' : qrType ?? 'url'}`,
           qrType === 'file' ? fileName || 'File QR' : null
         );
