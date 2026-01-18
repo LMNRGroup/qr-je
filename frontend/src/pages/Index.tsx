@@ -4668,24 +4668,3 @@ const Index = () => {
 };
 
 export default Index;
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (!isLoggedIn) {
-                            toast.info('Create an account or log in to start creating File QR codes.');
-                            return;
-                          }
-                          setQrType('file');
-                          setFileTouched(false);
-                          setSelectedQuickAction('file');
-                        }}
-                        title={isLoggedIn ? undefined : 'Log in to unlock File QR'}
-                        className={`rounded-t-2xl border px-4 py-3 text-left transition-all ${
-                          qrType === 'file'
-                            ? 'border-border/70 bg-card/80'
-                            : 'border-border/60 bg-secondary/30 hover:border-primary/60'
-                        }`}
-                      >
-                        <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">File</p>
-                        <p className="mt-2 font-semibold">Share a file</p>
-                      </button>
