@@ -23,6 +23,7 @@ export const createAuthMiddleware = ({ usersService, publicPaths = [] }: AuthMid
     const authorization = c.req.header('Authorization')
 
     if (!authorization?.startsWith('Bearer ')) {
+      console.error('[auth] missing or invalid Authorization header')
       return c.json({ message: 'Authorization token required' }, 401)
     }
 
