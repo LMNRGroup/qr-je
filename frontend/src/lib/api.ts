@@ -78,13 +78,10 @@ const getStoredToken = () => {
 };
 
 const getAuthHeaders = async () => {
-  let token: string | null = null;
-  if (isSupabaseConfigured) {
+  let token = getStoredToken();
+  if (!token && isSupabaseConfigured) {
     const { data } = await supabase.auth.getSession();
     token = data.session?.access_token ?? null;
-  }
-  if (!token) {
-    token = getStoredToken();
   }
   return token ? { Authorization: `Bearer ${token}` } : {};
 };
@@ -221,8 +218,14 @@ export async function getPublicUrlDetails(id: string, random: string): Promise<U
 
 export async function getScanCount(id: string, random: string): Promise<number> {
   const response = await request(`/urls/${encodeURIComponent(id)}/${encodeURIComponent(random)}/scans/count`);
-  const data = (await response.json()) as { count?: number };
-  return data.count ?? 0;
+  const data = (await response.json()) as { count?: number | string };
+  return Number(data.count ?? 0);
+}
+
+export async function getScanSummary(): Promise<{ total: number }> {
+  const response = await request('/scans/summary');
+  const data = (await response.json()) as { total?: number | string };
+  return { total: Number(data.total ?? 0) };
 }
 
 export async function getUserProfile(): Promise<UserProfile> {

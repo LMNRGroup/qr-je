@@ -22,7 +22,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { QRHistoryItem, QROptions } from '@/types/qr';
-import { deleteQRFromHistory, getQRHistory, getScanCount, updateQR } from '@/lib/api';
+import { deleteQRFromHistory, getQRHistory, getScanCount, getScanSummary, updateQR } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import {
   AlertDialog,
@@ -162,29 +162,15 @@ export function ArsenalPanel({
       return;
     }
     let isActive = true;
-    Promise.all(
-      items.map(async (item) => {
-        if (!item.random) {
-          return { id: item.id, count: 0 };
-        }
-        try {
-          const count = await getScanCount(item.id, item.random);
-          return { id: item.id, count };
-        } catch {
-          return { id: item.id, count: 0 };
-        }
+    getScanSummary()
+      .then((summary) => {
+        if (!isActive) return;
+        onScansChange?.(summary.total);
       })
-    ).then((results) => {
-      if (!isActive) return;
-      const next: Record<string, number> = {};
-      let total = 0;
-      results.forEach(({ id, count }) => {
-        next[id] = count;
-        total += count;
+      .catch(() => {
+        if (!isActive) return;
+        onScansChange?.(0);
       });
-      setScanCounts(next);
-      onScansChange?.(total);
-    });
     return () => {
       isActive = false;
     };
@@ -212,6 +198,44 @@ export function ArsenalPanel({
   const selectedItem = sortedItems.find((item) => item.id === selectedId) ?? null;
   const selectedKind = parseKind(selectedItem?.kind ?? null);
   const isDynamic = selectedKind.mode === 'dynamic';
+
+  useEffect(() => {
+    const targets = new Map<string, QRHistoryItem>();
+    pagedItems.forEach((item) => targets.set(item.id, item));
+    if (selectedItem) {
+      targets.set(selectedItem.id, selectedItem);
+    }
+    const itemsToFetch = Array.from(targets.values());
+    if (!itemsToFetch.length) {
+      return;
+    }
+    let isActive = true;
+    Promise.all(
+      itemsToFetch.map(async (item) => {
+        if (!item.random) {
+          return { id: item.id, count: 0 };
+        }
+        try {
+          const count = await getScanCount(item.id, item.random);
+          return { id: item.id, count };
+        } catch {
+          return { id: item.id, count: 0 };
+        }
+      })
+    ).then((results) => {
+      if (!isActive) return;
+      setScanCounts((prev) => {
+        const next = { ...prev };
+        results.forEach(({ id, count }) => {
+          next[id] = count;
+        });
+        return next;
+      });
+    });
+    return () => {
+      isActive = false;
+    };
+  }, [pagedItems, selectedItem]);
 
   const handleSelect = (item: QRHistoryItem) => {
     setSelectedId(item.id);

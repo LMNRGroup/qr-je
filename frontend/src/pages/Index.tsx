@@ -69,9 +69,6 @@ import { toast } from 'sonner';
 const UPSell_INTERVAL_MS = 30 * 60 * 1000;
 const UPSell_LAST_SHOWN_KEY = 'qr.upsell.lastShownAt';
 const UPSell_SESSION_KEY = 'qr.upsell.sessionShown';
-const isLoggedIn = false;
-const qrType = null;
-const qrMode = null;
 const MAX_FILE_BYTES = 5 * 1024 * 1024;
 const MAX_MENU_FILE_BYTES = 2.5 * 1024 * 1024;
 const MAX_MENU_TOTAL_BYTES = 12 * 1024 * 1024;
@@ -110,6 +107,7 @@ const Index = () => {
   const [showGoodbyeIntro, setShowGoodbyeIntro] = useState(false);
   const [goodbyeHeadline, setGoodbyeHeadline] = useState('');
   const [goodbyeSubline, setGoodbyeSubline] = useState('');
+  const welcomeShownRef = useRef<string | null>(null);
   const [hoveredAction, setHoveredAction] = useState<string | null>(null);
   const easterEggEmail = (import.meta.env.VITE_EASTER_EGG_EMAIL ?? '').toLowerCase().trim();
   const easterEggUserId = (import.meta.env.VITE_EASTER_EGG_USER_ID ?? '').trim();
@@ -473,11 +471,10 @@ const Index = () => {
   useEffect(() => {
     if (authLoading || isBooting) return;
     if (!user) {
-      sessionStorage.removeItem('qr.welcome.shown');
+      welcomeShownRef.current = null;
       return;
     }
-    const sessionKey = `qr.welcome.session.${user.id}`;
-    if (sessionStorage.getItem(sessionKey)) return;
+    if (welcomeShownRef.current === user.id) return;
 
     const metadata = user.user_metadata as Record<string, string> | undefined;
     const rawName = metadata?.first_name || metadata?.full_name || metadata?.name || '';
@@ -503,7 +500,7 @@ const Index = () => {
       setWelcomeSubline('');
     }
     setShowWelcomeIntro(true);
-    sessionStorage.setItem(sessionKey, 'true');
+    welcomeShownRef.current = user.id;
     const timer = window.setTimeout(() => setShowWelcomeIntro(false), 2600);
     return () => window.clearTimeout(timer);
   }, [authLoading, isBooting, user]);
@@ -540,6 +537,7 @@ const Index = () => {
   }, [isLoggedIn]);
 
   const handleSignOut = useCallback(async () => {
+    welcomeShownRef.current = null;
     const metadata = user?.user_metadata as Record<string, string> | undefined;
     const rawName = metadata?.first_name || metadata?.full_name || metadata?.name || '';
     const fallbackName = user?.email ? user.email.split('@')[0] : 'friend';
@@ -557,6 +555,7 @@ const Index = () => {
         localStorage.removeItem(key);
       }
     });
+    setShowWelcomeIntro(false);
     window.setTimeout(() => {
       window.location.reload();
     }, 2200);
