@@ -1,6 +1,7 @@
 import type { Context } from 'hono'
 
 import { buildShortUrl } from '../../config/env'
+import { UrlValidationError } from '../urls/errors'
 import type { AppBindings } from '../../shared/http/types'
 import type { UrlsService } from '../urls/service'
 import { parseCreateVcardInput } from './validators'
