@@ -94,6 +94,9 @@ const Index = () => {
   const [showWelcomeIntro, setShowWelcomeIntro] = useState(false);
   const [welcomeHeadline, setWelcomeHeadline] = useState('');
   const [welcomeSubline, setWelcomeSubline] = useState('');
+  const [showGoodbyeIntro, setShowGoodbyeIntro] = useState(false);
+  const [goodbyeHeadline, setGoodbyeHeadline] = useState('');
+  const [goodbyeSubline, setGoodbyeSubline] = useState('');
   const [actionRingText, setActionRingText] = useState('');
   const [quickActionHover, setQuickActionHover] = useState<string | null>(null);
   const [selectedQuickAction, setSelectedQuickAction] = useState<string | null>(null);
@@ -434,8 +437,13 @@ const Index = () => {
       : 'there';
 
     const firstLoginKey = `qr.welcome.first.${user.id}`;
-    const isFirstLogin = !localStorage.getItem(firstLoginKey);
-    if (isFirstLogin) {
+    const wasWelcomed = Boolean(localStorage.getItem(firstLoginKey));
+    const createdAt = user.created_at ? new Date(user.created_at).getTime() : null;
+    const lastSignInAt = user.last_sign_in_at ? new Date(user.last_sign_in_at).getTime() : null;
+    const isNewAccount = createdAt && lastSignInAt
+      ? Math.abs(lastSignInAt - createdAt) < 2 * 60 * 1000
+      : false;
+    if (!wasWelcomed && isNewAccount) {
       setWelcomeHeadline(`Yo ${displayName}!`);
       setWelcomeSubline('Not everyone makes great decisions… but today you did.\nWelcome to QRC Studio.');
       localStorage.setItem(firstLoginKey, 'true');
@@ -445,9 +453,27 @@ const Index = () => {
     }
     setShowWelcomeIntro(true);
     sessionStorage.setItem(sessionKey, 'true');
-    const timer = window.setTimeout(() => setShowWelcomeIntro(false), 1100);
+    const timer = window.setTimeout(() => setShowWelcomeIntro(false), 2600);
     return () => window.clearTimeout(timer);
   }, [authLoading, isBooting, user]);
+
+  const handleSignOut = useCallback(async () => {
+    const metadata = user?.user_metadata as Record<string, string> | undefined;
+    const rawName = metadata?.first_name || metadata?.full_name || metadata?.name || '';
+    const fallbackName = user?.email ? user.email.split('@')[0] : 'friend';
+    const firstName = (rawName.trim() ? rawName.split(' ')[0] : fallbackName).trim();
+    const displayName = firstName
+      ? `${firstName.charAt(0).toUpperCase()}${firstName.slice(1)}`
+      : 'friend';
+    setGoodbyeHeadline(`Goodbye, ${displayName}`);
+    setGoodbyeSubline('We will keep your Arsenal ready for your return.');
+    setShowGoodbyeIntro(true);
+    setShowAccountModal(false);
+    await signOut();
+    window.setTimeout(() => {
+      window.location.reload();
+    }, 2200);
+  }, [signOut, user]);
 
   useEffect(() => {
     if (qrType !== 'vcard') {
@@ -1497,6 +1523,43 @@ const Index = () => {
         </div>
       )}
 
+      {showGoodbyeIntro && (
+        <div className="fixed inset-0 z-[55] flex items-center justify-center bg-background/90 backdrop-blur-sm">
+          <div className="flex flex-col items-center gap-6">
+            <div className="grid grid-cols-7 gap-1">
+              {Array.from({ length: 49 }).map((_, index) => {
+                const row = Math.floor(index / 7);
+                const col = index % 7;
+                const eye = row === 2 && (col === 2 || col === 4);
+                const mouth = row === 4 && col >= 2 && col <= 4;
+                const chin = row === 5 && (col === 1 || col === 5);
+                const isPixel = eye || mouth || chin;
+                return (
+                  <span
+                    key={`pixel-${index}`}
+                    className={`h-3 w-3 rounded-[3px] ${isPixel ? 'bg-primary/70' : 'bg-primary/10'}`}
+                  />
+                );
+              })}
+            </div>
+            <div className="text-center space-y-3">
+              <div className="text-2xl font-semibold tracking-tight whitespace-pre-line">
+                <span className="relative inline-block">
+                  <span className="text-muted-foreground/70">{goodbyeHeadline}</span>
+                  <span className="absolute inset-0 logo-fill">{goodbyeHeadline}</span>
+                </span>
+              </div>
+              <div className="text-xs font-semibold tracking-[0.2em] uppercase whitespace-pre-line">
+                <span className="relative inline-block">
+                  <span className="text-muted-foreground/70">{goodbyeSubline}</span>
+                  <span className="absolute inset-0 logo-fill">{goodbyeSubline}</span>
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {showAccountModal && (
         <div
           className="fixed inset-0 z-[70] flex items-center justify-center bg-background/70 backdrop-blur-md px-4"
@@ -1537,8 +1600,7 @@ const Index = () => {
                     type="button"
                     className="w-full text-left text-muted-foreground hover:text-foreground transition"
                     onClick={async () => {
-                      await signOut();
-                      setShowAccountModal(false);
+                      await handleSignOut();
                     }}
                   >
                     Sign Out
