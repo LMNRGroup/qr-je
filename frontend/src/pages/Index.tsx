@@ -125,6 +125,7 @@ const Index = () => {
   const [goodbyeSubline, setGoodbyeSubline] = useState('');
   const welcomeShownRef = useRef<string | null>(null);
   const [hoveredAction, setHoveredAction] = useState<string | null>(null);
+  const lastHoveredActionRef = useRef<string | null>(null);
   const easterEggEmail = (import.meta.env.VITE_EASTER_EGG_EMAIL ?? '').toLowerCase().trim();
   const easterEggUserId = (import.meta.env.VITE_EASTER_EGG_USER_ID ?? '').trim();
   const showEasterEggBanner = Boolean(
@@ -164,29 +165,26 @@ const Index = () => {
     fullName: '',
     email: '',
   });
+  const isSpanish = profileForm.language === 'es';
+  const t = (en: string, es: string) => (isSpanish ? es : en);
 
-  const timeZoneOptions = useMemo(() => {
-    if (typeof Intl !== 'undefined' && 'supportedValuesOf' in Intl) {
-      // @ts-expect-error Intl.supportedValuesOf may be missing in older TS lib.
-      const zones = Intl.supportedValuesOf('timeZone') as string[];
-      if (Array.isArray(zones) && zones.length) {
-        return zones;
-      }
-    }
-    return [
+  const timeZoneOptions = useMemo(
+    () => [
       'UTC',
       'America/New_York',
       'America/Chicago',
       'America/Denver',
       'America/Los_Angeles',
       'America/Puerto_Rico',
+      'America/Mexico_City',
       'Europe/London',
       'Europe/Madrid',
       'Europe/Berlin',
       'Asia/Tokyo',
       'Asia/Singapore',
-    ];
-  }, []);
+    ],
+    []
+  );
   const [vcard, setVcard] = useState({
     name: '',
     phone: '',
@@ -616,6 +614,20 @@ const Index = () => {
     }, 2200);
   }, [signOut, user]);
 
+  const actionRingIcons = useMemo(
+    () => ({
+      static: LinkIcon,
+      dynamic: Sparkles,
+      vcard: User,
+      file: File,
+      phone: Phone,
+      email: Mail,
+      menu: Utensils,
+      adaptive: QrCode,
+    }),
+    []
+  );
+
   useEffect(() => {
     if (!isCreateOpen) return;
     if (!hoveredAction) {
@@ -645,6 +657,15 @@ const Index = () => {
     }
     setActionRingText(activeText[hoveredAction as keyof typeof activeText] ?? 'Create New QR Code');
   }, [hoveredAction, isCreateOpen, isLoggedIn]);
+
+  const handleRingPointerMove = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
+    const target = event.target as HTMLElement | null;
+    const action = target?.closest('[data-action]')?.getAttribute('data-action') ?? null;
+    if (action !== lastHoveredActionRef.current) {
+      lastHoveredActionRef.current = action;
+      setHoveredAction(action);
+    }
+  }, []);
 
   useEffect(() => {
     if (qrType !== 'vcard') {
@@ -1600,7 +1621,11 @@ const Index = () => {
                   <motion.div
                     className="relative h-72 w-72 sm:h-80 sm:w-80"
                     onClick={(event) => event.stopPropagation()}
-                    onPointerLeave={() => setHoveredAction(null)}
+                    onPointerMove={handleRingPointerMove}
+                    onPointerLeave={() => {
+                      lastHoveredActionRef.current = null;
+                      setHoveredAction(null);
+                    }}
                     initial={{ scale: 0.2, opacity: 0 }}
                     animate={{ scale: 1, opacity: 1 }}
                     exit={{ scale: 0.2, opacity: 0 }}
@@ -1608,16 +1633,39 @@ const Index = () => {
                     style={{ transformOrigin: `${actionRingOrigin.x}% ${actionRingOrigin.y}%` }}
                   >
                     <div className="absolute inset-0 rounded-full border border-border/50 bg-card/50 shadow-[0_0_60px_rgba(15,23,42,0.2)] backdrop-blur-sm" />
-                    <div className="absolute inset-0 flex items-center justify-center px-8 text-center">
+                    <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 px-8 text-center">
+                      <AnimatePresence mode="wait">
+                        {hoveredAction ? (
+                          <motion.div
+                            key={`${hoveredAction}-icon`}
+                            initial={{ opacity: 0, filter: 'blur(8px)', scale: 0.8 }}
+                            animate={{ opacity: 1, filter: 'blur(0px)', scale: 1 }}
+                            exit={{ opacity: 0, filter: 'blur(10px)', scale: 0.75 }}
+                            transition={{ duration: 0.25 }}
+                            className="flex items-center justify-center"
+                          >
+                            {(() => {
+                              const Icon = actionRingIcons[hoveredAction as keyof typeof actionRingIcons];
+                              const iconClass =
+                                hoveredAction === 'adaptive'
+                                  ? 'h-12 w-12 text-amber-300'
+                                  : 'h-12 w-12 text-primary';
+                              return Icon ? <Icon className={iconClass} /> : null;
+                            })()}
+                          </motion.div>
+                        ) : null}
+                      </AnimatePresence>
                       <AnimatePresence mode="wait">
                         {actionRingText ? (
                           <motion.span
                             key={actionRingText}
-                            initial={{ opacity: 0, filter: 'blur(8px)', y: 8 }}
+                            initial={{ opacity: 0, filter: 'blur(8px)', y: 12 }}
                             animate={{ opacity: 1, filter: 'blur(0px)', y: 0 }}
                             exit={{ opacity: 0, filter: 'blur(10px)', y: -8 }}
                             transition={{ duration: 0.25 }}
-                            className="text-xs uppercase tracking-[0.3em] text-foreground text-center"
+                            className={`text-xs uppercase tracking-[0.3em] text-center ${
+                              hoveredAction === 'adaptive' ? 'text-amber-300' : 'text-foreground'
+                            }`}
                           >
                             <DecodeText text={actionRingText} active />
                           </motion.span>
@@ -1628,11 +1676,11 @@ const Index = () => {
                     <div className="absolute left-1/2 top-0 -translate-x-1/2 -translate-y-1/2">
                       <button
                         type="button"
+                        data-action="static"
                         onClick={() => {
                           handleStartStatic();
                           closeCreateMenu();
                         }}
-                        onPointerEnter={() => setHoveredAction('static')}
                         className="pointer-events-auto flex h-12 w-12 items-center justify-center rounded-full border border-border/70 bg-card/90 text-primary shadow-lg transition hover:border-primary/60 hover:text-primary"
                       >
                         <LinkIcon className="h-5 w-5" />
@@ -1642,6 +1690,7 @@ const Index = () => {
                     <div className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2">
                     <button
                       type="button"
+                      data-action="dynamic"
                       onClick={() => {
                         if (!isLoggedIn) {
                           toast.info('Create an account or log in to start creating Dynamic QR Codes.');
@@ -1653,7 +1702,6 @@ const Index = () => {
                         setPendingCreateScroll(true);
                         closeCreateMenu();
                       }}
-                      onPointerEnter={() => setHoveredAction('dynamic')}
                       className={`pointer-events-auto flex h-12 w-12 items-center justify-center rounded-full border shadow-lg transition ${
                         isLoggedIn
                           ? 'border-border/70 bg-card/90 text-primary hover:border-primary/60 hover:text-primary'
@@ -1667,6 +1715,7 @@ const Index = () => {
                     <div className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1/2">
                     <button
                       type="button"
+                      data-action="vcard"
                       onClick={() => {
                         if (!isLoggedIn) {
                           toast.info('Create an account or log in to start creating VCards.');
@@ -1675,7 +1724,6 @@ const Index = () => {
                         handleStartVcard();
                         closeCreateMenu();
                       }}
-                      onPointerEnter={() => setHoveredAction('vcard')}
                       className="pointer-events-auto flex h-12 w-12 items-center justify-center rounded-full border border-border/70 bg-card/90 text-primary shadow-lg transition hover:border-primary/60 hover:text-primary"
                     >
                       <User className="h-5 w-5" />
@@ -1685,6 +1733,7 @@ const Index = () => {
                     <div className="absolute left-1/2 bottom-0 -translate-x-1/2 translate-y-1/2">
                     <button
                       type="button"
+                      data-action="file"
                       onClick={() => {
                         if (!isLoggedIn) {
                           toast.info('Create an account or log in to unlock File QR.');
@@ -1693,8 +1742,7 @@ const Index = () => {
                         handleStartFile();
                         closeCreateMenu();
                       }}
-                      onPointerEnter={() => setHoveredAction('file')}
-                      className="pointer-events-auto flex h-12 w-12 items-center justify-center rounded-full border border-border/70 bg-card/80 text-muted-foreground shadow-lg transition hover:border-primary/60 hover:text-primary"
+                      className="pointer-events-auto flex h-12 w-12 items-center justify-center rounded-full border border-border/70 bg-card/90 text-primary shadow-lg transition hover:border-primary/60 hover:text-primary"
                     >
                       <File className="h-5 w-5" />
                     </button>
@@ -1703,11 +1751,11 @@ const Index = () => {
                     <div className="absolute right-6 top-6">
                       <button
                         type="button"
+                        data-action="phone"
                         onClick={() => {
                           handleStartPhone();
                           closeCreateMenu();
                         }}
-                        onPointerEnter={() => setHoveredAction('phone')}
                         className="pointer-events-auto flex h-11 w-11 items-center justify-center rounded-full border border-border/70 bg-card/90 text-primary shadow-lg transition hover:border-primary/60"
                       >
                         <Phone className="h-4 w-4" />
@@ -1717,11 +1765,11 @@ const Index = () => {
                     <div className="absolute right-6 bottom-6">
                       <button
                         type="button"
+                        data-action="email"
                         onClick={() => {
                           handleStartEmail();
                           closeCreateMenu();
                         }}
-                        onPointerEnter={() => setHoveredAction('email')}
                         className="pointer-events-auto flex h-11 w-11 items-center justify-center rounded-full border border-border/70 bg-card/90 text-primary shadow-lg transition hover:border-primary/60"
                       >
                         <Mail className="h-4 w-4" />
@@ -1731,6 +1779,7 @@ const Index = () => {
                     <div className="absolute left-6 bottom-6">
                       <button
                         type="button"
+                        data-action="menu"
                         onClick={() => {
                           if (!isLoggedIn) {
                             toast.info('Create an account or log in to start building QR Menus.');
@@ -1739,7 +1788,6 @@ const Index = () => {
                           openMenuBuilder();
                           closeCreateMenu();
                         }}
-                      onPointerEnter={() => setHoveredAction('menu')}
                       className="pointer-events-auto flex h-11 w-11 items-center justify-center rounded-full border border-border/70 bg-card/90 text-primary shadow-lg transition hover:border-primary/60"
                     >
                       <Utensils className="h-4 w-4" />
@@ -1749,6 +1797,7 @@ const Index = () => {
                     <div className="absolute left-6 top-6">
                       <button
                         type="button"
+                        data-action="adaptive"
                         onClick={() => {
                           if (!isLoggedIn) {
                             toast.info('Create an account or log in to unlock Adaptive QRC™.');
@@ -1758,7 +1807,6 @@ const Index = () => {
                           setPendingCreateScroll(false);
                           closeCreateMenu();
                         }}
-                      onPointerEnter={() => setHoveredAction('adaptive')}
                       className="pointer-events-auto flex h-11 w-11 items-center justify-center rounded-full border border-amber-300/60 bg-card/90 text-amber-300 shadow-lg transition hover:border-amber-300"
                     >
                       <QrCode className="h-4 w-4" />
@@ -3742,6 +3790,7 @@ const Index = () => {
                 onStatsChange={setArsenalStats}
                 onScansChange={(total) => setScanStats({ total })}
                 onRefreshRequest={() => setArsenalRefreshKey((prev) => prev + 1)}
+                language={(userProfile?.language ?? profileForm.language) as 'en' | 'es'}
               />
             ) : (
               <div className="glass-panel rounded-2xl p-8 text-center space-y-4">
@@ -3920,13 +3969,15 @@ const Index = () => {
                   <ThemeToggle storageKey={`theme:${user?.id ?? 'default'}`} />
                 </div>
                 <div className="space-y-4">
-                  <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Profile</p>
+                  <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">
+                    {t('Profile', 'Perfil')}
+                  </p>
                   <Input
                     value={profileForm.fullName}
                     onChange={(event) =>
                       setProfileForm((prev) => ({ ...prev, fullName: event.target.value }))
                     }
-                    placeholder="Full Name"
+                    placeholder={t('Full Name', 'Nombre completo')}
                     className="bg-secondary/40 border-border"
                   />
                   <div className="space-y-2">
@@ -3942,7 +3993,7 @@ const Index = () => {
                           setUsernameError('');
                         }}
                         onBlur={handleUsernameCheck}
-                        placeholder="Username (max 18 characters)"
+                        placeholder={t('Username (max 18 characters)', 'Nombre de usuario (max 18 caracteres)')}
                         className={`bg-secondary/40 border-border ${usernameError ? 'border-destructive animate-shake' : ''}`}
                       />
                       <Button
@@ -3953,26 +4004,26 @@ const Index = () => {
                         onClick={handleUsernameCheck}
                         disabled={!profileForm.username.trim() || usernameStatus === 'checking'}
                       >
-                        {usernameStatus === 'checking' ? 'Checking...' : 'Check'}
+                        {usernameStatus === 'checking' ? t('Checking...', 'Verificando...') : t('Check', 'Verificar')}
                       </Button>
                     </div>
                     <div className="text-xs text-muted-foreground">
-                      {usernameStatus === 'checking' && 'Checking availability...'}
-                      {usernameStatus === 'available' && 'Username is available.'}
-                      {usernameStatus === 'taken' && (usernameError || 'Username is already taken.')}
-                      {usernameStatus === 'invalid' && (usernameError || 'Please keep it family friendly.')}
-                      {usernameStatus === 'idle' && 'Usernames can be changed once every 30 days.'}
+                      {usernameStatus === 'checking' && t('Checking availability...', 'Verificando disponibilidad...')}
+                      {usernameStatus === 'available' && t('Username is available.', 'Nombre de usuario disponible.')}
+                      {usernameStatus === 'taken' && (usernameError || t('Username is already taken.', 'Nombre de usuario ya esta en uso.'))}
+                      {usernameStatus === 'invalid' && (usernameError || t('Please keep it family friendly.', 'Mantengamoslo apto para todos.'))}
+                      {usernameStatus === 'idle' && t('Usernames can be changed once every 30 days.', 'Los nombres de usuario se pueden cambiar cada 30 dias.')}
                     </div>
                     {userProfile?.usernameChangedAt && (
                       <div className="text-[11px] text-muted-foreground">
-                        Next change available:{' '}
+                        {t('Next change available:', 'Proximo cambio disponible:')}{' '}
                         {new Date(new Date(userProfile.usernameChangedAt).getTime() + 30 * 24 * 60 * 60 * 1000).toLocaleDateString()}
                       </div>
                     )}
                   </div>
                   <div className="grid gap-3 sm:grid-cols-2">
                     <label className="text-xs uppercase tracking-[0.3em] text-muted-foreground">
-                      Timezone
+                      {t('Timezone', 'Zona horaria')}
                       <select
                         value={profileForm.timezone}
                         onChange={(event) =>
@@ -3980,7 +4031,7 @@ const Index = () => {
                         }
                         className="mt-2 w-full rounded-md border border-border bg-secondary/40 px-3 py-2 text-sm text-foreground"
                       >
-                        <option value="">Select timezone</option>
+                        <option value="">{t('Auto-detect', 'Deteccion automatica')}</option>
                         {timeZoneOptions.map((zone) => (
                           <option key={zone} value={zone}>
                             {zone}
@@ -3989,7 +4040,7 @@ const Index = () => {
                       </select>
                     </label>
                     <label className="text-xs uppercase tracking-[0.3em] text-muted-foreground">
-                      Language
+                      {t('Language', 'Idioma')}
                       <select
                         value={profileForm.language}
                         onChange={(event) =>
@@ -4003,13 +4054,15 @@ const Index = () => {
                     </label>
                   </div>
                   <div className="space-y-2 pt-2">
-                    <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Change Password</p>
+                    <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">
+                      {t('Change Password', 'Cambiar contrasena')}
+                    </p>
                     <Input
                       value={profileForm.currentPassword}
                       onChange={(event) =>
                         setProfileForm((prev) => ({ ...prev, currentPassword: event.target.value }))
                       }
-                      placeholder="Current Password"
+                      placeholder={t('Current Password', 'Contrasena actual')}
                       type="password"
                       className="bg-secondary/40 border-border"
                     />
@@ -4018,7 +4071,7 @@ const Index = () => {
                       onChange={(event) =>
                         setProfileForm((prev) => ({ ...prev, newPassword: event.target.value }))
                       }
-                      placeholder="New Password"
+                      placeholder={t('New Password', 'Nueva contrasena')}
                       type="password"
                       className="bg-secondary/40 border-border"
                     />
@@ -4027,7 +4080,7 @@ const Index = () => {
                       onChange={(event) =>
                         setProfileForm((prev) => ({ ...prev, confirmPassword: event.target.value }))
                       }
-                      placeholder="Confirm New Password"
+                      placeholder={t('Confirm New Password', 'Confirmar nueva contrasena')}
                       type="password"
                       className="bg-secondary/40 border-border"
                     />
@@ -4037,7 +4090,7 @@ const Index = () => {
                     className="bg-gradient-primary text-primary-foreground uppercase tracking-[0.2em] text-xs"
                     onClick={handleProfileSave}
                   >
-                    Save Preferences
+                    {t('Save Preferences', 'Guardar preferencias')}
                   </Button>
                 </div>
               </div>

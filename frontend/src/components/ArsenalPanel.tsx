@@ -5,6 +5,8 @@ import {
   ArrowLeft,
   ArrowRight,
   ArrowUpAz,
+  Check,
+  Copy,
   Contact,
   Download,
   ExternalLink,
@@ -18,6 +20,7 @@ import {
   QrCode,
   Trash2,
   Utensils,
+  X,
   Zap,
 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -48,8 +51,17 @@ type ViewMode = 'grid' | 'list';
 type SortMode = 'newest' | 'oldest' | 'alpha';
 const PAGE_SIZE = 10;
 
-const getDisplayName = (item: QRHistoryItem) => {
-  return item.name?.trim() || item.content || `QR-${item.id.slice(0, 6)}`;
+const getDisplayName = (item: QRHistoryItem, list: QRHistoryItem[] = []) => {
+  const name = item.name?.trim();
+  if (name) return name.slice(0, 25);
+  const unnamed = list
+    .filter((entry) => !entry.name?.trim())
+    .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+  const index = unnamed.findIndex((entry) => entry.id === item.id);
+  if (index >= 0) {
+    return `Untitled QRC ${index + 1}`;
+  }
+  return `Untitled QRC`;
 };
 
 const isWebUrl = (value: string) => /^https?:\/\//i.test(value);
@@ -112,11 +124,13 @@ export function ArsenalPanel({
   onStatsChange,
   onScansChange,
   onRefreshRequest,
+  language = 'en',
 }: {
   refreshKey?: number;
   onStatsChange?: (stats: { total: number; dynamic: number }) => void;
   onScansChange?: (total: number) => void;
   onRefreshRequest?: () => void;
+  language?: 'en' | 'es';
 }) {
   const [items, setItems] = useState<QRHistoryItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -125,11 +139,22 @@ export function ArsenalPanel({
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
   const [editContent, setEditContent] = useState('');
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [page, setPage] = useState(1);
   const [deleteTarget, setDeleteTarget] = useState<QRHistoryItem | null>(null);
+  const [isSelectMode, setIsSelectMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [showBulkDelete, setShowBulkDelete] = useState(false);
+  const [showUnsavedPrompt, setShowUnsavedPrompt] = useState(false);
+  const [pendingAction, setPendingAction] = useState<
+    | { type: 'select'; item: QRHistoryItem }
+    | { type: 'cancel' }
+    | null
+  >(null);
   const previewRef = useRef<QRPreviewHandle>(null);
   const [scanCounts, setScanCounts] = useState<Record<string, number>>({});
+  const t = (en: string, es: string) => (language === 'es' ? es : en);
 
   useEffect(() => {
     const loadHistory = async () => {
@@ -141,7 +166,7 @@ export function ArsenalPanel({
           if (response.data.length > 0) {
             const first = response.data[0];
             setSelectedId(first.id);
-            setEditName(getDisplayName(first));
+            setEditName(first.name?.trim() ?? '');
             setEditContent(first.content);
           }
         }
@@ -183,7 +208,7 @@ export function ArsenalPanel({
     } else if (sortMode === 'oldest') {
       copy.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
     } else {
-      copy.sort((a, b) => getDisplayName(a).localeCompare(getDisplayName(b)));
+      copy.sort((a, b) => getDisplayName(a, items).localeCompare(getDisplayName(b, items)));
     }
     return copy;
   }, [items, sortMode]);
@@ -196,8 +221,14 @@ export function ArsenalPanel({
   );
 
   const selectedItem = sortedItems.find((item) => item.id === selectedId) ?? null;
+  const selectedDisplayName = selectedItem ? getDisplayName(selectedItem, sortedItems) : '';
   const selectedKind = parseKind(selectedItem?.kind ?? null);
   const isDynamic = selectedKind.mode === 'dynamic';
+  const hasUnsavedChanges = Boolean(
+    selectedItem &&
+      (editName.trim() !== (selectedItem.name?.trim() ?? '') ||
+        (isDynamic && editContent.trim() !== selectedItem.content))
+  );
 
   useEffect(() => {
     const targets = new Map<string, QRHistoryItem>();
@@ -237,10 +268,43 @@ export function ArsenalPanel({
     };
   }, [pagedItems, selectedItem]);
 
-  const handleSelect = (item: QRHistoryItem) => {
+  const applySelection = (item: QRHistoryItem) => {
     setSelectedId(item.id);
-    setEditName(getDisplayName(item));
+    setEditName(item.name?.trim() ?? '');
     setEditContent(item.content);
+    setIsEditingTitle(false);
+  };
+
+  const handleSelect = (item: QRHistoryItem) => {
+    if (hasUnsavedChanges) {
+      setPendingAction({ type: 'select', item });
+      setShowUnsavedPrompt(true);
+      return;
+    }
+    applySelection(item);
+  };
+
+  const resetEdits = () => {
+    if (!selectedItem) return;
+    setEditName(selectedItem.name?.trim() ?? '');
+    setEditContent(selectedItem.content);
+    setIsEditingTitle(false);
+  };
+
+  const resolveUnsavedAction = async (action: 'save' | 'discard') => {
+    const pending = pendingAction;
+    setShowUnsavedPrompt(false);
+    setPendingAction(null);
+    if (action === 'save') {
+      await handleSave();
+    }
+    if (pending?.type === 'select') {
+      applySelection(pending.item);
+      return;
+    }
+    if (pending?.type === 'cancel' && action === 'discard') {
+      resetEdits();
+    }
   };
 
   useEffect(() => {
@@ -248,6 +312,16 @@ export function ArsenalPanel({
       setPage(pageCount);
     }
   }, [page, pageCount]);
+
+  useEffect(() => {
+    if (!hasUnsavedChanges) return;
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = '';
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [hasUnsavedChanges]);
 
   const handleDelete = async (item: QRHistoryItem) => {
     try {
@@ -266,11 +340,31 @@ export function ArsenalPanel({
     }
   };
 
+  const handleBulkDelete = async () => {
+    const ids = Array.from(selectedIds);
+    if (!ids.length) return;
+    try {
+      await Promise.all(ids.map((id) => deleteQRFromHistory(id)));
+      setItems((prev) => prev.filter((entry) => !selectedIds.has(entry.id)));
+      setSelectedIds(new Set());
+      setIsSelectMode(false);
+      toast.success('Selected QR codes deleted');
+      onRefreshRequest?.();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to delete selected QR codes';
+      toast.error(message);
+    } finally {
+      setShowBulkDelete(false);
+    }
+  };
+
   const handleSave = async () => {
     if (!selectedItem) return;
     const payload: { name?: string | null; targetUrl?: string } = {};
-    if (editName.trim() !== getDisplayName(selectedItem)) {
-      payload.name = editName.trim();
+    const desiredName = editName.trim();
+    const currentName = selectedItem.name?.trim() ?? '';
+    if (desiredName !== currentName) {
+      payload.name = desiredName.length ? desiredName : null;
     }
     if (isDynamic && editContent.trim() && editContent.trim() !== selectedItem.content) {
       payload.targetUrl = editContent.trim();
@@ -284,7 +378,7 @@ export function ArsenalPanel({
       const response = await updateQR(selectedItem.id, payload);
       if (response.data) {
         setItems((prev) => prev.map((entry) => (entry.id === selectedItem.id ? response.data! : entry)));
-        setEditName(getDisplayName(response.data));
+        setEditName(response.data.name?.trim() ?? '');
         setEditContent(response.data.content);
         toast.success('QR updated');
       }
@@ -349,7 +443,7 @@ export function ArsenalPanel({
     const count = scanCounts[item.id] ?? 0;
     return (
       <span className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-secondary/40 px-3 py-1 text-[10px] uppercase tracking-[0.3em] text-muted-foreground">
-        Scans {count}
+        {t('Scans', 'Escaneos')} {count}
       </span>
     );
   };
@@ -365,9 +459,38 @@ export function ArsenalPanel({
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <p className="text-xs uppercase tracking-[0.4em] text-muted-foreground">Arsenal</p>
-          <h2 className="text-3xl font-semibold tracking-tight">Your QR Arsenal</h2>
+          <h2 className="text-3xl font-semibold tracking-tight">
+            {t('Your QR Arsenal', 'Tu Arsenal QR')}
+          </h2>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          <Button
+            variant={isSelectMode ? 'secondary' : 'outline'}
+            size="sm"
+            className="border-border text-xs uppercase tracking-[0.25em]"
+            onClick={() => {
+              if (isSelectMode) {
+                setSelectedIds(new Set());
+              }
+              setIsSelectMode((prev) => !prev);
+            }}
+          >
+            {isSelectMode ? t('Cancel Select', 'Cancelar seleccion') : t('Select Multiple', 'Seleccion multiple')}
+          </Button>
+          {isSelectMode && (
+            <Button
+              variant="outline"
+              size="icon"
+              className="group relative border-border"
+              onClick={() => setShowBulkDelete(true)}
+              disabled={selectedIds.size === 0}
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              <span className="pointer-events-none absolute -bottom-6 left-1/2 -translate-x-1/2 text-[10px] uppercase tracking-[0.35em] text-muted-foreground opacity-0 transition group-hover:opacity-100">
+                {t('Delete', 'Eliminar')}
+              </span>
+            </Button>
+          )}
           <div className="inline-flex rounded-full border border-border/60 bg-secondary/30 p-1">
             <button
               type="button"
@@ -421,8 +544,10 @@ export function ArsenalPanel({
         </div>
       ) : sortedItems.length === 0 ? (
         <div className="glass-panel rounded-2xl p-8 text-center space-y-4">
-          <p className="text-sm text-muted-foreground">No QR codes yet.</p>
-          <p className="text-lg font-semibold">Create your first QR Code to get started.</p>
+          <p className="text-sm text-muted-foreground">{t('No QR codes yet.', 'Aun no hay codigos QR.')}</p>
+          <p className="text-lg font-semibold">
+            {t('Create your first QR Code to get started.', 'Crea tu primer Codigo QR para comenzar.')}
+          </p>
         </div>
       ) : (
         <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
@@ -437,6 +562,7 @@ export function ArsenalPanel({
               >
                 {pagedItems.map((item) => {
                   const isSelected = item.id === selectedId;
+                  const isChecked = selectedIds.has(item.id);
                   const parsed = parseKind(item.kind ?? null);
                   const typeMeta = typeStyles[parsed.type] ?? typeStyles.url;
                   const cardOptions: QROptions = {
@@ -448,9 +574,25 @@ export function ArsenalPanel({
                     <button
                       key={item.id}
                       type="button"
-                      onClick={() => handleSelect(item)}
+                      onClick={() => {
+                        if (isSelectMode) {
+                          setSelectedIds((prev) => {
+                            const next = new Set(prev);
+                            if (next.has(item.id)) {
+                              next.delete(item.id);
+                            } else {
+                              next.add(item.id);
+                            }
+                            return next;
+                          });
+                          return;
+                        }
+                        handleSelect(item);
+                      }}
                       className={`group w-full rounded-2xl border p-4 text-left transition overflow-hidden ${
-                        isSelected
+                        isSelectMode && isChecked
+                          ? 'border-primary/60 bg-primary/10 shadow-[0_0_18px_rgba(59,130,246,0.18)]'
+                          : isSelected
                           ? 'border-primary/60 bg-primary/5 shadow-[0_0_18px_rgba(59,130,246,0.12)]'
                           : `${typeMeta.card} hover:border-primary/40 hover:bg-secondary/40`
                       } ${
@@ -459,7 +601,9 @@ export function ArsenalPanel({
                     >
                       <div className="flex items-start justify-between gap-3">
                         <div className="space-y-2 min-w-0">
-                          <p className="text-sm font-semibold truncate">{getDisplayName(item)}</p>
+                          <p className="text-sm font-semibold truncate" title={getDisplayName(item, sortedItems)}>
+                            {getDisplayName(item, sortedItems)}
+                          </p>
                           <p className="text-xs text-muted-foreground truncate">{item.content}</p>
                           <div className="flex flex-wrap items-center gap-2">
                             {renderScanCount(item)}
@@ -506,13 +650,107 @@ export function ArsenalPanel({
             )}
           </div>
 
-          <div className="glass-panel rounded-2xl p-6 space-y-6">
+          <div className="glass-panel rounded-2xl p-6 space-y-6 min-w-0">
             {selectedItem ? (
               <>
+                <div className="flex flex-wrap items-center gap-2 overflow-visible">
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        size="icon"
+                        variant="outline"
+                        className="group relative border-border"
+                      >
+                        <Download className="h-4 w-4" />
+                        <span className="pointer-events-none absolute -bottom-6 left-1/2 -translate-x-1/2 text-[10px] uppercase tracking-[0.35em] text-muted-foreground opacity-0 transition group-hover:opacity-100">
+                          {t('Download', 'Descargar')}
+                        </span>
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="start" className="bg-card/95 border-border">
+                      <DropdownMenuItem onClick={() => handleDownload('png')}>PNG</DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handleDownload('svg')}>SVG</DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handleDownload('jpeg')}>JPEG</DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handleDownload('pdf')}>PDF</DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                  <Button
+                    size="icon"
+                    variant="outline"
+                    className="group relative border-border"
+                    onClick={handleCopy}
+                  >
+                    <Copy className="h-4 w-4" />
+                    <span className="pointer-events-none absolute -bottom-6 left-1/2 -translate-x-1/2 text-[10px] uppercase tracking-[0.35em] text-muted-foreground opacity-0 transition group-hover:opacity-100">
+                      {t('Share', 'Compartir')}
+                    </span>
+                  </Button>
+                  <Button
+                    size="icon"
+                    variant="outline"
+                    className="group relative border-destructive/40 text-destructive hover:bg-destructive/10"
+                    onClick={() => setDeleteTarget(selectedItem)}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    <span className="pointer-events-none absolute -bottom-6 left-1/2 -translate-x-1/2 text-[10px] uppercase tracking-[0.35em] text-destructive/80 opacity-0 transition group-hover:opacity-100">
+                      {t('Delete', 'Eliminar')}
+                    </span>
+                  </Button>
+                  {hasUnsavedChanges && (
+                    <>
+                      <Button
+                        size="icon"
+                        className="group relative bg-gradient-primary text-primary-foreground"
+                        onClick={handleSave}
+                        disabled={isSaving}
+                      >
+                        <Check className="h-4 w-4" />
+                        <span className="pointer-events-none absolute -bottom-6 left-1/2 -translate-x-1/2 text-[10px] uppercase tracking-[0.35em] text-muted-foreground opacity-0 transition group-hover:opacity-100">
+                          {isSaving ? t('Saving', 'Guardando') : t('Save', 'Guardar')}
+                        </span>
+                      </Button>
+                      <Button
+                        size="icon"
+                        variant="outline"
+                        className="group relative border-border"
+                        onClick={() => {
+                          setPendingAction({ type: 'cancel' });
+                          setShowUnsavedPrompt(true);
+                        }}
+                      >
+                        <X className="h-4 w-4" />
+                        <span className="pointer-events-none absolute -bottom-6 left-1/2 -translate-x-1/2 text-[10px] uppercase tracking-[0.35em] text-muted-foreground opacity-0 transition group-hover:opacity-100">
+                          {t('Cancel', 'Cancelar')}
+                        </span>
+                      </Button>
+                    </>
+                  )}
+                </div>
                   <div className="flex items-start justify-between gap-4">
-                    <div>
-                      <p className="text-xs uppercase tracking-[0.35em] text-muted-foreground">Selected</p>
-                      <h3 className="text-lg font-semibold">{getDisplayName(selectedItem)}</h3>
+                    <div className="min-w-0">
+                      <p className="text-xs uppercase tracking-[0.35em] text-muted-foreground">
+                        {t('Selected', 'Seleccionado')}
+                      </p>
+                      {isEditingTitle ? (
+                        <Input
+                          value={editName}
+                          placeholder={selectedDisplayName}
+                          onChange={(event) => setEditName(event.target.value.slice(0, 25))}
+                          onBlur={() => setIsEditingTitle(false)}
+                          className="bg-secondary/40 border-border max-w-[280px]"
+                          maxLength={25}
+                          autoFocus
+                        />
+                      ) : (
+                        <button
+                          type="button"
+                          className="text-lg font-semibold truncate text-left hover:text-primary transition"
+                          title={selectedDisplayName}
+                          onClick={() => setIsEditingTitle(true)}
+                        >
+                          {selectedDisplayName}
+                        </button>
+                      )}
                     </div>
                   <div className="flex flex-wrap items-center justify-end gap-2">
                     {renderScanCount(selectedItem)}
@@ -524,43 +762,69 @@ export function ArsenalPanel({
                   <QRPreview
                     ref={previewRef}
                     options={{ ...selectedItem.options, content: selectedItem.content, size: 180 }}
+                    showCaption={false}
                   />
                 </div>
+                <button
+                  type="button"
+                  onClick={handleCopy}
+                  className="group relative w-full text-center text-xs text-muted-foreground truncate hover:text-primary transition"
+                  title={selectedItem.shortUrl ?? selectedItem.content}
+                >
+                  {selectedItem.shortUrl ?? selectedItem.content}
+                  <span className="pointer-events-none absolute -bottom-5 left-1/2 -translate-x-1/2 text-[10px] uppercase tracking-[0.35em] text-muted-foreground opacity-0 transition group-hover:opacity-100">
+                    {t('Copy', 'Copiar')}
+                  </span>
+                </button>
 
                 <div className="space-y-3">
-                  <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">QR Name</p>
+                  <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">
+                    {t('QR Name', 'Nombre del QR')}
+                  </p>
                   <Input
-                    value={editName}
-                    onChange={(event) => setEditName(event.target.value.slice(0, 25))}
+                    value={selectedDisplayName}
+                    placeholder={selectedDisplayName}
                     className="bg-secondary/40 border-border"
+                    readOnly
                   />
                 </div>
 
                 <div className="space-y-3">
                   <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">
-                    {isDynamic ? 'Dynamic URL' : 'QR Destination'}
+                    {isDynamic ? t('Dynamic URL', 'URL dinamica') : t('QR Destination', 'Destino del QR')}
                   </p>
-                  <Input
-                    value={editContent}
-                    onChange={(event) => setEditContent(event.target.value)}
-                    className="bg-secondary/40 border-border"
-                    readOnly={!isDynamic}
-                  />
+                  <button
+                    type="button"
+                    onClick={handleCopy}
+                    className="group relative w-full text-left rounded-md transition hover:ring-1 hover:ring-primary/40"
+                  >
+                    <Input
+                      value={editContent}
+                      onChange={(event) => setEditContent(event.target.value)}
+                      className="bg-secondary/40 border-border pr-14 cursor-pointer transition group-hover:bg-secondary/60"
+                      readOnly={!isDynamic}
+                    />
+                    <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[10px] uppercase tracking-[0.35em] text-muted-foreground opacity-0 transition group-hover:opacity-100">
+                      {t('Copy', 'Copiar')}
+                    </span>
+                  </button>
                   {!isDynamic && (
                     <p className="text-[11px] uppercase tracking-[0.3em] text-muted-foreground">
-                      Static QR destinations are read-only.
+                      {t('Static QR destinations are read-only.', 'Los destinos QR estaticos son de solo lectura.')}
                     </p>
                   )}
                 </div>
 
                 <div className="space-y-3">
-                  <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Live Preview</p>
+                  <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">
+                    {t('Live Preview', 'Vista previa')}
+                  </p>
                   <div className="rounded-2xl border border-border/60 bg-secondary/20 overflow-hidden">
                     <div className="flex items-center gap-1.5 bg-card/80 px-3 py-2 text-[10px] uppercase tracking-[0.35em] text-muted-foreground">
                       <span className="h-2 w-2 rounded-full bg-rose-400/70" />
                       <span className="h-2 w-2 rounded-full bg-amber-400/70" />
                       <span className="h-2 w-2 rounded-full bg-emerald-400/70" />
-                      <span className="ml-2">Preview</span>
+                      <span className="ml-2">{t('Preview', 'Vista previa')}</span>
                     </div>
                     {isWebUrl(selectedItem.content) ? (
                       <img
@@ -574,47 +838,10 @@ export function ArsenalPanel({
                     ) : (
                       <div className="flex aspect-video w-full flex-col items-center justify-center gap-2 text-muted-foreground text-sm">
                         <ExternalLink className="h-6 w-6 text-primary" />
-                        Preview available for web URLs only.
+                        {t('Preview available for web URLs only.', 'Vista previa disponible solo para URLs web.')}
                       </div>
                     )}
                   </div>
-                </div>
-
-                <div className="flex flex-wrap items-center gap-3">
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button size="sm" className="gap-2 bg-secondary/60 border border-border hover:border-primary hover:bg-primary/10">
-                        <Download className="h-4 w-4" />
-                        Download
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="bg-card/95 border-border">
-                      <DropdownMenuItem onClick={() => handleDownload('png')}>PNG</DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => handleDownload('svg')}>SVG</DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => handleDownload('jpeg')}>JPEG</DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => handleDownload('pdf')}>PDF</DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                  <Button size="sm" variant="outline" className="border-border" onClick={handleCopy}>
-                    Share
-                  </Button>
-                  <Button
-                    size="sm"
-                    className="bg-gradient-primary text-primary-foreground"
-                    onClick={handleSave}
-                    disabled={isSaving}
-                  >
-                    {isSaving ? 'Saving...' : 'Save Changes'}
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="border-destructive/40 text-destructive hover:bg-destructive/10"
-                    onClick={() => setDeleteTarget(selectedItem)}
-                  >
-                    <Trash2 className="mr-2 h-4 w-4" />
-                    Delete
-                  </Button>
                 </div>
               </>
             ) : (
@@ -626,16 +853,47 @@ export function ArsenalPanel({
         </div>
       )}
 
-      <AlertDialog open={Boolean(deleteTarget)} onOpenChange={(open) => !open && setDeleteTarget(null)}>
-        <AlertDialogContent className="bg-card border-border">
+      <AlertDialog open={showBulkDelete} onOpenChange={setShowBulkDelete}>
+        <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete this QR code?</AlertDialogTitle>
+            <AlertDialogTitle>{t('Delete selected QR codes?', 'Eliminar codigos QR seleccionados?')}</AlertDialogTitle>
             <AlertDialogDescription>
-              This removes the QR code and its short URL permanently. This action cannot be undone.
+              {t(
+                `This will permanently delete ${selectedIds.size} QR code${selectedIds.size === 1 ? '' : 's'} from your Arsenal and database.`,
+                `Esto eliminara permanentemente ${selectedIds.size} codigo${selectedIds.size === 1 ? '' : 's'} QR de tu Arsenal y la base de datos.`
+              )}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setDeleteTarget(null)}>No, keep it</AlertDialogCancel>
+            <AlertDialogCancel
+              onClick={() => {
+                setShowBulkDelete(false);
+                setSelectedIds(new Set());
+                setIsSelectMode(false);
+              }}
+            >
+              {t('Cancel', 'Cancelar')}
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={handleBulkDelete}>{t('Delete', 'Eliminar')}</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={Boolean(deleteTarget)} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <AlertDialogContent className="bg-card border-border">
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('Delete this QR code?', 'Eliminar este codigo QR?')}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t(
+                'This removes the QR code and its short URL permanently. This action cannot be undone.',
+                'Esto elimina permanentemente el codigo QR y su URL corta. Esta accion no se puede deshacer.'
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setDeleteTarget(null)}>
+              {t('No, keep it', 'No, mantener')}
+            </AlertDialogCancel>
             <AlertDialogAction
               onClick={async () => {
                 if (deleteTarget) {
@@ -645,7 +903,33 @@ export function ArsenalPanel({
               }}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              Yes, delete
+              {t('Yes, delete', 'Si, eliminar')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={showUnsavedPrompt} onOpenChange={setShowUnsavedPrompt}>
+        <AlertDialogContent className="bg-card border-border">
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('Unsaved changes', 'Cambios sin guardar')}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t('You have unsaved edits. Save them before leaving?', 'Tienes cambios sin guardar. Guardarlos antes de salir?')}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex flex-wrap gap-2">
+            <AlertDialogCancel onClick={() => setShowUnsavedPrompt(false)}>
+              {t('Keep editing', 'Seguir editando')}
+            </AlertDialogCancel>
+            <Button
+              variant="outline"
+              className="border-border"
+              onClick={() => resolveUnsavedAction('discard')}
+            >
+              {t('Discard', 'Descartar')}
+            </Button>
+            <AlertDialogAction onClick={() => resolveUnsavedAction('save')}>
+              {t('Save', 'Guardar')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
