@@ -1256,6 +1256,7 @@ const Index = () => {
                   <motion.div
                     className="relative h-72 w-72 sm:h-80 sm:w-80"
                     onClick={(event) => event.stopPropagation()}
+                    onPointerLeave={() => setHoveredAction(null)}
                     initial={{ scale: 0.2, opacity: 0 }}
                     animate={{ scale: 1, opacity: 1 }}
                     exit={{ scale: 0.2, opacity: 0 }}
@@ -1288,7 +1289,6 @@ const Index = () => {
                           closeCreateMenu();
                         }}
                         onPointerEnter={() => setHoveredAction('static')}
-                        onPointerLeave={() => setHoveredAction(null)}
                         className="pointer-events-auto flex h-12 w-12 items-center justify-center rounded-full border border-border/70 bg-card/90 text-primary shadow-lg transition hover:border-primary/60 hover:text-primary"
                       >
                         <LinkIcon className="h-5 w-5" />
@@ -1310,7 +1310,6 @@ const Index = () => {
                         closeCreateMenu();
                       }}
                       onPointerEnter={() => setHoveredAction('dynamic')}
-                      onPointerLeave={() => setHoveredAction(null)}
                       className={`pointer-events-auto flex h-12 w-12 items-center justify-center rounded-full border shadow-lg transition ${
                         isLoggedIn
                           ? 'border-border/70 bg-card/90 text-primary hover:border-primary/60 hover:text-primary'
@@ -1333,7 +1332,6 @@ const Index = () => {
                         closeCreateMenu();
                       }}
                       onPointerEnter={() => setHoveredAction('vcard')}
-                      onPointerLeave={() => setHoveredAction(null)}
                       className="pointer-events-auto flex h-12 w-12 items-center justify-center rounded-full border border-border/70 bg-card/90 text-primary shadow-lg transition hover:border-primary/60 hover:text-primary"
                     >
                       <User className="h-5 w-5" />
@@ -1352,7 +1350,6 @@ const Index = () => {
                         closeCreateMenu();
                       }}
                       onPointerEnter={() => setHoveredAction('file')}
-                      onPointerLeave={() => setHoveredAction(null)}
                       className="pointer-events-auto flex h-12 w-12 items-center justify-center rounded-full border border-border/70 bg-card/80 text-muted-foreground shadow-lg transition hover:border-primary/60 hover:text-primary"
                     >
                       <File className="h-5 w-5" />
@@ -1367,7 +1364,6 @@ const Index = () => {
                           closeCreateMenu();
                         }}
                         onPointerEnter={() => setHoveredAction('phone')}
-                        onPointerLeave={() => setHoveredAction(null)}
                         className="pointer-events-auto flex h-11 w-11 items-center justify-center rounded-full border border-border/70 bg-card/90 text-primary shadow-lg transition hover:border-primary/60"
                       >
                         <Phone className="h-4 w-4" />
@@ -1382,7 +1378,6 @@ const Index = () => {
                           closeCreateMenu();
                         }}
                         onPointerEnter={() => setHoveredAction('email')}
-                        onPointerLeave={() => setHoveredAction(null)}
                         className="pointer-events-auto flex h-11 w-11 items-center justify-center rounded-full border border-border/70 bg-card/90 text-primary shadow-lg transition hover:border-primary/60"
                       >
                         <Mail className="h-4 w-4" />
@@ -1401,8 +1396,7 @@ const Index = () => {
                           closeCreateMenu();
                         }}
                       onPointerEnter={() => setHoveredAction('menu')}
-                      onPointerLeave={() => setHoveredAction(null)}
-                        className="pointer-events-auto flex h-11 w-11 items-center justify-center rounded-full border border-border/70 bg-card/90 text-primary shadow-lg transition hover:border-primary/60"
+                      className="pointer-events-auto flex h-11 w-11 items-center justify-center rounded-full border border-border/70 bg-card/90 text-primary shadow-lg transition hover:border-primary/60"
                     >
                       <Utensils className="h-4 w-4" />
                     </button>
@@ -1421,8 +1415,7 @@ const Index = () => {
                           closeCreateMenu();
                         }}
                       onPointerEnter={() => setHoveredAction('adaptive')}
-                      onPointerLeave={() => setHoveredAction(null)}
-                        className="pointer-events-auto flex h-11 w-11 items-center justify-center rounded-full border border-amber-300/60 bg-card/90 text-amber-300 shadow-lg transition hover:border-amber-300"
+                      className="pointer-events-auto flex h-11 w-11 items-center justify-center rounded-full border border-amber-300/60 bg-card/90 text-amber-300 shadow-lg transition hover:border-amber-300"
                     >
                       <QrCode className="h-4 w-4" />
                     </button>
