@@ -69,6 +69,7 @@ import { toast } from 'sonner';
 const UPSell_INTERVAL_MS = 30 * 60 * 1000;
 const UPSell_LAST_SHOWN_KEY = 'qr.upsell.lastShownAt';
 const UPSell_SESSION_KEY = 'qr.upsell.sessionShown';
+const BUILD_STAMP = '2026-01-18T16:40:00Z';
 const MAX_FILE_BYTES = 5 * 1024 * 1024;
 const MAX_MENU_FILE_BYTES = 2.5 * 1024 * 1024;
 const MAX_MENU_TOTAL_BYTES = 12 * 1024 * 1024;
