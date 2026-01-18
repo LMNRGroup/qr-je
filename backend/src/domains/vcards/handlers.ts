@@ -40,21 +40,27 @@ export const createVcardHandler = (vcardsService: VcardsService, urlsService: Ur
       createdAt: new Date().toISOString()
     }
 
-    const saved = await vcardsService.createVcard(vcard)
-
-    return c.json({
-      vcard: saved,
-      url: {
-        id: url.id,
-        random: url.random,
-        targetUrl: url.targetUrl,
-        name: url.name ?? null,
-        shortUrl: buildShortUrl(url.id, url.random),
-        createdAt: url.createdAt,
-        options: url.options ?? null,
-        kind: url.kind ?? null
-      }
-    }, 201)
+    try {
+      const saved = await vcardsService.createVcard(vcard)
+      return c.json({
+        vcard: saved,
+        url: {
+          id: url.id,
+          random: url.random,
+          targetUrl: url.targetUrl,
+          name: url.name ?? null,
+          shortUrl: buildShortUrl(url.id, url.random),
+          createdAt: url.createdAt,
+          options: url.options ?? null,
+          kind: url.kind ?? null
+        }
+      }, 201)
+    } catch (error) {
+      await urlsService.deleteUrl(url.id)
+      const message = error instanceof Error ? error.message : 'Failed to save vcard'
+      console.error('[vcards] create failed', message)
+      return c.json({ message: 'Failed to create vcard', reason: message }, 500)
+    }
   }
 }
 
