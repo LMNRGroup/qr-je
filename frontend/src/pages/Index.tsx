@@ -1186,6 +1186,7 @@ const Index = () => {
                   <motion.div
                     className="relative h-72 w-72 sm:h-80 sm:w-80"
                     onClick={(event) => event.stopPropagation()}
+                    onPointerLeave={() => setActionRingText('Create New QR Code')}
                     initial={{ scale: 0.2, opacity: 0 }}
                     animate={{ scale: 1, opacity: 1 }}
                     exit={{ scale: 0.2, opacity: 0 }}
@@ -1218,7 +1219,6 @@ const Index = () => {
                           closeCreateMenu();
                         }}
                         onMouseEnter={() => setActionRingText('Create New URL QR Code')}
-                        onMouseLeave={() => setActionRingText('Create New QR Code')}
                         className="pointer-events-auto flex h-12 w-12 items-center justify-center rounded-full border border-border/70 bg-card/90 text-primary shadow-lg transition hover:border-primary/60 hover:text-primary"
                       >
                         <LinkIcon className="h-5 w-5" />
@@ -1240,7 +1240,6 @@ const Index = () => {
                         closeCreateMenu();
                       }}
                       onMouseEnter={() => setActionRingText(isLoggedIn ? 'Create Dynamic QR Code' : 'Log in to unlock Dynamic QR')}
-                      onMouseLeave={() => setActionRingText('Create New QR Code')}
                       className={`pointer-events-auto flex h-12 w-12 items-center justify-center rounded-full border shadow-lg transition ${
                         isLoggedIn
                           ? 'border-border/70 bg-card/90 text-primary hover:border-primary/60 hover:text-primary'
@@ -1263,7 +1262,6 @@ const Index = () => {
                         closeCreateMenu();
                       }}
                       onMouseEnter={() => setActionRingText(isLoggedIn ? 'Create New VCard QR Code' : 'Log in to unlock VCard')}
-                      onMouseLeave={() => setActionRingText('Create New QR Code')}
                       className="pointer-events-auto flex h-12 w-12 items-center justify-center rounded-full border border-border/70 bg-card/90 text-primary shadow-lg transition hover:border-primary/60 hover:text-primary"
                     >
                       <User className="h-5 w-5" />
@@ -1282,7 +1280,6 @@ const Index = () => {
                         closeCreateMenu();
                       }}
                       onMouseEnter={() => setActionRingText(isLoggedIn ? 'Upload a File QR Code' : 'Log in to unlock File QR')}
-                      onMouseLeave={() => setActionRingText('Create New QR Code')}
                       className="pointer-events-auto flex h-12 w-12 items-center justify-center rounded-full border border-border/70 bg-card/80 text-muted-foreground shadow-lg transition hover:border-primary/60 hover:text-primary"
                     >
                       <File className="h-5 w-5" />
@@ -1297,7 +1294,6 @@ const Index = () => {
                           closeCreateMenu();
                         }}
                         onMouseEnter={() => setActionRingText('Create New Phone Call QR Code')}
-                        onMouseLeave={() => setActionRingText('Create New QR Code')}
                         className="pointer-events-auto flex h-11 w-11 items-center justify-center rounded-full border border-border/70 bg-card/90 text-primary shadow-lg transition hover:border-primary/60"
                       >
                         <Phone className="h-4 w-4" />
@@ -1312,7 +1308,6 @@ const Index = () => {
                           closeCreateMenu();
                         }}
                         onMouseEnter={() => setActionRingText('Create New Email QR Code')}
-                        onMouseLeave={() => setActionRingText('Create New QR Code')}
                         className="pointer-events-auto flex h-11 w-11 items-center justify-center rounded-full border border-border/70 bg-card/90 text-primary shadow-lg transition hover:border-primary/60"
                       >
                         <Mail className="h-4 w-4" />
@@ -1320,39 +1315,37 @@ const Index = () => {
                     </div>
 
                     <div className="absolute left-6 bottom-6">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (!isLoggedIn) {
-                          toast.info('Create an account or log in to start building QR Menus.');
-                          return;
-                        }
-                        openMenuBuilder();
-                        closeCreateMenu();
-                      }}
-                      onMouseEnter={() => setActionRingText(isLoggedIn ? 'Create a custom QR code for your menu' : 'Log in to unlock QR Menus')}
-                      onMouseLeave={() => setActionRingText('Create New QR Code')}
-                      className="pointer-events-auto flex h-11 w-11 items-center justify-center rounded-full border border-border/70 bg-card/90 text-primary shadow-lg transition hover:border-primary/60"
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (!isLoggedIn) {
+                            toast.info('Create an account or log in to start building QR Menus.');
+                            return;
+                          }
+                          openMenuBuilder();
+                          closeCreateMenu();
+                        }}
+                        onMouseEnter={() => setActionRingText(isLoggedIn ? 'Create a custom QR code for your menu' : 'Log in to unlock QR Menus')}
+                        className="pointer-events-auto flex h-11 w-11 items-center justify-center rounded-full border border-border/70 bg-card/90 text-primary shadow-lg transition hover:border-primary/60"
                     >
                       <Utensils className="h-4 w-4" />
                     </button>
                     </div>
 
                     <div className="absolute left-6 top-6">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (!isLoggedIn) {
-                          toast.info('Create an account or log in to unlock Adaptive QRC™.');
-                          return;
-                        }
-                        setActiveTab('adaptive');
-                        setPendingCreateScroll(false);
-                        closeCreateMenu();
-                      }}
-                      onMouseEnter={() => setActionRingText(isLoggedIn ? 'Create Adaptive QRC™' : 'Log in to unlock Adaptive QRC™')}
-                      onMouseLeave={() => setActionRingText('Create New QR Code')}
-                      className="pointer-events-auto flex h-11 w-11 items-center justify-center rounded-full border border-amber-300/60 bg-card/90 text-amber-300 shadow-lg transition hover:border-amber-300"
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (!isLoggedIn) {
+                            toast.info('Create an account or log in to unlock Adaptive QRC™.');
+                            return;
+                          }
+                          setActiveTab('adaptive');
+                          setPendingCreateScroll(false);
+                          closeCreateMenu();
+                        }}
+                        onMouseEnter={() => setActionRingText(isLoggedIn ? 'Create Adaptive QRC™' : 'Log in to unlock Adaptive QRC™')}
+                        className="pointer-events-auto flex h-11 w-11 items-center justify-center rounded-full border border-amber-300/60 bg-card/90 text-amber-300 shadow-lg transition hover:border-amber-300"
                     >
                       <QrCode className="h-4 w-4" />
                     </button>
