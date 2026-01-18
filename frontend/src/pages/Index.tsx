@@ -65,7 +65,7 @@ const qrType = null;
 const qrMode = null;
 
 const Index = () => {
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading, signOut } = useAuth();
   const isLoggedIn = Boolean(user);
   const [options, setOptions] = useState<QROptions>(defaultQROptions);
   const [isGenerating, setIsGenerating] = useState(false);
