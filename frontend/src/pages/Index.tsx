@@ -82,7 +82,21 @@ const Index = () => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [hasGenerated, setHasGenerated] = useState(false);
   const [lastGeneratedContent, setLastGeneratedContent] = useState('');
-  const [activeTab, setActiveTab] = useState<'studio' | 'codes' | 'analytics' | 'settings' | 'upgrade' | 'adaptive'>('studio');
+  const [activeTab, setActiveTab] = useState<'studio' | 'codes' | 'analytics' | 'settings' | 'upgrade' | 'adaptive'>(() => {
+    if (typeof window === 'undefined') return 'studio';
+    const stored = window.localStorage.getItem('qrc.activeTab');
+    if (
+      stored === 'studio' ||
+      stored === 'codes' ||
+      stored === 'analytics' ||
+      stored === 'settings' ||
+      stored === 'upgrade' ||
+      stored === 'adaptive'
+    ) {
+      return stored;
+    }
+    return 'studio';
+  });
   const [qrMode, setQrMode] = useState<'static' | 'dynamic' | null>(null);
   const [qrType, setQrType] = useState<'website' | 'vcard' | 'email' | 'phone' | 'file' | 'menu' | null>(null);
   const [websiteUrl, setWebsiteUrl] = useState('');
@@ -666,6 +680,11 @@ const Index = () => {
     if (activeTab !== 'studio') {
       setSelectedQuickAction(null);
     }
+  }, [activeTab]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    window.localStorage.setItem('qrc.activeTab', activeTab);
   }, [activeTab]);
 
   useEffect(() => {
