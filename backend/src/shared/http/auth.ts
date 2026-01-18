@@ -41,7 +41,7 @@ export const createAuthMiddleware = ({ usersService, publicPaths = [] }: AuthMid
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown token error'
       console.error('[auth] token verification failed', message)
-      return c.json({ message: 'Invalid token' }, 401)
+      return c.json({ message: 'Invalid token', reason: message }, 401)
     }
   }
 

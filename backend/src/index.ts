@@ -25,11 +25,19 @@ app.options('*', (c) => c.text(''))
 const usersService = createUsersService(getUsersStorage())
 const authMiddleware = createAuthMiddleware({
   usersService,
-  publicPaths: ['/health', '/r/', '/public/', '/', '/favicon.ico', '/favicon.png']
+  publicPaths: ['/health', '/r/', '/public/', '/debug/auth', '/', '/favicon.ico', '/favicon.png']
 })
 app.use('*', authMiddleware)
 
 app.get('/health', (c) => c.json({ message: 'Healthy!' }))
+app.get('/debug/auth', (c) => {
+  const auth = c.req.header('Authorization') ?? ''
+  return c.json({
+    hasAuth: auth.length > 0,
+    startsWithBearer: auth.startsWith('Bearer '),
+    length: auth.length
+  })
+})
 const urlsService = createUrlsService(getUrlsStorage())
 registerUrlsRoutes(app, urlsService)
 
