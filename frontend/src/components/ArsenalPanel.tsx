@@ -22,7 +22,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { QRHistoryItem, QROptions } from '@/types/qr';
-import { deleteQRFromHistory, getQRHistory, updateQR } from '@/lib/api';
+import { deleteQRFromHistory, getQRHistory, getScanCount, updateQR } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import {
   AlertDialog,
@@ -114,6 +114,7 @@ export function ArsenalPanel({
 }: {
   refreshKey?: number;
   onStatsChange?: (stats: { total: number; dynamic: number }) => void;
+  onScansChange?: (total: number) => void;
   onRefreshRequest?: () => void;
 }) {
   const [items, setItems] = useState<QRHistoryItem[]>([]);
@@ -127,6 +128,7 @@ export function ArsenalPanel({
   const [page, setPage] = useState(1);
   const [deleteTarget, setDeleteTarget] = useState<QRHistoryItem | null>(null);
   const previewRef = useRef<QRPreviewHandle>(null);
+  const [scanCounts, setScanCounts] = useState<Record<string, number>>({});
 
   useEffect(() => {
     const loadHistory = async () => {
@@ -151,6 +153,41 @@ export function ArsenalPanel({
     };
     loadHistory();
   }, [refreshKey]);
+
+  useEffect(() => {
+    if (!items.length) {
+      setScanCounts({});
+      onScansChange?.(0);
+      return;
+    }
+    let isActive = true;
+    Promise.all(
+      items.map(async (item) => {
+        if (!item.random) {
+          return { id: item.id, count: 0 };
+        }
+        try {
+          const count = await getScanCount(item.id, item.random);
+          return { id: item.id, count };
+        } catch {
+          return { id: item.id, count: 0 };
+        }
+      })
+    ).then((results) => {
+      if (!isActive) return;
+      const next: Record<string, number> = {};
+      let total = 0;
+      results.forEach(({ id, count }) => {
+        next[id] = count;
+        total += count;
+      });
+      setScanCounts(next);
+      onScansChange?.(total);
+    });
+    return () => {
+      isActive = false;
+    };
+  }, [items, onScansChange]);
 
   const sortedItems = useMemo(() => {
     const copy = [...items];
@@ -283,6 +320,15 @@ export function ArsenalPanel({
     );
   };
 
+  const renderScanCount = (item: QRHistoryItem) => {
+    const count = scanCounts[item.id] ?? 0;
+    return (
+      <span className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-secondary/40 px-3 py-1 text-[10px] uppercase tracking-[0.3em] text-muted-foreground">
+        Scans {count}
+      </span>
+    );
+  };
+
   useEffect(() => {
     if (!onStatsChange) return;
     const dynamicCount = items.filter((item) => parseKind(item.kind ?? null).mode === 'dynamic').length;
@@ -390,7 +436,10 @@ export function ArsenalPanel({
                         <div className="space-y-2 min-w-0">
                           <p className="text-sm font-semibold truncate">{getDisplayName(item)}</p>
                           <p className="text-xs text-muted-foreground truncate">{item.content}</p>
-                          {renderCardBadge(item)}
+                          <div className="flex flex-wrap items-center gap-2">
+                            {renderScanCount(item)}
+                            {renderCardBadge(item)}
+                          </div>
                         </div>
                         <div
                           className={`rounded-2xl border p-2 shrink-0 ${typeMeta.card}`}
@@ -435,13 +484,16 @@ export function ArsenalPanel({
           <div className="glass-panel rounded-2xl p-6 space-y-6">
             {selectedItem ? (
               <>
-                <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <p className="text-xs uppercase tracking-[0.35em] text-muted-foreground">Selected</p>
-                    <h3 className="text-lg font-semibold">{getDisplayName(selectedItem)}</h3>
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <p className="text-xs uppercase tracking-[0.35em] text-muted-foreground">Selected</p>
+                      <h3 className="text-lg font-semibold">{getDisplayName(selectedItem)}</h3>
+                    </div>
+                  <div className="flex flex-wrap items-center justify-end gap-2">
+                    {renderScanCount(selectedItem)}
+                    {renderCardBadge(selectedItem)}
                   </div>
-                  {renderCardBadge(selectedItem)}
-                </div>
+                  </div>
 
                 <div className="flex justify-center">
                   <QRPreview

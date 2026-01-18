@@ -8,10 +8,14 @@ import { UsersStorage } from '../../domains/users/storage/interface'
 import { InMemoryVcardsStorageAdapter } from '../../domains/vcards/storage/memory.adapter'
 import { SupabaseVcardsStorageAdapter } from '../../domains/vcards/storage/supabase.adapter'
 import { VcardsStorage } from '../../domains/vcards/storage/interface'
+import { InMemoryScansStorageAdapter } from '../../domains/scans/storage/memory.adapter'
+import { DrizzleScansStorageAdapter } from '../../domains/scans/storage/drizzle.adapter'
+import { ScansStorage } from '../../domains/scans/storage/interface'
 
 let urlsStorage: UrlsStorage | null = null
 let usersStorage: UsersStorage | null = null
 let vcardsStorage: VcardsStorage | null = null
+let scansStorage: ScansStorage | null = null
 
 const shouldUseSupabase = () => Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY)
 
@@ -62,4 +66,16 @@ export const getVcardsStorage = () => {
   }
 
   return vcardsStorage
+}
+
+export const getScansStorage = () => {
+  if (!scansStorage) {
+    const useDatabase = shouldUseDatabase()
+    scansStorage = useDatabase
+      ? new DrizzleScansStorageAdapter()
+      : new InMemoryScansStorageAdapter()
+    logStorageChoice('scans', useDatabase ? 'drizzle' : 'memory')
+  }
+
+  return scansStorage
 }

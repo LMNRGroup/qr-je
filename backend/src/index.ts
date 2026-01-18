@@ -4,9 +4,11 @@ import { cors } from 'hono/cors'
 import { registerUrlsRoutes } from './domains/urls/routes'
 import { createUrlsService } from './domains/urls/service'
 import { createUsersService } from './domains/users/service'
+import { registerUsersRoutes } from './domains/users/routes'
 import { registerVcardsRoutes } from './domains/vcards/routes'
 import { createVcardsService } from './domains/vcards/service'
-import { getUrlsStorage, getUsersStorage, getVcardsStorage } from './infra/storage/factory'
+import { createScansService } from './domains/scans/service'
+import { getScansStorage, getUrlsStorage, getUsersStorage, getVcardsStorage } from './infra/storage/factory'
 import { createAuthMiddleware } from './shared/http/auth'
 import type { AppBindings } from './shared/http/types'
 
@@ -38,8 +40,10 @@ app.get('/debug/auth', (c) => {
     length: auth.length
   })
 })
+registerUsersRoutes(app, usersService)
 const urlsService = createUrlsService(getUrlsStorage())
-registerUrlsRoutes(app, urlsService)
+const scansService = createScansService(getScansStorage())
+registerUrlsRoutes(app, urlsService, scansService)
 
 const vcardsService = createVcardsService(getVcardsStorage())
 registerVcardsRoutes(app, vcardsService, urlsService)

@@ -23,7 +23,16 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { useAuth } from '@/contexts/AuthContext';
 import supabase, { isSupabaseConfigured } from '@/lib/supabase';
-import { createVcard, generateQR, getQRHistory } from '@/lib/api';
+import {
+  checkUsernameAvailability,
+  createVcard,
+  generateQR,
+  getQRHistory,
+  getUserProfile,
+  updateQR,
+  updateUserProfile,
+  type UserProfile,
+} from '@/lib/api';
 import { QROptions, defaultQROptions } from '@/types/qr';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
@@ -63,6 +72,10 @@ const UPSell_SESSION_KEY = 'qr.upsell.sessionShown';
 const isLoggedIn = false;
 const qrType = null;
 const qrMode = null;
+const MAX_FILE_BYTES = 5 * 1024 * 1024;
+const MAX_MENU_FILE_BYTES = 2.5 * 1024 * 1024;
+const MAX_MENU_TOTAL_BYTES = 12 * 1024 * 1024;
+const MAX_MENU_FILES = 15;
 
 const Index = () => {
   const { user, loading: authLoading, signOut } = useAuth();
@@ -109,11 +122,19 @@ const Index = () => {
   const [selectedQuickAction, setSelectedQuickAction] = useState<string | null>(null);
   const [actionRingOrigin, setActionRingOrigin] = useState({ x: 50, y: 50 });
   const [arsenalStats, setArsenalStats] = useState({ total: 0, dynamic: 0 });
+  const [scanStats, setScanStats] = useState({ total: 0 });
   const [arsenalRefreshKey, setArsenalRefreshKey] = useState(0);
   const [navHint, setNavHint] = useState('');
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [usernameStatus, setUsernameStatus] = useState<'idle' | 'checking' | 'available' | 'taken' | 'invalid'>('idle');
+  const [usernameError, setUsernameError] = useState('');
   const [profileForm, setProfileForm] = useState({
     fullName: '',
-    password: '',
+    username: '',
+    timezone: '',
+    language: 'en',
+    currentPassword: '',
+    newPassword: '',
     confirmPassword: '',
   });
   const [generatedShortUrl, setGeneratedShortUrl] = useState('');
@@ -129,6 +150,29 @@ const Index = () => {
     fullName: '',
     email: '',
   });
+
+  const timeZoneOptions = useMemo(() => {
+    if (typeof Intl !== 'undefined' && 'supportedValuesOf' in Intl) {
+      // @ts-expect-error Intl.supportedValuesOf may be missing in older TS lib.
+      const zones = Intl.supportedValuesOf('timeZone') as string[];
+      if (Array.isArray(zones) && zones.length) {
+        return zones;
+      }
+    }
+    return [
+      'UTC',
+      'America/New_York',
+      'America/Chicago',
+      'America/Denver',
+      'America/Los_Angeles',
+      'America/Puerto_Rico',
+      'Europe/London',
+      'Europe/Madrid',
+      'Europe/Berlin',
+      'Asia/Tokyo',
+      'Asia/Singapore',
+    ];
+  }, []);
   const [vcard, setVcard] = useState({
     name: '',
     phone: '',
@@ -464,6 +508,37 @@ const Index = () => {
     return () => window.clearTimeout(timer);
   }, [authLoading, isBooting, user]);
 
+  useEffect(() => {
+    if (!isLoggedIn) {
+      setUserProfile(null);
+      return;
+    }
+    let isActive = true;
+    getUserProfile()
+      .then((profile) => {
+        if (!isActive) return;
+        setUserProfile(profile);
+        setProfileForm((prev) => ({
+          ...prev,
+          fullName: profile.name ?? prev.fullName,
+          username: profile.username ?? prev.username,
+          timezone: profile.timezone ?? prev.timezone,
+          language: profile.language ?? prev.language ?? 'en',
+        }));
+        if (!profile.timezone) {
+          const autoZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+          if (autoZone) {
+            updateUserProfile({ timezone: autoZone }).catch(() => null);
+            setProfileForm((prev) => ({ ...prev, timezone: autoZone }));
+          }
+        }
+      })
+      .catch(() => null);
+    return () => {
+      isActive = false;
+    };
+  }, [isLoggedIn]);
+
   const handleSignOut = useCallback(async () => {
     const metadata = user?.user_metadata as Record<string, string> | undefined;
     const rawName = metadata?.first_name || metadata?.full_name || metadata?.name || '';
@@ -592,7 +667,15 @@ const Index = () => {
 
   useEffect(() => {
     if (!isLoggedIn || !user) {
-      setProfileForm({ fullName: '', password: '', confirmPassword: '' });
+      setProfileForm({
+        fullName: '',
+        username: '',
+        timezone: '',
+        language: 'en',
+        currentPassword: '',
+        newPassword: '',
+        confirmPassword: '',
+      });
       return;
     }
     const metadata = user.user_metadata as Record<string, string> | undefined;
@@ -691,12 +774,24 @@ const Index = () => {
           },
         })
         : await generateQR(
-          qrType === 'file'
-            ? `${window.location.origin}/file/${crypto.randomUUID()}`
+          qrType === 'file' || qrType === 'menu'
+            ? `https://qrcode.luminarapps.com/pending/${crypto.randomUUID()}`
             : longFormContent,
           qrType === 'file'
-            ? { ...options, fileName: fileName || 'File QR' }
-            : options,
+            ? {
+              ...options,
+              fileName: fileName || 'File QR',
+              fileDataUrl,
+            }
+            : qrType === 'menu'
+              ? {
+                ...options,
+                menuFiles,
+                menuType,
+                menuLogoDataUrl,
+                menuSocials,
+              }
+              : options,
           `${qrMode ?? 'static'}:${qrType === 'website' ? 'url' : qrType ?? 'url'}`,
           qrType === 'file' ? fileName || 'File QR' : null
         );
@@ -706,7 +801,37 @@ const Index = () => {
           setGeneratedLongUrl(response.url.targetUrl);
           setLastGeneratedContent(response.url.shortUrl);
         } else if ('data' in response && response.data) {
-          setLastGeneratedContent(response.data.content);
+          let nextItem = response.data;
+          if ((qrType === 'file' || qrType === 'menu') && response.data.shortUrl) {
+            const match = response.data.shortUrl.match(/\/r\/([^/]+)\/([^/]+)$/);
+            if (match) {
+              const [, id, random] = match;
+              const targetUrl = qrType === 'file'
+                ? `https://qrcode.luminarapps.com/file/${id}/${random}`
+                : `https://qrcode.luminarapps.com/menu/${id}/${random}`;
+              const updateResponse = await updateQR(id, {
+                targetUrl,
+                options: qrType === 'file'
+                  ? {
+                    ...options,
+                    fileName: fileName || 'File QR',
+                    fileDataUrl,
+                  }
+                  : {
+                    ...options,
+                    menuFiles,
+                    menuType,
+                    menuLogoDataUrl,
+                    menuSocials,
+                  },
+                kind: `${qrMode ?? 'static'}:${qrType}`,
+              });
+              if (updateResponse.success && updateResponse.data) {
+                nextItem = updateResponse.data;
+              }
+            }
+          }
+          setLastGeneratedContent(nextItem.content);
         }
         toast.success('QR code generated!');
         setHasGenerated(true);
@@ -848,24 +973,101 @@ const Index = () => {
       toast.error('Profile updates require a connected backend.');
       return;
     }
-    if (profileForm.password && profileForm.password !== profileForm.confirmPassword) {
-      toast.error('Passwords do not match.');
-      return;
+    if (profileForm.newPassword || profileForm.currentPassword || profileForm.confirmPassword) {
+      if (!profileForm.currentPassword || !profileForm.newPassword) {
+        toast.error('Enter your current and new password.');
+        return;
+      }
+      if (profileForm.newPassword !== profileForm.confirmPassword) {
+        toast.error('New passwords do not match.');
+        return;
+      }
+      if (!user.email) {
+        toast.error('Unable to verify password without an email.');
+        return;
+      }
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: user.email,
+        password: profileForm.currentPassword,
+      });
+      if (signInError) {
+        toast.error('Current password is incorrect.');
+        return;
+      }
+      const { error: passwordError } = await supabase.auth.updateUser({
+        password: profileForm.newPassword,
+      });
+      if (passwordError) {
+        toast.error(passwordError.message);
+        return;
+      }
     }
-    const updates: Record<string, unknown> = {};
+
+    const metadataUpdates: Record<string, unknown> = {};
     if (profileForm.fullName.trim()) {
-      updates.data = { full_name: profileForm.fullName.trim() };
+      metadataUpdates.data = { full_name: profileForm.fullName.trim() };
     }
-    if (profileForm.password) {
-      updates.password = profileForm.password;
+    if (Object.keys(metadataUpdates).length > 0) {
+      const { error } = await supabase.auth.updateUser(metadataUpdates);
+      if (error) {
+        toast.error(error.message);
+        return;
+      }
     }
-    const { error } = await supabase.auth.updateUser(updates);
-    if (error) {
-      toast.error(error.message);
+
+    try {
+      const themeKey = user?.id ? `theme:${user.id}` : 'theme:default';
+      const theme = localStorage.getItem(themeKey);
+      const updated = await updateUserProfile({
+        name: profileForm.fullName.trim() || null,
+        username: profileForm.username.trim() || null,
+        timezone: profileForm.timezone || null,
+        language: profileForm.language || 'en',
+        theme: theme || null,
+      });
+      setUserProfile(updated);
+      setProfileForm((prev) => ({
+        ...prev,
+        username: updated.username ?? prev.username,
+        timezone: updated.timezone ?? prev.timezone,
+        language: updated.language ?? prev.language,
+        currentPassword: '',
+        newPassword: '',
+        confirmPassword: '',
+      }));
+      setUsernameStatus('idle');
+      setUsernameError('');
+      toast.success('Preferences saved.');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to update preferences.';
+      toast.error(message);
+    }
+  };
+
+  const handleUsernameCheck = async () => {
+    if (!profileForm.username.trim()) {
+      setUsernameStatus('idle');
+      setUsernameError('');
       return;
     }
-    toast.success('Preferences saved.');
-    setProfileForm((prev) => ({ ...prev, password: '', confirmPassword: '' }));
+    setUsernameStatus('checking');
+    try {
+      const result = await checkUsernameAvailability(profileForm.username.trim());
+      if (result.available) {
+        setUsernameStatus('available');
+        setUsernameError('');
+      } else if (result.message) {
+        setUsernameStatus('invalid');
+        setUsernameError(result.message);
+      } else {
+        setUsernameStatus('taken');
+        setUsernameError('Username is already taken.');
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unable to check username.';
+      setUsernameStatus('invalid');
+      setUsernameError(message);
+    }
   };
 
   const vcardColorPresets = [
@@ -954,6 +1156,40 @@ const Index = () => {
     photoDragState.current.dragging = false;
   };
 
+  const readAsDataUrl = (file: File) => {
+    return new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        if (typeof reader.result === 'string') {
+          resolve(reader.result);
+        } else {
+          reject(new Error('Invalid file data'));
+        }
+      };
+      reader.onerror = () => reject(new Error('Failed to read file'));
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const compressImageFile = async (file: File) => {
+    const dataUrl = await readAsDataUrl(file);
+    const image = new Image();
+    await new Promise((resolve, reject) => {
+      image.onload = resolve;
+      image.onerror = reject;
+      image.src = dataUrl;
+    });
+    const maxDimension = 2000;
+    const scale = Math.min(1, maxDimension / Math.max(image.width, image.height));
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.max(1, Math.round(image.width * scale));
+    canvas.height = Math.max(1, Math.round(image.height * scale));
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return dataUrl;
+    ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
+    return canvas.toDataURL('image/jpeg', 0.85);
+  };
+
   const handleMenuLogoChange = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -968,8 +1204,8 @@ const Index = () => {
   const handleMenuFilesChange = (event: ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.target.files ?? []);
     if (files.length === 0) return;
-    if (files.length > 15) {
-      toast.error('You can upload up to 15 files.');
+    if (files.length > MAX_MENU_FILES) {
+      toast.error(`You can upload up to ${MAX_MENU_FILES} files.`);
       return;
     }
 
@@ -979,38 +1215,79 @@ const Index = () => {
       return;
     }
 
+    const totalBytes = files.reduce((sum, file) => sum + file.size, 0);
+    if (totalBytes > MAX_MENU_TOTAL_BYTES) {
+      toast.error('Menu files are too large. Please reduce file sizes.');
+      return;
+    }
+
     Promise.all(
-      files.map(
-        (file) =>
-          new Promise<{ url: string; type: 'image' | 'pdf' }>((resolve) => {
-            const reader = new FileReader();
-            reader.onload = () => {
-              const result = typeof reader.result === 'string' ? reader.result : '';
-              resolve({ url: result, type: file.type === 'application/pdf' ? 'pdf' : 'image' });
-            };
-            reader.readAsDataURL(file);
-          })
-      )
-    ).then((results) => {
-      setMenuFiles(results);
-      setMenuFlip(false);
-      setMenuCarouselIndex(0);
-    });
+      files.map(async (file) => {
+        if (file.type === 'application/pdf') {
+          if (file.size > MAX_MENU_FILE_BYTES) {
+            throw new Error('PDF menu file is too large.');
+          }
+          const url = await readAsDataUrl(file);
+          return { url, type: 'pdf' as const };
+        }
+        if (file.size > MAX_MENU_FILE_BYTES) {
+          throw new Error('Menu image file is too large.');
+        }
+        const url = await compressImageFile(file);
+        return { url, type: 'image' as const };
+      })
+    )
+      .then((results) => {
+        setMenuFiles(results);
+        setMenuFlip(false);
+        setMenuCarouselIndex(0);
+      })
+      .catch((error) => {
+        const message = error instanceof Error ? error.message : 'Failed to process menu files.';
+        toast.error(message);
+      });
   };
 
   const handleFileUpload = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (readerEvent) => {
-      const result = readerEvent.target?.result;
-      if (!result || typeof result !== 'string') {
-        return;
+    const isPdf = file.type === 'application/pdf';
+    if (file.size > MAX_FILE_BYTES && isPdf) {
+      toast.error('PDF is too large. Please upload a smaller file.');
+      return;
+    }
+    if (file.size > MAX_FILE_BYTES && file.type.startsWith('image/')) {
+      toast.info('Large image detected. Compressing for delivery...');
+    }
+    const loadFile = async () => {
+      if (file.type.startsWith('image/')) {
+        return compressImageFile(file);
       }
-      setFileDataUrl(result);
-      setFileName(file.name);
+      return readAsDataUrl(file);
     };
-    reader.readAsDataURL(file);
+    loadFile()
+      .then((result) => {
+        setFileDataUrl(result);
+        setFileName(file.name);
+      })
+      .catch(() => {
+        toast.error('Failed to process file upload.');
+      });
+  };
+
+  const moveMenuFile = (index: number, direction: number) => {
+    setMenuFiles((prev) => {
+      const next = [...prev];
+      const target = index + direction;
+      if (target < 0 || target >= next.length) return prev;
+      const [item] = next.splice(index, 1);
+      next.splice(target, 0, item);
+      return next;
+    });
+  };
+
+  const removeMenuFile = (index: number) => {
+    setMenuFiles((prev) => prev.filter((_, i) => i !== index));
   };
 
   const openMenuBuilder = () => {
@@ -2304,6 +2581,40 @@ const Index = () => {
                       ? `Uploaded ${menuFiles.length} file${menuFiles.length === 1 ? '' : 's'}`
                       : 'No menu pages uploaded yet.'}
                   </div>
+                  {menuFiles.length > 1 && menuFiles.every((file) => file.type === 'image') ? (
+                    <div className="space-y-2 text-xs text-muted-foreground">
+                      {menuFiles.map((file, index) => (
+                        <div key={`${file.url}-${index}`} className="flex items-center justify-between gap-2 rounded-lg border border-border/60 bg-secondary/30 px-3 py-2">
+                          <span className="truncate">Page {index + 1}</span>
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => moveMenuFile(index, -1)}
+                              disabled={index === 0}
+                              className="rounded-md border border-border/60 px-2 py-1 text-[10px] uppercase tracking-[0.3em] disabled:opacity-40"
+                            >
+                              Up
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => moveMenuFile(index, 1)}
+                              disabled={index === menuFiles.length - 1}
+                              className="rounded-md border border-border/60 px-2 py-1 text-[10px] uppercase tracking-[0.3em] disabled:opacity-40"
+                            >
+                              Down
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => removeMenuFile(index)}
+                              className="rounded-md border border-border/60 px-2 py-1 text-[10px] uppercase tracking-[0.3em] text-destructive"
+                            >
+                              Remove
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : null}
                 </div>
 
                 <div className="glass-panel rounded-2xl p-5 space-y-4">
@@ -2508,7 +2819,7 @@ const Index = () => {
               <div className="grid sm:grid-cols-3 gap-4">
                 {[
                   { label: 'Total Codes', value: `${arsenalStats.total}`, tab: 'codes' },
-                  { label: 'Scans Today', value: '0', tab: 'analytics' },
+                  { label: 'Scans Today', value: `${scanStats.total}`, tab: 'analytics' },
                   { label: 'Dynamic Live', value: `${arsenalStats.dynamic}`, tab: 'analytics' },
                 ].map((item) => (
                   <button
@@ -3366,6 +3677,7 @@ const Index = () => {
               <ArsenalPanel
                 refreshKey={arsenalRefreshKey}
                 onStatsChange={setArsenalStats}
+                onScansChange={(total) => setScanStats({ total })}
                 onRefreshRequest={() => setArsenalRefreshKey((prev) => prev + 1)}
               />
             ) : (
@@ -3554,24 +3866,109 @@ const Index = () => {
                     placeholder="Full Name"
                     className="bg-secondary/40 border-border"
                   />
-                  <Input
-                    value={profileForm.password}
-                    onChange={(event) =>
-                      setProfileForm((prev) => ({ ...prev, password: event.target.value }))
-                    }
-                    placeholder="New Password"
-                    type="password"
-                    className="bg-secondary/40 border-border"
-                  />
-                  <Input
-                    value={profileForm.confirmPassword}
-                    onChange={(event) =>
-                      setProfileForm((prev) => ({ ...prev, confirmPassword: event.target.value }))
-                    }
-                    placeholder="Confirm Password"
-                    type="password"
-                    className="bg-secondary/40 border-border"
-                  />
+                  <div className="space-y-2">
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                      <Input
+                        value={profileForm.username}
+                        onChange={(event) => {
+                          setProfileForm((prev) => ({
+                            ...prev,
+                            username: event.target.value.slice(0, 18),
+                          }));
+                          setUsernameStatus('idle');
+                          setUsernameError('');
+                        }}
+                        onBlur={handleUsernameCheck}
+                        placeholder="Username (max 18 characters)"
+                        className={`bg-secondary/40 border-border ${usernameError ? 'border-destructive animate-shake' : ''}`}
+                      />
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="border-border uppercase tracking-[0.2em] text-[10px]"
+                        onClick={handleUsernameCheck}
+                        disabled={!profileForm.username.trim() || usernameStatus === 'checking'}
+                      >
+                        {usernameStatus === 'checking' ? 'Checking...' : 'Check'}
+                      </Button>
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      {usernameStatus === 'checking' && 'Checking availability...'}
+                      {usernameStatus === 'available' && 'Username is available.'}
+                      {usernameStatus === 'taken' && (usernameError || 'Username is already taken.')}
+                      {usernameStatus === 'invalid' && (usernameError || 'Please keep it family friendly.')}
+                      {usernameStatus === 'idle' && 'Usernames can be changed once every 30 days.'}
+                    </div>
+                    {userProfile?.usernameChangedAt && (
+                      <div className="text-[11px] text-muted-foreground">
+                        Next change available:{' '}
+                        {new Date(new Date(userProfile.usernameChangedAt).getTime() + 30 * 24 * 60 * 60 * 1000).toLocaleDateString()}
+                      </div>
+                    )}
+                  </div>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <label className="text-xs uppercase tracking-[0.3em] text-muted-foreground">
+                      Timezone
+                      <select
+                        value={profileForm.timezone}
+                        onChange={(event) =>
+                          setProfileForm((prev) => ({ ...prev, timezone: event.target.value }))
+                        }
+                        className="mt-2 w-full rounded-md border border-border bg-secondary/40 px-3 py-2 text-sm text-foreground"
+                      >
+                        <option value="">Select timezone</option>
+                        {timeZoneOptions.map((zone) => (
+                          <option key={zone} value={zone}>
+                            {zone}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="text-xs uppercase tracking-[0.3em] text-muted-foreground">
+                      Language
+                      <select
+                        value={profileForm.language}
+                        onChange={(event) =>
+                          setProfileForm((prev) => ({ ...prev, language: event.target.value }))
+                        }
+                        className="mt-2 w-full rounded-md border border-border bg-secondary/40 px-3 py-2 text-sm text-foreground"
+                      >
+                        <option value="en">English</option>
+                        <option value="es">Spanish</option>
+                      </select>
+                    </label>
+                  </div>
+                  <div className="space-y-2 pt-2">
+                    <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Change Password</p>
+                    <Input
+                      value={profileForm.currentPassword}
+                      onChange={(event) =>
+                        setProfileForm((prev) => ({ ...prev, currentPassword: event.target.value }))
+                      }
+                      placeholder="Current Password"
+                      type="password"
+                      className="bg-secondary/40 border-border"
+                    />
+                    <Input
+                      value={profileForm.newPassword}
+                      onChange={(event) =>
+                        setProfileForm((prev) => ({ ...prev, newPassword: event.target.value }))
+                      }
+                      placeholder="New Password"
+                      type="password"
+                      className="bg-secondary/40 border-border"
+                    />
+                    <Input
+                      value={profileForm.confirmPassword}
+                      onChange={(event) =>
+                        setProfileForm((prev) => ({ ...prev, confirmPassword: event.target.value }))
+                      }
+                      placeholder="Confirm New Password"
+                      type="password"
+                      className="bg-secondary/40 border-border"
+                    />
+                  </div>
                   <Button
                     type="button"
                     className="bg-gradient-primary text-primary-foreground uppercase tracking-[0.2em] text-xs"
