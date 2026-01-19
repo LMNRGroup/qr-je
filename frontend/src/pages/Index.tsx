@@ -103,6 +103,7 @@ const Index = () => {
   const [dialAngle, setDialAngle] = useState(0);
   const [dialDragging, setDialDragging] = useState(false);
   const [dialSize, setDialSize] = useState(260);
+  const [dialHintStage, setDialHintStage] = useState(0);
   const dialStartRef = useRef({ y: 0, angle: 0 });
   const audioRef = useRef<AudioContext | null>(null);
   const [qrMode, setQrMode] = useState<'static' | 'dynamic' | null>(null);
@@ -446,8 +447,8 @@ const Index = () => {
     const media = window.matchMedia('(max-width: 1023px)');
     const update = () => {
       setIsMobile(media.matches);
-      const size = Math.max(220, Math.min(window.innerWidth * 0.7, 280));
-      setDialSize(size);
+      const size = Math.max(240, Math.min(window.innerWidth * 0.78, 320));
+      setDialSize(size * 1.1);
     };
     update();
     media.addEventListener('change', update);
@@ -1659,8 +1660,15 @@ const Index = () => {
     upgrade: 'Compare plans and features.',
     settings: 'Update your preferences.',
   };
-  const dialInset = dialSize * 0.14;
-  const dialRadius = Math.max(0, (dialSize / 2 - dialInset - 20) * 1.15);
+  const dialInset = dialSize * 0.08;
+  const dialOuterRadius = dialSize / 2;
+  const dialIconSize = 64;
+  const dialIconRadius = dialIconSize / 2;
+  const dialOuterGap = dialSize * 0.05;
+  const dialInnerGap = dialSize * 0.05;
+  const dialRadius = Math.max(0, dialOuterRadius - dialIconRadius - dialOuterGap);
+  const innerRingRadius = Math.max(0, dialRadius - dialIconRadius - dialInnerGap);
+  const innerDialInset = Math.max(0, dialOuterRadius - innerRingRadius);
   const playDialClick = useCallback(() => {
     if (typeof window === 'undefined') return;
     if (!audioRef.current) {
@@ -1706,6 +1714,20 @@ const Index = () => {
     document.body.style.overflow = 'hidden';
     return () => {
       document.body.style.overflow = originalOverflow;
+    };
+  }, [isDialOpen]);
+
+  useEffect(() => {
+    if (!isDialOpen) {
+      setDialHintStage(0);
+      return;
+    }
+    setDialHintStage(1);
+    const lineTwoTimer = window.setTimeout(() => {
+      setDialHintStage(2);
+    }, 1000);
+    return () => {
+      window.clearTimeout(lineTwoTimer);
     };
   }, [isDialOpen]);
 
@@ -2991,12 +3013,15 @@ const Index = () => {
         <>
           <button
             type="button"
-            className="fixed top-1/2 z-[70] flex h-16 w-16 -translate-y-1/2 items-center justify-center rounded-full border border-border/60 bg-card/80 text-primary shadow-lg transition hover:border-primary/60"
-            style={{ right: '-2rem' }}
+            className="fixed top-1/2 z-[70] flex h-16 w-10 -translate-y-1/2 items-center justify-center rounded-l-full rounded-r-none border border-border/60 bg-card/80 text-primary shadow-lg transition hover:border-primary/60"
+            style={{ right: '-1.25rem' }}
             aria-label="Open navigation dial"
             onClick={() => setIsDialOpen(true)}
           >
-            <div className="h-6 w-1.5 rounded-full bg-primary/40" />
+            <div className="flex items-center gap-1">
+              <span className="h-7 w-1 rounded-full bg-primary/40" />
+              <span className="h-7 w-1 rounded-full bg-primary/60" />
+            </div>
           </button>
 
           {isDialOpen && (
@@ -3037,8 +3062,13 @@ const Index = () => {
                 >
                   <X className="h-5 w-5" />
                 </button>
-                <div className="absolute bottom-10 left-1/2 z-10 -translate-x-1/2 text-xs uppercase tracking-[0.35em] text-muted-foreground">
-                  Drag to rotate · Tap to select
+                <div className="absolute bottom-10 left-1/2 z-10 -translate-x-1/2 text-center text-xs uppercase tracking-[0.35em] text-muted-foreground">
+                  <div className={`${dialHintStage >= 1 && dialHintStage < 3 ? 'opacity-100' : 'opacity-0'} transition-opacity`}>
+                    <DecodeText text="Drag to rotate" active={dialHintStage === 1} />
+                  </div>
+                  <div className={`${dialHintStage >= 2 && dialHintStage < 3 ? 'opacity-100' : 'opacity-0'} transition-opacity`}>
+                    <DecodeText text="Tap to select" active={dialHintStage === 2} />
+                  </div>
                 </div>
 
                 <div
@@ -3072,7 +3102,7 @@ const Index = () => {
                       dialDragging ? '' : 'transition-transform duration-200'
                     }`}
                     style={{
-                      inset: dialInset,
+                      inset: innerDialInset,
                       transform: `rotate(${dialAngle}deg)`,
                       transformOrigin: 'center center',
                     }}
@@ -3089,7 +3119,7 @@ const Index = () => {
                         <button
                           key={item.id}
                           type="button"
-                          className={`absolute flex h-16 w-16 items-center justify-center rounded-full border transition ${
+                          className={`absolute flex h-20 w-20 items-center justify-center rounded-full border transition ${
                             isActive
                               ? item.id === 'adaptive'
                                 ? 'border-amber-300/70 bg-amber-300/15 text-amber-300'
