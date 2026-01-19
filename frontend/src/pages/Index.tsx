@@ -60,6 +60,7 @@ import {
   Utensils,
   User,
   Users,
+  X,
 } from 'lucide-react';
 import { ChangeEvent, PointerEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -97,6 +98,13 @@ const Index = () => {
     }
     return 'studio';
   });
+  const [isMobile, setIsMobile] = useState(false);
+  const [isDialOpen, setIsDialOpen] = useState(false);
+  const [dialAngle, setDialAngle] = useState(0);
+  const [dialDragging, setDialDragging] = useState(false);
+  const [dialSize, setDialSize] = useState(260);
+  const dialStartRef = useRef({ y: 0, angle: 0 });
+  const audioRef = useRef<AudioContext | null>(null);
   const [qrMode, setQrMode] = useState<'static' | 'dynamic' | null>(null);
   const [qrType, setQrType] = useState<'website' | 'vcard' | 'email' | 'phone' | 'file' | 'menu' | null>(null);
   const [websiteUrl, setWebsiteUrl] = useState('');
@@ -432,6 +440,23 @@ const Index = () => {
   useEffect(() => {
     refreshArsenalStats();
   }, [refreshArsenalStats, arsenalRefreshKey]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const media = window.matchMedia('(max-width: 1023px)');
+    const update = () => {
+      setIsMobile(media.matches);
+      const size = Math.max(220, Math.min(window.innerWidth * 0.7, 280));
+      setDialSize(size);
+    };
+    update();
+    media.addEventListener('change', update);
+    window.addEventListener('resize', update);
+    return () => {
+      media.removeEventListener('change', update);
+      window.removeEventListener('resize', update);
+    };
+  }, []);
 
   const updateOption = useCallback(<K extends keyof QROptions>(key: K, value: QROptions[K]) => {
     setOptions((prev) => ({ ...prev, [key]: value }));
@@ -1588,6 +1613,87 @@ const Index = () => {
       </div>
     );
   };
+
+  const navItems = [
+    { id: 'studio', label: 'Studio' },
+    { id: 'codes', label: 'Arsenal' },
+    { id: 'analytics', label: 'Intel' },
+    { id: 'adaptive', label: 'Adaptive QRC™' },
+    { id: 'upgrade', label: 'Upgrade' },
+    { id: 'settings', label: 'Config' },
+  ] as const;
+  const dialItems = navItems.map((item) => {
+    const iconConfig = item.id === 'studio'
+      ? { Icon: Paintbrush, color: 'text-muted-foreground' }
+      : item.id === 'codes'
+        ? { Icon: QrCode, color: 'text-muted-foreground' }
+        : item.id === 'analytics'
+          ? { Icon: BarChart3, color: 'text-muted-foreground' }
+          : item.id === 'settings'
+            ? { Icon: Settings, color: 'text-muted-foreground' }
+            : item.id === 'adaptive'
+              ? { Icon: QrCode, color: 'text-amber-300' }
+              : { Icon: Star, color: 'text-amber-300' };
+    return { ...item, ...iconConfig };
+  });
+  const dialStep = 360 / dialItems.length;
+  const dialTargetAngle = 180;
+  const normalizeAngle = (angle: number) => ((angle % 360) + 360) % 360;
+  const angleDelta = (a: number, b: number) => {
+    const diff = Math.abs(normalizeAngle(a) - normalizeAngle(b));
+    return diff > 180 ? 360 - diff : diff;
+  };
+  const dialIndex = dialItems.reduce((closestIndex, _item, index) => {
+    const iconAngle = index * dialStep - 90 + dialAngle;
+    const closestAngle = closestIndex * dialStep - 90 + dialAngle;
+    return angleDelta(iconAngle, dialTargetAngle) < angleDelta(closestAngle, dialTargetAngle)
+      ? index
+      : closestIndex;
+  }, 0);
+  const dialActive = dialItems[dialIndex];
+  const dialInset = dialSize * 0.14;
+  const dialRadius = Math.max(0, (dialSize / 2 - dialInset - 20) * 1.15);
+  const playDialClick = useCallback(() => {
+    if (typeof window === 'undefined') return;
+    if (!audioRef.current) {
+      audioRef.current = new AudioContext();
+    }
+    const ctx = audioRef.current;
+    if (ctx.state === 'suspended') {
+      void ctx.resume();
+    }
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'triangle';
+    osc.frequency.value = 720;
+    gain.gain.value = 0.05;
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    const now = ctx.currentTime;
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+    osc.start(now);
+    osc.stop(now + 0.09);
+  }, []);
+  const lastDialIndexRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (!isDialOpen) {
+      lastDialIndexRef.current = null;
+      return;
+    }
+    if (lastDialIndexRef.current === null) {
+      lastDialIndexRef.current = dialIndex;
+      return;
+    }
+    if (lastDialIndexRef.current !== dialIndex) {
+      playDialClick();
+      lastDialIndexRef.current = dialIndex;
+    }
+  }, [dialIndex, isDialOpen, playDialClick]);
+
+  const showMobileCreateFlow = isMobile && Boolean(selectedQuickAction || qrType);
+  const showStudioIntro = !isMobile || !showMobileCreateFlow;
+  const showCreateSection = !isMobile || showMobileCreateFlow;
 
   return (
     <div className="min-h-screen bg-background" data-build={BUILD_STAMP}>
@@ -2782,14 +2888,7 @@ const Index = () => {
             <div className="pb-1">
               <CreateMenu label="" />
             </div>
-            {[
-              { id: 'studio', label: 'Studio' },
-              { id: 'codes', label: 'Arsenal' },
-              { id: 'analytics', label: 'Intel' },
-              { id: 'adaptive', label: 'Adaptive QRC™' },
-              { id: 'upgrade', label: 'Upgrade' },
-              { id: 'settings', label: 'Config' },
-            ].map((item) => {
+            {navItems.map((item) => {
               const isActive = activeTab === item.id;
               const isAdaptive = item.id === 'adaptive';
               const isLocked = requiresAuthTabs.has(item.id) && !isLoggedIn;
@@ -2846,6 +2945,9 @@ const Index = () => {
           ) : null}
           </div>
           <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 lg:hidden">
+              <CreateMenu label="" />
+            </div>
             <ThemeToggle storageKey={isLoggedIn && user?.id ? `theme:${user.id}` : 'theme:guest'} />
             <div className="relative group">
               <button
@@ -2867,6 +2969,139 @@ const Index = () => {
         </div>
       </header>
 
+      {isMobile && (
+        <>
+          <button
+            type="button"
+            className="fixed top-1/2 z-[70] flex h-16 w-16 -translate-y-1/2 items-center justify-center rounded-full border border-border/60 bg-card/80 text-primary shadow-lg transition hover:border-primary/60"
+            style={{ right: '-2rem' }}
+            aria-label="Open navigation dial"
+            onClick={() => setIsDialOpen(true)}
+          >
+            <div className="h-6 w-1.5 rounded-full bg-primary/40" />
+          </button>
+
+          {isDialOpen && (
+            <div
+              className="fixed inset-0 z-[90] bg-background/90 backdrop-blur-md"
+              onClick={() => setIsDialOpen(false)}
+            >
+              <div
+                className="absolute inset-0"
+                onClick={(event) => event.stopPropagation()}
+              >
+                <div className="absolute left-6 top-1/2 z-10 w-[45%] -translate-y-1/2 space-y-2">
+                  <p className="text-xs uppercase tracking-[0.4em] text-muted-foreground">Navigation</p>
+                  <button
+                    type="button"
+                    className={`text-2xl font-semibold tracking-tight text-left ${dialActive?.id === 'adaptive' ? adaptiveGradientText : 'text-foreground'}`}
+                    onClick={() => {
+                      if (requiresAuthTabs.has(dialActive.id) && !isLoggedIn) {
+                        toast.info('Create an account or log in to unlock this section.');
+                        return;
+                      }
+                      playDialClick();
+                      setActiveTab(dialActive.id as typeof activeTab);
+                      setIsDialOpen(false);
+                    }}
+                  >
+                    {dialActive?.label}
+                  </button>
+                  <p className="text-xs uppercase tracking-[0.35em] text-muted-foreground">
+                    Drag to rotate · Tap to select
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  className="absolute right-6 top-6 z-10 flex h-10 w-10 items-center justify-center rounded-full border border-border/60 bg-card/80 text-muted-foreground transition hover:border-primary/60 hover:text-primary"
+                  onClick={() => setIsDialOpen(false)}
+                  aria-label="Close navigation dial"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+
+                <div
+                  className="absolute top-1/2 flex-none overflow-visible"
+                  style={{
+                    right: 0,
+                    width: dialSize,
+                    height: dialSize,
+                    minWidth: dialSize,
+                    minHeight: dialSize,
+                    transform: 'translate(50%, -50%)',
+                  }}
+                  onPointerDown={(event) => {
+                    dialStartRef.current = { y: event.clientY, angle: dialAngle };
+                    setDialDragging(true);
+                    event.currentTarget.setPointerCapture(event.pointerId);
+                  }}
+                  onPointerMove={(event) => {
+                    if (!dialDragging) return;
+                    const deltaY = event.clientY - dialStartRef.current.y;
+                    setDialAngle(dialStartRef.current.angle + deltaY * 0.6);
+                  }}
+                  onPointerUp={(event) => {
+                    setDialDragging(false);
+                    event.currentTarget.releasePointerCapture(event.pointerId);
+                  }}
+                >
+                  <div className="absolute inset-0 rounded-full border border-border/60 bg-card/70 shadow-[0_0_40px_rgba(15,23,42,0.25)]" />
+                  <div
+                    className={`absolute rounded-full border border-border/40 bg-card/80 overflow-visible ${
+                      dialDragging ? '' : 'transition-transform duration-200'
+                    }`}
+                    style={{
+                      inset: dialInset,
+                      transform: `rotate(${dialAngle}deg)`,
+                      transformOrigin: 'center center',
+                    }}
+                  >
+                  </div>
+                  <div className="absolute inset-0">
+                    {dialItems.map((item, index) => {
+                      const iconAngle = index * dialStep - 90 + dialAngle;
+                      const angleRad = (iconAngle * Math.PI) / 180;
+                      const offsetX = dialRadius * Math.cos(angleRad);
+                      const offsetY = dialRadius * Math.sin(angleRad);
+                      const isActive = dialIndex === index;
+                      return (
+                        <button
+                          key={item.id}
+                          type="button"
+                          className={`absolute flex h-16 w-16 items-center justify-center rounded-full border transition ${
+                            isActive
+                              ? item.id === 'adaptive'
+                                ? 'border-amber-300/70 bg-amber-300/15 text-amber-300'
+                                : 'border-primary/60 bg-primary/10 text-primary'
+                              : 'border-border/60 bg-secondary/30 text-muted-foreground'
+                          } ${!isActive ? item.color : ''}`}
+                          style={{
+                            left: `calc(50% + ${offsetX}px)`,
+                            top: `calc(50% + ${offsetY}px)`,
+                            transform: 'translate(-50%, -50%)',
+                          }}
+                          onClick={() => {
+                            if (requiresAuthTabs.has(item.id) && !isLoggedIn) {
+                              toast.info('Create an account or log in to unlock this section.');
+                              return;
+                            }
+                            playDialClick();
+                            setActiveTab(item.id as typeof activeTab);
+                            setIsDialOpen(false);
+                          }}
+                        >
+                          <item.Icon className="h-9 w-9" />
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </>
+      )}
+
       {/* Main Content */}
       <main
         className={`container mx-auto px-4 py-8 transition ${
@@ -2875,19 +3110,27 @@ const Index = () => {
       >
         {activeTab === 'studio' && (
           <>
-        <section id="studio" className="space-y-8">
+        {showStudioIntro && (
+        <section id="studio" className="space-y-6 lg:space-y-8">
           <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
             <div>
               <p className="text-xs uppercase tracking-[0.4em] text-muted-foreground">Studio</p>
-              <h2 className="text-3xl font-semibold tracking-tight">Creative Workspace</h2>
+              <h2 className="text-2xl sm:text-3xl font-semibold tracking-tight">Creative Workspace</h2>
             </div>
           </div>
 
           <div className="grid lg:grid-cols-[1.1fr_0.9fr] gap-6">
-            <button
-              type="button"
+            <div
+              role="button"
+              tabIndex={0}
               onClick={() => setActiveTab('analytics')}
-              className="glass-panel rounded-2xl p-6 space-y-6 text-left transition hover:border-primary/60 hover:shadow-lg hover:-translate-y-1"
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                  event.preventDefault();
+                  setActiveTab('analytics');
+                }
+              }}
+              className="glass-panel rounded-2xl p-4 sm:p-6 space-y-4 sm:space-y-6 text-left transition hover:border-primary/60 hover:shadow-lg hover:-translate-y-1"
             >
               <div className="flex items-center justify-between">
                 <div>
@@ -2895,7 +3138,7 @@ const Index = () => {
                   <h3 className="text-lg font-semibold">Your QR Arsenal</h3>
                 </div>
               </div>
-              <div className="grid sm:grid-cols-3 gap-4">
+              <div className="grid grid-cols-3 gap-3 sm:gap-4">
                 {[
                   { label: 'Total Codes', value: `${arsenalStats.total}`, tab: 'codes' },
                   { label: 'Scans Today', value: `${scanStats.total}`, tab: 'analytics' },
@@ -2908,33 +3151,35 @@ const Index = () => {
                       event.stopPropagation();
                       setActiveTab(item.tab as typeof activeTab);
                     }}
-                    className="rounded-xl border border-border/60 bg-secondary/40 p-4 text-left transition hover:border-primary/60 hover:bg-secondary/50"
+                    className="rounded-xl border border-border/60 bg-secondary/40 p-3 sm:p-4 text-left transition hover:border-primary/60 hover:bg-secondary/50"
                   >
                     <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">{item.label}</p>
-                    <p className="text-2xl font-semibold mt-2">{item.value}</p>
+                    <p className="text-xl sm:text-2xl font-semibold mt-2">{item.value}</p>
                   </button>
                 ))}
               </div>
-            </button>
+            </div>
 
-            <div className="glass-panel rounded-2xl p-6 space-y-4">
+            <div className="glass-panel rounded-2xl p-4 sm:p-6 space-y-3 sm:space-y-4">
               <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Studio Guide</p>
               <h3 className="text-lg font-semibold">Your QR flow</h3>
-              <div className="space-y-3 text-sm text-muted-foreground">
-                <p>1. Choose Static or Dynamic.</p>
-                <p>2. Pick URL QR or Virtual Card.</p>
+              <div className="space-y-2 text-sm text-muted-foreground">
+                <p>1. Choose a quick action.</p>
+                <p>2. Fill the details.</p>
                 <p>3. Customize, generate, and export.</p>
               </div>
             </div>
           </div>
         </section>
+        )}
 
-        <section className="mt-10 space-y-4">
+        {showStudioIntro && (
+        <section className="mt-6 lg:mt-10 space-y-4">
           <div>
             <p className="text-xs uppercase tracking-[0.4em] text-muted-foreground">Quick Actions</p>
             <h3 className="text-lg font-semibold">Jump into a new QR</h3>
           </div>
-          <div className="flex flex-wrap justify-center gap-6">
+          <div className="flex flex-wrap justify-center gap-4 sm:gap-6">
             {[
               {
                 id: 'website',
@@ -3020,13 +3265,13 @@ const Index = () => {
                 onMouseEnter={() => setQuickActionHover(action.id)}
                 onMouseLeave={() => setQuickActionHover(null)}
                 aria-pressed={selectedQuickAction === action.id}
-                className={`group relative flex flex-col items-center justify-center rounded-full border h-14 w-14 transition hover:border-primary/60 hover:bg-secondary/40 ${
+                className={`group relative flex flex-col items-center justify-center rounded-full border h-12 w-12 sm:h-14 sm:w-14 transition hover:border-primary/60 hover:bg-secondary/40 ${
                   selectedQuickAction === action.id
                     ? 'border-primary/70 bg-secondary/50 ring-1 ring-primary/40 shadow-[0_0_16px_rgba(99,102,241,0.25)]'
                     : 'border-border/60 bg-secondary/30'
                 }`}
               >
-                <action.Icon className="h-5 w-5 text-primary" />
+                <action.Icon className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
                 <AnimatePresence mode="wait">
                   {quickActionHover === action.id ? (
                     <motion.span
@@ -3045,12 +3290,28 @@ const Index = () => {
             ))}
           </div>
         </section>
+        )}
 
-        <section ref={createSectionRef} id="create" className="mt-14">
+        {showCreateSection && (
+        <section ref={createSectionRef} id="create" className="mt-8 lg:mt-14">
+          {isMobile && showMobileCreateFlow && (
+            <button
+              type="button"
+              className="mb-4 inline-flex items-center gap-2 text-xs uppercase tracking-[0.3em] text-muted-foreground transition hover:text-primary"
+              onClick={() => {
+                setSelectedQuickAction(null);
+                setQrType(null);
+                setPendingCreateScroll(false);
+              }}
+            >
+              <ArrowLeft className="h-3.5 w-3.5" />
+              Back to Studio
+            </button>
+          )}
           <div className="flex items-center justify-between gap-4 mb-6">
             <div>
               <p className="text-xs uppercase tracking-[0.4em] text-muted-foreground">Create</p>
-              <h2 className="text-3xl font-semibold tracking-tight">Build Your QR</h2>
+              <h2 className="text-2xl sm:text-3xl font-semibold tracking-tight">Build Your QR</h2>
             </div>
             <span className="text-xs uppercase tracking-[0.3em] text-primary">Step-by-step</span>
           </div>
@@ -3063,6 +3324,7 @@ const Index = () => {
                 animate={{ opacity: 1, y: 0 }}
                 className="glass-panel rounded-2xl p-6 space-y-6"
               >
+                {!isMobile && (
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
@@ -3108,8 +3370,9 @@ const Index = () => {
                     </Button>
                   </div>
                 </div>
+                )}
 
-                {hasSelectedMode ? (
+                {!isMobile && hasSelectedMode ? (
                   <div className="space-y-4">
                     <div className="flex items-center justify-between">
                       <h3 className="font-semibold">Step 2 · QR Type</h3>
@@ -3333,7 +3596,7 @@ const Index = () => {
                         <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">
                           Selected: {fileName}
                         </p>
-                      ) : null}
+                ) : null}
                     </div>
                   ) : qrType === 'menu' ? (
                     <div className="space-y-4">
@@ -3724,6 +3987,7 @@ const Index = () => {
             </motion.div>
           </div>
         </section>
+        )}
           </>
         )}
 
