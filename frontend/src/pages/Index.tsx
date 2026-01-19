@@ -364,19 +364,20 @@ const Index = () => {
   const menuHasPdf = menuFiles.length === 1 && menuFiles[0]?.type === 'pdf';
   const menuHasFlip = menuFiles.length === 2 && menuFiles.every((file) => file.type === 'image');
   const menuHasCarousel = menuFiles.length >= 3 && menuFiles.every((file) => file.type === 'image');
-  const generatedContent = qrType === 'website'
+  const fallbackContent = qrType === 'website'
     ? (isWebsiteValid ? normalizedWebsiteUrl : '')
     : qrType === 'vcard'
-      ? (generatedShortUrl || vcardUrl)
+      ? vcardUrl
       : qrType === 'email'
         ? (isEmailValid ? `mailto:${emailAddress.trim()}` : '')
         : qrType === 'phone'
           ? (isPhoneValid ? `tel:${normalizedPhone}` : '')
           : qrType === 'file'
-            ? (generatedShortUrl || fileDataUrl)
-          : qrType === 'menu'
-            ? (generatedShortUrl || menuPreviewUrl)
-            : '';
+            ? fileDataUrl
+            : qrType === 'menu'
+              ? menuPreviewUrl
+              : '';
+  const generatedContent = generatedShortUrl || fallbackContent;
   const longFormContent = qrType === 'vcard' ? (generatedLongUrl || vcardUrl) : generatedContent;
   const canGenerate = qrType === 'website'
     ? isWebsiteValid
@@ -671,20 +672,23 @@ const Index = () => {
     setActionRingText(activeText[hoveredAction as keyof typeof activeText] ?? 'Create New QR Code');
   }, [hoveredAction, isCreateOpen]);
 
+  const lastQrTypeRef = useRef<string | null>(null);
   useEffect(() => {
-    if (qrType !== 'vcard') {
-      if (generatedShortUrl || generatedLongUrl) {
-        setGeneratedShortUrl('');
-        setGeneratedLongUrl('');
-      }
-      return;
+    const previousType = lastQrTypeRef.current;
+    if (previousType && previousType !== qrType) {
+      setGeneratedShortUrl('');
+      setGeneratedLongUrl('');
     }
+    lastQrTypeRef.current = qrType;
+  }, [qrType]);
 
+  useEffect(() => {
+    if (qrType !== 'vcard') return;
     if (generatedLongUrl && generatedLongUrl !== vcardUrl) {
       setGeneratedShortUrl('');
       setGeneratedLongUrl('');
     }
-  }, [qrType, vcardUrl, generatedLongUrl, generatedShortUrl]);
+  }, [qrType, vcardUrl, generatedLongUrl]);
 
   useEffect(() => {
     if (authLoading) return;
