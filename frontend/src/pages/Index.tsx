@@ -1651,6 +1651,14 @@ const Index = () => {
       : closestIndex;
   }, 0);
   const dialActive = dialItems[dialIndex];
+  const dialDescriptions: Record<string, string> = {
+    studio: 'Create a new QR in seconds.',
+    codes: 'View your QR codes.',
+    analytics: 'Review scans and insights.',
+    adaptive: 'Adaptive QRC™ controls.',
+    upgrade: 'Compare plans and features.',
+    settings: 'Update your preferences.',
+  };
   const dialInset = dialSize * 0.14;
   const dialRadius = Math.max(0, (dialSize / 2 - dialInset - 20) * 1.15);
   const playDialClick = useCallback(() => {
@@ -1690,6 +1698,16 @@ const Index = () => {
       lastDialIndexRef.current = dialIndex;
     }
   }, [dialIndex, isDialOpen, playDialClick]);
+
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+    if (!isDialOpen) return;
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = originalOverflow;
+    };
+  }, [isDialOpen]);
 
   const showMobileCreateFlow = isMobile && Boolean(selectedQuickAction || qrType);
   const showStudioIntro = !isMobile || !showMobileCreateFlow;
@@ -3007,8 +3025,8 @@ const Index = () => {
                   >
                     {dialActive?.label}
                   </button>
-                  <p className="text-xs uppercase tracking-[0.35em] text-muted-foreground">
-                    Drag to rotate · Tap to select
+                  <p className="text-xs uppercase tracking-[0.28em] text-muted-foreground">
+                    {dialDescriptions[dialActive?.id ?? 'studio']}
                   </p>
                 </div>
                 <button
@@ -3019,6 +3037,9 @@ const Index = () => {
                 >
                   <X className="h-5 w-5" />
                 </button>
+                <div className="absolute bottom-10 left-1/2 z-10 -translate-x-1/2 text-xs uppercase tracking-[0.35em] text-muted-foreground">
+                  Drag to rotate · Tap to select
+                </div>
 
                 <div
                   className="absolute top-1/2 flex-none overflow-visible"
