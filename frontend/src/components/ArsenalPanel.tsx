@@ -132,6 +132,10 @@ export function ArsenalPanel({
   onRefreshRequest?: () => void;
   language?: 'en' | 'es';
 }) {
+  const [isDesktop, setIsDesktop] = useState(() => {
+    if (typeof window === 'undefined') return true;
+    return window.matchMedia('(min-width: 1024px)').matches;
+  });
   const [items, setItems] = useState<QRHistoryItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
@@ -153,20 +157,32 @@ export function ArsenalPanel({
     | null
   >(null);
   const previewRef = useRef<QRPreviewHandle>(null);
+  const detailRef = useRef<HTMLDivElement>(null);
   const [scanCounts, setScanCounts] = useState<Record<string, number>>({});
   const t = (en: string, es: string) => (language === 'es' ? es : en);
 
-  const loadScanCounts = async (list: QRHistoryItem[]) => {
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const media = window.matchMedia('(min-width: 1024px)');
+    const update = () => setIsDesktop(media.matches);
+    update();
+    media.addEventListener('change', update);
+    return () => media.removeEventListener('change', update);
+  }, []);
+
+  const loadScanCounts = async (list: QRHistoryItem[], includeSummary = true) => {
     if (!list.length) {
       setScanCounts({});
       onScansChange?.(0);
       return;
     }
-    try {
-      const summary = await getScanSummary();
-      onScansChange?.(summary.total);
-    } catch {
-      onScansChange?.(0);
+    if (includeSummary) {
+      try {
+        const summary = await getScanSummary();
+        onScansChange?.(summary.total);
+      } catch {
+        onScansChange?.(0);
+      }
     }
     const results = await Promise.all(
       list.map(async (item) => {
@@ -190,6 +206,21 @@ export function ArsenalPanel({
     });
   };
 
+  const getPageItems = (list: QRHistoryItem[]) => {
+    const start = (page - 1) * PAGE_SIZE;
+    return list.slice(start, start + PAGE_SIZE);
+  };
+
+  const getCountTargets = (list: QRHistoryItem[]) => {
+    const targets = new Map<string, QRHistoryItem>();
+    getPageItems(list).forEach((item) => targets.set(item.id, item));
+    if (selectedId) {
+      const selected = list.find((item) => item.id === selectedId);
+      if (selected) targets.set(selected.id, selected);
+    }
+    return Array.from(targets.values());
+  };
+
   useEffect(() => {
     const loadHistory = async () => {
       setIsLoading(true);
@@ -197,13 +228,13 @@ export function ArsenalPanel({
         const response = await getQRHistory();
         if (response.success) {
           setItems(response.data);
-          if (response.data.length > 0) {
+          if (response.data.length > 0 && isDesktop) {
             const first = response.data[0];
             setSelectedId(first.id);
             setEditName(first.name?.trim() ?? '');
             setEditContent(first.content);
           }
-          await loadScanCounts(response.data);
+          await loadScanCounts(getCountTargets(response.data));
         }
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Failed to load arsenal';
@@ -213,7 +244,13 @@ export function ArsenalPanel({
       }
     };
     loadHistory();
-  }, [refreshKey]);
+  }, [refreshKey, isDesktop]);
+
+  useEffect(() => {
+    if (!items.length) return;
+    loadScanCounts(getCountTargets(items), false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page, selectedId, items]);
 
   const sortedItems = useMemo(() => {
     const copy = [...items];
@@ -253,6 +290,13 @@ export function ArsenalPanel({
     setIsEditingTitle(false);
   };
 
+  const clearSelection = () => {
+    setSelectedId(null);
+    setEditName('');
+    setEditContent('');
+    setIsEditingTitle(false);
+  };
+
   const handleSelect = (item: QRHistoryItem) => {
     if (hasUnsavedChanges) {
       setPendingAction({ type: 'select', item });
@@ -260,6 +304,11 @@ export function ArsenalPanel({
       return;
     }
     applySelection(item);
+    if (!isDesktop && detailRef.current) {
+      window.setTimeout(() => {
+        detailRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 0);
+    }
   };
 
   const resetEdits = () => {
@@ -530,7 +579,7 @@ export function ArsenalPanel({
       ) : (
         <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
           <div className="glass-panel rounded-2xl p-4">
-            <ScrollArea className="h-[520px]">
+            <ScrollArea className="h-[440px] sm:h-[520px]">
               <div
                 className={
                   viewMode === 'grid'
@@ -628,7 +677,7 @@ export function ArsenalPanel({
             )}
           </div>
 
-          <div className="glass-panel rounded-2xl p-6 space-y-6 min-w-0">
+          <div className="glass-panel rounded-2xl p-6 space-y-6 min-w-0 hidden lg:block">
             {selectedItem ? (
               <>
                 <div className="flex flex-wrap items-center gap-2 overflow-visible">
@@ -828,6 +877,217 @@ export function ArsenalPanel({
               </div>
             )}
           </div>
+        </div>
+      )}
+
+      {!isLoading && sortedItems.length > 0 && (
+        <div ref={detailRef} className="glass-panel rounded-2xl p-6 space-y-6 lg:hidden">
+          {selectedItem ? (
+            <>
+              <button
+                type="button"
+                className="inline-flex items-center gap-2 text-xs uppercase tracking-[0.3em] text-muted-foreground transition hover:text-primary"
+                onClick={clearSelection}
+              >
+                <ArrowLeft className="h-3.5 w-3.5" />
+                {t('Back to Arsenal', 'Volver al Arsenal')}
+              </button>
+              <div className="flex flex-wrap items-center gap-2 overflow-visible">
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      size="icon"
+                      variant="outline"
+                      className="group relative border-border"
+                    >
+                      <Download className="h-4 w-4" />
+                      <span className="pointer-events-none absolute -bottom-6 left-1/2 -translate-x-1/2 text-[10px] uppercase tracking-[0.35em] text-muted-foreground opacity-0 transition group-hover:opacity-100">
+                        {t('Download', 'Descargar')}
+                      </span>
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start" className="bg-card/95 border-border">
+                    <DropdownMenuItem onClick={() => handleDownload('png')}>PNG</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleDownload('svg')}>SVG</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleDownload('jpeg')}>JPEG</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleDownload('pdf')}>PDF</DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+                <Button
+                  size="icon"
+                  variant="outline"
+                  className="group relative border-border"
+                  onClick={handleCopy}
+                >
+                  <Copy className="h-4 w-4" />
+                  <span className="pointer-events-none absolute -bottom-6 left-1/2 -translate-x-1/2 text-[10px] uppercase tracking-[0.35em] text-muted-foreground opacity-0 transition group-hover:opacity-100">
+                    {t('Share', 'Compartir')}
+                  </span>
+                </Button>
+                <Button
+                  size="icon"
+                  variant="outline"
+                  className="group relative border-destructive/40 text-destructive hover:bg-destructive/10"
+                  onClick={() => setDeleteTarget(selectedItem)}
+                >
+                  <Trash2 className="h-4 w-4" />
+                  <span className="pointer-events-none absolute -bottom-6 left-1/2 -translate-x-1/2 text-[10px] uppercase tracking-[0.35em] text-destructive/80 opacity-0 transition group-hover:opacity-100">
+                    {t('Delete', 'Eliminar')}
+                  </span>
+                </Button>
+                {hasUnsavedChanges && (
+                  <>
+                    <Button
+                      size="icon"
+                      className="group relative bg-gradient-primary text-primary-foreground"
+                      onClick={handleSave}
+                      disabled={isSaving}
+                    >
+                      <Check className="h-4 w-4" />
+                      <span className="pointer-events-none absolute -bottom-6 left-1/2 -translate-x-1/2 text-[10px] uppercase tracking-[0.35em] text-muted-foreground opacity-0 transition group-hover:opacity-100">
+                        {isSaving ? t('Saving', 'Guardando') : t('Save', 'Guardar')}
+                      </span>
+                    </Button>
+                    <Button
+                      size="icon"
+                      variant="outline"
+                      className="group relative border-border"
+                      onClick={() => {
+                        setPendingAction({ type: 'cancel' });
+                        setShowUnsavedPrompt(true);
+                      }}
+                    >
+                      <X className="h-4 w-4" />
+                      <span className="pointer-events-none absolute -bottom-6 left-1/2 -translate-x-1/2 text-[10px] uppercase tracking-[0.35em] text-muted-foreground opacity-0 transition group-hover:opacity-100">
+                        {t('Cancel', 'Cancelar')}
+                      </span>
+                    </Button>
+                  </>
+                )}
+              </div>
+              <div className="flex items-start justify-between gap-4">
+                <div className="min-w-0">
+                  <p className="text-xs uppercase tracking-[0.35em] text-muted-foreground">
+                    {t('Selected', 'Seleccionado')}
+                  </p>
+                  {isEditingTitle ? (
+                    <Input
+                      value={editName}
+                      placeholder={selectedDisplayName}
+                      onChange={(event) => setEditName(event.target.value.slice(0, 25))}
+                      onBlur={() => setIsEditingTitle(false)}
+                      className="bg-secondary/40 border-border max-w-[280px]"
+                      maxLength={25}
+                      autoFocus
+                    />
+                  ) : (
+                    <button
+                      type="button"
+                      className="text-lg font-semibold truncate text-left hover:text-primary transition"
+                      title={selectedDisplayName}
+                      onClick={() => setIsEditingTitle(true)}
+                    >
+                      {selectedDisplayName}
+                    </button>
+                  )}
+                </div>
+                <div className="flex flex-wrap items-center justify-end gap-2">
+                  {renderScanCount(selectedItem)}
+                  {renderCardBadge(selectedItem)}
+                </div>
+              </div>
+
+              <div className="flex justify-center">
+                <QRPreview
+                  ref={previewRef}
+                  options={{ ...selectedItem.options, content: selectedItem.content, size: 180 }}
+                  showCaption={false}
+                />
+              </div>
+              <button
+                type="button"
+                onClick={handleCopy}
+                className="group relative w-full text-center text-xs text-muted-foreground truncate hover:text-primary transition"
+                title={selectedItem.shortUrl ?? selectedItem.content}
+              >
+                {selectedItem.shortUrl ?? selectedItem.content}
+                <span className="pointer-events-none absolute -bottom-5 left-1/2 -translate-x-1/2 text-[10px] uppercase tracking-[0.35em] text-muted-foreground opacity-0 transition group-hover:opacity-100">
+                  {t('Copy', 'Copiar')}
+                </span>
+              </button>
+
+              <div className="space-y-3">
+                <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">
+                  {t('QR Name', 'Nombre del QR')}
+                </p>
+                <Input
+                  value={selectedDisplayName}
+                  placeholder={selectedDisplayName}
+                  className="bg-secondary/40 border-border"
+                  readOnly
+                />
+              </div>
+
+              <div className="space-y-3">
+                <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">
+                  {isDynamic ? t('Dynamic URL', 'URL dinamica') : t('QR Destination', 'Destino del QR')}
+                </p>
+                <button
+                  type="button"
+                  onClick={handleCopy}
+                  className="group relative w-full text-left rounded-md transition hover:ring-1 hover:ring-primary/40"
+                >
+                  <Input
+                    value={editContent}
+                    onChange={(event) => setEditContent(event.target.value)}
+                    className="bg-secondary/40 border-border pr-14 cursor-pointer transition group-hover:bg-secondary/60"
+                    readOnly={!isDynamic}
+                  />
+                  <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[10px] uppercase tracking-[0.35em] text-muted-foreground opacity-0 transition group-hover:opacity-100">
+                    {t('Copy', 'Copiar')}
+                  </span>
+                </button>
+                {!isDynamic && (
+                  <p className="text-[11px] uppercase tracking-[0.3em] text-muted-foreground">
+                    {t('Static QR destinations are read-only.', 'Los destinos QR estaticos son de solo lectura.')}
+                  </p>
+                )}
+              </div>
+
+              <div className="space-y-3">
+                <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">
+                  {t('Live Preview', 'Vista previa')}
+                </p>
+                <div className="rounded-2xl border border-border/60 bg-secondary/20 overflow-hidden">
+                  <div className="flex items-center gap-1.5 bg-card/80 px-3 py-2 text-[10px] uppercase tracking-[0.35em] text-muted-foreground">
+                    <span className="h-2 w-2 rounded-full bg-rose-400/70" />
+                    <span className="h-2 w-2 rounded-full bg-amber-400/70" />
+                    <span className="h-2 w-2 rounded-full bg-emerald-400/70" />
+                    <span className="ml-2">{t('Preview', 'Vista previa')}</span>
+                  </div>
+                  {isWebUrl(selectedItem.content) ? (
+                    <img
+                      src={`https://image.thum.io/get/width/1200/${selectedItem.content}`}
+                      alt="Destination preview"
+                      className="aspect-video w-full object-cover"
+                      onError={(event) => {
+                        (event.currentTarget as HTMLImageElement).src = '';
+                      }}
+                    />
+                  ) : (
+                    <div className="flex aspect-video w-full flex-col items-center justify-center gap-2 text-muted-foreground text-sm">
+                      <ExternalLink className="h-6 w-6 text-primary" />
+                      {t('Preview available for web URLs only.', 'Vista previa disponible solo para URLs web.')}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </>
+          ) : (
+            <div className="flex items-center justify-center rounded-xl border border-border/60 bg-secondary/20 px-4 py-6 text-sm text-muted-foreground">
+              {t('Tap a QR to view details.', 'Toca un QR para ver detalles.')}
+            </div>
+          )}
         </div>
       )}
 
