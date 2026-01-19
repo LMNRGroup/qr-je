@@ -156,6 +156,40 @@ export function ArsenalPanel({
   const [scanCounts, setScanCounts] = useState<Record<string, number>>({});
   const t = (en: string, es: string) => (language === 'es' ? es : en);
 
+  const loadScanCounts = async (list: QRHistoryItem[]) => {
+    if (!list.length) {
+      setScanCounts({});
+      onScansChange?.(0);
+      return;
+    }
+    try {
+      const summary = await getScanSummary();
+      onScansChange?.(summary.total);
+    } catch {
+      onScansChange?.(0);
+    }
+    const results = await Promise.all(
+      list.map(async (item) => {
+        if (!item.random) {
+          return { id: item.id, count: 0 };
+        }
+        try {
+          const count = await getScanCount(item.id, item.random);
+          return { id: item.id, count };
+        } catch {
+          return { id: item.id, count: 0 };
+        }
+      })
+    );
+    setScanCounts((prev) => {
+      const next = { ...prev };
+      results.forEach(({ id, count }) => {
+        next[id] = count;
+      });
+      return next;
+    });
+  };
+
   useEffect(() => {
     const loadHistory = async () => {
       setIsLoading(true);
@@ -169,6 +203,7 @@ export function ArsenalPanel({
             setEditName(first.name?.trim() ?? '');
             setEditContent(first.content);
           }
+          await loadScanCounts(response.data);
         }
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Failed to load arsenal';
@@ -179,27 +214,6 @@ export function ArsenalPanel({
     };
     loadHistory();
   }, [refreshKey]);
-
-  useEffect(() => {
-    if (!items.length) {
-      setScanCounts({});
-      onScansChange?.(0);
-      return;
-    }
-    let isActive = true;
-    getScanSummary()
-      .then((summary) => {
-        if (!isActive) return;
-        onScansChange?.(summary.total);
-      })
-      .catch(() => {
-        if (!isActive) return;
-        onScansChange?.(0);
-      });
-    return () => {
-      isActive = false;
-    };
-  }, [items, onScansChange]);
 
   const sortedItems = useMemo(() => {
     const copy = [...items];
@@ -230,43 +244,7 @@ export function ArsenalPanel({
         (isDynamic && editContent.trim() !== selectedItem.content))
   );
 
-  useEffect(() => {
-    const targets = new Map<string, QRHistoryItem>();
-    pagedItems.forEach((item) => targets.set(item.id, item));
-    if (selectedItem) {
-      targets.set(selectedItem.id, selectedItem);
-    }
-    const itemsToFetch = Array.from(targets.values());
-    if (!itemsToFetch.length) {
-      return;
-    }
-    let isActive = true;
-    Promise.all(
-      itemsToFetch.map(async (item) => {
-        if (!item.random) {
-          return { id: item.id, count: 0 };
-        }
-        try {
-          const count = await getScanCount(item.id, item.random);
-          return { id: item.id, count };
-        } catch {
-          return { id: item.id, count: 0 };
-        }
-      })
-    ).then((results) => {
-      if (!isActive) return;
-      setScanCounts((prev) => {
-        const next = { ...prev };
-        results.forEach(({ id, count }) => {
-          next[id] = count;
-        });
-        return next;
-      });
-    });
-    return () => {
-      isActive = false;
-    };
-  }, [pagedItems, selectedItem]);
+  // Scan counts load once per refresh to avoid constant re-renders.
 
   const applySelection = (item: QRHistoryItem) => {
     setSelectedId(item.id);
