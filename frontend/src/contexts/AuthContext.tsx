@@ -7,7 +7,11 @@ interface AuthContextType {
   session: Session | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<{ error: AuthError | null }>;
-  signUp: (email: string, password: string) => Promise<{ error: AuthError | null }>;
+  signUp: (
+    email: string,
+    password: string,
+    profile?: { fullName?: string; username?: string }
+  ) => Promise<{ error: AuthError | null }>;
   signOut: () => Promise<void>;
 }
 
@@ -124,11 +128,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { error };
   };
 
-  const signUp = async (email: string, password: string) => {
+  const signUp = async (
+    email: string,
+    password: string,
+    profile?: { fullName?: string; username?: string }
+  ) => {
     if (!isSupabaseConfigured) {
       return { error: new AuthError('Supabase is not configured') };
     }
-    const { data, error } = await supabase.auth.signUp({ email, password });
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          full_name: profile?.fullName?.trim() || undefined,
+          username: profile?.username?.trim() || undefined,
+        },
+      },
+    });
     if (!error && data.session) {
       setSession(data.session);
       setUser(data.session.user);

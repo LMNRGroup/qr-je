@@ -17,4 +17,16 @@ export class InMemoryScansStorageAdapter implements ScansStorage {
       .filter((scan) => scan.urlId === urlId && scan.urlRandom === urlRandom)
       .slice(0, limit)
   }
+
+  async getTotalForUser(userId: string) {
+    return this.records.filter((scan) => scan.userId === userId).length
+  }
+
+  async getTotalForUserToday(userId: string, _timeZone: string) {
+    const now = new Date()
+    const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+    return this.records.filter(
+      (scan) => scan.userId === userId && new Date(scan.scannedAt) >= startOfDay
+    ).length
+  }
 }

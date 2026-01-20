@@ -302,6 +302,7 @@ export const listUrlsHandler = (service: UrlsService) => {
     }
 
     const urls = await service.getUrlsForUser(userId)
+    const summary = c.req.query('summary') === '1' || c.req.query('summary') === 'true'
     return c.json(
       urls.map((url) => ({
         id: url.id,
@@ -310,7 +311,7 @@ export const listUrlsHandler = (service: UrlsService) => {
         name: url.name ?? null,
         shortUrl: buildShortUrl(url.id, url.random),
         createdAt: url.createdAt,
-        options: url.options ?? null,
+        options: summary ? null : url.options ?? null,
         kind: url.kind ?? null
       }))
     )

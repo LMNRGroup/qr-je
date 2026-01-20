@@ -77,7 +77,7 @@ const MAX_MENU_TOTAL_BYTES = 12 * 1024 * 1024;
 const MAX_MENU_FILES = 15;
 
 const Index = () => {
-  const { user, loading: authLoading, signOut } = useAuth();
+  const { user, loading: authLoading, signOut, signUp } = useAuth();
   const isLoggedIn = Boolean(user);
   const [hasSessionToken, setHasSessionToken] = useState(false);
   const [options, setOptions] = useState<QROptions>(defaultQROptions);
@@ -168,10 +168,12 @@ const Index = () => {
   const [showAccountModal, setShowAccountModal] = useState(false);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [pendingCreateScroll, setPendingCreateScroll] = useState(false);
+  const [accountLoading, setAccountLoading] = useState(false);
   const [accountForm, setAccountForm] = useState({
     username: '',
     fullName: '',
     email: '',
+    password: '',
   });
   const isSpanish = profileForm.language === 'es';
   const t = (en: string, es: string) => (isSpanish ? es : en);
@@ -1049,6 +1051,34 @@ const Index = () => {
     } catch {
       toast.error('Failed to copy link');
     }
+  };
+
+  const handleAccountCreate = async () => {
+    if (accountLoading) return;
+    if (!isSupabaseConfigured) {
+      toast.error('Account creation requires a connected backend.');
+      return;
+    }
+    if (!accountForm.fullName.trim() || !accountForm.username.trim() || !accountForm.email.trim() || !accountForm.password) {
+      toast.error('Please complete all required fields.');
+      return;
+    }
+    if (!acceptedTerms) {
+      toast.error('Please accept the Terms & Conditions.');
+      return;
+    }
+    setAccountLoading(true);
+    const { error } = await signUp(accountForm.email.trim(), accountForm.password, {
+      fullName: accountForm.fullName.trim(),
+      username: accountForm.username.trim(),
+    });
+    setAccountLoading(false);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    toast.success('Account created! Check your email to confirm.');
+    setShowAccountModal(false);
   };
 
   const handleProfileSave = async () => {
@@ -2141,7 +2171,7 @@ const Index = () => {
                     value={accountForm.username}
                     onChange={(e) => setAccountForm((prev) => ({ ...prev, username: e.target.value }))}
                     placeholder="Username"
-                    maxLength={24}
+                    maxLength={18}
                     className="bg-secondary/40 border-border"
                   />
                   <Input
@@ -2155,6 +2185,13 @@ const Index = () => {
                     onChange={(e) => setAccountForm((prev) => ({ ...prev, email: e.target.value }))}
                     placeholder="Email Address"
                     type="email"
+                    className="bg-secondary/40 border-border"
+                  />
+                  <Input
+                    value={accountForm.password}
+                    onChange={(e) => setAccountForm((prev) => ({ ...prev, password: e.target.value }))}
+                    placeholder="Password"
+                    type="password"
                     className="bg-secondary/40 border-border"
                   />
                 </div>
@@ -2172,9 +2209,17 @@ const Index = () => {
                 <div className="flex flex-col sm:flex-row gap-3">
                   <Button
                     className="flex-1 bg-gradient-primary text-primary-foreground uppercase tracking-[0.2em] text-xs"
-                    disabled={!acceptedTerms}
+                    disabled={
+                      accountLoading ||
+                      !acceptedTerms ||
+                      !accountForm.fullName.trim() ||
+                      !accountForm.username.trim() ||
+                      !accountForm.email.trim() ||
+                      !accountForm.password
+                    }
+                    onClick={handleAccountCreate}
                   >
-                    Create Account
+                    {accountLoading ? 'Creating...' : 'Create Account'}
                   </Button>
                 </div>
                 <button
@@ -4081,6 +4126,8 @@ const Index = () => {
                 onScansChange={(total) => setScanStats({ total })}
                 onRefreshRequest={() => setArsenalRefreshKey((prev) => prev + 1)}
                 language={(userProfile?.language ?? profileForm.language) as 'en' | 'es'}
+                timeZone={userProfile?.timezone || profileForm.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone}
+                cacheKey={user?.id ?? 'guest'}
               />
             ) : (
               <div className="glass-panel rounded-2xl p-8 text-center space-y-4">
@@ -4224,11 +4271,6 @@ const Index = () => {
                     </div>
                   </div>
                 </div>
-              </div>
-              <div className="fixed inset-0 z-[70] flex items-center justify-center pointer-events-none">
-                <span className="rounded-full border border-border/60 bg-background/80 px-6 py-3 text-xs uppercase tracking-[0.5em] text-white">
-                  COMING SOON
-                </span>
               </div>
             </div>
           </section>
@@ -4420,7 +4462,7 @@ const Index = () => {
                     Free Forever – No Credit Card
                   </p>
                 </div>
-                <div className="text-3xl font-semibold">$00N <span className="text-sm text-muted-foreground">/ month</span></div>
+                <div className="h-6" />
                 <ul className="space-y-2 text-sm text-muted-foreground">
                   <li><span className="font-semibold text-foreground">1</span> Dynamic QR Code</li>
                   <li><span className="font-semibold text-foreground">Unlimited</span> Scans</li>
@@ -4466,7 +4508,7 @@ const Index = () => {
                   </span>
                 </div>
                 <h3 className="text-2xl font-semibold">Pro</h3>
-                <div className="text-3xl font-semibold">$00N <span className="text-sm text-muted-foreground">/ month</span></div>
+                <div className="h-6" />
                 <ul className="space-y-2 text-sm text-muted-foreground">
                   <li><span className="font-semibold text-foreground">25</span> Dynamic QR Codes</li>
                   <li><span className="font-semibold text-foreground">Unlimited</span> Scans</li>
@@ -4507,7 +4549,7 @@ const Index = () => {
                     </span>
                   </div>
                 </div>
-                <div className="text-3xl font-semibold">$00N <span className="text-sm text-muted-foreground">/ month</span></div>
+                <div className="h-6" />
                 <ul className="space-y-2 text-sm text-muted-foreground">
                   <li><span className="font-semibold text-foreground">Unlimited</span> Dynamic QR Codes</li>
                   <li><span className="font-semibold text-foreground">Unlimited</span> Scans</li>
@@ -5063,11 +5105,6 @@ const Index = () => {
                     </Button>
                   </div>
                 </div>
-              </div>
-              <div className="fixed inset-0 z-[70] flex items-center justify-center pointer-events-none">
-                <span className="rounded-full border border-border/60 bg-background/80 px-6 py-3 text-xs uppercase tracking-[0.5em] text-white">
-                  COMING SOON
-                </span>
               </div>
             </div>
           </section>

@@ -71,7 +71,9 @@ export const getUserScanSummaryHandler = (scansService: ScansService) => {
       return c.json({ message: 'Unauthorized' }, 401)
     }
 
+    const timeZone = c.req.query('tz') || 'UTC'
     const total = await scansService.getTotalForUser(userId)
-    return c.json({ total })
+    const today = await scansService.getTotalForUserToday(userId, timeZone)
+    return c.json({ total, today })
   }
 }

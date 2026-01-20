@@ -201,7 +201,7 @@ export async function getPublicVcard(slug: string): Promise<VcardResponse> {
 }
 
 export async function getQRHistory(): Promise<{ success: boolean; data: QRHistoryItem[] }> {
-  const response = await request('/urls');
+  const response = await request('/urls?summary=1');
   const data = (await response.json()) as UrlResponse[];
   return { success: true, data: data.map(toHistoryItem) };
 }
@@ -222,10 +222,14 @@ export async function getScanCount(id: string, random: string): Promise<number> 
   return Number(data.count ?? 0);
 }
 
-export async function getScanSummary(): Promise<{ total: number }> {
-  const response = await request('/scans/summary');
-  const data = (await response.json()) as { total?: number | string };
-  return { total: Number(data.total ?? 0) };
+export async function getScanSummary(timeZone?: string): Promise<{ total: number; today: number }> {
+  const query = timeZone ? `?tz=${encodeURIComponent(timeZone)}` : '';
+  const response = await request(`/scans/summary${query}`);
+  const data = (await response.json()) as { total?: number | string; today?: number | string };
+  return {
+    total: Number(data.total ?? 0),
+    today: Number(data.today ?? 0),
+  };
 }
 
 export async function getUserProfile(): Promise<UserProfile> {

@@ -5,6 +5,8 @@ export type ScansService = {
   recordScan: (input: CreateScanInput) => Promise<Scan>
   getScanCount: (urlId: string, urlRandom: string) => Promise<number>
   getScansForUrl: (urlId: string, urlRandom: string, limit?: number) => Promise<Scan[]>
+  getTotalForUser: (userId: string) => Promise<number>
+  getTotalForUserToday: (userId: string, timeZone: string) => Promise<number>
 }
 
 export const createScansService = (storage: ScansStorage): ScansService => {
@@ -31,9 +33,19 @@ export const createScansService = (storage: ScansStorage): ScansService => {
     return storage.getByUrl(urlId, urlRandom, limit)
   }
 
+  const getTotalForUser = (userId: string) => {
+    return storage.getTotalForUser(userId)
+  }
+
+  const getTotalForUserToday = (userId: string, timeZone: string) => {
+    return storage.getTotalForUserToday(userId, timeZone)
+  }
+
   return {
     recordScan,
     getScanCount,
-    getScansForUrl
+    getScansForUrl,
+    getTotalForUser,
+    getTotalForUserToday
   }
 }

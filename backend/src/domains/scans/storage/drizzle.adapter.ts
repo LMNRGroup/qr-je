@@ -45,4 +45,25 @@ export class DrizzleScansStorageAdapter implements ScansStorage {
       scannedAt: row.scannedAt.toISOString()
     }))
   }
+
+  async getTotalForUser(userId: string) {
+    const rows = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(scans)
+      .where(eq(scans.userId, userId))
+    return rows[0]?.count ?? 0
+  }
+
+  async getTotalForUserToday(userId: string, timeZone: string) {
+    const rows = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(scans)
+      .where(
+        and(
+          eq(scans.userId, userId),
+          sql`${scans.scannedAt} >= (date_trunc('day', now() AT TIME ZONE ${timeZone}) AT TIME ZONE ${timeZone})`
+        )
+      )
+    return rows[0]?.count ?? 0
+  }
 }

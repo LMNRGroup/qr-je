@@ -125,12 +125,16 @@ export function ArsenalPanel({
   onScansChange,
   onRefreshRequest,
   language = 'en',
+  timeZone,
+  cacheKey,
 }: {
   refreshKey?: number;
   onStatsChange?: (stats: { total: number; dynamic: number }) => void;
   onScansChange?: (total: number) => void;
   onRefreshRequest?: () => void;
   language?: 'en' | 'es';
+  timeZone?: string;
+  cacheKey?: string;
 }) {
   const [isDesktop, setIsDesktop] = useState(() => {
     if (typeof window === 'undefined') return true;
@@ -160,6 +164,9 @@ export function ArsenalPanel({
   const detailRef = useRef<HTMLDivElement>(null);
   const [scanCounts, setScanCounts] = useState<Record<string, number>>({});
   const t = (en: string, es: string) => (language === 'es' ? es : en);
+  const cacheId = cacheKey ? `qrc.arsenal.cache:${cacheKey}` : null;
+  const CACHE_TTL_MS = 5 * 60 * 1000;
+  const lastTodayRef = useRef(0);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -174,12 +181,15 @@ export function ArsenalPanel({
     if (!list.length) {
       setScanCounts({});
       onScansChange?.(0);
-      return;
+      return { counts: {} as Record<string, number>, today: 0 };
     }
+    let todayTotal = 0;
     if (includeSummary) {
       try {
-        const summary = await getScanSummary();
-        onScansChange?.(summary.total);
+        const summary = await getScanSummary(timeZone);
+        todayTotal = summary.today;
+        lastTodayRef.current = summary.today;
+        onScansChange?.(summary.today);
       } catch {
         onScansChange?.(0);
       }
@@ -204,6 +214,60 @@ export function ArsenalPanel({
       });
       return next;
     });
+    const counts = results.reduce<Record<string, number>>((acc, { id, count }) => {
+      acc[id] = count;
+      return acc;
+    }, {});
+    return { counts, today: todayTotal };
+  };
+
+  const readCache = () => {
+    if (!cacheId || typeof window === 'undefined') return null;
+    try {
+      const raw = window.localStorage.getItem(cacheId);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw) as {
+        ts: number;
+        items: QRHistoryItem[];
+        scanCounts: Record<string, number>;
+        selectedId: string | null;
+        editName: string;
+        editContent: string;
+        today: number;
+        page: number;
+        sortMode: SortMode;
+        viewMode: ViewMode;
+      };
+      if (!parsed?.ts || Date.now() - parsed.ts > CACHE_TTL_MS) return null;
+      return parsed;
+    } catch {
+      return null;
+    }
+  };
+
+  const writeCache = (payload: {
+    items: QRHistoryItem[];
+    scanCounts: Record<string, number>;
+    selectedId: string | null;
+    editName: string;
+    editContent: string;
+    today: number;
+    page: number;
+    sortMode: SortMode;
+    viewMode: ViewMode;
+  }) => {
+    if (!cacheId || typeof window === 'undefined') return;
+    try {
+      window.localStorage.setItem(
+        cacheId,
+        JSON.stringify({
+          ts: Date.now(),
+          ...payload,
+        })
+      );
+    } catch {
+      // Ignore cache write failures (storage full, privacy mode, etc.)
+    }
   };
 
   const getPageItems = (list: QRHistoryItem[]) => {
@@ -225,6 +289,29 @@ export function ArsenalPanel({
     const loadHistory = async () => {
       setIsLoading(true);
       try {
+        const canUseCache = !refreshKey;
+        const cached = canUseCache ? readCache() : null;
+        if (cached) {
+          setItems(cached.items ?? []);
+          setScanCounts(cached.scanCounts ?? {});
+          setPage(cached.page ?? 1);
+          setSortMode(cached.sortMode ?? 'newest');
+          setViewMode(cached.viewMode ?? 'grid');
+          lastTodayRef.current = cached.today ?? 0;
+          onScansChange?.(cached.today ?? 0);
+          if (cached.items?.length && isDesktop) {
+            const fallback = cached.items[0];
+            const cachedSelected =
+              cached.items.find((item) => item.id === cached.selectedId) ?? fallback;
+            if (cachedSelected) {
+              setSelectedId(cachedSelected.id);
+              setEditName(cachedSelected.name?.trim() ?? '');
+              setEditContent(cachedSelected.content);
+            }
+          }
+          setIsLoading(false);
+          return;
+        }
         const response = await getQRHistory();
         if (response.success) {
           setItems(response.data);
@@ -234,7 +321,18 @@ export function ArsenalPanel({
             setEditName(first.name?.trim() ?? '');
             setEditContent(first.content);
           }
-          await loadScanCounts(getCountTargets(response.data));
+          const countsResult = await loadScanCounts(getCountTargets(response.data));
+          writeCache({
+            items: response.data,
+            scanCounts: countsResult.counts,
+            selectedId: response.data[0]?.id ?? null,
+            editName: response.data[0]?.name?.trim() ?? '',
+            editContent: response.data[0]?.content ?? '',
+            today: countsResult.today,
+            page: 1,
+            sortMode,
+            viewMode,
+          });
         }
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Failed to load arsenal';
@@ -248,7 +346,22 @@ export function ArsenalPanel({
 
   useEffect(() => {
     if (!items.length) return;
-    loadScanCounts(getCountTargets(items), false);
+    loadScanCounts(getCountTargets(items), false).then((countsResult) => {
+      writeCache({
+        items,
+        scanCounts: {
+          ...scanCounts,
+          ...countsResult.counts,
+        },
+        selectedId,
+        editName,
+        editContent,
+        today: lastTodayRef.current,
+        page,
+        sortMode,
+        viewMode,
+      });
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page, selectedId, items]);
 
