@@ -80,6 +80,14 @@ const parseKind = (kind?: string | null) => {
   return { mode: 'static', type: kind };
 };
 
+const getQrPreviewContent = (item: QRHistoryItem) => {
+  const parsed = parseKind(item.kind ?? null);
+  if (parsed.mode === 'dynamic') {
+    return item.shortUrl ?? item.content;
+  }
+  return item.content;
+};
+
 const typeStyles: Record<string, { label: string; icon: typeof Link; card: string; badge: string }> = {
   url: {
     label: 'URL',
@@ -708,7 +716,7 @@ export function ArsenalPanel({
                   const cardOptions: QROptions = {
                     ...item.options,
                     size: 92,
-                    content: item.content,
+                    content: getQrPreviewContent(item),
                   };
                   return (
                     <button
@@ -901,7 +909,11 @@ export function ArsenalPanel({
                 <div className="flex justify-center">
                   <QRPreview
                     ref={previewRef}
-                    options={{ ...selectedItem.options, content: selectedItem.content, size: 180 }}
+                    options={{
+                      ...selectedItem.options,
+                      content: getQrPreviewContent(selectedItem),
+                      size: 180,
+                    }}
                     showCaption={false}
                   />
                 </div>
