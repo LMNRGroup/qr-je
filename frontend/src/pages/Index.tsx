@@ -1304,8 +1304,8 @@ const Index = () => {
     { id: 'blue', label: 'Blue', bg: 'bg-blue-600', text: 'text-white' },
     { id: 'gold', label: 'Gold', bg: 'bg-amber-400', text: 'text-slate-900' },
   ] as const;
-  const tourSteps = useMemo(
-    () => [
+  const tourSteps = useMemo(() => {
+    const steps = [
       {
         id: 'quick-actions',
         target: 'quick-actions',
@@ -1336,21 +1336,26 @@ const Index = () => {
         title: 'Profile',
         description: 'Manage preferences and sign out from here.',
       },
-      {
+    ];
+
+    if (isMobile) {
+      steps.push({
         id: 'dial-controls',
         target: 'dial-open',
         title: 'Dial Controls',
-        description: 'Open the dial, rotate to feel it, then close it with the X.',
-      },
-      {
-        id: 'cta',
-        target: 'quick-actions',
-        title: 'Create Your First QR',
-        description: 'Pick a quick action to get started, or tap Done.',
-      },
-    ],
-    []
-  );
+        description: 'This button opens your navigation dial.',
+      });
+    }
+
+    steps.push({
+      id: 'cta',
+      target: 'quick-actions',
+      title: 'Create Your First QR',
+      description: 'Pick a quick action to get started, or tap Done.',
+    });
+
+    return steps;
+  }, [isMobile]);
   const currentTourStep = tourActive ? tourSteps[tourStepIndex] : null;
   const isTourDialStep = currentTourStep?.id === 'dial-controls';
   const isTourCtaStep = currentTourStep?.id === 'cta';
@@ -1764,7 +1769,7 @@ const Index = () => {
   const headerAvatarType = userProfile?.avatarType ?? null;
   const headerAvatarColor =
     avatarColors.find((color) => color.id === userProfile?.avatarColor) ?? null;
-  const tourCanProceed = !isTourDialStep || tourDialState.closed;
+  const tourCanProceed = !isTourDialStep || isMobile;
   const endTour = useCallback(() => {
     setTourActive(false);
     setTourStepIndex(0);
@@ -3770,9 +3775,9 @@ const Index = () => {
         <>
           <button
             type="button"
-            className={`fixed bottom-6 right-6 z-[70] flex items-center justify-center rounded-full border border-amber-300/50 bg-card/80 p-2 shadow-lg shadow-[0_0_14px_rgba(251,191,36,0.2)] transition hover:border-amber-300/70 hover:bg-card ${
+            className={`fixed bottom-6 right-6 flex items-center justify-center rounded-full border border-amber-300/50 bg-card/80 p-2 shadow-lg shadow-[0_0_14px_rgba(251,191,36,0.2)] transition hover:border-amber-300/70 hover:bg-card ${
               isDialOpen ? 'opacity-0 pointer-events-none' : 'opacity-100'
-            }`}
+            } ${tourActive && isTourDialStep ? 'z-[95]' : 'z-[70]'}`}
             data-tour-id="dial-open"
             aria-label="Open navigation dial"
             onClick={() => setIsDialOpen(true)}
