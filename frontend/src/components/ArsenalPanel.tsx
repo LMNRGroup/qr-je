@@ -701,7 +701,7 @@ export function ArsenalPanel({
               className={
                 isDesktop
                   ? 'h-auto max-h-none'
-                  : 'h-[360px] sm:h-[520px]'
+                  : 'h-[calc(100dvh-260px)] sm:h-[calc(100dvh-320px)]'
               }
             >
               <div
@@ -719,7 +719,7 @@ export function ArsenalPanel({
                   const isList = viewMode === 'list';
                   const isMobileList = isList && isMobile;
                   const displayName = getDisplayName(item, sortedItems);
-                  const previewSize = isDesktop ? 120 : 84;
+                  const previewSize = isDesktop ? 120 : 72;
                   const cardOptions: QROptions = {
                     ...item.options,
                     size: previewSize,
@@ -750,23 +750,23 @@ export function ArsenalPanel({
                           : isSelected
                           ? 'border-primary/60 bg-primary/5 shadow-[0_0_18px_rgba(59,130,246,0.12)]'
                           : `${typeMeta.card} hover:border-primary/40 hover:bg-secondary/40`
-                      } ${isMobile ? 'p-3' : 'p-4'} ${
+                      } ${isMobile ? 'p-2.5' : 'p-4'} ${
                         viewMode === 'grid'
-                          ? `${isMobile ? 'min-h-[170px]' : 'min-h-[210px]'} h-full flex flex-col justify-between`
+                          ? `${isMobile ? 'min-h-[150px]' : 'min-h-[210px]'} h-full flex flex-col justify-between`
                           : ''
                       }`}
                     >
                       {isMobileList ? (
-                        <div className="space-y-3">
+                        <div className="space-y-2.5">
                           <div className="space-y-1 min-w-0">
-                            <p className="text-sm font-semibold truncate" title={displayName}>
+                            <p className="text-[13px] font-semibold truncate" title={displayName}>
                               {displayName}
                             </p>
-                            <p className="text-xs text-muted-foreground truncate">{item.content}</p>
+                            <p className="text-[11px] text-muted-foreground truncate">{item.content}</p>
                           </div>
-                          <div className="flex flex-wrap items-center gap-2 text-[10px] uppercase tracking-[0.3em]">
+                          <div className="flex flex-wrap items-center gap-2 text-[9px] uppercase tracking-[0.3em]">
                             <span
-                              className={`inline-flex min-w-0 items-center gap-2 rounded-full border px-3 py-1 ${
+                              className={`inline-flex min-w-0 items-center gap-2 rounded-full border px-2.5 py-0.5 ${
                                 parsed.mode === 'dynamic'
                                   ? 'border-cyan-400/60 text-cyan-200 bg-cyan-500/10'
                                   : 'border-border/60 text-muted-foreground bg-secondary/40'
@@ -775,7 +775,7 @@ export function ArsenalPanel({
                               <span className="truncate">{parsed.mode === 'dynamic' ? 'Dynamic' : 'Static'}</span>
                             </span>
                             <span
-                              className={`inline-flex min-w-0 items-center gap-2 rounded-full border px-3 py-1 ${typeMeta.badge}`}
+                              className={`inline-flex min-w-0 items-center gap-2 rounded-full border px-2.5 py-0.5 ${typeMeta.badge}`}
                             >
                               <span className="truncate">{typeMeta.label}</span>
                             </span>
@@ -795,8 +795,16 @@ export function ArsenalPanel({
                             </div>
                           </div>
                           {(isDesktop || viewMode === 'grid') && (
-                            <div className={`rounded-xl border p-1 shrink-0 ${typeMeta.card}`}>
-                              <QRPreview options={cardOptions} showCaption={false} />
+                            <div
+                              className={`shrink-0 border overflow-hidden ${
+                                isMobile ? 'rounded-lg p-0.5' : 'rounded-xl p-1'
+                              } ${typeMeta.card}`}
+                            >
+                              <QRPreview
+                                options={cardOptions}
+                                showCaption={false}
+                                innerPadding={isMobile ? 4 : 12}
+                              />
                             </div>
                           )}
                         </div>
@@ -911,8 +919,8 @@ export function ArsenalPanel({
                     </>
                   )}
                 </div>
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="min-w-0">
+                  <div className="flex flex-wrap items-start gap-3">
+                    <div className="min-w-0 flex-1">
                       <p className="text-xs uppercase tracking-[0.35em] text-muted-foreground">
                         {t('Selected', 'Seleccionado')}
                       </p>
@@ -937,10 +945,10 @@ export function ArsenalPanel({
                         </button>
                       )}
                     </div>
-                  <div className="flex flex-wrap items-center justify-end gap-2">
-                    {renderScanCount(selectedItem)}
-                    {renderCardBadge(selectedItem)}
-                  </div>
+                    <div className="flex flex-wrap items-center gap-2 max-w-full">
+                      {renderScanCount(selectedItem)}
+                      {renderCardBadge(selectedItem)}
+                    </div>
                   </div>
 
                 <div className="flex justify-center">

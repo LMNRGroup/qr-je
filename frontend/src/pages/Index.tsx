@@ -322,6 +322,7 @@ const Index = () => {
     website: '',
   });
   const qrRef = useRef<QRPreviewHandle>(null);
+  const optionsRef = useRef(options);
   const createSectionRef = useRef<HTMLDivElement>(null);
   const modeSectionRef = useRef<HTMLDivElement>(null);
   const detailsSectionRef = useRef<HTMLDivElement>(null);
@@ -497,6 +498,10 @@ const Index = () => {
   const updateOption = useCallback(<K extends keyof QROptions>(key: K, value: QROptions[K]) => {
     setOptions((prev) => ({ ...prev, [key]: value }));
   }, []);
+
+  useEffect(() => {
+    optionsRef.current = options;
+  }, [options]);
 
   useEffect(() => {
     setOptions((prev) => (
@@ -897,6 +902,7 @@ const Index = () => {
       toast.error('Please enter content to generate');
       return;
     }
+    const optionsSnapshot = { ...optionsRef.current };
     setIsGenerating(true);
     try {
       const response = qrType === 'vcard'
@@ -908,7 +914,7 @@ const Index = () => {
             style: vcardStyle,
           },
           options: {
-            ...options,
+            ...optionsSnapshot,
             content: vcardUrl,
           },
         })
@@ -918,19 +924,19 @@ const Index = () => {
             : longFormContent,
           qrType === 'file'
             ? {
-              ...options,
+              ...optionsSnapshot,
               fileName: fileName || 'File QR',
               fileUrl,
             }
             : qrType === 'menu'
               ? {
-                ...options,
+                ...optionsSnapshot,
                 menuFiles,
                 menuType,
                 menuLogoDataUrl,
                 menuSocials,
               }
-              : options,
+              : optionsSnapshot,
           `${qrMode ?? 'static'}:${qrType === 'website' ? 'url' : qrType ?? 'url'}`,
           qrType === 'file' ? fileName || 'File QR' : null
         );
@@ -991,6 +997,68 @@ const Index = () => {
       setIsGenerating(false);
     }
   };
+
+  const resetCreateFlow = useCallback(() => {
+    setQrMode(null);
+    setQrType(null);
+    setSelectedQuickAction(null);
+    setWebsiteUrl('');
+    setWebsiteTouched(false);
+    setEmailAddress('');
+    setEmailTouched(false);
+    setPhoneNumber('');
+    setPhoneTouched(false);
+    setFileUrl('');
+    setFileName('');
+    setFileTouched(false);
+    setMenuFiles([]);
+    setMenuType('restaurant');
+    setMenuLogoDataUrl('');
+    setMenuSocials({
+      instagram: '',
+      facebook: '',
+      tiktok: '',
+      website: '',
+    });
+    setMenuFlip(false);
+    setMenuCarouselIndex(0);
+    setVcard({
+      name: '',
+      phone: '',
+      email: '',
+      website: '',
+      company: '',
+      about: '',
+      slug: '',
+    });
+    setVcardStyle({
+      fontFamily: 'Arial, sans-serif',
+      radius: 18,
+      texture: 'matte' as VcardTexture,
+      frontColor: '#111827',
+      frontGradient: '#2563eb',
+      frontUseGradient: true,
+      backColor: '#0f172a',
+      backGradient: '#4f46e5',
+      backUseGradient: true,
+      logoDataUrl: '',
+      profilePhotoDataUrl: '',
+      photoZoom: 110,
+      photoX: 50,
+      photoY: 50,
+    });
+    setVcardPreviewSide('front');
+    setShowVcardCustomizer(false);
+    setShowVcardPreview(false);
+    setShowMenuBuilder(false);
+    setOptions({ ...defaultQROptions });
+    setGeneratedShortUrl('');
+    setGeneratedLongUrl('');
+    setLastGeneratedContent('');
+    setHasGenerated(false);
+    setIsGenerating(false);
+    setMobileCustomizeStep(false);
+  }, []);
 
   const handleDownload = async (format: 'png' | 'svg' | 'jpeg' | 'pdf') => {
     if (!qrRef.current) return;
@@ -2008,6 +2076,7 @@ const Index = () => {
   }) => {
     const triggerRef = useRef<HTMLButtonElement>(null);
     const openCreateMenu = () => {
+      resetCreateFlow();
       if (triggerRef.current) {
         const rect = triggerRef.current.getBoundingClientRect();
         const originX = ((rect.left + rect.width / 2) / window.innerWidth) * 100;
@@ -5017,10 +5086,6 @@ const Index = () => {
                         <span className="text-sm font-medium">Style</span>
                       </AccordionTrigger>
                       <AccordionContent className="px-4 pb-4 pt-2 space-y-5">
-                        <SizeSlider
-                          value={options.size}
-                          onChange={(v) => updateOption('size', v)}
-                        />
                         <CornerStylePicker
                           value={options.cornerStyle}
                           onChange={(v) => updateOption('cornerStyle', v)}

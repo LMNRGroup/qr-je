@@ -11,6 +11,7 @@ interface QRPreviewProps {
   isGenerating?: boolean;
   contentOverride?: string;
   showCaption?: boolean;
+  innerPadding?: number;
 }
 
 export interface QRPreviewHandle {
@@ -22,7 +23,7 @@ export interface QRPreviewHandle {
 }
 
 export const QRPreview = forwardRef<QRPreviewHandle, QRPreviewProps>(
-  ({ options, isGenerating = false, contentOverride, showCaption = true }, ref) => {
+  ({ options, isGenerating = false, contentOverride, showCaption = true, innerPadding = 16 }, ref) => {
     const qrRef = useRef<HTMLDivElement>(null);
     const svgRef = useRef<SVGSVGElement>(null);
     const dotMaskId = useId().replace(/:/g, '');
@@ -169,6 +170,8 @@ export const QRPreview = forwardRef<QRPreviewHandle, QRPreviewProps>(
       fgPath.setAttribute('mask', `url(#${maskId})`);
     }, [contentValue, dotMaskId, options.cornerStyle, options.size]);
 
+    const qrInnerSize = Math.max(64, options.size - innerPadding * 2);
+
     return (
       <div className="flex flex-col items-center gap-6">
         <motion.div
@@ -195,7 +198,7 @@ export const QRPreview = forwardRef<QRPreviewHandle, QRPreviewProps>(
               <QRCodeSVG
                 ref={svgRef}
                 value={contentValue}
-                size={options.size - 32}
+                size={qrInnerSize}
                 fgColor={options.fgColor}
                 bgColor={options.bgColor}
                 level={options.errorCorrectionLevel}
