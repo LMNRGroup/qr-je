@@ -1874,7 +1874,7 @@ const Index = () => {
 
     dialMomentumRef.current = window.requestAnimationFrame(step);
   };
-  const playDialClick = useCallback(() => {
+  const playDialTick = useCallback(() => {
     if (typeof window === 'undefined') return;
     if (!audioRef.current) {
       audioRef.current = new AudioContext();
@@ -1885,15 +1885,36 @@ const Index = () => {
     }
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
-    osc.type = 'triangle';
-    osc.frequency.value = 720;
-    gain.gain.value = 0.05;
+    osc.type = 'square';
+    osc.frequency.value = 420;
+    gain.gain.value = 0.03;
     osc.connect(gain);
     gain.connect(ctx.destination);
     const now = ctx.currentTime;
-    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.06);
     osc.start(now);
-    osc.stop(now + 0.09);
+    osc.stop(now + 0.07);
+  }, []);
+  const playDialSelect = useCallback(() => {
+    if (typeof window === 'undefined') return;
+    if (!audioRef.current) {
+      audioRef.current = new AudioContext();
+    }
+    const ctx = audioRef.current;
+    if (ctx.state === 'suspended') {
+      void ctx.resume();
+    }
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.value = 520;
+    gain.gain.value = 0.02;
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    const now = ctx.currentTime;
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.04);
+    osc.start(now);
+    osc.stop(now + 0.05);
   }, []);
   const lastDialIndexRef = useRef<number | null>(null);
 
@@ -1907,10 +1928,10 @@ const Index = () => {
       return;
     }
     if (lastDialIndexRef.current !== dialIndex) {
-      playDialClick();
+      playDialTick();
       lastDialIndexRef.current = dialIndex;
     }
-  }, [dialIndex, isDialOpen, playDialClick]);
+  }, [dialIndex, isDialOpen, playDialTick]);
 
   useEffect(() => {
     if (typeof document === 'undefined') return;
@@ -3450,7 +3471,7 @@ const Index = () => {
                     type="button"
                     className="w-full text-left"
                     onClick={() => {
-                      playDialClick();
+                      playDialSelect();
                       setActiveTab(dialActive.id as typeof activeTab);
                       setIsDialOpen(false);
                     }}
@@ -3516,7 +3537,7 @@ const Index = () => {
                   onPointerMove={(event) => {
                     if (!dialDragging) return;
                     const deltaY = event.clientY - dialStartRef.current.y;
-                    const nextAngle = dialStartRef.current.angle + deltaY * 0.6;
+                    const nextAngle = dialStartRef.current.angle - deltaY * 0.6;
                     const now = window.performance.now();
                     const dt = now - dialMomentumLastTimeRef.current;
                     if (dt > 0) {
@@ -3546,7 +3567,7 @@ const Index = () => {
                         'radial-gradient(circle at 30% 25%, rgba(255,248,210,0.75), rgba(251,191,36,0.6) 38%, rgba(214,142,16,0.55) 70%, rgba(102,61,0,0.35) 100%), repeating-conic-gradient(from 0deg, rgba(255,214,102,0.55) 0deg 1deg, rgba(120,72,0,0.18) 1deg 6deg)',
                       WebkitMask: 'radial-gradient(circle at center, transparent 58%, black 66%)',
                       mask: 'radial-gradient(circle at center, transparent 58%, black 66%)',
-                      transform: 'scale(1.12)',
+                      transform: `rotate(${dialAngle}deg) scale(1.12)`,
                       transformOrigin: 'center',
                     }}
                   />
@@ -3591,7 +3612,7 @@ const Index = () => {
                               rotateDialToIndex(index);
                               return;
                             }
-                            playDialClick();
+                            playDialSelect();
                             setActiveTab(item.id as typeof activeTab);
                             setIsDialOpen(false);
                           }}
