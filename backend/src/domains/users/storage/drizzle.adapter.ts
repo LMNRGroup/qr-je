@@ -1,30 +1,52 @@
-import { eq } from 'drizzle-orm'
+import { eq, sql } from 'drizzle-orm'
 
 import { db } from '../../../infra/db/postgres.db'
 import { users } from '../../../infra/db/schema'
+
+let avatarColumnsEnsured = false
+let avatarColumnsPromise: Promise<void> | null = null
+
+const ensureAvatarColumns = async () => {
+  if (avatarColumnsEnsured) return
+  if (!avatarColumnsPromise) {
+    avatarColumnsPromise = (async () => {
+      await db.execute(sql`ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "avatar_type" text`)
+      await db.execute(sql`ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "avatar_color" text`)
+      avatarColumnsEnsured = true
+    })().catch((error) => {
+      avatarColumnsPromise = null
+      throw error
+    })
+  }
+  await avatarColumnsPromise
+}
+
+const isMissingAvatarColumn = (error: unknown) => {
+  const message = error instanceof Error ? error.message : ''
+  return message.includes('avatar_type') || message.includes('avatar_color')
+}
+
+const withAvatarColumns = async <T>(task: () => Promise<T>) => {
+  try {
+    return await task()
+  } catch (error) {
+    if (isMissingAvatarColumn(error)) {
+      await ensureAvatarColumns()
+      return await task()
+    }
+    throw error
+  }
+}
 import { User } from '../models'
 import { UsersStorage } from './interface'
 
 export class DrizzleUsersStorageAdapter implements UsersStorage {
   async upsertUser(user: User) {
-    const rows = await db
-      .insert(users)
-      .values({
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        username: user.username,
-        timezone: user.timezone,
-        language: user.language,
-        theme: user.theme,
-        avatarType: user.avatarType,
-        avatarColor: user.avatarColor,
-        usernameChangedAt: user.usernameChangedAt ? new Date(user.usernameChangedAt) : null,
-        createdAt: new Date(user.createdAt)
-      })
-      .onConflictDoUpdate({
-        target: users.id,
-        set: {
+    const rows = await withAvatarColumns(() =>
+      db
+        .insert(users)
+        .values({
+          id: user.id,
           name: user.name,
           email: user.email,
           username: user.username,
@@ -33,10 +55,25 @@ export class DrizzleUsersStorageAdapter implements UsersStorage {
           theme: user.theme,
           avatarType: user.avatarType,
           avatarColor: user.avatarColor,
-          usernameChangedAt: user.usernameChangedAt ? new Date(user.usernameChangedAt) : null
-        }
-      })
-      .returning()
+          usernameChangedAt: user.usernameChangedAt ? new Date(user.usernameChangedAt) : null,
+          createdAt: new Date(user.createdAt)
+        })
+        .onConflictDoUpdate({
+          target: users.id,
+          set: {
+            name: user.name,
+            email: user.email,
+            username: user.username,
+            timezone: user.timezone,
+            language: user.language,
+            theme: user.theme,
+            avatarType: user.avatarType,
+            avatarColor: user.avatarColor,
+            usernameChangedAt: user.usernameChangedAt ? new Date(user.usernameChangedAt) : null
+          }
+        })
+        .returning()
+    )
 
     if (!rows[0]) {
       throw new Error('Failed to upsert user')
@@ -46,11 +83,13 @@ export class DrizzleUsersStorageAdapter implements UsersStorage {
   }
 
   async getById(id: string) {
-    const rows = await db
-      .select()
-      .from(users)
-      .where(eq(users.id, id))
-      .limit(1)
+    const rows = await withAvatarColumns(() =>
+      db
+        .select()
+        .from(users)
+        .where(eq(users.id, id))
+        .limit(1)
+    )
 
     if (!rows[0]) {
       return null
@@ -60,11 +99,13 @@ export class DrizzleUsersStorageAdapter implements UsersStorage {
   }
 
   async getByUsername(username: string) {
-    const rows = await db
-      .select()
-      .from(users)
-      .where(eq(users.username, username))
-      .limit(1)
+    const rows = await withAvatarColumns(() =>
+      db
+        .select()
+        .from(users)
+        .where(eq(users.username, username))
+        .limit(1)
+    )
 
     if (!rows[0]) {
       return null
@@ -89,11 +130,13 @@ export class DrizzleUsersStorageAdapter implements UsersStorage {
         : null
     }
 
-    const rows = await db
-      .update(users)
-      .set(payload)
-      .where(eq(users.id, id))
-      .returning()
+    const rows = await withAvatarColumns(() =>
+      db
+        .update(users)
+        .set(payload)
+        .where(eq(users.id, id))
+        .returning()
+    )
 
     if (!rows[0]) {
       return null
