@@ -72,6 +72,7 @@ import { toast } from 'sonner';
 
 const BUILD_STAMP = '2026-01-20T16:52:00Z';
 const GUEST_WELCOME_KEY = `qr.guest.welcome.${BUILD_STAMP}`;
+const TOUR_GUEST_KEY = `qr.tour.guest.${BUILD_STAMP}`;
 const VCARD_ASSETS_BUCKET = 'vcards';
 const MAX_FILE_BYTES = 5 * 1024 * 1024;
 const MAX_MENU_FILE_BYTES = 2.5 * 1024 * 1024;
@@ -161,6 +162,14 @@ const Index = () => {
   const [usernameStatus, setUsernameStatus] = useState<'idle' | 'checking' | 'available' | 'taken' | 'invalid'>('idle');
   const [usernameError, setUsernameError] = useState('');
   const [showAvatarEditor, setShowAvatarEditor] = useState(false);
+  const [tourActive, setTourActive] = useState(false);
+  const [tourStepIndex, setTourStepIndex] = useState(0);
+  const [tourRect, setTourRect] = useState<DOMRect | null>(null);
+  const [tourTooltip, setTourTooltip] = useState<{ top: number; left: number } | null>(null);
+  const [tourDialState, setTourDialState] = useState({ opened: false, rotated: false, closed: false });
+  const tourDialStartAngleRef = useRef<number | null>(null);
+  const tourGuestSeenRef = useRef(false);
+  const isNewAccountRef = useRef(false);
   const [profileForm, setProfileForm] = useState({
     fullName: '',
     username: '',
@@ -547,6 +556,7 @@ const Index = () => {
     if (authLoading || isBooting) return;
     if (!user) {
       welcomeShownRef.current = null;
+      isNewAccountRef.current = false;
       return;
     }
     if (welcomeShownRef.current === user.id) return;
@@ -568,6 +578,7 @@ const Index = () => {
     const isNewAccount = createdAt && lastSignInAt
       ? Math.abs(lastSignInAt - createdAt) < 2 * 60 * 1000
       : false;
+    isNewAccountRef.current = isNewAccount;
     if (!wasWelcomed && isNewAccount) {
       setWelcomeHeadline(`Yo ${displayName}!`);
       setWelcomeSubline('Not everyone makes great decisions… but today you did.\nWelcome to QRC Studio.');
@@ -586,6 +597,7 @@ const Index = () => {
     const timer = window.setTimeout(() => setShowWelcomeIntro(false), 2600);
     return () => window.clearTimeout(timer);
   }, [showWelcomeIntro]);
+
 
   useEffect(() => {
     if (!isLoggedIn) {
@@ -1278,6 +1290,63 @@ const Index = () => {
     { id: 'blue', label: 'Blue', bg: 'bg-blue-600', text: 'text-white' },
     { id: 'gold', label: 'Gold', bg: 'bg-amber-400', text: 'text-slate-900' },
   ] as const;
+  const tourSteps = useMemo(
+    () => [
+      {
+        id: 'quick-actions',
+        target: 'quick-actions',
+        title: 'Quick Actions',
+        description: 'Start fast with presets for websites, calls, emails, files, menus, and vcards.',
+      },
+      {
+        id: 'overview',
+        target: 'overview',
+        title: 'Overview',
+        description: 'Tap stats to jump into your Arsenal or Intel analytics.',
+      },
+      {
+        id: 'studio-guide',
+        target: 'studio-guide',
+        title: 'Studio Guide',
+        description: 'Your 3-step QR flow at a glance.',
+      },
+      {
+        id: 'dark-mode',
+        target: 'dark-mode',
+        title: 'Dark Mode',
+        description: 'Toggle the theme any time.',
+      },
+      {
+        id: 'profile-icon',
+        target: 'profile-icon',
+        title: 'Profile',
+        description: 'Manage preferences and sign out from here.',
+      },
+      {
+        id: 'dial-controls',
+        target: 'dial-open',
+        title: 'Dial Controls',
+        description: 'Open the dial, rotate to feel it, then close it with the X.',
+      },
+      {
+        id: 'cta',
+        target: 'quick-actions',
+        title: 'Create Your First QR',
+        description: 'Pick a quick action to get started, or tap Done.',
+      },
+    ],
+    []
+  );
+  const currentTourStep = tourActive ? tourSteps[tourStepIndex] : null;
+  const isTourDialStep = currentTourStep?.id === 'dial-controls';
+  const isTourCtaStep = currentTourStep?.id === 'cta';
+  const tourTargetId = useMemo(() => {
+    if (!currentTourStep) return null;
+    if (currentTourStep.id === 'dial-controls' && isDialOpen) {
+      return 'dial-panel';
+    }
+    return currentTourStep.target;
+  }, [currentTourStep, isDialOpen]);
 
   const makeVcardGradient = (from: string, to: string) => `linear-gradient(135deg, ${from}, ${to})`;
   const makeVcardBase = (useGradient: boolean, color: string, gradient: string) =>
@@ -1645,6 +1714,159 @@ const Index = () => {
   const avatarLetter = (profileForm.fullName || user?.email || 'Q').trim().charAt(0).toUpperCase() || 'Q';
   const selectedAvatarColor =
     avatarColors.find((color) => color.id === profileForm.avatarColor) ?? avatarColors[0];
+  const tourCanProceed = !isTourDialStep || tourDialState.closed;
+  const endTour = useCallback(() => {
+    setTourActive(false);
+    setTourStepIndex(0);
+    setTourDialState({ opened: false, rotated: false, closed: false });
+    setTourRect(null);
+    setTourTooltip(null);
+  }, []);
+  const advanceTour = useCallback(() => {
+    if (!currentTourStep) return;
+    if (tourStepIndex >= tourSteps.length - 1) {
+      endTour();
+      return;
+    }
+    setTourStepIndex((prev) => prev + 1);
+  }, [currentTourStep, endTour, tourStepIndex, tourSteps.length]);
+  const handleTourQuickAction = useCallback(() => {
+    if (tourActive && isTourCtaStep) {
+      endTour();
+    }
+  }, [tourActive, isTourCtaStep, endTour]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (showWelcomeIntro || !user || !isNewAccountRef.current) return;
+    if (tourActive) return;
+    const tourKey = `qr.tour.user.${user.id}`;
+    if (localStorage.getItem(tourKey)) return;
+    localStorage.setItem(tourKey, 'true');
+    setTourActive(true);
+    setTourStepIndex(0);
+  }, [showWelcomeIntro, tourActive, user]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (showGuestWelcome) {
+      tourGuestSeenRef.current = true;
+      return;
+    }
+    if (user || !tourGuestSeenRef.current) return;
+    if (tourActive) return;
+    if (localStorage.getItem(TOUR_GUEST_KEY)) return;
+    localStorage.setItem(TOUR_GUEST_KEY, 'true');
+    setTourActive(true);
+    setTourStepIndex(0);
+  }, [showGuestWelcome, tourActive, user]);
+
+  useEffect(() => {
+    if (!tourActive || !tourTargetId) {
+      setTourRect(null);
+      return;
+    }
+    if (typeof window === 'undefined') return;
+    const element = document.querySelector<HTMLElement>(`[data-tour-id="${tourTargetId}"]`);
+    if (!element) {
+      setTourRect(null);
+      return;
+    }
+    element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    setTourRect(element.getBoundingClientRect());
+  }, [tourActive, tourTargetId, tourStepIndex]);
+
+  useEffect(() => {
+    if (!tourRect) {
+      setTourTooltip(null);
+      return;
+    }
+    if (typeof window === 'undefined') return;
+    const tooltipWidth = 320;
+    const tooltipHeight = 160;
+    const padding = 16;
+    let top = tourRect.bottom + padding;
+    if (top + tooltipHeight > window.innerHeight) {
+      top = Math.max(padding, tourRect.top - tooltipHeight - padding);
+    }
+    let left = tourRect.left;
+    if (left + tooltipWidth > window.innerWidth - padding) {
+      left = window.innerWidth - tooltipWidth - padding;
+    }
+    if (left < padding) {
+      left = padding;
+    }
+    setTourTooltip({ top, left });
+  }, [tourRect]);
+
+  useEffect(() => {
+    if (!tourActive || !tourRect) return;
+    if (typeof window === 'undefined') return;
+    const handleResize = () => {
+      const element = tourTargetId
+        ? document.querySelector<HTMLElement>(`[data-tour-id="${tourTargetId}"]`)
+        : null;
+      if (!element) return;
+      setTourRect(element.getBoundingClientRect());
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [tourActive, tourRect, tourTargetId]);
+
+  useEffect(() => {
+    if (!tourActive || !isTourDialStep) {
+      setTourDialState({ opened: false, rotated: false, closed: false });
+      tourDialStartAngleRef.current = null;
+      return;
+    }
+    if (isDialOpen && !tourDialState.opened) {
+      setTourDialState((prev) => ({ ...prev, opened: true }));
+      tourDialStartAngleRef.current = dialAngle;
+      return;
+    }
+    if (isDialOpen && tourDialStartAngleRef.current !== null && !tourDialState.rotated) {
+      if (Math.abs(dialAngle - tourDialStartAngleRef.current) > 10) {
+        setTourDialState((prev) => ({ ...prev, rotated: true }));
+      }
+      return;
+    }
+    if (!isDialOpen && tourDialState.opened && tourDialState.rotated && !tourDialState.closed) {
+      setTourDialState((prev) => ({ ...prev, closed: true }));
+    }
+  }, [tourActive, isTourDialStep, isDialOpen, dialAngle, tourDialState]);
+
+  useEffect(() => {
+    if (!tourActive) return;
+    const handlePointer = (event: globalThis.PointerEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (!target) return;
+      if (target.closest('[data-tour-allow="true"]')) return;
+      if (isTourDialStep) {
+        if (target.closest('[data-tour-id="dial-open"], [data-tour-id="dial-panel"], [data-tour-id="dial-close"]')) {
+          return;
+        }
+      }
+      if (isTourCtaStep) {
+        if (target.closest('[data-tour-quick-action="true"]')) {
+          return;
+        }
+      }
+      event.preventDefault();
+      event.stopPropagation();
+    };
+    window.addEventListener('pointerdown', handlePointer, true);
+    return () => window.removeEventListener('pointerdown', handlePointer, true);
+  }, [tourActive, isTourDialStep, isTourCtaStep]);
+
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+    if (!tourActive) return;
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = originalOverflow;
+    };
+  }, [tourActive]);
   const adaptiveSlotsVisible = adaptiveSlots.slice(0, adaptiveSlotCount);
   const adaptiveNowSlot = adaptiveDateRulesEnabled ? adaptiveDateRules[0]?.slot ?? adaptiveDefaultSlot : adaptiveDefaultSlot;
   const adaptiveReturningSlot = adaptiveFirstReturnEnabled ? adaptiveReturnSlot : adaptiveDefaultSlot;
@@ -3468,11 +3690,14 @@ const Index = () => {
           ) : null}
           </div>
           <div className="flex items-center gap-3">
-            <ThemeToggle storageKey={isLoggedIn && user?.id ? `theme:${user.id}` : 'theme:guest'} />
+            <div data-tour-id="dark-mode">
+              <ThemeToggle storageKey={isLoggedIn && user?.id ? `theme:${user.id}` : 'theme:guest'} />
+            </div>
             <div className="relative group">
               <button
                 type="button"
                 className="h-9 w-9 rounded-full border border-border/60 bg-secondary/50 flex items-center justify-center transition hover:border-primary/50"
+                data-tour-id="profile-icon"
                 aria-label="My Account"
                 onClick={() => setShowAccountModal(true)}
               >
@@ -3496,6 +3721,7 @@ const Index = () => {
             className={`fixed bottom-6 right-6 z-[70] flex items-center justify-center rounded-full border border-amber-300/50 bg-card/80 p-2 shadow-lg shadow-[0_0_14px_rgba(251,191,36,0.2)] transition hover:border-amber-300/70 hover:bg-card ${
               isDialOpen ? 'opacity-0 pointer-events-none' : 'opacity-100'
             }`}
+            data-tour-id="dial-open"
             aria-label="Open navigation dial"
             onClick={() => setIsDialOpen(true)}
           >
@@ -3539,6 +3765,7 @@ const Index = () => {
                   className="absolute right-6 top-6 z-10 flex h-10 w-10 items-center justify-center rounded-full border border-border/60 bg-card/80 text-muted-foreground transition hover:border-primary/60 hover:text-primary"
                   onClick={() => setIsDialOpen(false)}
                   aria-label="Close navigation dial"
+                  data-tour-id="dial-close"
                 >
                   <X className="h-5 w-5" />
                 </button>
@@ -3561,6 +3788,7 @@ const Index = () => {
                     minHeight: dialSize,
                     transform: 'translate(50%, -50%)',
                   }}
+                  data-tour-id="dial-panel"
                   onClick={(event) => event.stopPropagation()}
                   onPointerDown={(event) => {
                     const target = event.target as HTMLElement | null;
@@ -3677,6 +3905,66 @@ const Index = () => {
         </>
       )}
 
+      {tourActive && currentTourStep && (
+        <div className="fixed inset-0 z-[85]">
+          <div
+            className={`absolute inset-0 bg-black/60 ${
+              isTourDialStep || isTourCtaStep ? 'pointer-events-none' : 'pointer-events-auto'
+            }`}
+          />
+          {tourRect && (
+            <div
+              className="pointer-events-none absolute rounded-2xl border border-primary/60"
+              style={{
+                top: tourRect.top - 8,
+                left: tourRect.left - 8,
+                width: tourRect.width + 16,
+                height: tourRect.height + 16,
+                boxShadow: '0 0 0 9999px rgba(0,0,0,0.55)',
+              }}
+            />
+          )}
+          <div
+            className="absolute w-[320px] max-w-[90vw] space-y-3 rounded-2xl border border-border/70 bg-card/90 p-4 shadow-xl backdrop-blur"
+            style={{
+              top: tourTooltip?.top ?? '50%',
+              left: tourTooltip?.left ?? '50%',
+              transform: tourTooltip ? 'none' : 'translate(-50%, -50%)',
+            }}
+          >
+            <div className="space-y-1">
+              <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">
+                {currentTourStep.title}
+              </p>
+              <p className="text-sm text-foreground">{currentTourStep.description}</p>
+              {isTourDialStep && !tourCanProceed && (
+                <p className="text-xs text-muted-foreground">
+                  Open the dial, rotate it a bit, then close with the X.
+                </p>
+              )}
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground">
+                {tourStepIndex + 1} / {tourSteps.length}
+              </span>
+              <button
+                type="button"
+                data-tour-allow="true"
+                className={`rounded-full border px-3 py-1 text-[10px] uppercase tracking-[0.3em] transition ${
+                  tourCanProceed
+                    ? 'border-primary/60 text-primary hover:border-primary'
+                    : 'border-border/60 text-muted-foreground opacity-50'
+                }`}
+                onClick={advanceTour}
+                disabled={!tourCanProceed}
+              >
+                {isTourCtaStep ? 'Done' : 'Next'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Main Content */}
       <main
         className={`container mx-auto px-4 py-3 sm:py-6 lg:py-8 transition ${
@@ -3686,7 +3974,7 @@ const Index = () => {
         {activeTab === 'studio' && (
           <>
         {showStudioIntro && isMobile && (
-        <section className="space-y-3 sm:space-y-4">
+        <section className="space-y-3 sm:space-y-4" data-tour-id="quick-actions">
           <div>
             <p className="text-xs uppercase tracking-[0.4em] text-muted-foreground">Quick Actions</p>
             <h3 className="text-lg font-semibold">Jump into a new QR</h3>
@@ -3739,10 +4027,14 @@ const Index = () => {
               <button
                 key={action.id}
                 type="button"
-                onClick={action.onClick}
+                onClick={() => {
+                  action.onClick();
+                  handleTourQuickAction();
+                }}
                 onMouseEnter={() => setQuickActionHover(action.id)}
                 onMouseLeave={() => setQuickActionHover(null)}
                 aria-pressed={selectedQuickAction === action.id}
+                data-tour-quick-action="true"
                 className={`group relative flex flex-col items-center justify-center rounded-full border h-9 w-9 sm:h-14 sm:w-14 transition hover:border-primary/60 hover:bg-secondary/40 ${
                   selectedQuickAction === action.id
                     ? 'border-primary/70 bg-secondary/50 ring-1 ring-primary/40 shadow-[0_0_16px_rgba(99,102,241,0.25)]'
@@ -3791,6 +4083,7 @@ const Index = () => {
                 }
               }}
               className="glass-panel rounded-2xl p-3 sm:p-6 space-y-3 sm:space-y-5 text-left transition hover:border-primary/60 hover:shadow-lg hover:-translate-y-1"
+              data-tour-id="overview"
             >
               <div className="flex items-center justify-between">
                 <div>
@@ -3820,7 +4113,7 @@ const Index = () => {
               </div>
             </div>
 
-            <div className="glass-panel rounded-2xl p-3 sm:p-6 space-y-2 sm:space-y-4">
+            <div className="glass-panel rounded-2xl p-3 sm:p-6 space-y-2 sm:space-y-4" data-tour-id="studio-guide">
               <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Studio Guide</p>
               <h3 className="text-base sm:text-lg font-semibold">Your QR flow</h3>
               <div className="space-y-1.5 text-xs sm:text-sm text-muted-foreground">
@@ -3834,7 +4127,7 @@ const Index = () => {
         )}
 
         {showStudioIntro && !isMobile && (
-        <section className="mt-6 lg:mt-10 space-y-4">
+        <section className="mt-6 lg:mt-10 space-y-4" data-tour-id="quick-actions">
           <div>
             <p className="text-xs uppercase tracking-[0.4em] text-muted-foreground">Quick Actions</p>
             <h3 className="text-lg font-semibold">Jump into a new QR</h3>
@@ -3887,10 +4180,14 @@ const Index = () => {
               <button
                 key={action.id}
                 type="button"
-                onClick={action.onClick}
+                onClick={() => {
+                  action.onClick();
+                  handleTourQuickAction();
+                }}
                 onMouseEnter={() => setQuickActionHover(action.id)}
                 onMouseLeave={() => setQuickActionHover(null)}
                 aria-pressed={selectedQuickAction === action.id}
+                data-tour-quick-action="true"
                 className={`group relative flex flex-col items-center justify-center rounded-full border h-10 w-10 sm:h-14 sm:w-14 transition hover:border-primary/60 hover:bg-secondary/40 ${
                   selectedQuickAction === action.id
                     ? 'border-primary/70 bg-secondary/50 ring-1 ring-primary/40 shadow-[0_0_16px_rgba(99,102,241,0.25)]'
@@ -4953,13 +5250,13 @@ const Index = () => {
                         onBlur={handleUsernameCheck}
                         placeholder={t('Username (max 18 characters)', 'Nombre de usuario (max 18 caracteres)')}
                         disabled={isUsernameCooldown}
-                        className={`bg-secondary/40 border-border ${usernameError ? 'border-destructive animate-shake' : ''}`}
+                        className={`bg-secondary/40 border-border ${usernameError ? 'border-destructive animate-shake' : ''} ${isUsernameCooldown ? 'opacity-60 cursor-not-allowed' : ''}`}
                       />
                       <Button
                         type="button"
                         size="sm"
                         variant="outline"
-                        className="border-border uppercase tracking-[0.2em] text-[10px]"
+                        className="border-border uppercase tracking-[0.2em] text-[10px] disabled:opacity-50"
                         onClick={handleUsernameCheck}
                         disabled={isUsernameCooldown || !profileForm.username.trim() || usernameStatus === 'checking'}
                       >
