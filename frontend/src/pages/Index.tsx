@@ -41,6 +41,7 @@ import {
   Download,
   File,
   Facebook,
+  GraduationCap,
   Globe,
   Instagram,
   Link as LinkIcon,
@@ -60,6 +61,7 @@ import {
   Star,
   Utensils,
   User,
+  UserRound,
   Users,
   Zap,
   X,
@@ -158,6 +160,7 @@ const Index = () => {
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [usernameStatus, setUsernameStatus] = useState<'idle' | 'checking' | 'available' | 'taken' | 'invalid'>('idle');
   const [usernameError, setUsernameError] = useState('');
+  const [showAvatarEditor, setShowAvatarEditor] = useState(false);
   const [profileForm, setProfileForm] = useState({
     fullName: '',
     username: '',
@@ -166,6 +169,8 @@ const Index = () => {
     currentPassword: '',
     newPassword: '',
     confirmPassword: '',
+    avatarType: 'letter',
+    avatarColor: 'purple',
   });
   const [generatedShortUrl, setGeneratedShortUrl] = useState('');
   const [generatedLongUrl, setGeneratedLongUrl] = useState('');
@@ -598,6 +603,8 @@ const Index = () => {
           username: profile.username ?? prev.username,
           timezone: profile.timezone ?? prev.timezone,
           language: profile.language ?? prev.language ?? 'en',
+          avatarType: profile.avatarType ?? prev.avatarType ?? 'letter',
+          avatarColor: profile.avatarColor ?? prev.avatarColor ?? 'purple',
         }));
         if (!profile.timezone) {
           const autoZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -785,6 +792,8 @@ const Index = () => {
         currentPassword: '',
         newPassword: '',
         confirmPassword: '',
+        avatarType: 'letter',
+        avatarColor: 'purple',
       });
       return;
     }
@@ -1176,6 +1185,8 @@ const Index = () => {
         timezone: profileForm.timezone || null,
         language: profileForm.language || 'en',
         theme: theme || null,
+        avatarType: profileForm.avatarType || null,
+        avatarColor: profileForm.avatarColor || null,
       });
       setUserProfile(updated);
       setProfileForm((prev) => ({
@@ -1183,6 +1194,8 @@ const Index = () => {
         username: updated.username ?? prev.username,
         timezone: updated.timezone ?? prev.timezone,
         language: updated.language ?? prev.language,
+        avatarType: updated.avatarType ?? prev.avatarType,
+        avatarColor: updated.avatarColor ?? prev.avatarColor,
         currentPassword: '',
         newPassword: '',
         confirmPassword: '',
@@ -1253,6 +1266,18 @@ const Index = () => {
     { id: 'glossy', label: 'Glossy' },
     { id: 'paper', label: 'Paper' },
   ];
+  const avatarOptions = [
+    { id: 'neutral', label: 'Neutral', Icon: User },
+    { id: 'cap', label: 'Cap', Icon: GraduationCap },
+    { id: 'bun', label: 'Bun', Icon: UserRound },
+    { id: 'letter', label: 'Letter' },
+  ] as const;
+  const avatarColors = [
+    { id: 'purple', label: 'Purple', bg: 'bg-violet-500', text: 'text-white' },
+    { id: 'graphite', label: 'Graphite', bg: 'bg-slate-800', text: 'text-white' },
+    { id: 'blue', label: 'Blue', bg: 'bg-blue-600', text: 'text-white' },
+    { id: 'gold', label: 'Gold', bg: 'bg-amber-400', text: 'text-slate-900' },
+  ] as const;
 
   const makeVcardGradient = (from: string, to: string) => `linear-gradient(135deg, ${from}, ${to})`;
   const makeVcardBase = (useGradient: boolean, color: string, gradient: string) =>
@@ -1613,6 +1638,13 @@ const Index = () => {
 
   const adaptiveGradientText = 'bg-gradient-to-r from-amber-200 via-yellow-400 to-amber-500 text-transparent bg-clip-text';
   const adaptiveGlowText = 'font-semibold text-transparent bg-clip-text bg-gradient-to-r from-amber-200 via-yellow-400 to-amber-500 drop-shadow-[0_0_10px_rgba(251,191,36,0.35)]';
+  const usernameCooldownUntil = userProfile?.usernameChangedAt
+    ? new Date(userProfile.usernameChangedAt).getTime() + 30 * 24 * 60 * 60 * 1000
+    : null;
+  const isUsernameCooldown = Boolean(usernameCooldownUntil && Date.now() < usernameCooldownUntil);
+  const avatarLetter = (profileForm.fullName || user?.email || 'Q').trim().charAt(0).toUpperCase() || 'Q';
+  const selectedAvatarColor =
+    avatarColors.find((color) => color.id === profileForm.avatarColor) ?? avatarColors[0];
   const adaptiveSlotsVisible = adaptiveSlots.slice(0, adaptiveSlotCount);
   const adaptiveNowSlot = adaptiveDateRulesEnabled ? adaptiveDateRules[0]?.slot ?? adaptiveDefaultSlot : adaptiveDefaultSlot;
   const adaptiveReturningSlot = adaptiveFirstReturnEnabled ? adaptiveReturnSlot : adaptiveDefaultSlot;
@@ -2454,7 +2486,7 @@ const Index = () => {
                       setShowAccountModal(false);
                     }}
                   >
-                    Go to Settings
+                    Preferences
                   </button>
                   <button
                     type="button"
@@ -3379,7 +3411,9 @@ const Index = () => {
             </div>
             <div>
               <h1 className="text-lg font-bold gradient-text tracking-wide">QR Code Studio</h1>
-            <p className="text-xs text-muted-foreground uppercase tracking-[0.3em] hidden sm:block">The last QR you&apos;ll ever print</p>
+            <p className="text-[10px] text-muted-foreground uppercase tracking-[0.25em] sm:text-xs sm:tracking-[0.3em]">
+              The last QR you&apos;ll ever need
+            </p>
             </div>
           </button>
           <div className="relative hidden lg:flex flex-col items-center">
@@ -3459,23 +3493,12 @@ const Index = () => {
         <>
           <button
             type="button"
-            className={`fixed bottom-6 right-6 z-[70] relative flex items-center justify-center rounded-full border border-border/60 bg-card/80 p-2 shadow-lg shadow-[0_0_18px_rgba(251,191,36,0.25)] transition hover:border-primary/60 hover:bg-card ${
+            className={`fixed bottom-6 right-6 z-[70] flex items-center justify-center rounded-full border border-amber-300/50 bg-card/80 p-2 shadow-lg shadow-[0_0_14px_rgba(251,191,36,0.2)] transition hover:border-amber-300/70 hover:bg-card ${
               isDialOpen ? 'opacity-0 pointer-events-none' : 'opacity-100'
             }`}
             aria-label="Open navigation dial"
             onClick={() => setIsDialOpen(true)}
           >
-            <div
-              className="pointer-events-none absolute inset-0 rounded-full"
-              style={{
-                border: '1px solid rgba(251,191,36,0.6)',
-                boxShadow: '0 0 12px rgba(251,191,36,0.25)',
-                background:
-                  'radial-gradient(circle at 30% 25%, rgba(255,248,210,0.55), rgba(251,191,36,0.35) 45%, rgba(214,142,16,0.35) 70%, rgba(102,61,0,0.2) 100%), repeating-conic-gradient(from 0deg, rgba(255,214,102,0.45) 0deg 1deg, rgba(120,72,0,0.18) 1deg 6deg)',
-                WebkitMask: 'radial-gradient(circle at center, transparent 70%, black 76%)',
-                mask: 'radial-gradient(circle at center, transparent 70%, black 76%)',
-              }}
-            />
             <img
               src="/assets/QRC Studio Logo Button.png"
               alt="Open QRC Studio navigation"
@@ -4281,7 +4304,7 @@ const Index = () => {
                       <Button
                         type="button"
                         variant="outline"
-                        className="mt-2 border-border uppercase tracking-[0.2em] text-xs"
+                        className="mt-2 w-full max-w-xs border border-amber-300/70 bg-amber-300/15 text-amber-200 shadow-[0_0_18px_rgba(251,191,36,0.25)] hover:border-amber-300 hover:bg-amber-300/25 uppercase tracking-[0.2em] text-xs sm:w-auto sm:max-w-none sm:bg-transparent sm:text-foreground sm:shadow-none"
                         onClick={() => {
                           setShowVcardCustomizer(true);
                           setVcardPreviewSide('front');
@@ -4880,6 +4903,33 @@ const Index = () => {
                   <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">
                     {t('Profile', 'Perfil')}
                   </p>
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+                    <div className="flex flex-col items-center gap-2">
+                      <div
+                        className={`flex h-20 w-20 items-center justify-center rounded-full border border-border/60 ${selectedAvatarColor.bg} ${selectedAvatarColor.text}`}
+                      >
+                        {profileForm.avatarType === 'letter' ? (
+                          <span className="text-2xl font-semibold">{avatarLetter}</span>
+                        ) : profileForm.avatarType === 'cap' ? (
+                          <GraduationCap className="h-8 w-8" />
+                        ) : profileForm.avatarType === 'bun' ? (
+                          <UserRound className="h-8 w-8" />
+                        ) : (
+                          <User className="h-8 w-8" />
+                        )}
+                      </div>
+                      <button
+                        type="button"
+                        className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground hover:text-primary transition"
+                        onClick={() => setShowAvatarEditor(true)}
+                      >
+                        Edit
+                      </button>
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      Choose an avatar style and color that fits your brand.
+                    </div>
+                  </div>
                   <Input
                     value={profileForm.fullName}
                     onChange={(event) =>
@@ -4902,6 +4952,7 @@ const Index = () => {
                         }}
                         onBlur={handleUsernameCheck}
                         placeholder={t('Username (max 18 characters)', 'Nombre de usuario (max 18 caracteres)')}
+                        disabled={isUsernameCooldown}
                         className={`bg-secondary/40 border-border ${usernameError ? 'border-destructive animate-shake' : ''}`}
                       />
                       <Button
@@ -4910,17 +4961,18 @@ const Index = () => {
                         variant="outline"
                         className="border-border uppercase tracking-[0.2em] text-[10px]"
                         onClick={handleUsernameCheck}
-                        disabled={!profileForm.username.trim() || usernameStatus === 'checking'}
+                        disabled={isUsernameCooldown || !profileForm.username.trim() || usernameStatus === 'checking'}
                       >
                         {usernameStatus === 'checking' ? t('Checking...', 'Verificando...') : t('Check', 'Verificar')}
                       </Button>
                     </div>
                     <div className="text-xs text-muted-foreground">
+                      {isUsernameCooldown && t('Username changes are on cooldown.', 'El cambio de usuario esta en espera.')}
                       {usernameStatus === 'checking' && t('Checking availability...', 'Verificando disponibilidad...')}
                       {usernameStatus === 'available' && t('Username is available.', 'Nombre de usuario disponible.')}
                       {usernameStatus === 'taken' && (usernameError || t('Username is already taken.', 'Nombre de usuario ya esta en uso.'))}
                       {usernameStatus === 'invalid' && (usernameError || t('Please keep it family friendly.', 'Mantengamoslo apto para todos.'))}
-                      {usernameStatus === 'idle' && t('Usernames can be changed once every 30 days.', 'Los nombres de usuario se pueden cambiar cada 30 dias.')}
+                      {!isUsernameCooldown && usernameStatus === 'idle' && t('Usernames can be changed once every 30 days.', 'Los nombres de usuario se pueden cambiar cada 30 dias.')}
                     </div>
                     {userProfile?.usernameChangedAt && (
                       <div className="text-[11px] text-muted-foreground">
@@ -4929,6 +4981,73 @@ const Index = () => {
                       </div>
                     )}
                   </div>
+                  {showAvatarEditor && (
+                    <div
+                      className="fixed inset-0 z-[80] flex items-center justify-center bg-background/70 backdrop-blur-md px-4"
+                      onClick={() => setShowAvatarEditor(false)}
+                    >
+                      <div
+                        className="glass-panel w-full max-w-md rounded-2xl p-6 space-y-4"
+                        onClick={(event) => event.stopPropagation()}
+                      >
+                        <div className="flex items-center justify-between">
+                          <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Avatar</p>
+                          <button
+                            type="button"
+                            className="text-xs uppercase tracking-[0.3em] text-primary"
+                            onClick={() => setShowAvatarEditor(false)}
+                          >
+                            Done
+                          </button>
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                          {avatarOptions.map((option) => (
+                            <button
+                              key={option.id}
+                              type="button"
+                              className={`flex items-center gap-3 rounded-xl border px-3 py-2 text-xs uppercase tracking-[0.3em] transition ${
+                                profileForm.avatarType === option.id
+                                  ? 'border-primary bg-secondary/50 text-foreground'
+                                  : 'border-border/60 bg-secondary/20 text-muted-foreground hover:border-primary/60'
+                              }`}
+                              onClick={() =>
+                                setProfileForm((prev) => ({ ...prev, avatarType: option.id }))
+                              }
+                            >
+                              {option.id === 'letter' ? (
+                                <span className="flex h-8 w-8 items-center justify-center rounded-full border border-border/60 text-sm font-semibold">
+                                  {avatarLetter}
+                                </span>
+                              ) : option.Icon ? (
+                                <option.Icon className="h-5 w-5" />
+                              ) : null}
+                              {option.label}
+                            </button>
+                          ))}
+                        </div>
+                        <div className="space-y-2">
+                          <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Color</p>
+                          <div className="grid grid-cols-4 gap-2">
+                            {avatarColors.map((color) => (
+                              <button
+                                key={color.id}
+                                type="button"
+                                className={`h-10 w-10 rounded-full border ${color.bg} ${color.text} ${
+                                  profileForm.avatarColor === color.id ? 'ring-2 ring-primary' : 'border-border/60'
+                                }`}
+                                onClick={() =>
+                                  setProfileForm((prev) => ({ ...prev, avatarColor: color.id }))
+                                }
+                                aria-label={color.label}
+                              >
+                                {profileForm.avatarColor === color.id ? '✓' : ''}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                   <div className="grid gap-3 sm:grid-cols-2">
                     <label className="text-xs uppercase tracking-[0.3em] text-muted-foreground">
                       {t('Timezone', 'Zona horaria')}

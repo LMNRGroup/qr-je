@@ -6,6 +6,8 @@ import { normalizeUsername, validateUsername } from './validators'
 import type { AppBindings } from '../../shared/http/types'
 
 const USERNAME_CHANGE_WINDOW_MS = 30 * 24 * 60 * 60 * 1000
+const AVATAR_TYPES = new Set(['neutral', 'cap', 'bun', 'letter'])
+const AVATAR_COLORS = new Set(['purple', 'graphite', 'blue', 'gold'])
 
 export const getMeHandler = (usersService: UsersService) => {
   return async (c: Context<AppBindings>) => {
@@ -44,6 +46,20 @@ export const updateMeHandler = (usersService: UsersService) => {
     }
     if (typeof payload.theme === 'string') {
       updates.theme = payload.theme.trim() || null
+    }
+    if (typeof payload.avatarType === 'string') {
+      const normalized = payload.avatarType.trim()
+      if (!AVATAR_TYPES.has(normalized)) {
+        return c.json({ message: 'Invalid avatar type.' }, 400)
+      }
+      updates.avatarType = normalized
+    }
+    if (typeof payload.avatarColor === 'string') {
+      const normalized = payload.avatarColor.trim()
+      if (!AVATAR_COLORS.has(normalized)) {
+        return c.json({ message: 'Invalid avatar color.' }, 400)
+      }
+      updates.avatarColor = normalized
     }
 
     if (typeof payload.username === 'string') {

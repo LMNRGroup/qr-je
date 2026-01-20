@@ -8,6 +8,8 @@ export const users = pgTable('users', {
   timezone: text('timezone'),
   language: text('language'),
   theme: text('theme'),
+  avatarType: text('avatar_type'),
+  avatarColor: text('avatar_color'),
   usernameChangedAt: timestamp('username_changed_at', { withTimezone: true }),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow()
 })

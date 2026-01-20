@@ -33,6 +33,8 @@ export type UserProfile = {
   timezone: string | null;
   language: string | null;
   theme: string | null;
+  avatarType: string | null;
+  avatarColor: string | null;
   usernameChangedAt: string | null;
   createdAt: string;
 };
@@ -243,6 +245,8 @@ export async function updateUserProfile(payload: {
   timezone?: string | null;
   language?: string | null;
   theme?: string | null;
+  avatarType?: string | null;
+  avatarColor?: string | null;
 }): Promise<UserProfile> {
   const response = await request('/users/me', {
     method: 'PATCH',

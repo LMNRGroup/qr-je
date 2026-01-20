@@ -17,6 +17,8 @@ export class DrizzleUsersStorageAdapter implements UsersStorage {
         timezone: user.timezone,
         language: user.language,
         theme: user.theme,
+        avatarType: user.avatarType,
+        avatarColor: user.avatarColor,
         usernameChangedAt: user.usernameChangedAt ? new Date(user.usernameChangedAt) : null,
         createdAt: new Date(user.createdAt)
       })
@@ -29,6 +31,8 @@ export class DrizzleUsersStorageAdapter implements UsersStorage {
           timezone: user.timezone,
           language: user.language,
           theme: user.theme,
+          avatarType: user.avatarType,
+          avatarColor: user.avatarColor,
           usernameChangedAt: user.usernameChangedAt ? new Date(user.usernameChangedAt) : null
         }
       })
@@ -77,6 +81,8 @@ export class DrizzleUsersStorageAdapter implements UsersStorage {
     if ('timezone' in updates) payload.timezone = updates.timezone
     if ('language' in updates) payload.language = updates.language
     if ('theme' in updates) payload.theme = updates.theme
+    if ('avatarType' in updates) payload.avatarType = updates.avatarType
+    if ('avatarColor' in updates) payload.avatarColor = updates.avatarColor
     if ('usernameChangedAt' in updates) {
       payload.usernameChangedAt = updates.usernameChangedAt
         ? new Date(updates.usernameChangedAt)
@@ -105,6 +111,8 @@ export class DrizzleUsersStorageAdapter implements UsersStorage {
       timezone: row.timezone ?? null,
       language: row.language ?? null,
       theme: row.theme ?? null,
+      avatarType: row.avatarType ?? null,
+      avatarColor: row.avatarColor ?? null,
       usernameChangedAt: row.usernameChangedAt ? row.usernameChangedAt.toISOString() : null,
       createdAt: row.createdAt.toISOString()
     }

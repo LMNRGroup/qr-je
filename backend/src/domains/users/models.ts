@@ -8,6 +8,8 @@ export type User = {
   timezone: string | null
   language: string | null
   theme: string | null
+  avatarType: string | null
+  avatarColor: string | null
   usernameChangedAt: string | null
   createdAt: string
 }
@@ -24,5 +26,7 @@ export type UpdateUserInput = {
   timezone?: string | null
   language?: string | null
   theme?: string | null
+  avatarType?: string | null
+  avatarColor?: string | null
   usernameChangedAt?: string | null
 }
