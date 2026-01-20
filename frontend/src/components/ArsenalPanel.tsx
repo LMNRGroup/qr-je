@@ -25,7 +25,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { QRHistoryItem, QROptions } from '@/types/qr';
-import { deleteQRFromHistory, getQRHistory, getScanCount, getScanSummary, updateQR } from '@/lib/api';
+import { deleteQRFromHistory, getQRHistory, getScanCount, updateQR } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import {
   AlertDialog,
@@ -193,16 +193,6 @@ export function ArsenalPanel({
       return { counts: {} as Record<string, number>, today: 0 };
     }
     let todayTotal = 0;
-    if (includeSummary) {
-      try {
-        const summary = await getScanSummary(timeZone);
-        todayTotal = summary.today;
-        lastTodayRef.current = summary.today;
-        onScansChange?.(summary.today);
-      } catch {
-        onScansChange?.(0);
-      }
-    }
     const results = await Promise.all(
       list.map(async (item) => {
         if (!item.random) {
@@ -223,6 +213,12 @@ export function ArsenalPanel({
       });
       return next;
     });
+    const totalScans = results.reduce((sum, { count }) => sum + count, 0);
+    if (includeSummary) {
+      todayTotal = totalScans;
+      lastTodayRef.current = totalScans;
+      onScansChange?.(totalScans);
+    }
     const counts = results.reduce<Record<string, number>>((acc, { id, count }) => {
       acc[id] = count;
       return acc;
@@ -569,20 +565,20 @@ export function ArsenalPanel({
     const ModeIcon = parsed.mode === 'dynamic' ? Zap : QrCode;
     const TypeIcon = typeMeta.icon;
     return (
-      <div className="flex flex-wrap items-center gap-2 text-[10px] uppercase tracking-[0.3em]">
+      <div className="flex flex-wrap items-center gap-2 text-[10px] uppercase tracking-[0.3em] max-w-full">
         <span
-          className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 ${
+          className={`inline-flex min-w-0 items-center gap-2 rounded-full border px-3 py-1 ${
             parsed.mode === 'dynamic'
               ? 'border-cyan-400/60 text-cyan-200 bg-cyan-500/10'
               : 'border-border/60 text-muted-foreground bg-secondary/40'
           }`}
         >
           <ModeIcon className="h-3 w-3" />
-          {parsed.mode === 'dynamic' ? 'Dynamic' : 'Static'}
+          <span className="truncate">{parsed.mode === 'dynamic' ? 'Dynamic' : 'Static'}</span>
         </span>
-        <span className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 ${typeMeta.badge}`}>
+        <span className={`inline-flex min-w-0 items-center gap-2 rounded-full border px-3 py-1 ${typeMeta.badge}`}>
           <TypeIcon className="h-3 w-3" />
-          {typeMeta.label}
+          <span className="truncate">{typeMeta.label}</span>
         </span>
       </div>
     );
@@ -591,8 +587,8 @@ export function ArsenalPanel({
   const renderScanCount = (item: QRHistoryItem) => {
     const count = scanCounts[item.id] ?? 0;
     return (
-      <span className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-secondary/40 px-3 py-1 text-[10px] uppercase tracking-[0.3em] text-muted-foreground">
-        {t('Scans', 'Escaneos')} {count}
+      <span className="inline-flex min-w-0 items-center gap-2 rounded-full border border-border/60 bg-secondary/40 px-3 py-1 text-[10px] uppercase tracking-[0.3em] text-muted-foreground max-w-full">
+        <span className="truncate">{t('Scans', 'Escaneos')} {count}</span>
       </span>
     );
   };
@@ -704,14 +700,14 @@ export function ArsenalPanel({
             <ScrollArea
               className={
                 isDesktop
-                  ? 'h-[calc(100vh-280px)] max-h-[780px]'
+                  ? 'h-auto max-h-none'
                   : 'h-[360px] sm:h-[520px]'
               }
             >
               <div
                 className={
                   viewMode === 'grid'
-                    ? 'grid gap-4 md:grid-cols-2 xl:grid-cols-3 auto-rows-fr'
+                    ? 'grid gap-4 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 auto-rows-fr'
                     : 'space-y-2'
                 }
               >
@@ -723,7 +719,7 @@ export function ArsenalPanel({
                   const isList = viewMode === 'list';
                   const isMobileList = isList && isMobile;
                   const displayName = getDisplayName(item, sortedItems);
-                  const previewSize = isDesktop ? 92 : 72;
+                  const previewSize = isDesktop ? 120 : 84;
                   const cardOptions: QROptions = {
                     ...item.options,
                     size: previewSize,
@@ -770,25 +766,25 @@ export function ArsenalPanel({
                           </div>
                           <div className="flex flex-wrap items-center gap-2 text-[10px] uppercase tracking-[0.3em]">
                             <span
-                              className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 ${
+                              className={`inline-flex min-w-0 items-center gap-2 rounded-full border px-3 py-1 ${
                                 parsed.mode === 'dynamic'
                                   ? 'border-cyan-400/60 text-cyan-200 bg-cyan-500/10'
                                   : 'border-border/60 text-muted-foreground bg-secondary/40'
                               }`}
                             >
-                              {parsed.mode === 'dynamic' ? 'Dynamic' : 'Static'}
+                              <span className="truncate">{parsed.mode === 'dynamic' ? 'Dynamic' : 'Static'}</span>
                             </span>
                             <span
-                              className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 ${typeMeta.badge}`}
+                              className={`inline-flex min-w-0 items-center gap-2 rounded-full border px-3 py-1 ${typeMeta.badge}`}
                             >
-                              {typeMeta.label}
+                              <span className="truncate">{typeMeta.label}</span>
                             </span>
                             {renderScanCount(item)}
                           </div>
                         </div>
                       ) : (
                         <div className="flex items-start justify-between gap-3">
-                          <div className="space-y-2 min-w-0">
+                          <div className="space-y-2 min-w-0 flex-1">
                             <p className="text-sm font-semibold truncate" title={displayName}>
                               {displayName}
                             </p>
@@ -799,7 +795,7 @@ export function ArsenalPanel({
                             </div>
                           </div>
                           {(isDesktop || viewMode === 'grid') && (
-                            <div className={`rounded-2xl border p-2 shrink-0 ${typeMeta.card}`}>
+                            <div className={`rounded-xl border p-1 shrink-0 ${typeMeta.card}`}>
                               <QRPreview options={cardOptions} showCaption={false} />
                             </div>
                           )}

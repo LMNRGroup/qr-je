@@ -88,8 +88,13 @@ export const parseUpdateUrlInput = (payload: unknown): UpdateUrlPayload => {
     throw new UrlValidationError('name must be a string')
   }
 
-  const parsedOptions = isRecord(options) ? options : null
-  const parsedKind = typeof kind === 'string' && kind.trim().length > 0 ? kind.trim() : null
+  const parsedOptions = options === undefined ? undefined : isRecord(options) ? options : null
+  const parsedKind =
+    kind === undefined
+      ? undefined
+      : typeof kind === 'string' && kind.trim().length > 0
+        ? kind.trim()
+        : null
   const parsedName =
     typeof name === 'string' && name.trim().length > 0 ? name.trim().slice(0, 25) : null
 

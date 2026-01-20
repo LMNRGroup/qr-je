@@ -1707,6 +1707,11 @@ const Index = () => {
   const dialRadius = Math.max(0, dialOuterRadius - dialIconRadius - dialOuterGap);
   const innerRingRadius = Math.max(0, dialRadius - dialIconRadius - dialInnerGap);
   const innerDialInset = Math.max(0, dialOuterRadius - innerRingRadius);
+  const rotateDialToIndex = (index: number) => {
+    const currentAngle = index * dialStep - 90 + dialAngle;
+    const delta = dialTargetAngle - currentAngle;
+    setDialAngle(dialAngle + delta);
+  };
   const playDialClick = useCallback(() => {
     if (typeof window === 'undefined') return;
     if (!audioRef.current) {
@@ -1798,6 +1803,7 @@ const Index = () => {
     '#FFEDD5',
     '#FEF2F2',
   ];
+  const hasInteractedRef = useRef(false);
   const scrollToRef = useCallback((ref: { current: HTMLElement | null }, block: ScrollLogicalPosition = 'center') => {
     if (typeof window === 'undefined') return;
     if (!ref.current) return;
@@ -1807,22 +1813,31 @@ const Index = () => {
   }, []);
 
   useEffect(() => {
+    if (selectedQuickAction || qrMode || qrType) {
+      hasInteractedRef.current = true;
+    }
+  }, [selectedQuickAction, qrMode, qrType]);
+
+  useEffect(() => {
     if (!isMobile) return;
     setMobileCustomizeStep(false);
   }, [qrMode, qrType, selectedQuickAction, isMobile]);
 
   useEffect(() => {
     if (!showCreateSection || hasSelectedMode) return;
+    if (!hasInteractedRef.current) return;
     scrollToRef(modeSectionRef, 'start');
   }, [showCreateSection, hasSelectedMode, scrollToRef]);
 
   useEffect(() => {
     if (!hasSelectedMode) return;
+    if (!hasInteractedRef.current) return;
     scrollToRef(detailsSectionRef);
   }, [hasSelectedMode, hasSelectedType, scrollToRef]);
 
   useEffect(() => {
     if (!showMobileCustomize || !hasSelectedMode || !hasSelectedType) return;
+    if (!hasInteractedRef.current) return;
     scrollToRef(customizeSectionRef, 'start');
   }, [showMobileCustomize, hasSelectedMode, hasSelectedType, scrollToRef]);
 
@@ -2980,7 +2995,6 @@ const Index = () => {
       <div className="fixed inset-0 -z-10 overflow-hidden">
         <div className="absolute -top-24 left-8 h-[24rem] w-[24rem] rounded-full bg-[radial-gradient(circle_at_center,rgba(99,102,241,0.28),transparent_60%)] blur-3xl float-slow" />
         <div className="absolute top-4 right-6 h-[30rem] w-[30rem] rounded-full bg-[radial-gradient(circle_at_center,rgba(16,185,129,0.22),transparent_60%)] blur-3xl float-medium" />
-        <div className="absolute bottom-0 left-1/3 h-[22rem] w-[22rem] rounded-full bg-[radial-gradient(circle_at_center,rgba(236,72,153,0.18),transparent_65%)] blur-3xl float-fast" />
         <div className="absolute inset-x-0 top-1/4 h-72 bg-gradient-to-r from-indigo-500/10 via-transparent to-emerald-500/10 blur-3xl" />
       </div>
 
@@ -3092,7 +3106,7 @@ const Index = () => {
             onClick={() => setIsDialOpen(true)}
           >
             <img
-              src="/Assets/QRC Studio Logo Button.png"
+              src="/assets/QRC Studio Logo Button.png"
               alt="Open QRC Studio navigation"
               className="h-14 w-14"
               loading="lazy"
@@ -3204,9 +3218,7 @@ const Index = () => {
                           }}
                           onClick={() => {
                             if (!isActive) {
-                              const currentAngle = index * dialStep - 90 + dialAngle;
-                              const delta = 180 - currentAngle;
-                              setDialAngle(dialAngle + delta);
+                              rotateDialToIndex(index);
                               return;
                             }
                             playDialClick();
@@ -3240,7 +3252,7 @@ const Index = () => {
             <p className="text-xs uppercase tracking-[0.4em] text-muted-foreground">Quick Actions</p>
             <h3 className="text-lg font-semibold">Jump into a new QR</h3>
           </div>
-          <div className="flex flex-wrap justify-center gap-4 sm:gap-6">
+          <div className="flex w-full flex-nowrap items-center justify-between gap-2 sm:gap-6 sm:justify-center sm:flex-wrap">
             {[
               {
                 id: 'website',
@@ -3292,7 +3304,7 @@ const Index = () => {
                 onMouseEnter={() => setQuickActionHover(action.id)}
                 onMouseLeave={() => setQuickActionHover(null)}
                 aria-pressed={selectedQuickAction === action.id}
-                className={`group relative flex flex-col items-center justify-center rounded-full border h-12 w-12 sm:h-14 sm:w-14 transition hover:border-primary/60 hover:bg-secondary/40 ${
+                className={`group relative flex flex-col items-center justify-center rounded-full border h-10 w-10 sm:h-14 sm:w-14 transition hover:border-primary/60 hover:bg-secondary/40 ${
                   selectedQuickAction === action.id
                     ? 'border-primary/70 bg-secondary/50 ring-1 ring-primary/40 shadow-[0_0_16px_rgba(99,102,241,0.25)]'
                     : 'border-border/60 bg-secondary/30'
@@ -3350,7 +3362,7 @@ const Index = () => {
               <div className="grid grid-cols-3 gap-3 sm:gap-4">
                 {[
                   { label: 'Total Codes', value: `${arsenalStats.total}`, tab: 'codes' },
-                  { label: 'Scans Today', value: `${scanStats.total}`, tab: 'analytics' },
+                  { label: 'Total Scans', value: `${scanStats.total}`, tab: 'analytics' },
                   { label: 'Dynamic Live', value: `${arsenalStats.dynamic}`, tab: 'analytics' },
                 ].map((item) => (
                   <button
@@ -3388,7 +3400,7 @@ const Index = () => {
             <p className="text-xs uppercase tracking-[0.4em] text-muted-foreground">Quick Actions</p>
             <h3 className="text-lg font-semibold">Jump into a new QR</h3>
           </div>
-          <div className="flex flex-wrap justify-center gap-4 sm:gap-6">
+          <div className="flex w-full flex-nowrap items-center justify-between gap-2 sm:gap-6 sm:justify-center sm:flex-wrap">
             {[
               {
                 id: 'website',
@@ -3440,7 +3452,7 @@ const Index = () => {
                 onMouseEnter={() => setQuickActionHover(action.id)}
                 onMouseLeave={() => setQuickActionHover(null)}
                 aria-pressed={selectedQuickAction === action.id}
-                className={`group relative flex flex-col items-center justify-center rounded-full border h-12 w-12 sm:h-14 sm:w-14 transition hover:border-primary/60 hover:bg-secondary/40 ${
+                className={`group relative flex flex-col items-center justify-center rounded-full border h-10 w-10 sm:h-14 sm:w-14 transition hover:border-primary/60 hover:bg-secondary/40 ${
                   selectedQuickAction === action.id
                     ? 'border-primary/70 bg-secondary/50 ring-1 ring-primary/40 shadow-[0_0_16px_rgba(99,102,241,0.25)]'
                     : 'border-border/60 bg-secondary/30'
