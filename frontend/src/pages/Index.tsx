@@ -1810,13 +1810,24 @@ const Index = () => {
       return;
     }
     if (typeof window === 'undefined') return;
+    const updateRect = () => {
+      const element = document.querySelector<HTMLElement>(`[data-tour-id="${tourTargetId}"]`);
+      if (!element) {
+        setTourRect(null);
+        return;
+      }
+      const rect = element.getBoundingClientRect();
+      setTourRect(rect);
+    };
     const element = document.querySelector<HTMLElement>(`[data-tour-id="${tourTargetId}"]`);
-    if (!element) {
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      window.requestAnimationFrame(() => {
+        window.requestAnimationFrame(updateRect);
+      });
+    } else {
       setTourRect(null);
-      return;
     }
-    element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    setTourRect(element.getBoundingClientRect());
   }, [tourActive, tourTargetId, tourStepIndex]);
 
   useEffect(() => {
@@ -1843,18 +1854,21 @@ const Index = () => {
   }, [tourRect]);
 
   useEffect(() => {
-    if (!tourActive || !tourRect) return;
+    if (!tourActive || !tourTargetId) return;
     if (typeof window === 'undefined') return;
     const handleResize = () => {
-      const element = tourTargetId
-        ? document.querySelector<HTMLElement>(`[data-tour-id="${tourTargetId}"]`)
-        : null;
+      const element = document.querySelector<HTMLElement>(`[data-tour-id="${tourTargetId}"]`);
       if (!element) return;
       setTourRect(element.getBoundingClientRect());
     };
+    const handleScroll = () => handleResize();
     window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, [tourActive, tourRect, tourTargetId]);
+    window.addEventListener('scroll', handleScroll, true);
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      window.removeEventListener('scroll', handleScroll, true);
+    };
+  }, [tourActive, tourTargetId]);
 
   useEffect(() => {
     if (!tourActive || !isTourDialStep) {
@@ -3951,12 +3965,8 @@ const Index = () => {
       )}
 
       {tourActive && currentTourStep && (
-        <div className="fixed inset-0 z-[85]">
-          <div
-            className={`absolute inset-0 bg-black/60 ${
-              isTourDialStep || isTourCtaStep ? 'pointer-events-none' : 'pointer-events-auto'
-            }`}
-          />
+        <div className="fixed inset-0 z-[85] pointer-events-none">
+          <div className="absolute inset-0 bg-black/60" />
           {tourRect && (
             <div
               className="pointer-events-none absolute rounded-2xl border border-primary/60"
@@ -3970,7 +3980,8 @@ const Index = () => {
             />
           )}
           <div
-            className="absolute w-[320px] max-w-[90vw] space-y-3 rounded-2xl border border-border/70 bg-card/90 p-4 shadow-xl backdrop-blur"
+            data-tour-allow="true"
+            className="pointer-events-auto absolute w-[320px] max-w-[90vw] space-y-3 rounded-2xl border border-border/70 bg-card/90 p-4 shadow-xl backdrop-blur"
             style={{
               top: tourTooltip?.top ?? '50%',
               left: tourTooltip?.left ?? '50%',
