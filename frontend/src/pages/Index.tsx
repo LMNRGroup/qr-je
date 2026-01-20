@@ -1824,7 +1824,7 @@ const Index = () => {
   const adaptiveGradientText = 'bg-gradient-to-r from-amber-200 via-yellow-400 to-amber-500 text-transparent bg-clip-text';
   const adaptiveGlowText = 'font-semibold text-transparent bg-clip-text bg-gradient-to-r from-amber-200 via-yellow-400 to-amber-500 drop-shadow-[0_0_10px_rgba(251,191,36,0.35)]';
   const isAndroid = typeof navigator !== 'undefined' && /android/i.test(navigator.userAgent);
-  const dialDragSensitivity = isAndroid ? 1.05 : 0.6;
+  const dialDragSensitivity = isAndroid ? 1.25 : 0.6;
   const dialMomentumThreshold = isAndroid ? 0.08 : 0.12;
   const usernameCooldownUntil = userProfile?.usernameChangedAt
     ? new Date(userProfile.usernameChangedAt).getTime() + 30 * 24 * 60 * 60 * 1000
@@ -2179,13 +2179,16 @@ const Index = () => {
   };
   const dialInset = dialSize * 0.08;
   const dialOuterRadius = dialSize / 2;
-  const dialIconSize = 96;
+  const dialIconSize = isAndroid
+    ? Math.round(Math.min(84, Math.max(64, dialSize * 0.24)))
+    : 96;
   const dialIconRadius = dialIconSize / 2;
   const dialOuterGap = dialSize * 0.05;
   const dialInnerGap = dialSize * 0.05;
   const dialRadius = Math.max(0, dialOuterRadius - dialIconRadius - dialOuterGap);
   const innerRingRadius = Math.max(0, dialRadius - dialIconRadius - dialInnerGap);
   const innerDialInset = Math.max(0, dialOuterRadius - innerRingRadius);
+  const dialDragThresholdRef = useRef(false);
   const rotateDialToIndex = (index: number) => {
     if (typeof window === 'undefined') return;
     const currentAngle = index * dialStep - 90 + dialAngle;
@@ -3913,14 +3916,13 @@ const Index = () => {
                     minWidth: dialSize,
                     minHeight: dialSize,
                     transform: 'translate(50%, -50%)',
+                    touchAction: 'none',
                   }}
                   data-tour-id="dial-panel"
                   onClick={(event) => event.stopPropagation()}
                   onPointerDown={(event) => {
                     const target = event.target as HTMLElement | null;
-                    if (target?.closest('[data-dial-item]')) {
-                      return;
-                    }
+                    dialDragThresholdRef.current = false;
                     if (dialAnimationRef.current !== null) {
                       window.cancelAnimationFrame(dialAnimationRef.current);
                       dialAnimationRef.current = null;
@@ -3934,6 +3936,7 @@ const Index = () => {
                     dialMomentumLastTimeRef.current = window.performance.now();
                     dialMomentumVelocityRef.current = 0;
                     setDialDragging(true);
+                    event.preventDefault();
                     event.currentTarget.setPointerCapture(event.pointerId);
                   }}
                   onPointerMove={(event) => {
@@ -3948,6 +3951,9 @@ const Index = () => {
                       dialMomentumLastAngleRef.current = nextAngle;
                       dialMomentumLastTimeRef.current = now;
                     }
+                    if (!dialDragThresholdRef.current && Math.abs(deltaY) > 4) {
+                      dialDragThresholdRef.current = true;
+                    }
                     setDialAngle(nextAngle);
                   }}
                   onPointerUp={(event) => {
@@ -3957,6 +3963,9 @@ const Index = () => {
                     if (Math.abs(velocity) > dialMomentumThreshold) {
                       startDialMomentum(velocity);
                     }
+                  }}
+                  onPointerCancel={() => {
+                    setDialDragging(false);
                   }}
                 >
                   <div
@@ -3997,7 +4006,7 @@ const Index = () => {
                           key={item.id}
                           type="button"
                           data-dial-item="true"
-                          className={`absolute flex h-24 w-24 items-center justify-center rounded-full border transition touch-manipulation ${
+                          className={`absolute flex items-center justify-center rounded-full border transition touch-manipulation ${
                             isActive
                               ? item.id === 'adaptive'
                                 ? 'border-amber-300/70 bg-amber-300/15 text-amber-300'
@@ -4008,8 +4017,14 @@ const Index = () => {
                             left: `calc(50% + ${offsetX}px)`,
                             top: `calc(50% + ${offsetY}px)`,
                             transform: 'translate(-50%, -50%)',
+                            width: dialIconSize,
+                            height: dialIconSize,
                           }}
                         onClick={() => {
+                          if (dialDragThresholdRef.current) {
+                            dialDragThresholdRef.current = false;
+                            return;
+                          }
                           if (tourActive && isTourDialStep) {
                             return;
                           }
@@ -4022,7 +4037,7 @@ const Index = () => {
                           setIsDialOpen(false);
                         }}
                         >
-                          <item.Icon className="h-10 w-10" />
+                          <item.Icon style={{ width: Math.round(dialIconSize * 0.42), height: Math.round(dialIconSize * 0.42) }} />
                         </button>
                       );
                     })}
