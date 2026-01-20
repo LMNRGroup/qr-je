@@ -1885,16 +1885,22 @@ const Index = () => {
     }
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
-    osc.type = 'square';
-    osc.frequency.value = 420;
-    gain.gain.value = 0.03;
+    if (isMobile) {
+      osc.type = 'triangle';
+      osc.frequency.value = 240;
+      gain.gain.value = 0.035;
+    } else {
+      osc.type = 'square';
+      osc.frequency.value = 420;
+      gain.gain.value = 0.03;
+    }
     osc.connect(gain);
     gain.connect(ctx.destination);
     const now = ctx.currentTime;
-    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.06);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + (isMobile ? 0.08 : 0.06));
     osc.start(now);
-    osc.stop(now + 0.07);
-  }, []);
+    osc.stop(now + (isMobile ? 0.09 : 0.07));
+  }, [isMobile]);
   const playDialSelect = useCallback(() => {
     if (typeof window === 'undefined') return;
     if (!audioRef.current) {
@@ -1906,16 +1912,22 @@ const Index = () => {
     }
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
-    osc.type = 'sine';
-    osc.frequency.value = 520;
-    gain.gain.value = 0.02;
+    if (isMobile) {
+      osc.type = 'triangle';
+      osc.frequency.value = 320;
+      gain.gain.value = 0.03;
+    } else {
+      osc.type = 'sine';
+      osc.frequency.value = 520;
+      gain.gain.value = 0.02;
+    }
     osc.connect(gain);
     gain.connect(ctx.destination);
     const now = ctx.currentTime;
-    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.04);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + (isMobile ? 0.06 : 0.04));
     osc.start(now);
-    osc.stop(now + 0.05);
-  }, []);
+    osc.stop(now + (isMobile ? 0.07 : 0.05));
+  }, [isMobile]);
   const lastDialIndexRef = useRef<number | null>(null);
 
   useEffect(() => {
@@ -3362,7 +3374,7 @@ const Index = () => {
             </div>
             <div>
               <h1 className="text-lg font-bold gradient-text tracking-wide">QR Code Studio</h1>
-              <p className="text-xs text-muted-foreground uppercase tracking-[0.3em]">The last QR you&apos;ll ever print</p>
+            <p className="text-xs text-muted-foreground uppercase tracking-[0.3em] hidden sm:block">The last QR you&apos;ll ever print</p>
             </div>
           </button>
           <div className="relative hidden lg:flex flex-col items-center">
@@ -3417,9 +3429,6 @@ const Index = () => {
           ) : null}
           </div>
           <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2 lg:hidden">
-              <CreateMenu label="" />
-            </div>
             <ThemeToggle storageKey={isLoggedIn && user?.id ? `theme:${user.id}` : 'theme:guest'} />
             <div className="relative group">
               <button
@@ -3445,7 +3454,7 @@ const Index = () => {
         <>
           <button
             type="button"
-            className={`fixed bottom-6 right-6 z-[70] flex items-center justify-center rounded-full border border-border/60 bg-card/80 p-2 shadow-lg transition hover:border-primary/60 hover:bg-card ${
+            className={`fixed bottom-6 right-6 z-[70] flex items-center justify-center rounded-full border border-border/60 bg-card/80 p-2 shadow-lg shadow-[0_0_18px_rgba(251,191,36,0.25)] transition hover:border-primary/60 hover:bg-card ${
               isDialOpen ? 'opacity-0 pointer-events-none' : 'opacity-100'
             }`}
             aria-label="Open navigation dial"
@@ -4291,7 +4300,7 @@ const Index = () => {
                     <div className="flex flex-col items-center justify-center gap-3 sm:flex-row">
                       <Button
                         type="button"
-                        className="gap-2 bg-secondary/80 border border-primary/40 hover:border-primary hover:bg-primary/15 uppercase tracking-[0.2em] text-xs"
+                        className="min-w-[170px] gap-2 border border-amber-300/70 bg-amber-300/15 text-amber-200 shadow-[0_0_18px_rgba(251,191,36,0.25)] hover:border-amber-300 hover:bg-amber-300/25 uppercase tracking-[0.2em] text-xs"
                         onClick={() => setMobileCustomizeStep(true)}
                         disabled={!canGenerate}
                       >
@@ -4299,7 +4308,7 @@ const Index = () => {
                       </Button>
                       <Button
                         type="button"
-                        className="gap-2 bg-gradient-primary hover:opacity-90 text-primary-foreground glow uppercase tracking-[0.2em] text-xs"
+                        className="min-w-[170px] gap-2 bg-gradient-primary hover:opacity-90 text-primary-foreground glow uppercase tracking-[0.2em] text-xs"
                         onClick={() => {
                           setMobileCustomizeStep(true);
                           handleGenerate();
