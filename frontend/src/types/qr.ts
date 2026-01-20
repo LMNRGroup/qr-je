@@ -7,6 +7,17 @@ export interface QROptions {
   cornerStyle: 'square' | 'rounded' | 'dots';
   logo?: string;
   logoSize?: number;
+  fileName?: string;
+  fileUrl?: string;
+  menuFiles?: { url: string; type: 'image' | 'pdf' }[];
+  menuType?: 'restaurant' | 'service';
+  menuLogoDataUrl?: string;
+  menuSocials?: {
+    instagram?: string;
+    facebook?: string;
+    tiktok?: string;
+    website?: string;
+  };
 }
 
 export interface QRHistoryItem {

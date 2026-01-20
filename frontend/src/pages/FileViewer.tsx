@@ -5,6 +5,7 @@ import { Loader2, ChevronLeft, ChevronRight, File } from 'lucide-react';
 
 type FileOptions = {
   fileDataUrl?: string;
+  fileUrl?: string;
   fileName?: string;
 };
 
@@ -13,6 +14,7 @@ const FileViewer = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
   const [fileDataUrl, setFileDataUrl] = useState('');
+  const [fileUrl, setFileUrl] = useState('');
   const [fileName, setFileName] = useState('');
   const [page, setPage] = useState(1);
 
@@ -27,11 +29,13 @@ const FileViewer = () => {
       .then((data) => {
         const options = (data.options ?? {}) as FileOptions;
         const dataUrl = options.fileDataUrl ?? '';
-        if (!dataUrl) {
+        const url = options.fileUrl ?? '';
+        if (!dataUrl && !url) {
           setError('File data not available yet.');
           return;
         }
         setFileDataUrl(dataUrl);
+        setFileUrl(url);
         setFileName(options.fileName ?? 'File');
       })
       .catch((err) => {
@@ -41,7 +45,10 @@ const FileViewer = () => {
       .finally(() => setIsLoading(false));
   }, [id, random]);
 
-  const isPdf = useMemo(() => fileDataUrl.startsWith('data:application/pdf'), [fileDataUrl]);
+  const isPdf = useMemo(() => {
+    if (fileDataUrl) return fileDataUrl.startsWith('data:application/pdf');
+    return fileUrl.endsWith('.pdf') || fileUrl.includes('application/pdf');
+  }, [fileDataUrl, fileUrl]);
 
   if (isLoading) {
     return (
@@ -76,7 +83,7 @@ const FileViewer = () => {
                 <span>Page {page}</span>
               </div>
               <div className="aspect-[4/5] w-full overflow-hidden rounded-xl border border-border/60 bg-black/5">
-                <embed src={`${fileDataUrl}#page=${page}`} type="application/pdf" className="h-full w-full" />
+                <embed src={`${(fileUrl || fileDataUrl)}#page=${page}`} type="application/pdf" className="h-full w-full" />
               </div>
               <div className="flex items-center justify-center gap-3">
                 <button
@@ -96,7 +103,7 @@ const FileViewer = () => {
               </div>
             </div>
           ) : (
-            <img src={fileDataUrl} alt={fileName} className="w-full rounded-xl object-contain" />
+            <img src={fileUrl || fileDataUrl} alt={fileName} className="w-full rounded-xl object-contain" />
           )}
         </div>
       </div>

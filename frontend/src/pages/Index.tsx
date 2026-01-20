@@ -74,6 +74,7 @@ const BUILD_STAMP = '2026-01-20T16:52:00Z';
 const GUEST_WELCOME_KEY = `qr.guest.welcome.${BUILD_STAMP}`;
 const TOUR_GUEST_KEY = `qr.tour.guest.${BUILD_STAMP}`;
 const VCARD_ASSETS_BUCKET = 'vcards';
+const QR_ASSETS_BUCKET = 'qr-uploads';
 const MAX_FILE_BYTES = 5 * 1024 * 1024;
 const MAX_MENU_FILE_BYTES = 2.5 * 1024 * 1024;
 const MAX_MENU_TOTAL_BYTES = 12 * 1024 * 1024;
@@ -123,7 +124,7 @@ const Index = () => {
   const [emailTouched, setEmailTouched] = useState(false);
   const [phoneNumber, setPhoneNumber] = useState('');
   const [phoneTouched, setPhoneTouched] = useState(false);
-  const [fileDataUrl, setFileDataUrl] = useState('');
+  const [fileUrl, setFileUrl] = useState('');
   const [fileName, setFileName] = useState('');
   const [fileTouched, setFileTouched] = useState(false);
   const [isBooting, setIsBooting] = useState(true);
@@ -404,7 +405,7 @@ const Index = () => {
         : qrType === 'phone'
           ? (isPhoneValid ? `tel:${normalizedPhone}` : '')
           : qrType === 'file'
-            ? fileDataUrl
+            ? fileUrl
             : qrType === 'menu'
               ? menuPreviewUrl
               : '';
@@ -421,7 +422,7 @@ const Index = () => {
         : qrType === 'phone'
           ? isPhoneValid
           : qrType === 'file'
-            ? fileDataUrl.length > 0
+            ? fileUrl.length > 0
           : qrType === 'menu'
             ? menuFiles.length > 0
             : false);
@@ -915,7 +916,7 @@ const Index = () => {
             ? {
               ...options,
               fileName: fileName || 'File QR',
-              fileDataUrl,
+              fileUrl,
             }
             : qrType === 'menu'
               ? {
@@ -949,7 +950,7 @@ const Index = () => {
                   ? {
                     ...options,
                     fileName: fileName || 'File QR',
-                    fileDataUrl,
+                    fileUrl,
                   }
                   : {
                     ...options,
@@ -1400,6 +1401,35 @@ const Index = () => {
     }
   };
 
+  const dataUrlToBlob = (dataUrl: string) => {
+    const [header, data] = dataUrl.split(',');
+    const mime = header.match(/data:(.*?);base64/)?.[1] || 'application/octet-stream';
+    const binary = atob(data);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i += 1) {
+      bytes[i] = binary.charCodeAt(i);
+    }
+    return new Blob([bytes], { type: mime });
+  };
+  const uploadQrAsset = async (file: File, folder: 'files' | 'menus' | 'logos', dataUrl?: string) => {
+    if (!isSupabaseConfigured) {
+      toast.error('Storage is not configured yet.');
+      return null;
+    }
+    const extension = file.name.split('.').pop() || (file.type.includes('pdf') ? 'pdf' : 'png');
+    const fileName = `${crypto.randomUUID()}.${extension}`;
+    const filePath = `qr-assets/${folder}/${fileName}`;
+    const payload = dataUrl ? dataUrlToBlob(dataUrl) : file;
+    const { error } = await supabase.storage
+      .from(QR_ASSETS_BUCKET)
+      .upload(filePath, payload, { upsert: true, contentType: file.type });
+    if (error) {
+      toast.error('Failed to upload file.');
+      return null;
+    }
+    const { data } = supabase.storage.from(QR_ASSETS_BUCKET).getPublicUrl(filePath);
+    return data.publicUrl;
+  };
   const uploadVcardAsset = async (file: File, folder: 'logos' | 'photos') => {
     if (!isSupabaseConfigured) {
       toast.error('Image storage is not configured yet.');
@@ -1507,18 +1537,19 @@ const Index = () => {
     return canvas.toDataURL('image/jpeg', 0.85);
   };
 
-  const handleMenuLogoChange = (event: ChangeEvent<HTMLInputElement>) => {
+  const handleMenuLogoChange = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      const result = typeof reader.result === 'string' ? reader.result : '';
-      setMenuLogoDataUrl(result);
-    };
-    reader.readAsDataURL(file);
+    event.target.value = '';
+    const compressed = file.type.startsWith('image/')
+      ? await compressImageFile(file)
+      : '';
+    const url = await uploadQrAsset(file, 'logos', compressed || undefined);
+    if (!url) return;
+    setMenuLogoDataUrl(url);
   };
 
-  const handleMenuFilesChange = (event: ChangeEvent<HTMLInputElement>) => {
+  const handleMenuFilesChange = async (event: ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.target.files ?? []);
     event.target.value = '';
     if (files.length === 0) return;
@@ -1539,34 +1570,36 @@ const Index = () => {
       return;
     }
 
-    Promise.all(
-      files.map(async (file) => {
-        if (file.type === 'application/pdf') {
-          if (file.size > MAX_MENU_FILE_BYTES) {
-            throw new Error('PDF menu file is too large.');
+    try {
+      const uploads = await Promise.all(
+        files.map(async (file) => {
+          if (file.type === 'application/pdf') {
+            if (file.size > MAX_MENU_FILE_BYTES) {
+              throw new Error('PDF menu file is too large.');
+            }
+            const url = await uploadQrAsset(file, 'menus');
+            if (!url) throw new Error('Failed to upload menu PDF.');
+            return { url, type: 'pdf' as const };
           }
-          const url = await readAsDataUrl(file);
-          return { url, type: 'pdf' as const };
-        }
-        if (file.size > MAX_MENU_FILE_BYTES) {
-          throw new Error('Menu image file is too large.');
-        }
-        const url = await compressImageFile(file);
-        return { url, type: 'image' as const };
-      })
-    )
-      .then((results) => {
-        setMenuFiles(results);
-        setMenuFlip(false);
-        setMenuCarouselIndex(0);
-      })
-      .catch((error) => {
-        const message = error instanceof Error ? error.message : 'Failed to process menu files.';
-        toast.error(message);
-      });
+          if (file.size > MAX_MENU_FILE_BYTES) {
+            throw new Error('Menu image file is too large.');
+          }
+          const compressed = await compressImageFile(file);
+          const url = await uploadQrAsset(file, 'menus', compressed);
+          if (!url) throw new Error('Failed to upload menu image.');
+          return { url, type: 'image' as const };
+        })
+      );
+      setMenuFiles(uploads);
+      setMenuFlip(false);
+      setMenuCarouselIndex(0);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to process menu files.';
+      toast.error(message);
+    }
   };
 
-  const handleFileUpload = (event: ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     event.target.value = '';
     if (!file) return;
@@ -1578,20 +1611,17 @@ const Index = () => {
     if (file.size > MAX_FILE_BYTES && file.type.startsWith('image/')) {
       toast.info('Large image detected. Compressing for delivery...');
     }
-    const loadFile = async () => {
-      if (file.type.startsWith('image/')) {
-        return compressImageFile(file);
-      }
-      return readAsDataUrl(file);
-    };
-    loadFile()
-      .then((result) => {
-        setFileDataUrl(result);
-        setFileName(file.name);
-      })
-      .catch(() => {
-        toast.error('Failed to process file upload.');
-      });
+    try {
+      const compressed = file.type.startsWith('image/')
+        ? await compressImageFile(file)
+        : '';
+      const url = await uploadQrAsset(file, 'files', compressed || undefined);
+      if (!url) return;
+      setFileUrl(url);
+      setFileName(file.name);
+    } catch {
+      toast.error('Failed to process file upload.');
+    }
   };
 
   const moveMenuFile = (index: number, direction: number) => {
@@ -4514,7 +4544,7 @@ const Index = () => {
                       <p className="text-xs text-muted-foreground">
                         Upload a file to embed directly into your QR code.
                       </p>
-                      {fileTouched && !fileDataUrl && (
+                      {fileTouched && !fileUrl && (
                         <p className="text-xs text-destructive">
                           Please upload a file to continue.
                         </p>
