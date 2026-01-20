@@ -172,6 +172,7 @@ const Index = () => {
   const tourDialStartAngleRef = useRef<number | null>(null);
   const tourGuestSeenRef = useRef(false);
   const isNewAccountRef = useRef(false);
+  const welcomeTourReadyRef = useRef(false);
   const [showTourComplete, setShowTourComplete] = useState(false);
   const [profileForm, setProfileForm] = useState({
     fullName: '',
@@ -586,9 +587,11 @@ const Index = () => {
       setWelcomeHeadline(`Yo ${displayName}!`);
       setWelcomeSubline('Not everyone makes great decisions… but today you did.\nWelcome to QRC Studio.');
       localStorage.setItem(firstLoginKey, 'true');
+      welcomeTourReadyRef.current = true;
     } else {
       setWelcomeHeadline(`Welcome back, ${displayName}!`);
       setWelcomeSubline('');
+      welcomeTourReadyRef.current = false;
     }
     setShowWelcomeIntro(true);
     welcomeShownRef.current = user.id;
@@ -1788,12 +1791,14 @@ const Index = () => {
   useEffect(() => {
     if (typeof window === 'undefined') return;
     if (showWelcomeIntro || !user || !isNewAccountRef.current) return;
+    if (!welcomeTourReadyRef.current) return;
     if (tourActive) return;
     const tourKey = `qr.tour.user.${user.id}`;
     if (localStorage.getItem(tourKey)) return;
     localStorage.setItem(tourKey, 'true');
     setTourActive(true);
     setTourStepIndex(0);
+    welcomeTourReadyRef.current = false;
   }, [showWelcomeIntro, tourActive, user]);
 
   useEffect(() => {
