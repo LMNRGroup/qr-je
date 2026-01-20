@@ -172,6 +172,7 @@ const Index = () => {
   const tourDialStartAngleRef = useRef<number | null>(null);
   const tourGuestSeenRef = useRef(false);
   const isNewAccountRef = useRef(false);
+  const [showTourComplete, setShowTourComplete] = useState(false);
   const [profileForm, setProfileForm] = useState({
     fullName: '',
     username: '',
@@ -1746,6 +1747,9 @@ const Index = () => {
 
   const adaptiveGradientText = 'bg-gradient-to-r from-amber-200 via-yellow-400 to-amber-500 text-transparent bg-clip-text';
   const adaptiveGlowText = 'font-semibold text-transparent bg-clip-text bg-gradient-to-r from-amber-200 via-yellow-400 to-amber-500 drop-shadow-[0_0_10px_rgba(251,191,36,0.35)]';
+  const isAndroid = typeof navigator !== 'undefined' && /android/i.test(navigator.userAgent);
+  const dialDragSensitivity = isAndroid ? 1.05 : 0.6;
+  const dialMomentumThreshold = isAndroid ? 0.08 : 0.12;
   const usernameCooldownUntil = userProfile?.usernameChangedAt
     ? new Date(userProfile.usernameChangedAt).getTime() + 30 * 24 * 60 * 60 * 1000
     : null;
@@ -1769,6 +1773,8 @@ const Index = () => {
     if (!currentTourStep) return;
     if (tourStepIndex >= tourSteps.length - 1) {
       endTour();
+      setShowTourComplete(true);
+      window.setTimeout(() => setShowTourComplete(false), 1700);
       return;
     }
     setTourStepIndex((prev) => prev + 1);
@@ -1894,26 +1900,8 @@ const Index = () => {
 
   useEffect(() => {
     if (!tourActive) return;
-    const handlePointer = (event: globalThis.PointerEvent) => {
-      const target = event.target as HTMLElement | null;
-      if (!target) return;
-      if (target.closest('[data-tour-allow="true"]')) return;
-      if (isTourDialStep) {
-        if (target.closest('[data-tour-id="dial-open"], [data-tour-id="dial-panel"], [data-tour-id="dial-close"]')) {
-          return;
-        }
-      }
-      if (isTourCtaStep) {
-        if (target.closest('[data-tour-quick-action="true"]')) {
-          return;
-        }
-      }
-      event.preventDefault();
-      event.stopPropagation();
-    };
-    window.addEventListener('pointerdown', handlePointer, true);
-    return () => window.removeEventListener('pointerdown', handlePointer, true);
-  }, [tourActive, isTourDialStep, isTourCtaStep]);
+    return () => undefined;
+  }, [tourActive]);
 
   useEffect(() => {
     if (typeof document === 'undefined') return;
@@ -2400,7 +2388,7 @@ const Index = () => {
       )}
 
       {!isBooting && showGuestWelcome && (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-background/90 backdrop-blur-md px-4">
+        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-background/90 backdrop-blur-md px-4 pointer-events-auto">
           <div className="text-center space-y-4">
             <div className="space-y-1 text-2xl sm:text-3xl font-semibold tracking-[0.2em] text-foreground">
               <div className={`transition-all duration-500 ${guestIntroStep >= 0 ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
@@ -3872,7 +3860,7 @@ const Index = () => {
                   onPointerMove={(event) => {
                     if (!dialDragging) return;
                     const deltaY = event.clientY - dialStartRef.current.y;
-                    const nextAngle = dialStartRef.current.angle - deltaY * 0.6;
+                    const nextAngle = dialStartRef.current.angle - deltaY * dialDragSensitivity;
                     const now = window.performance.now();
                     const dt = now - dialMomentumLastTimeRef.current;
                     if (dt > 0) {
@@ -3887,7 +3875,7 @@ const Index = () => {
                     setDialDragging(false);
                     event.currentTarget.releasePointerCapture(event.pointerId);
                     const velocity = dialMomentumVelocityRef.current;
-                    if (Math.abs(velocity) > 0.12) {
+                    if (Math.abs(velocity) > dialMomentumThreshold) {
                       startDialMomentum(velocity);
                     }
                   }}
@@ -3942,15 +3930,18 @@ const Index = () => {
                             top: `calc(50% + ${offsetY}px)`,
                             transform: 'translate(-50%, -50%)',
                           }}
-                          onClick={() => {
-                            if (!isActive) {
-                              rotateDialToIndex(index);
-                              return;
-                            }
-                            playDialSelect();
-                            setActiveTab(item.id as typeof activeTab);
-                            setIsDialOpen(false);
-                          }}
+                        onClick={() => {
+                          if (tourActive && isTourDialStep) {
+                            return;
+                          }
+                          if (!isActive) {
+                            rotateDialToIndex(index);
+                            return;
+                          }
+                          playDialSelect();
+                          setActiveTab(item.id as typeof activeTab);
+                          setIsDialOpen(false);
+                        }}
                         >
                           <item.Icon className="h-10 w-10" />
                         </button>
@@ -3965,7 +3956,27 @@ const Index = () => {
       )}
 
       {tourActive && currentTourStep && (
-        <div className="fixed inset-0 z-[85] pointer-events-none">
+        <div className="fixed inset-0 z-[85] pointer-events-auto">
+          <div
+            className="absolute inset-0"
+            onPointerDown={(event) => {
+              const target = event.target as HTMLElement | null;
+              if (!target) return;
+              if (target.closest('[data-tour-allow="true"]')) return;
+              if (isTourDialStep) {
+                if (target.closest('[data-tour-id="dial-open"], [data-tour-id="dial-panel"], [data-tour-id="dial-close"]')) {
+                  return;
+                }
+              }
+              if (isTourCtaStep) {
+                if (target.closest('[data-tour-quick-action="true"]')) {
+                  return;
+                }
+              }
+              event.preventDefault();
+              event.stopPropagation();
+            }}
+          />
           <div className="absolute inset-0 bg-black/60" />
           {tourRect && (
             <div
@@ -4017,6 +4028,17 @@ const Index = () => {
                 {isTourCtaStep ? 'Done' : 'Next'}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {showTourComplete && (
+        <div className="fixed inset-0 z-[90] flex items-center justify-center bg-background/85 backdrop-blur-sm">
+          <div className="text-center text-2xl sm:text-3xl font-semibold tracking-[0.35em]">
+            <span className="relative inline-block">
+              <span className="text-muted-foreground/70">YOU ARE NOW READY TO START CREATING!</span>
+              <span className="absolute inset-0 logo-fill">YOU ARE NOW READY TO START CREATING!</span>
+            </span>
           </div>
         </div>
       )}
