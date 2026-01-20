@@ -7,6 +7,9 @@ export interface QROptions {
   cornerStyle: 'square' | 'rounded' | 'dots';
   logo?: string;
   logoSize?: number;
+  logoWidth?: number;
+  logoHeight?: number;
+  logoAspect?: number;
   fileName?: string;
   fileUrl?: string;
   menuFiles?: { url: string; type: 'image' | 'pdf' }[];

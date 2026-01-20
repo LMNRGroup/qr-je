@@ -3662,7 +3662,7 @@ const Index = () => {
             </div>
             <div>
               <h1 className="text-lg font-bold gradient-text tracking-wide">QR Code Studio</h1>
-            <p className="text-[10px] text-muted-foreground uppercase tracking-[0.25em] sm:text-xs sm:tracking-[0.3em]">
+            <p className="text-[9px] text-muted-foreground uppercase tracking-[0.25em] sm:text-xs sm:tracking-[0.3em]">
               The last QR you&apos;ll ever need
             </p>
             </div>
@@ -4996,7 +4996,13 @@ const Index = () => {
                       <AccordionContent className="px-4 pb-4 pt-2">
                         <LogoUpload
                           logo={options.logo}
-                          onLogoChange={(v) => updateOption('logo', v)}
+                          maxLogoSize={Math.round((options.size - 32) * 0.22)}
+                          onLogoChange={(v, meta) => {
+                            updateOption('logo', v);
+                            updateOption('logoAspect', meta?.aspect);
+                            updateOption('logoWidth', meta?.width);
+                            updateOption('logoHeight', meta?.height);
+                          }}
                         />
                         {options.logo && (
                           <div className="mt-4">

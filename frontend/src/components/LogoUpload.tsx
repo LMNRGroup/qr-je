@@ -2,25 +2,44 @@ import { useCallback, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Upload, X, Image as ImageIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { toast } from 'sonner';
 
 interface LogoUploadProps {
   logo?: string;
-  onLogoChange: (logo: string | undefined) => void;
+  maxLogoSize: number;
+  onLogoChange: (
+    logo: string | undefined,
+    meta?: { width: number; height: number; aspect: number }
+  ) => void;
 }
 
-export function LogoUpload({ logo, onLogoChange }: LogoUploadProps) {
+export function LogoUpload({ logo, maxLogoSize, onLogoChange }: LogoUploadProps) {
   const [isDragging, setIsDragging] = useState(false);
 
   const handleFile = useCallback(
     (file: File) => {
-      if (!file.type.startsWith('image/')) return;
+      if (file.type !== 'image/png') {
+        toast.error('Only PNG logos are supported for QR code readability.');
+        return;
+      }
       const reader = new FileReader();
       reader.onload = (e) => {
-        onLogoChange(e.target?.result as string);
+        const result = e.target?.result as string;
+        if (!result) return;
+        const img = new Image();
+        img.onload = () => {
+          const aspect = img.width / img.height || 1;
+          const maxSide = Math.max(img.width, img.height);
+          const scale = Math.min(1, maxLogoSize / maxSide);
+          const width = Math.max(1, Math.round(img.width * scale));
+          const height = Math.max(1, Math.round(img.height * scale));
+          onLogoChange(result, { width, height, aspect });
+        };
+        img.src = result;
       };
       reader.readAsDataURL(file);
     },
-    [onLogoChange]
+    [maxLogoSize, onLogoChange]
   );
 
   const handleDrop = useCallback(
@@ -107,7 +126,7 @@ export function LogoUpload({ logo, onLogoChange }: LogoUploadProps) {
             >
               <input
                 type="file"
-                accept="image/*"
+                accept="image/png"
                 onChange={handleInputChange}
                 className="sr-only"
               />

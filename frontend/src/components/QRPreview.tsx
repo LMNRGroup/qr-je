@@ -206,8 +206,22 @@ export const QRPreview = forwardRef<QRPreviewHandle, QRPreviewProps>(
                   options.logo
                     ? {
                         src: options.logo,
-                        height: options.logoSize || 50,
-                        width: options.logoSize || 50,
+                        height: (() => {
+                          const maxLogo = Math.round((options.size - 32) * 0.22);
+                          const maxSize = Math.min(options.logoSize || maxLogo, maxLogo);
+                          if (!options.logoAspect || options.logoAspect >= 1) {
+                            return Math.round(maxSize / (options.logoAspect || 1));
+                          }
+                          return maxSize;
+                        })(),
+                        width: (() => {
+                          const maxLogo = Math.round((options.size - 32) * 0.22);
+                          const maxSize = Math.min(options.logoSize || maxLogo, maxLogo);
+                          if (!options.logoAspect || options.logoAspect >= 1) {
+                            return maxSize;
+                          }
+                          return Math.round(maxSize * options.logoAspect);
+                        })(),
                         excavate: true,
                       }
                     : undefined
