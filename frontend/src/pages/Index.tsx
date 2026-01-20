@@ -3369,8 +3369,13 @@ const Index = () => {
             onClick={() => setActiveTab('studio')}
             aria-label="Go to Studio"
           >
-            <div className="h-10 w-10 rounded-xl bg-gradient-primary flex items-center justify-center glow">
-              <QrCode className="h-5 w-5 text-primary-foreground" />
+            <div className="h-10 w-10 rounded-xl overflow-hidden">
+              <img
+                src="/assets/QRC App Icon.png"
+                alt="QRC App Icon"
+                className="h-full w-full object-contain"
+                loading="lazy"
+              />
             </div>
             <div>
               <h1 className="text-lg font-bold gradient-text tracking-wide">QR Code Studio</h1>
@@ -3454,12 +3459,23 @@ const Index = () => {
         <>
           <button
             type="button"
-            className={`fixed bottom-6 right-6 z-[70] flex items-center justify-center rounded-full border border-border/60 bg-card/80 p-2 shadow-lg shadow-[0_0_18px_rgba(251,191,36,0.25)] transition hover:border-primary/60 hover:bg-card ${
+            className={`fixed bottom-6 right-6 z-[70] relative flex items-center justify-center rounded-full border border-border/60 bg-card/80 p-2 shadow-lg shadow-[0_0_18px_rgba(251,191,36,0.25)] transition hover:border-primary/60 hover:bg-card ${
               isDialOpen ? 'opacity-0 pointer-events-none' : 'opacity-100'
             }`}
             aria-label="Open navigation dial"
             onClick={() => setIsDialOpen(true)}
           >
+            <div
+              className="pointer-events-none absolute inset-0 rounded-full"
+              style={{
+                border: '1px solid rgba(251,191,36,0.6)',
+                boxShadow: '0 0 12px rgba(251,191,36,0.25)',
+                background:
+                  'radial-gradient(circle at 30% 25%, rgba(255,248,210,0.55), rgba(251,191,36,0.35) 45%, rgba(214,142,16,0.35) 70%, rgba(102,61,0,0.2) 100%), repeating-conic-gradient(from 0deg, rgba(255,214,102,0.45) 0deg 1deg, rgba(120,72,0,0.18) 1deg 6deg)',
+                WebkitMask: 'radial-gradient(circle at center, transparent 70%, black 76%)',
+                mask: 'radial-gradient(circle at center, transparent 70%, black 76%)',
+              }}
+            />
             <img
               src="/assets/QRC Studio Logo Button.png"
               alt="Open QRC Studio navigation"
