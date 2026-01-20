@@ -162,6 +162,7 @@ const Index = () => {
   const [usernameStatus, setUsernameStatus] = useState<'idle' | 'checking' | 'available' | 'taken' | 'invalid'>('idle');
   const [usernameError, setUsernameError] = useState('');
   const [showAvatarEditor, setShowAvatarEditor] = useState(false);
+  const [avatarDirty, setAvatarDirty] = useState(false);
   const [tourActive, setTourActive] = useState(false);
   const [tourStepIndex, setTourStepIndex] = useState(0);
   const [tourRect, setTourRect] = useState<DOMRect | null>(null);
@@ -618,6 +619,7 @@ const Index = () => {
           avatarType: profile.avatarType ?? prev.avatarType ?? 'letter',
           avatarColor: profile.avatarColor ?? prev.avatarColor ?? 'purple',
         }));
+        setAvatarDirty(false);
         if (!profile.timezone) {
           const autoZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
           if (autoZone) {
@@ -807,6 +809,7 @@ const Index = () => {
         avatarType: 'letter',
         avatarColor: 'purple',
       });
+      setAvatarDirty(false);
       return;
     }
     const metadata = user.user_metadata as Record<string, string> | undefined;
@@ -1191,14 +1194,19 @@ const Index = () => {
     try {
       const themeKey = user?.id ? `theme:${user.id}` : 'theme:default';
       const theme = localStorage.getItem(themeKey);
+      const shouldPersistAvatar = avatarDirty || hasSavedAvatar;
       const updated = await updateUserProfile({
         name: profileForm.fullName.trim() || null,
         username: profileForm.username.trim() || null,
         timezone: profileForm.timezone || null,
         language: profileForm.language || 'en',
         theme: theme || null,
-        avatarType: profileForm.avatarType || null,
-        avatarColor: profileForm.avatarColor || null,
+        ...(shouldPersistAvatar
+          ? {
+              avatarType: profileForm.avatarType || null,
+              avatarColor: profileForm.avatarColor || null,
+            }
+          : {}),
       });
       setUserProfile(updated);
       setProfileForm((prev) => ({
@@ -1212,6 +1220,7 @@ const Index = () => {
         newPassword: '',
         confirmPassword: '',
       }));
+      setAvatarDirty(false);
       setUsernameStatus('idle');
       setUsernameError('');
       toast.success('Preferences saved.');
@@ -1714,6 +1723,10 @@ const Index = () => {
   const avatarLetter = (profileForm.fullName || user?.email || 'Q').trim().charAt(0).toUpperCase() || 'Q';
   const selectedAvatarColor =
     avatarColors.find((color) => color.id === profileForm.avatarColor) ?? avatarColors[0];
+  const hasSavedAvatar = Boolean(userProfile?.avatarType && userProfile?.avatarColor);
+  const headerAvatarType = userProfile?.avatarType ?? null;
+  const headerAvatarColor =
+    avatarColors.find((color) => color.id === userProfile?.avatarColor) ?? null;
   const tourCanProceed = !isTourDialStep || tourDialState.closed;
   const endTour = useCallback(() => {
     setTourActive(false);
@@ -2128,60 +2141,46 @@ const Index = () => {
 
     dialMomentumRef.current = window.requestAnimationFrame(step);
   };
+  const playDialNoiseClick = useCallback((duration: number, gainLevel: number, highpass: number) => {
+    if (typeof window === 'undefined') return;
+    if (!audioRef.current) {
+      audioRef.current = new AudioContext();
+    }
+    const ctx = audioRef.current;
+    if (ctx.state === 'suspended') {
+      void ctx.resume();
+    }
+    const bufferSize = Math.max(1, Math.floor(ctx.sampleRate * duration));
+    const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i += 1) {
+      data[i] = (Math.random() * 2 - 1) * (1 - i / bufferSize);
+    }
+    const source = ctx.createBufferSource();
+    source.buffer = buffer;
+
+    const filter = ctx.createBiquadFilter();
+    filter.type = 'highpass';
+    filter.frequency.value = highpass;
+
+    const gain = ctx.createGain();
+    gain.gain.value = gainLevel;
+
+    source.connect(filter);
+    filter.connect(gain);
+    gain.connect(ctx.destination);
+
+    const now = ctx.currentTime;
+    gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+    source.start(now);
+    source.stop(now + duration);
+  }, []);
   const playDialTick = useCallback(() => {
-    if (typeof window === 'undefined') return;
-    if (!audioRef.current) {
-      audioRef.current = new AudioContext();
-    }
-    const ctx = audioRef.current;
-    if (ctx.state === 'suspended') {
-      void ctx.resume();
-    }
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    if (isMobile) {
-      osc.type = 'triangle';
-      osc.frequency.value = 240;
-      gain.gain.value = 0.035;
-    } else {
-      osc.type = 'square';
-      osc.frequency.value = 420;
-      gain.gain.value = 0.03;
-    }
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    const now = ctx.currentTime;
-    gain.gain.exponentialRampToValueAtTime(0.001, now + (isMobile ? 0.08 : 0.06));
-    osc.start(now);
-    osc.stop(now + (isMobile ? 0.09 : 0.07));
-  }, [isMobile]);
+    playDialNoiseClick(0.035, 0.08, 2200);
+  }, [playDialNoiseClick]);
   const playDialSelect = useCallback(() => {
-    if (typeof window === 'undefined') return;
-    if (!audioRef.current) {
-      audioRef.current = new AudioContext();
-    }
-    const ctx = audioRef.current;
-    if (ctx.state === 'suspended') {
-      void ctx.resume();
-    }
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    if (isMobile) {
-      osc.type = 'triangle';
-      osc.frequency.value = 320;
-      gain.gain.value = 0.03;
-    } else {
-      osc.type = 'sine';
-      osc.frequency.value = 520;
-      gain.gain.value = 0.02;
-    }
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    const now = ctx.currentTime;
-    gain.gain.exponentialRampToValueAtTime(0.001, now + (isMobile ? 0.06 : 0.04));
-    osc.start(now);
-    osc.stop(now + (isMobile ? 0.07 : 0.05));
-  }, [isMobile]);
+    playDialNoiseClick(0.045, 0.1, 1800);
+  }, [playDialNoiseClick]);
   const lastDialIndexRef = useRef<number | null>(null);
 
   useEffect(() => {
@@ -3701,7 +3700,23 @@ const Index = () => {
                 aria-label="My Account"
                 onClick={() => setShowAccountModal(true)}
               >
-                <User className="h-5 w-5 text-muted-foreground group-hover:text-primary transition" />
+                {hasSavedAvatar && headerAvatarColor ? (
+                  <span
+                    className={`flex h-8 w-8 items-center justify-center rounded-full ${headerAvatarColor.bg} ${headerAvatarColor.text}`}
+                  >
+                    {headerAvatarType === 'letter' ? (
+                      <span className="text-xs font-semibold">{avatarLetter}</span>
+                    ) : headerAvatarType === 'cap' ? (
+                      <GraduationCap className="h-4 w-4" />
+                    ) : headerAvatarType === 'bun' ? (
+                      <UserRound className="h-4 w-4" />
+                    ) : (
+                      <User className="h-4 w-4" />
+                    )}
+                  </span>
+                ) : (
+                  <User className="h-5 w-5 text-muted-foreground group-hover:text-primary transition" />
+                )}
               </button>
               <div className="pointer-events-none absolute right-0 top-full mt-2 w-40 opacity-0 transition group-hover:opacity-100">
                 <div className="rounded-xl border border-border/60 bg-card/90 px-3 py-2 text-xs shadow-lg backdrop-blur">
@@ -5202,8 +5217,11 @@ const Index = () => {
                   </p>
                   <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
                     <div className="flex flex-col items-center gap-2">
-                      <div
+                      <button
+                        type="button"
+                        onClick={() => setShowAvatarEditor(true)}
                         className={`flex h-20 w-20 items-center justify-center rounded-full border border-border/60 ${selectedAvatarColor.bg} ${selectedAvatarColor.text}`}
+                        aria-label="Edit avatar"
                       >
                         {profileForm.avatarType === 'letter' ? (
                           <span className="text-2xl font-semibold">{avatarLetter}</span>
@@ -5214,7 +5232,7 @@ const Index = () => {
                         ) : (
                           <User className="h-8 w-8" />
                         )}
-                      </div>
+                      </button>
                       <button
                         type="button"
                         className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground hover:text-primary transition"
@@ -5297,6 +5315,21 @@ const Index = () => {
                             Done
                           </button>
                         </div>
+                        <div className="flex items-center justify-center">
+                          <div
+                            className={`flex h-24 w-24 items-center justify-center rounded-full border border-border/60 ${selectedAvatarColor.bg} ${selectedAvatarColor.text}`}
+                          >
+                            {profileForm.avatarType === 'letter' ? (
+                              <span className="text-3xl font-semibold">{avatarLetter}</span>
+                            ) : profileForm.avatarType === 'cap' ? (
+                              <GraduationCap className="h-10 w-10" />
+                            ) : profileForm.avatarType === 'bun' ? (
+                              <UserRound className="h-10 w-10" />
+                            ) : (
+                              <User className="h-10 w-10" />
+                            )}
+                          </div>
+                        </div>
                         <div className="grid grid-cols-2 gap-3">
                           {avatarOptions.map((option) => (
                             <button
@@ -5307,9 +5340,10 @@ const Index = () => {
                                   ? 'border-primary bg-secondary/50 text-foreground'
                                   : 'border-border/60 bg-secondary/20 text-muted-foreground hover:border-primary/60'
                               }`}
-                              onClick={() =>
+                              onClick={() => {
                                 setProfileForm((prev) => ({ ...prev, avatarType: option.id }))
-                              }
+                                setAvatarDirty(true)
+                              }}
                             >
                               {option.id === 'letter' ? (
                                 <span className="flex h-8 w-8 items-center justify-center rounded-full border border-border/60 text-sm font-semibold">
@@ -5332,9 +5366,10 @@ const Index = () => {
                                 className={`h-10 w-10 rounded-full border ${color.bg} ${color.text} ${
                                   profileForm.avatarColor === color.id ? 'ring-2 ring-primary' : 'border-border/60'
                                 }`}
-                                onClick={() =>
+                                onClick={() => {
                                   setProfileForm((prev) => ({ ...prev, avatarColor: color.id }))
-                                }
+                                  setAvatarDirty(true)
+                                }}
                                 aria-label={color.label}
                               >
                                 {profileForm.avatarColor === color.id ? '✓' : ''}
