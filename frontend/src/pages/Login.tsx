@@ -201,10 +201,6 @@ const Login = () => {
           </div>
         </motion.div>
 
-        {/* Footer */}
-        <p className="text-center text-xs text-muted-foreground mt-8">
-          By continuing, you agree to our Terms of Service
-        </p>
       </motion.div>
     </div>
   );

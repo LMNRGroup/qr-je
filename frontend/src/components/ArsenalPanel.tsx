@@ -172,6 +172,7 @@ export function ArsenalPanel({
   const detailRef = useRef<HTMLDivElement>(null);
   const [scanCounts, setScanCounts] = useState<Record<string, number>>({});
   const t = (en: string, es: string) => (language === 'es' ? es : en);
+  const isMobile = !isDesktop;
   const cacheId = cacheKey ? `qrc.arsenal.cache:${cacheKey}` : null;
   const CACHE_TTL_MS = 5 * 60 * 1000;
   const lastTodayRef = useRef(0);
@@ -698,13 +699,19 @@ export function ArsenalPanel({
           </p>
         </div>
       ) : (
-        <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
+        <div className="grid gap-6 lg:grid-cols-[1.4fr_0.6fr]">
           <div className="glass-panel rounded-2xl p-4">
-            <ScrollArea className="h-[440px] sm:h-[520px]">
+            <ScrollArea
+              className={
+                isDesktop
+                  ? 'h-[calc(100vh-280px)] max-h-[780px]'
+                  : 'h-[360px] sm:h-[520px]'
+              }
+            >
               <div
                 className={
                   viewMode === 'grid'
-                    ? 'grid gap-4 md:grid-cols-2 auto-rows-fr'
+                    ? 'grid gap-4 md:grid-cols-2 xl:grid-cols-3 auto-rows-fr'
                     : 'space-y-2'
                 }
               >
@@ -713,9 +720,13 @@ export function ArsenalPanel({
                   const isChecked = selectedIds.has(item.id);
                   const parsed = parseKind(item.kind ?? null);
                   const typeMeta = typeStyles[parsed.type] ?? typeStyles.url;
+                  const isList = viewMode === 'list';
+                  const isMobileList = isList && isMobile;
+                  const displayName = getDisplayName(item, sortedItems);
+                  const previewSize = isDesktop ? 92 : 72;
                   const cardOptions: QROptions = {
                     ...item.options,
-                    size: 92,
+                    size: previewSize,
                     content: getQrPreviewContent(item),
                   };
                   return (
@@ -737,33 +748,63 @@ export function ArsenalPanel({
                         }
                         handleSelect(item);
                       }}
-                      className={`group w-full rounded-2xl border p-4 text-left transition overflow-hidden ${
+                      className={`group w-full rounded-2xl border text-left transition overflow-hidden ${
                         isSelectMode && isChecked
                           ? 'border-primary/60 bg-primary/10 shadow-[0_0_18px_rgba(59,130,246,0.18)]'
                           : isSelected
                           ? 'border-primary/60 bg-primary/5 shadow-[0_0_18px_rgba(59,130,246,0.12)]'
                           : `${typeMeta.card} hover:border-primary/40 hover:bg-secondary/40`
-                      } ${
-                        viewMode === 'grid' ? 'min-h-[210px] h-full flex flex-col justify-between' : ''
+                      } ${isMobile ? 'p-3' : 'p-4'} ${
+                        viewMode === 'grid'
+                          ? `${isMobile ? 'min-h-[170px]' : 'min-h-[210px]'} h-full flex flex-col justify-between`
+                          : ''
                       }`}
                     >
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="space-y-2 min-w-0">
-                          <p className="text-sm font-semibold truncate" title={getDisplayName(item, sortedItems)}>
-                            {getDisplayName(item, sortedItems)}
-                          </p>
-                          <p className="text-xs text-muted-foreground truncate">{item.content}</p>
-                          <div className="flex flex-wrap items-center gap-2">
+                      {isMobileList ? (
+                        <div className="space-y-3">
+                          <div className="space-y-1 min-w-0">
+                            <p className="text-sm font-semibold truncate" title={displayName}>
+                              {displayName}
+                            </p>
+                            <p className="text-xs text-muted-foreground truncate">{item.content}</p>
+                          </div>
+                          <div className="flex flex-wrap items-center gap-2 text-[10px] uppercase tracking-[0.3em]">
+                            <span
+                              className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 ${
+                                parsed.mode === 'dynamic'
+                                  ? 'border-cyan-400/60 text-cyan-200 bg-cyan-500/10'
+                                  : 'border-border/60 text-muted-foreground bg-secondary/40'
+                              }`}
+                            >
+                              {parsed.mode === 'dynamic' ? 'Dynamic' : 'Static'}
+                            </span>
+                            <span
+                              className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 ${typeMeta.badge}`}
+                            >
+                              {typeMeta.label}
+                            </span>
                             {renderScanCount(item)}
-                            {renderCardBadge(item)}
                           </div>
                         </div>
-                        <div
-                          className={`rounded-2xl border p-2 shrink-0 ${typeMeta.card}`}
-                        >
-                          <QRPreview options={cardOptions} showCaption={false} />
+                      ) : (
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="space-y-2 min-w-0">
+                            <p className="text-sm font-semibold truncate" title={displayName}>
+                              {displayName}
+                            </p>
+                            <p className="text-xs text-muted-foreground truncate">{item.content}</p>
+                            <div className="flex flex-wrap items-center gap-2">
+                              {renderScanCount(item)}
+                              {renderCardBadge(item)}
+                            </div>
+                          </div>
+                          {(isDesktop || viewMode === 'grid') && (
+                            <div className={`rounded-2xl border p-2 shrink-0 ${typeMeta.card}`}>
+                              <QRPreview options={cardOptions} showCaption={false} />
+                            </div>
+                          )}
                         </div>
-                      </div>
+                      )}
                     </button>
                   );
                 })}
@@ -934,7 +975,7 @@ export function ArsenalPanel({
                     {t('QR Name', 'Nombre del QR')}
                   </p>
                   <Input
-                    value={selectedDisplayName}
+                    value={editName}
                     placeholder={selectedDisplayName}
                     className="bg-secondary/40 border-border"
                     readOnly
@@ -1012,7 +1053,12 @@ export function ArsenalPanel({
               <button
                 type="button"
                 className="inline-flex items-center gap-2 text-xs uppercase tracking-[0.3em] text-muted-foreground transition hover:text-primary"
-                onClick={clearSelection}
+                onClick={() => {
+                  clearSelection();
+                  if (typeof window !== 'undefined') {
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                  }
+                }}
               >
                 <ArrowLeft className="h-3.5 w-3.5" />
                 {t('Back to Arsenal', 'Volver al Arsenal')}
@@ -1125,7 +1171,11 @@ export function ArsenalPanel({
               <div className="flex justify-center">
                 <QRPreview
                   ref={previewRef}
-                  options={{ ...selectedItem.options, content: selectedItem.content, size: 180 }}
+                  options={{
+                    ...selectedItem.options,
+                    content: getQrPreviewContent(selectedItem),
+                    size: 180,
+                  }}
                   showCaption={false}
                 />
               </div>
@@ -1146,7 +1196,7 @@ export function ArsenalPanel({
                   {t('QR Name', 'Nombre del QR')}
                 </p>
                 <Input
-                  value={selectedDisplayName}
+                  value={editName}
                   placeholder={selectedDisplayName}
                   className="bg-secondary/40 border-border"
                   readOnly

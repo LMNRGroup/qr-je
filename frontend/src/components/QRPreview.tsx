@@ -1,4 +1,4 @@
-import { useRef, useCallback, forwardRef, useImperativeHandle } from 'react';
+import { useRef, useCallback, forwardRef, useImperativeHandle, useEffect, useId } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { motion } from 'framer-motion';
 import { toPng, toJpeg, toSvg } from 'html-to-image';
@@ -24,13 +24,15 @@ export interface QRPreviewHandle {
 export const QRPreview = forwardRef<QRPreviewHandle, QRPreviewProps>(
   ({ options, isGenerating = false, contentOverride, showCaption = true }, ref) => {
     const qrRef = useRef<HTMLDivElement>(null);
+    const svgRef = useRef<SVGSVGElement>(null);
+    const dotMaskId = useId().replace(/:/g, '');
 
     const getCornerRadius = () => {
       switch (options.cornerStyle) {
         case 'rounded':
           return 8;
         case 'dots':
-          return 50;
+          return 0;
         default:
           return 0;
       }
@@ -106,6 +108,67 @@ export const QRPreview = forwardRef<QRPreviewHandle, QRPreviewProps>(
     const isTooLong = contentValue.length > 2048 || contentValue.startsWith('data:');
     const hasContent = contentValue.length > 0 && !isTooLong;
 
+    useEffect(() => {
+      const svg = svgRef.current;
+      if (!svg) return;
+      const paths = svg.querySelectorAll('path');
+      const fgPath = paths.item(1) as SVGPathElement | null;
+      if (!fgPath) return;
+
+      const existingDefs = svg.querySelector('defs[data-dot-mask="true"]');
+      if (options.cornerStyle !== 'dots') {
+        fgPath.removeAttribute('mask');
+        existingDefs?.remove();
+        return;
+      }
+
+      const defs =
+        (existingDefs as SVGDefsElement | null) ??
+        document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+      defs.setAttribute('data-dot-mask', 'true');
+      defs.innerHTML = '';
+
+      const patternId = `dot-pattern-${dotMaskId}`;
+      const maskId = `dot-mask-${dotMaskId}`;
+
+      const pattern = document.createElementNS('http://www.w3.org/2000/svg', 'pattern');
+      pattern.setAttribute('id', patternId);
+      pattern.setAttribute('patternUnits', 'userSpaceOnUse');
+      pattern.setAttribute('width', '1');
+      pattern.setAttribute('height', '1');
+
+      const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+      circle.setAttribute('cx', '0.5');
+      circle.setAttribute('cy', '0.5');
+      circle.setAttribute('r', '0.38');
+      circle.setAttribute('fill', 'white');
+      pattern.appendChild(circle);
+
+      const mask = document.createElementNS('http://www.w3.org/2000/svg', 'mask');
+      mask.setAttribute('id', maskId);
+
+      const maskBase = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+      maskBase.setAttribute('width', '100%');
+      maskBase.setAttribute('height', '100%');
+      maskBase.setAttribute('fill', 'black');
+
+      const maskPattern = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+      maskPattern.setAttribute('width', '100%');
+      maskPattern.setAttribute('height', '100%');
+      maskPattern.setAttribute('fill', `url(#${patternId})`);
+
+      mask.appendChild(maskBase);
+      mask.appendChild(maskPattern);
+      defs.appendChild(pattern);
+      defs.appendChild(mask);
+
+      if (!existingDefs) {
+        svg.insertBefore(defs, svg.firstChild);
+      }
+
+      fgPath.setAttribute('mask', `url(#${maskId})`);
+    }, [contentValue, dotMaskId, options.cornerStyle, options.size]);
+
     return (
       <div className="flex flex-col items-center gap-6">
         <motion.div
@@ -130,6 +193,7 @@ export const QRPreview = forwardRef<QRPreviewHandle, QRPreviewProps>(
               </div>
             ) : hasContent ? (
               <QRCodeSVG
+                ref={svgRef}
                 value={contentValue}
                 size={options.size - 32}
                 fgColor={options.fgColor}

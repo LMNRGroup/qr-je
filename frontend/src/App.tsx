@@ -21,16 +21,29 @@ const App = () => (
         <Toaster />
         <Sonner />
         <BrowserRouter>
-          <Routes>
-            <Route path="/" element={<Index />} />
-            <Route path="/login" element={<Login />} />
-            <Route path="/terms" element={<Terms />} />
-            <Route path="/v/:slug" element={<VCard />} />
-            <Route path="/file/:id/:random" element={<FileViewer />} />
-            <Route path="/menu/:id/:random" element={<MenuViewer />} />
-            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-            <Route path="*" element={<NotFound />} />
-          </Routes>
+          <div className="min-h-[100dvh] flex flex-col">
+            <div className="flex-1">
+              <Routes>
+                <Route path="/" element={<Index />} />
+                <Route path="/login" element={<Login />} />
+                <Route path="/terms" element={<Terms />} />
+                <Route path="/v/:slug" element={<VCard />} />
+                <Route path="/file/:id/:random" element={<FileViewer />} />
+                <Route path="/menu/:id/:random" element={<MenuViewer />} />
+                {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </div>
+            <footer className="px-4 pb-6 pt-8 text-center text-xs text-muted-foreground">
+              <a
+                href="/terms"
+                className="text-muted-foreground/70 hover:text-muted-foreground transition"
+              >
+                Terms & Conditions
+              </a>
+              <p className="mt-2">© {new Date().getFullYear()} GDev x Luminar Apps.</p>
+            </footer>
+          </div>
         </BrowserRouter>
       </AuthProvider>
     </TooltipProvider>

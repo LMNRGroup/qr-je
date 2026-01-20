@@ -61,6 +61,7 @@ import {
   Utensils,
   User,
   Users,
+  Zap,
   X,
 } from 'lucide-react';
 import { ChangeEvent, PointerEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -295,6 +296,9 @@ const Index = () => {
   });
   const qrRef = useRef<QRPreviewHandle>(null);
   const createSectionRef = useRef<HTMLDivElement>(null);
+  const modeSectionRef = useRef<HTMLDivElement>(null);
+  const detailsSectionRef = useRef<HTMLDivElement>(null);
+  const customizeSectionRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
 
   const normalizeUrl = (value: string) => {
@@ -353,14 +357,15 @@ const Index = () => {
     () => (vcard.slug ? slugify(vcard.slug) : slugify(vcard.name)),
     [vcard.slug, vcard.name]
   );
-  const vcardBaseUrl = typeof window !== 'undefined'
+  const appBaseUrl = typeof window !== 'undefined'
     ? window.location.origin
     : (import.meta.env.VITE_PUBLIC_APP_URL ?? 'https://qrcode.luminarapps.com');
+  const vcardBaseUrl = appBaseUrl;
   const vcardUrl = vcardSlug
     ? `${vcardBaseUrl}/v/${vcardSlug}`
     : '';
   const menuPreviewUrl = menuFiles.length
-    ? `https://qrcode.luminarapps.com/menu-preview`
+    ? `${appBaseUrl}/menu-preview`
     : '';
   const menuHasFiles = menuFiles.length > 0;
   const menuHasPdf = menuFiles.length === 1 && menuFiles[0]?.type === 'pdf';
@@ -381,7 +386,9 @@ const Index = () => {
               : '';
   const generatedContent = generatedShortUrl || fallbackContent;
   const longFormContent = qrType === 'vcard' ? (generatedLongUrl || vcardUrl) : generatedContent;
-  const canGenerate = qrType === 'website'
+  const hasSelectedMode = qrMode !== null;
+  const hasSelectedType = qrType !== null;
+  const canGenerate = hasSelectedMode && (qrType === 'website'
     ? isWebsiteValid
     : qrType === 'vcard'
       ? Boolean(vcardSlug)
@@ -393,15 +400,13 @@ const Index = () => {
             ? fileDataUrl.length > 0
           : qrType === 'menu'
             ? menuFiles.length > 0
-            : false;
+            : false);
   const previewUrl = qrType === 'website'
     ? normalizedWebsiteUrl
     : qrType === 'menu'
       ? menuPreviewUrl
       : vcardUrl;
   const canShowPreview = qrType === 'website' && isWebsiteValid;
-  const hasSelectedMode = qrMode !== null;
-  const hasSelectedType = qrType !== null;
   const previewContent = hasGenerated
     ? generatedContent
     : hasSelectedType
@@ -823,6 +828,10 @@ const Index = () => {
   }, [activeTab, pendingCreateScroll]);
 
   const handleGenerate = async () => {
+    if (!hasSelectedMode) {
+      toast.error('Choose Static or Dynamic to continue');
+      return;
+    }
     if (!canGenerate) {
       const message = qrType === 'website'
         ? 'Please enter a valid website URL'
@@ -859,7 +868,7 @@ const Index = () => {
         })
         : await generateQR(
           qrType === 'file' || qrType === 'menu'
-            ? `https://qrcode.luminarapps.com/pending/${crypto.randomUUID()}`
+            ? `${appBaseUrl}/pending/${crypto.randomUUID()}`
             : longFormContent,
           qrType === 'file'
             ? {
@@ -891,8 +900,8 @@ const Index = () => {
             if (match) {
               const [, id, random] = match;
               const targetUrl = qrType === 'file'
-                ? `https://qrcode.luminarapps.com/file/${id}/${random}`
-                : `https://qrcode.luminarapps.com/menu/${id}/${random}`;
+                ? `${appBaseUrl}/file/${id}/${random}`
+                : `${appBaseUrl}/menu/${id}/${random}`;
               const updateResponse = await updateQR(id, {
                 targetUrl,
                 options: qrType === 'file'
@@ -987,7 +996,7 @@ const Index = () => {
   };
 
   const handleStartStatic = () => {
-    setQrMode('static');
+    setQrMode(null);
     setQrType('website');
     setActiveTab('studio');
     setWebsiteTouched(false);
@@ -998,7 +1007,7 @@ const Index = () => {
   };
 
   const handleStartVcard = () => {
-    setQrMode('static');
+    setQrMode(null);
     setQrType('vcard');
     setActiveTab('studio');
     setWebsiteTouched(false);
@@ -1009,7 +1018,7 @@ const Index = () => {
   };
 
   const handleStartEmail = () => {
-    setQrMode('static');
+    setQrMode(null);
     setQrType('email');
     setActiveTab('studio');
     setWebsiteTouched(false);
@@ -1020,7 +1029,7 @@ const Index = () => {
   };
 
   const handleStartPhone = () => {
-    setQrMode('static');
+    setQrMode(null);
     setQrType('phone');
     setActiveTab('studio');
     setWebsiteTouched(false);
@@ -1032,7 +1041,7 @@ const Index = () => {
   };
 
   const handleStartFile = () => {
-    setQrMode('static');
+    setQrMode(null);
     setQrType('file');
     setActiveTab('studio');
     setWebsiteTouched(false);
@@ -1040,6 +1049,18 @@ const Index = () => {
     setPhoneTouched(false);
     setFileTouched(false);
     setSelectedQuickAction('file');
+    setPendingCreateScroll(true);
+  };
+
+  const handleStartMenu = () => {
+    setQrMode(null);
+    setQrType('menu');
+    setActiveTab('studio');
+    setWebsiteTouched(false);
+    setEmailTouched(false);
+    setPhoneTouched(false);
+    setFileTouched(false);
+    setSelectedQuickAction('menu');
     setPendingCreateScroll(true);
   };
 
@@ -1317,6 +1338,7 @@ const Index = () => {
 
   const handleMenuFilesChange = (event: ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.target.files ?? []);
+    event.target.value = '';
     if (files.length === 0) return;
     if (files.length > MAX_MENU_FILES) {
       toast.error(`You can upload up to ${MAX_MENU_FILES} files.`);
@@ -1364,6 +1386,7 @@ const Index = () => {
 
   const handleFileUpload = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
+    event.target.value = '';
     if (!file) return;
     const isPdf = file.type === 'application/pdf';
     if (file.size > MAX_FILE_BYTES && isPdf) {
@@ -1677,7 +1700,7 @@ const Index = () => {
   };
   const dialInset = dialSize * 0.08;
   const dialOuterRadius = dialSize / 2;
-  const dialIconSize = 64;
+  const dialIconSize = 96;
   const dialIconRadius = dialIconSize / 2;
   const dialOuterGap = dialSize * 0.05;
   const dialInnerGap = dialSize * 0.05;
@@ -1746,10 +1769,62 @@ const Index = () => {
     };
   }, [isDialOpen]);
 
+  const [mobileCustomizeStep, setMobileCustomizeStep] = useState(false);
   const showMobileCreateFlow = isMobile && Boolean(selectedQuickAction || qrType);
   const showStudioIntro = !isMobile || !showMobileCreateFlow;
   const showCreateSection = !isMobile || showMobileCreateFlow;
-  const showMobileCustomize = !isMobile || (showMobileCreateFlow && canGenerate);
+  const showMobileCustomize = !isMobile || mobileCustomizeStep;
+  const fgColorPresets = [
+    '#2B2B2B',
+    '#D4AF37',
+    '#7C5CFF',
+    '#58E1FF',
+    '#2563EB',
+    '#16A34A',
+    '#F97316',
+    '#DC2626',
+    '#111827',
+    '#000000',
+  ];
+  const bgColorPresets = [
+    '#F3F3F0',
+    '#FFFFFF',
+    '#0B1120',
+    '#1F2937',
+    '#0A192F',
+    '#F5E9C9',
+    '#E0F2FE',
+    '#DCFCE7',
+    '#FFEDD5',
+    '#FEF2F2',
+  ];
+  const scrollToRef = useCallback((ref: { current: HTMLElement | null }, block: ScrollLogicalPosition = 'center') => {
+    if (typeof window === 'undefined') return;
+    if (!ref.current) return;
+    window.requestAnimationFrame(() => {
+      ref.current?.scrollIntoView({ behavior: 'smooth', block });
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!isMobile) return;
+    setMobileCustomizeStep(false);
+  }, [qrMode, qrType, selectedQuickAction, isMobile]);
+
+  useEffect(() => {
+    if (!showCreateSection || hasSelectedMode) return;
+    scrollToRef(modeSectionRef, 'start');
+  }, [showCreateSection, hasSelectedMode, scrollToRef]);
+
+  useEffect(() => {
+    if (!hasSelectedMode) return;
+    scrollToRef(detailsSectionRef);
+  }, [hasSelectedMode, hasSelectedType, scrollToRef]);
+
+  useEffect(() => {
+    if (!showMobileCustomize || !hasSelectedMode || !hasSelectedType) return;
+    scrollToRef(customizeSectionRef, 'start');
+  }, [showMobileCustomize, hasSelectedMode, hasSelectedType, scrollToRef]);
 
   return (
     <div className="min-h-screen bg-background" data-build={BUILD_STAMP}>
@@ -3010,15 +3085,18 @@ const Index = () => {
         <>
           <button
             type="button"
-            className="fixed top-1/2 z-[70] flex h-16 w-10 -translate-y-1/2 items-center justify-center rounded-l-full rounded-r-none border border-amber-300/60 bg-amber-300/10 text-amber-200 shadow-lg transition hover:border-amber-200 hover:bg-amber-300/20"
-            style={{ right: '-1.25rem' }}
+            className={`fixed bottom-6 right-6 z-[70] flex items-center justify-center rounded-full border border-border/60 bg-card/80 p-2 shadow-lg transition hover:border-primary/60 hover:bg-card ${
+              isDialOpen ? 'opacity-0 pointer-events-none' : 'opacity-100'
+            }`}
             aria-label="Open navigation dial"
             onClick={() => setIsDialOpen(true)}
           >
-            <div className="flex items-center gap-1">
-              <span className="h-7 w-1 rounded-full bg-primary/40" />
-              <span className="h-7 w-1 rounded-full bg-primary/60" />
-            </div>
+            <img
+              src="/Assets/QRC Studio Logo Button.png"
+              alt="Open QRC Studio navigation"
+              className="h-14 w-14"
+              loading="lazy"
+            />
           </button>
 
           {isDialOpen && (
@@ -3065,7 +3143,7 @@ const Index = () => {
                 </div>
 
                 <div
-                  className="absolute top-1/2 flex-none overflow-visible"
+                  className="absolute top-1/2 z-20 flex-none overflow-visible"
                   style={{
                     right: 0,
                     width: dialSize,
@@ -3112,13 +3190,13 @@ const Index = () => {
                         <button
                           key={item.id}
                           type="button"
-                          className={`absolute flex h-20 w-20 items-center justify-center rounded-full border transition ${
+                          className={`absolute flex h-24 w-24 items-center justify-center rounded-full border transition touch-manipulation ${
                             isActive
                               ? item.id === 'adaptive'
                                 ? 'border-amber-300/70 bg-amber-300/15 text-amber-300'
                                 : 'border-primary/60 bg-primary/10 text-primary'
                               : 'border-border/60 bg-secondary/30 text-muted-foreground'
-                          } ${!isActive ? item.color : ''}`}
+                          } ${!isActive ? item.color : ''} ${isActive ? 'z-20' : 'z-10'}`}
                           style={{
                             left: `calc(50% + ${offsetX}px)`,
                             top: `calc(50% + ${offsetY}px)`,
@@ -3136,7 +3214,7 @@ const Index = () => {
                             setIsDialOpen(false);
                           }}
                         >
-                          <item.Icon className="h-9 w-9" />
+                          <item.Icon className="h-10 w-10" />
                         </button>
                       );
                     })}
@@ -3152,7 +3230,7 @@ const Index = () => {
       <main
         className={`container mx-auto px-4 py-8 transition ${
           showUpsell || isBooting ? 'blur-md pointer-events-none select-none' : ''
-        }`}
+        } ${isMobile ? 'min-h-[100dvh] pb-24 flex flex-col' : ''}`}
       >
         {activeTab === 'studio' && (
           <>
@@ -3200,23 +3278,11 @@ const Index = () => {
                 onClick: handleStartFile,
               },
               {
-                id: 'dynamic',
-                label: 'Dynamic',
-                hint: 'Dynamic',
-                Icon: Sparkles,
-                onClick: () => {
-                  setQrMode('dynamic');
-                  setQrType('website');
-                  setSelectedQuickAction('dynamic');
-                  setPendingCreateScroll(true);
-                },
-              },
-              {
                 id: 'menu',
                 label: 'Menu',
                 hint: 'Menu',
                 Icon: Utensils,
-                onClick: openMenuBuilder,
+                onClick: handleStartMenu,
               },
             ].map((action) => (
               <button
@@ -3360,23 +3426,11 @@ const Index = () => {
                 onClick: handleStartFile,
               },
               {
-                id: 'dynamic',
-                label: 'Dynamic',
-                hint: 'Dynamic',
-                Icon: Sparkles,
-                onClick: () => {
-                  setQrMode('dynamic');
-                  setQrType('website');
-                  setSelectedQuickAction('dynamic');
-                  setPendingCreateScroll(true);
-                },
-              },
-              {
                 id: 'menu',
                 label: 'Menu',
                 hint: 'Menu',
                 Icon: Utensils,
-                onClick: openMenuBuilder,
+                onClick: handleStartMenu,
               },
             ].map((action) => (
               <button
@@ -3441,11 +3495,15 @@ const Index = () => {
             {/* Left Panel - Input & Preview */}
             <div className="space-y-6">
               <motion.div
+                ref={modeSectionRef}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="glass-panel rounded-2xl p-6 space-y-6"
+                className={`glass-panel rounded-2xl p-6 space-y-6 ${
+                  qrMode === 'dynamic'
+                    ? 'border-cyan-400/40 bg-cyan-500/5 shadow-[0_0_25px_rgba(34,211,238,0.12)]'
+                    : ''
+                }`}
               >
-                {!isMobile && (
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
@@ -3462,10 +3520,15 @@ const Index = () => {
                         : 'bg-secondary/40 border border-border/60 text-muted-foreground rounded-t-xl uppercase tracking-[0.2em] text-xs hover:text-primary'}
                       onClick={() => {
                         setQrMode('static');
-                        setQrType(null);
+                        if (!selectedQuickAction) {
+                          setQrType(null);
+                        }
                         setWebsiteTouched(false);
+                        setEmailTouched(false);
+                        setPhoneTouched(false);
                       }}
                     >
+                      <QrCode className="mr-2 h-4 w-4" />
                       Static
                     </Button>
                     <Button
@@ -3475,134 +3538,134 @@ const Index = () => {
                         : 'bg-secondary/40 border border-border/60 text-muted-foreground rounded-t-xl uppercase tracking-[0.2em] text-xs hover:text-primary'}
                       onClick={() => {
                         setQrMode('dynamic');
-                        setQrType(null);
+                        if (!selectedQuickAction) {
+                          setQrType(null);
+                        }
                         setWebsiteTouched(false);
                         setEmailTouched(false);
                         setPhoneTouched(false);
-                        setSelectedQuickAction('dynamic');
                       }}
                     >
+                      <Zap className="mr-2 h-4 w-4" />
                       Dynamic
                     </Button>
                   </div>
                 </div>
-                )}
 
-                {!isMobile && hasSelectedMode ? (
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <h3 className="font-semibold">Step 2 · QR Type</h3>
-                      <span className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Choose</span>
+                <div ref={detailsSectionRef} className="space-y-6">
+                  {hasSelectedMode && !selectedQuickAction ? (
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <h3 className="font-semibold">Step 2 · QR Type</h3>
+                        <span className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Choose</span>
+                      </div>
+                      <div className="grid sm:grid-cols-2 gap-3">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setQrType('website');
+                            setWebsiteTouched(false);
+                            setEmailTouched(false);
+                            setPhoneTouched(false);
+                            setSelectedQuickAction(null);
+                          }}
+                          className={`rounded-t-2xl border px-4 py-3 text-left transition-all ${
+                            qrType === 'website'
+                              ? 'border-border/70 bg-card/80'
+                              : 'border-border/60 bg-secondary/30 hover:border-primary/60'
+                          }`}
+                        >
+                          <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">URL QR</p>
+                          <p className="mt-2 font-semibold">Open a URL</p>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setQrType('vcard');
+                            setSelectedQuickAction(null);
+                          }}
+                          className={`rounded-t-2xl border px-4 py-3 text-left transition-all ${
+                            qrType === 'vcard'
+                              ? 'border-border/70 bg-card/80'
+                              : 'border-border/60 bg-secondary/30 hover:border-primary/60'
+                          }`}
+                        >
+                          <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Virtual Card</p>
+                          <p className="mt-2 font-semibold">Share your profile</p>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setQrType('email');
+                            setEmailTouched(false);
+                            setSelectedQuickAction(null);
+                          }}
+                          className={`rounded-t-2xl border px-4 py-3 text-left transition-all ${
+                            qrType === 'email'
+                              ? 'border-border/70 bg-card/80'
+                              : 'border-border/60 bg-secondary/30 hover:border-primary/60'
+                          }`}
+                        >
+                          <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Email</p>
+                          <p className="mt-2 font-semibold">Send an email</p>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setQrType('phone');
+                            setPhoneTouched(false);
+                            setFileTouched(false);
+                            setSelectedQuickAction(null);
+                          }}
+                          className={`rounded-t-2xl border px-4 py-3 text-left transition-all ${
+                            qrType === 'phone'
+                              ? 'border-border/70 bg-card/80'
+                              : 'border-border/60 bg-secondary/30 hover:border-primary/60'
+                          }`}
+                        >
+                          <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Phone</p>
+                          <p className="mt-2 font-semibold">Call a number</p>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setQrType('file');
+                            setFileTouched(false);
+                            setSelectedQuickAction(null);
+                          }}
+                          className={`rounded-t-2xl border px-4 py-3 text-left transition-all ${
+                            qrType === 'file'
+                              ? 'border-border/70 bg-card/80'
+                              : 'border-border/60 bg-secondary/30 hover:border-primary/60'
+                          }`}
+                        >
+                          <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">File</p>
+                          <p className="mt-2 font-semibold">Share a file</p>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setQrType('menu');
+                            setSelectedQuickAction(null);
+                          }}
+                          className={`rounded-t-2xl border px-4 py-3 text-left transition-all ${
+                            qrType === 'menu'
+                              ? 'border-border/70 bg-card/80'
+                              : 'border-border/60 bg-secondary/30 hover:border-primary/60'
+                          }`}
+                        >
+                          <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Menu</p>
+                          <p className="mt-2 font-semibold">Dynamic QR menu</p>
+                        </button>
+                      </div>
                     </div>
-                    <div className="grid sm:grid-cols-2 gap-3">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setQrType('website');
-                          setWebsiteTouched(false);
-                          setEmailTouched(false);
-                          setPhoneTouched(false);
-                          setSelectedQuickAction('website');
-                        }}
-                        className={`rounded-t-2xl border px-4 py-3 text-left transition-all ${
-                          qrType === 'website'
-                            ? 'border-border/70 bg-card/80'
-                            : 'border-border/60 bg-secondary/30 hover:border-primary/60'
-                        }`}
-                      >
-                        <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">URL QR</p>
-                        <p className="mt-2 font-semibold">Open a URL</p>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setQrType('vcard');
-                          setSelectedQuickAction('vcard');
-                        }}
-                        className={`rounded-t-2xl border px-4 py-3 text-left transition-all ${
-                          qrType === 'vcard'
-                            ? 'border-border/70 bg-card/80'
-                            : 'border-border/60 bg-secondary/30 hover:border-primary/60'
-                        }`}
-                      >
-                        <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Virtual Card</p>
-                        <p className="mt-2 font-semibold">Share your profile</p>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setQrType('email');
-                          setEmailTouched(false);
-                          setSelectedQuickAction('email');
-                        }}
-                        className={`rounded-t-2xl border px-4 py-3 text-left transition-all ${
-                          qrType === 'email'
-                            ? 'border-border/70 bg-card/80'
-                            : 'border-border/60 bg-secondary/30 hover:border-primary/60'
-                        }`}
-                      >
-                        <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Email</p>
-                        <p className="mt-2 font-semibold">Send an email</p>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setQrType('phone');
-                          setPhoneTouched(false);
-                          setFileTouched(false);
-                          setSelectedQuickAction('phone');
-                        }}
-                        className={`rounded-t-2xl border px-4 py-3 text-left transition-all ${
-                          qrType === 'phone'
-                            ? 'border-border/70 bg-card/80'
-                            : 'border-border/60 bg-secondary/30 hover:border-primary/60'
-                        }`}
-                      >
-                        <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Phone</p>
-                        <p className="mt-2 font-semibold">Call a number</p>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setQrMode('static');
-                          setQrType('file');
-                          setFileTouched(false);
-                          setSelectedQuickAction('file');
-                        }}
-                        className={`rounded-t-2xl border px-4 py-3 text-left transition-all ${
-                          qrType === 'file'
-                            ? 'border-border/70 bg-card/80'
-                            : 'border-border/60 bg-secondary/30 hover:border-primary/60'
-                        }`}
-                      >
-                        <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">File</p>
-                        <p className="mt-2 font-semibold">Share a file</p>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setQrMode('dynamic');
-                          setQrType('menu');
-                          setSelectedQuickAction('menu');
-                        }}
-                        className={`rounded-t-2xl border px-4 py-3 text-left transition-all ${
-                          qrType === 'menu'
-                            ? 'border-border/70 bg-card/80'
-                            : 'border-border/60 bg-secondary/30 hover:border-primary/60'
-                        }`}
-                      >
-                        <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Menu</p>
-                        <p className="mt-2 font-semibold">Dynamic QR menu</p>
-                      </button>
+                  ) : (
+                    <div className="rounded-2xl border border-dashed border-border/70 bg-secondary/20 p-4 text-sm text-muted-foreground">
+                      Choose Static or Dynamic to continue.
                     </div>
-                  </div>
-                ) : (
-                  <div className="rounded-2xl border border-dashed border-border/70 bg-secondary/20 p-4 text-sm text-muted-foreground">
-                    Choose Static or Dynamic to unlock QR types.
-                  </div>
-                )}
+                  )}
 
-                {hasSelectedType ? (
+                {hasSelectedMode && hasSelectedType ? (
                   qrType === 'website' ? (
                     <div className="space-y-3">
                       <div className="flex items-center gap-3">
@@ -3806,71 +3869,124 @@ const Index = () => {
                   </div>
                 )}
 
-                {hasSelectedType && (!isMobile || showMobileCustomize) ? (
-                  <div className="flex flex-wrap items-center gap-3">
-                    <Button
-                      size="lg"
-                      className="gap-2 bg-gradient-primary hover:opacity-90 text-primary-foreground glow uppercase tracking-[0.2em] text-xs"
-                      disabled={!canGenerate || isGenerating}
-                      onClick={handleGenerate}
-                    >
-                      {isGenerating ? (
-                        <>
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                          Generating
-                        </>
-                      ) : (
-                        <>Generate My QR Code</>
-                      )}
-                    </Button>
-
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button
-                          size="lg"
-                          className="gap-2 bg-secondary/60 border border-border hover:border-primary hover:bg-primary/10"
-                          disabled={!hasGenerated}
-                        >
-                          <Download className="h-4 w-4" />
-                          Download
-                          <ChevronDown className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="center" className="glass-panel">
-                        <DropdownMenuItem onClick={() => handleDownload('png')}>
-                          Download PNG
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleDownload('svg')}>
-                          Download SVG
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleDownload('jpeg')}>
-                          Download JPEG
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleDownload('pdf')}>
-                          Download PDF
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-
-                    <Button
-                      variant="outline"
-                      size="lg"
-                      className="gap-2 border-border hover:border-primary hover:bg-primary/10"
-                      onClick={handleCopy}
-                      disabled={!hasGenerated}
-                    >
-                      <Copy className="h-4 w-4" />
-                      Copy
-                    </Button>
-                  </div>
-                ) : (
-                  <div className="rounded-2xl border border-dashed border-border/70 bg-secondary/20 p-4 text-sm text-muted-foreground">
-                    Complete the details to unlock generate and export actions.
+                {isMobile && hasSelectedMode && hasSelectedType && !mobileCustomizeStep && (
+                  <div className="glass-panel rounded-2xl border border-primary/30 bg-primary/5 p-5 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Step 4 · Optional</p>
+                        <h3 className="text-lg font-semibold">Customize your QR</h3>
+                      </div>
+                      <span className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Preview</span>
+                    </div>
+                    <div className="flex justify-center">
+                      <QRPreview
+                        options={{ ...options, size: 160 }}
+                        contentOverride={previewContent}
+                        showCaption={false}
+                      />
+                    </div>
+                    <div className="flex flex-col items-center justify-center gap-3 sm:flex-row">
+                      <Button
+                        type="button"
+                        className="gap-2 bg-secondary/80 border border-primary/40 hover:border-primary hover:bg-primary/15 uppercase tracking-[0.2em] text-xs"
+                        onClick={() => setMobileCustomizeStep(true)}
+                        disabled={!canGenerate}
+                      >
+                        Customize
+                      </Button>
+                      <Button
+                        type="button"
+                        className="gap-2 bg-gradient-primary hover:opacity-90 text-primary-foreground glow uppercase tracking-[0.2em] text-xs"
+                        onClick={() => {
+                          setMobileCustomizeStep(true);
+                          handleGenerate();
+                        }}
+                        disabled={!canGenerate || isGenerating}
+                      >
+                        {isGenerating ? (
+                          <>
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                            Generating
+                          </>
+                        ) : (
+                          <>Skip & Generate</>
+                        )}
+                      </Button>
+                    </div>
+                    <p className="text-xs text-muted-foreground text-center">
+                      Your QR will use the default studio style unless you customize it.
+                    </p>
                   </div>
                 )}
+
+                {!isMobile ? (
+                  hasSelectedType && showMobileCustomize ? (
+                    <div className="flex flex-col items-center gap-3 sm:flex-row sm:justify-start">
+                      <Button
+                        size="lg"
+                        className="gap-2 bg-gradient-primary hover:opacity-90 text-primary-foreground glow uppercase tracking-[0.2em] text-xs"
+                        disabled={!canGenerate || isGenerating}
+                        onClick={handleGenerate}
+                      >
+                        {isGenerating ? (
+                          <>
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                            Generating
+                          </>
+                        ) : (
+                          <>Generate My QR Code</>
+                        )}
+                      </Button>
+
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            size="lg"
+                            className="gap-2 bg-secondary/60 border border-border hover:border-primary hover:bg-primary/10"
+                            disabled={!hasGenerated}
+                          >
+                            <Download className="h-4 w-4" />
+                            Download
+                            <ChevronDown className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="center" className="glass-panel">
+                          <DropdownMenuItem onClick={() => handleDownload('png')}>
+                            Download PNG
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleDownload('svg')}>
+                            Download SVG
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleDownload('jpeg')}>
+                            Download JPEG
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleDownload('pdf')}>
+                            Download PDF
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+
+                      <Button
+                        variant="outline"
+                        size="lg"
+                        className="gap-2 border-border hover:border-primary hover:bg-primary/10"
+                        onClick={handleCopy}
+                        disabled={!hasGenerated}
+                      >
+                        <Copy className="h-4 w-4" />
+                        Copy
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="rounded-2xl border border-dashed border-border/70 bg-secondary/20 p-4 text-sm text-muted-foreground">
+                      Complete the details to unlock generate and export actions.
+                    </div>
+                  )
+                ) : null}
+                </div>
               </motion.div>
 
-              {(!isMobile || showMobileCustomize) && (
+              {showMobileCustomize && (
                 <motion.div
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -3916,10 +4032,29 @@ const Index = () => {
                       Select a mode and type to preview your QR design.
                     </div>
                   )}
+                  {isMobile && hasSelectedMode && hasSelectedType && showMobileCustomize && (
+                    <div className="mt-4 flex w-full flex-col items-center gap-3">
+                      <Button
+                        size="lg"
+                        className="w-full max-w-xs gap-2 bg-gradient-primary hover:opacity-90 text-primary-foreground glow uppercase tracking-[0.2em] text-xs"
+                        disabled={!canGenerate || isGenerating}
+                        onClick={handleGenerate}
+                      >
+                        {isGenerating ? (
+                          <>
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                            Generating
+                          </>
+                        ) : (
+                          <>Generate My QR Code</>
+                        )}
+                      </Button>
+                    </div>
+                  )}
                 </motion.div>
               )}
 
-              {hasGenerated && (!isMobile || showMobileCustomize) && (
+              {hasGenerated && showMobileCustomize && (
                 <motion.div
                   initial={{ opacity: 0, y: 16 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -4009,12 +4144,13 @@ const Index = () => {
 
             {/* Right Panel - Customization */}
             <motion.div
+              ref={customizeSectionRef}
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.15 }}
               className="space-y-6"
             >
-              {hasSelectedMode && hasSelectedType ? (
+              {hasSelectedMode && hasSelectedType && (!isMobile || mobileCustomizeStep) ? (
                 <div className="glass-panel rounded-2xl p-4">
                   <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground px-4 pt-2">
                     Step 4 · Customize
@@ -4029,12 +4165,13 @@ const Index = () => {
                           label="Foreground Color"
                           value={options.fgColor}
                           onChange={(v) => updateOption('fgColor', v)}
+                          presets={fgColorPresets}
                         />
                         <ColorPicker
                           label="Background Color"
                           value={options.bgColor}
                           onChange={(v) => updateOption('bgColor', v)}
-                          presets={['#0A192F', '#D4AF37', '#F5F5F5', '#1F2937', '#111827', '#FFFFFF', '#000000']}
+                          presets={bgColorPresets}
                         />
                       </AccordionContent>
                     </AccordionItem>
@@ -4084,7 +4221,9 @@ const Index = () => {
                 </div>
               ) : (
                 <div className="glass-panel rounded-2xl p-6 text-sm text-muted-foreground">
-                  Customize colors, style, and logo once you pick a mode and QR type.
+                  {isMobile
+                    ? 'Choose Customize to edit colors, style, and logo.'
+                    : 'Customize colors, style, and logo once you pick a mode and QR type.'}
                 </div>
               )}
             </motion.div>
@@ -5110,17 +5249,6 @@ const Index = () => {
           </section>
         )}
 
-        <div className="mt-12 text-center">
-          <a
-            href="/terms"
-            className="text-xs text-muted-foreground/70 hover:text-muted-foreground transition"
-          >
-            Terms & Conditions
-          </a>
-        </div>
-        <footer className="mt-4 text-center text-xs text-muted-foreground">
-          © {new Date().getFullYear()} GDev x Luminar Apps.
-        </footer>
       </main>
     </div>
   );
