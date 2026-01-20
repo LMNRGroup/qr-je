@@ -12,9 +12,12 @@ type VcardProfile = {
   about?: string;
 };
 
+type VcardTexture = 'matte' | 'metallic' | 'glossy' | 'paper';
+
 type VcardStyle = {
   fontFamily: string;
   radius: number;
+  texture?: VcardTexture;
   frontColor: string;
   frontGradient: string;
   frontUseGradient: boolean;
@@ -29,6 +32,45 @@ type VcardStyle = {
 };
 
 const makeGradient = (from: string, to: string) => `linear-gradient(135deg, ${from}, ${to})`;
+const makeBase = (useGradient: boolean, color: string, gradient: string) =>
+  useGradient ? makeGradient(color, gradient) : `linear-gradient(0deg, ${color}, ${color})`;
+const getTextureStyle = (texture: VcardTexture, base: string) => {
+  switch (texture) {
+    case 'metallic':
+      return {
+        backgroundImage:
+          'linear-gradient(120deg, rgba(255,255,255,0.55) 0%, rgba(255,255,255,0.12) 35%, rgba(0,0,0,0.25) 70%, rgba(255,255,255,0.25) 100%), repeating-linear-gradient(90deg, rgba(255,255,255,0.18) 0px, rgba(255,255,255,0.18) 2px, rgba(0,0,0,0.08) 3px, rgba(0,0,0,0.08) 6px), ' +
+          base,
+        backgroundBlendMode: 'screen, overlay, normal',
+        boxShadow: 'inset 0 1px 1px rgba(255,255,255,0.35), inset 0 -6px 10px rgba(0,0,0,0.35)',
+      } as React.CSSProperties;
+    case 'glossy':
+      return {
+        backgroundImage:
+          'radial-gradient(circle at 20% 10%, rgba(255,255,255,0.7), rgba(255,255,255,0) 55%), linear-gradient(180deg, rgba(255,255,255,0.18), rgba(0,0,0,0.2)), ' +
+          base,
+        backgroundBlendMode: 'screen, overlay, normal',
+        boxShadow: 'inset 0 12px 24px rgba(255,255,255,0.2), inset 0 -10px 16px rgba(0,0,0,0.3)',
+      } as React.CSSProperties;
+    case 'paper':
+      return {
+        backgroundImage:
+          'radial-gradient(circle at 30% 20%, rgba(255,255,255,0.3), rgba(255,255,255,0) 60%), repeating-linear-gradient(45deg, rgba(255,255,255,0.08) 0px, rgba(255,255,255,0.08) 2px, rgba(0,0,0,0.06) 2px, rgba(0,0,0,0.06) 4px), ' +
+          base,
+        backgroundBlendMode: 'soft-light, overlay, normal',
+        filter: 'saturate(0.95)',
+      } as React.CSSProperties;
+    case 'matte':
+    default:
+      return {
+        backgroundImage:
+          'linear-gradient(0deg, rgba(0,0,0,0.2), rgba(0,0,0,0.2)), repeating-linear-gradient(135deg, rgba(255,255,255,0.04) 0px, rgba(255,255,255,0.04) 1px, rgba(0,0,0,0.04) 1px, rgba(0,0,0,0.04) 2px), ' +
+          base,
+        backgroundBlendMode: 'soft-light, overlay, normal',
+        filter: 'saturate(0.9)',
+      } as React.CSSProperties;
+  }
+};
 
 const VCard = () => {
   const { slug } = useParams();
@@ -65,23 +107,25 @@ const VCard = () => {
 
   const frontStyle = useMemo(() => {
     if (!style) return {};
+    const texture = style.texture ?? 'matte';
+    const base = makeBase(style.frontUseGradient, style.frontColor, style.frontGradient);
     return {
       fontFamily: style.fontFamily,
       borderRadius: `${style.radius}px`,
-      background: style.frontUseGradient
-        ? makeGradient(style.frontColor, style.frontGradient)
-        : style.frontColor,
+      backgroundColor: style.frontColor,
+      ...getTextureStyle(texture, base),
     } as React.CSSProperties;
   }, [style]);
 
   const backStyle = useMemo(() => {
     if (!style) return {};
+    const texture = style.texture ?? 'matte';
+    const base = makeBase(style.backUseGradient, style.backColor, style.backGradient);
     return {
       fontFamily: style.fontFamily,
       borderRadius: `${style.radius}px`,
-      background: style.backUseGradient
-        ? makeGradient(style.backColor, style.backGradient)
-        : style.backColor,
+      backgroundColor: style.backColor,
+      ...getTextureStyle(texture, base),
     } as React.CSSProperties;
   }, [style]);
 

@@ -21,8 +21,8 @@ const App = () => (
         <Toaster />
         <Sonner />
         <BrowserRouter>
-          <div className="min-h-[100dvh] flex flex-col">
-            <div className="flex-1">
+          <div className="flex flex-col sm:min-h-[100dvh]">
+            <div className="sm:flex-1">
               <Routes>
                 <Route path="/" element={<Index />} />
                 <Route path="/login" element={<Login />} />
@@ -34,7 +34,7 @@ const App = () => (
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </div>
-            <footer className="px-4 pb-6 pt-8 text-center text-xs text-muted-foreground">
+            <footer className="px-4 py-2 sm:pb-6 sm:pt-8 text-center text-xs text-muted-foreground">
               <a
                 href="/terms"
                 className="text-muted-foreground/70 hover:text-muted-foreground transition"

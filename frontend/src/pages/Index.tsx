@@ -68,10 +68,9 @@ import { ChangeEvent, PointerEvent, useCallback, useEffect, useMemo, useRef, use
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 
-const UPSell_INTERVAL_MS = 30 * 60 * 1000;
-const UPSell_LAST_SHOWN_KEY = 'qr.upsell.lastShownAt';
-const UPSell_SESSION_KEY = 'qr.upsell.sessionShown';
-const BUILD_STAMP = '2026-01-18T16:52:00Z';
+const BUILD_STAMP = '2026-01-20T16:52:00Z';
+const GUEST_WELCOME_KEY = `qr.guest.welcome.${BUILD_STAMP}`;
+const VCARD_ASSETS_BUCKET = 'vcards';
 const MAX_FILE_BYTES = 5 * 1024 * 1024;
 const MAX_MENU_FILE_BYTES = 2.5 * 1024 * 1024;
 const MAX_MENU_TOTAL_BYTES = 12 * 1024 * 1024;
@@ -107,6 +106,11 @@ const Index = () => {
   const [dialSize, setDialSize] = useState(260);
   const [dialHintStage, setDialHintStage] = useState(0);
   const dialStartRef = useRef({ y: 0, angle: 0 });
+  const dialAnimationRef = useRef<number | null>(null);
+  const dialMomentumRef = useRef<number | null>(null);
+  const dialMomentumVelocityRef = useRef(0);
+  const dialMomentumLastTimeRef = useRef(0);
+  const dialMomentumLastAngleRef = useRef(0);
   const audioRef = useRef<AudioContext | null>(null);
   const [qrMode, setQrMode] = useState<'static' | 'dynamic' | null>(null);
   const [qrType, setQrType] = useState<'website' | 'vcard' | 'email' | 'phone' | 'file' | 'menu' | null>(null);
@@ -122,7 +126,9 @@ const Index = () => {
   const [isBooting, setIsBooting] = useState(true);
   const [showIntroAd, setShowIntroAd] = useState(false);
   const [introStep, setIntroStep] = useState(0);
-  const [showUpsell, setShowUpsell] = useState(false);
+  const [showGuestWelcome, setShowGuestWelcome] = useState(false);
+  const [guestIntroStep, setGuestIntroStep] = useState(0);
+  const [guestCtaStep, setGuestCtaStep] = useState(0);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [showAnalyticsIntro, setShowAnalyticsIntro] = useState(false);
   const [analyticsSeen, setAnalyticsSeen] = useState(false);
@@ -164,6 +170,7 @@ const Index = () => {
   const [generatedShortUrl, setGeneratedShortUrl] = useState('');
   const [generatedLongUrl, setGeneratedLongUrl] = useState('');
   const [showVcardCustomizer, setShowVcardCustomizer] = useState(false);
+  const [showVcardPreview, setShowVcardPreview] = useState(false);
   const [vcardPreviewSide, setVcardPreviewSide] = useState<'front' | 'back'>('front');
   const [showStudioBoot, setShowStudioBoot] = useState(false);
   const [showAccountModal, setShowAccountModal] = useState(false);
@@ -210,6 +217,7 @@ const Index = () => {
     ],
     []
   );
+  type VcardTexture = 'matte' | 'metallic' | 'glossy' | 'paper';
   const [vcard, setVcard] = useState({
     name: '',
     phone: '',
@@ -222,6 +230,7 @@ const Index = () => {
   const [vcardStyle, setVcardStyle] = useState({
     fontFamily: 'Arial, sans-serif',
     radius: 18,
+    texture: 'matte' as VcardTexture,
     frontColor: '#111827',
     frontGradient: '#2563eb',
     frontUseGradient: true,
@@ -698,30 +707,42 @@ const Index = () => {
   }, [qrType, vcardUrl, generatedLongUrl]);
 
   useEffect(() => {
-    if (authLoading) return;
+    if (authLoading || isBooting) return;
     if (user) {
-      setShowUpsell(false);
+      setShowGuestWelcome(false);
       return;
     }
 
-    const sessionShown = sessionStorage.getItem(UPSell_SESSION_KEY);
-    if (sessionShown) {
-      setShowUpsell(false);
+    if (localStorage.getItem(GUEST_WELCOME_KEY)) {
+      setShowGuestWelcome(false);
       return;
     }
 
-    const lastShownRaw = localStorage.getItem(UPSell_LAST_SHOWN_KEY);
-    const lastShownAt = lastShownRaw ? Number(lastShownRaw) : 0;
-    const now = Date.now();
+    setShowGuestWelcome(true);
+    localStorage.setItem(GUEST_WELCOME_KEY, 'true');
+  }, [authLoading, isBooting, user]);
 
-    if (!lastShownAt || now - lastShownAt >= UPSell_INTERVAL_MS) {
-      setShowUpsell(true);
-      sessionStorage.setItem(UPSell_SESSION_KEY, 'true');
-      localStorage.setItem(UPSell_LAST_SHOWN_KEY, String(now));
-    } else {
-      setShowUpsell(false);
-    }
-  }, [authLoading, user]);
+  useEffect(() => {
+    if (!showGuestWelcome) return;
+    setGuestIntroStep(0);
+    setGuestCtaStep(0);
+    const steps = [0, 1, 2, 3];
+    const timers = steps.map((step, index) =>
+      window.setTimeout(() => setGuestIntroStep(step), index * 650)
+    );
+    const revealSignUpTimer = window.setTimeout(() => {
+      setGuestCtaStep(1);
+    }, 2600);
+    const revealContinueTimer = window.setTimeout(() => {
+      setGuestCtaStep(2);
+    }, 3600);
+
+    return () => {
+      timers.forEach((timer) => window.clearTimeout(timer));
+      window.clearTimeout(revealSignUpTimer);
+      window.clearTimeout(revealContinueTimer);
+    };
+  }, [showGuestWelcome]);
 
   useEffect(() => {
     if (activeTab !== 'analytics') {
@@ -804,17 +825,13 @@ const Index = () => {
         setShowAccountModal(false);
         return;
       }
-      if (showUpsell) {
-        setShowUpsell(false);
-        return;
-      }
       if (selectedPlanComparison) {
         setSelectedPlanComparison(null);
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isCreateOpen, selectedPlanComparison, showAccountModal, showMenuBuilder, showUpsell, showVcardCustomizer]);
+  }, [isCreateOpen, selectedPlanComparison, showAccountModal, showGuestWelcome, showMenuBuilder, showVcardCustomizer]);
 
   useEffect(() => {
     if (!pendingCreateScroll) return;
@@ -1230,35 +1247,97 @@ const Index = () => {
     { label: 'Tahoma', value: 'Tahoma, Geneva, sans-serif' },
     { label: 'Garamond', value: 'Garamond, "Times New Roman", serif' },
   ];
+  const vcardTextureOptions: { id: VcardTexture; label: string }[] = [
+    { id: 'matte', label: 'Matte' },
+    { id: 'metallic', label: 'Metallic' },
+    { id: 'glossy', label: 'Glossy' },
+    { id: 'paper', label: 'Paper' },
+  ];
 
   const makeVcardGradient = (from: string, to: string) => `linear-gradient(135deg, ${from}, ${to})`;
-
-  const handleVcardLogoChange = (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      const result = typeof reader.result === 'string' ? reader.result : '';
-      setVcardStyle((prev) => ({ ...prev, logoDataUrl: result }));
-    };
-    reader.readAsDataURL(file);
+  const makeVcardBase = (useGradient: boolean, color: string, gradient: string) =>
+    useGradient ? makeVcardGradient(color, gradient) : `linear-gradient(0deg, ${color}, ${color})`;
+  const getVcardTextureStyle = (texture: VcardTexture, base: string) => {
+    switch (texture) {
+      case 'metallic':
+        return {
+          backgroundImage:
+            'linear-gradient(120deg, rgba(255,255,255,0.55) 0%, rgba(255,255,255,0.12) 35%, rgba(0,0,0,0.25) 70%, rgba(255,255,255,0.25) 100%), repeating-linear-gradient(90deg, rgba(255,255,255,0.18) 0px, rgba(255,255,255,0.18) 2px, rgba(0,0,0,0.08) 3px, rgba(0,0,0,0.08) 6px), ' +
+            base,
+          backgroundBlendMode: 'screen, overlay, normal',
+          boxShadow:
+            'inset 0 1px 1px rgba(255,255,255,0.35), inset 0 -6px 10px rgba(0,0,0,0.35)',
+        };
+      case 'glossy':
+        return {
+          backgroundImage:
+            'radial-gradient(circle at 20% 10%, rgba(255,255,255,0.7), rgba(255,255,255,0) 55%), linear-gradient(180deg, rgba(255,255,255,0.18), rgba(0,0,0,0.2)), ' +
+            base,
+          backgroundBlendMode: 'screen, overlay, normal',
+          boxShadow:
+            'inset 0 12px 24px rgba(255,255,255,0.2), inset 0 -10px 16px rgba(0,0,0,0.3)',
+        };
+      case 'paper':
+        return {
+          backgroundImage:
+            'radial-gradient(circle at 30% 20%, rgba(255,255,255,0.3), rgba(255,255,255,0) 60%), repeating-linear-gradient(45deg, rgba(255,255,255,0.08) 0px, rgba(255,255,255,0.08) 2px, rgba(0,0,0,0.06) 2px, rgba(0,0,0,0.06) 4px), ' +
+            base,
+          backgroundBlendMode: 'soft-light, overlay, normal',
+          filter: 'saturate(0.95)',
+        };
+      case 'matte':
+      default:
+        return {
+          backgroundImage:
+            'linear-gradient(0deg, rgba(0,0,0,0.2), rgba(0,0,0,0.2)), repeating-linear-gradient(135deg, rgba(255,255,255,0.04) 0px, rgba(255,255,255,0.04) 1px, rgba(0,0,0,0.04) 1px, rgba(0,0,0,0.04) 2px), ' +
+            base,
+          backgroundBlendMode: 'soft-light, overlay, normal',
+          filter: 'saturate(0.9)',
+        };
+    }
   };
 
-  const handleVcardPhotoChange = (event: ChangeEvent<HTMLInputElement>) => {
+  const uploadVcardAsset = async (file: File, folder: 'logos' | 'photos') => {
+    if (!isSupabaseConfigured) {
+      toast.error('Image storage is not configured yet.');
+      return null;
+    }
+    const extension = file.name.split('.').pop() || 'png';
+    const fileName = `${crypto.randomUUID()}.${extension}`;
+    const filePath = `vcard-assets/${folder}/${fileName}`;
+    const { error } = await supabase.storage
+      .from(VCARD_ASSETS_BUCKET)
+      .upload(filePath, file, { upsert: true, contentType: file.type });
+    if (error) {
+      toast.error('Failed to upload image.');
+      return null;
+    }
+    const { data } = supabase.storage.from(VCARD_ASSETS_BUCKET).getPublicUrl(filePath);
+    return data.publicUrl;
+  };
+
+  const handleVcardLogoChange = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      const result = typeof reader.result === 'string' ? reader.result : '';
-      setVcardStyle((prev) => ({
-        ...prev,
-        profilePhotoDataUrl: result,
-        photoZoom: 110,
-        photoX: 50,
-        photoY: 50,
-      }));
-    };
-    reader.readAsDataURL(file);
+    const url = await uploadVcardAsset(file, 'logos');
+    if (!url) return;
+    setVcardStyle((prev) => ({ ...prev, logoDataUrl: url }));
+    event.target.value = '';
+  };
+
+  const handleVcardPhotoChange = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    const url = await uploadVcardAsset(file, 'photos');
+    if (!url) return;
+    setVcardStyle((prev) => ({
+      ...prev,
+      profilePhotoDataUrl: url,
+      photoZoom: 110,
+      photoX: 50,
+      photoY: 50,
+    }));
+    event.target.value = '';
   };
 
   const handlePhotoPointerDown = (event: PointerEvent<HTMLDivElement>) => {
@@ -1498,21 +1577,39 @@ const Index = () => {
     return <span>{display}</span>;
   };
 
+  const vcardFrontBase = makeVcardBase(
+    vcardStyle.frontUseGradient,
+    vcardStyle.frontColor,
+    vcardStyle.frontGradient
+  );
+  const vcardBackBase = makeVcardBase(
+    vcardStyle.backUseGradient,
+    vcardStyle.backColor,
+    vcardStyle.backGradient
+  );
+  const vcardFrontTexture = getVcardTextureStyle(vcardStyle.texture, vcardFrontBase);
+  const vcardBackTexture = getVcardTextureStyle(vcardStyle.texture, vcardBackBase);
+  const vcardPreviewBase = isMobile
+    ? { width: 260, height: 420 }
+    : { width: 280, height: 460 };
+  const vcardPreviewScale = 0.65;
+  const vcardPreviewScaled = {
+    width: vcardPreviewBase.width * vcardPreviewScale,
+    height: vcardPreviewBase.height * vcardPreviewScale,
+  };
   const vcardFrontStyle = {
     fontFamily: vcardStyle.fontFamily,
     borderRadius: `${vcardStyle.radius}px`,
-    background: vcardStyle.frontUseGradient
-      ? makeVcardGradient(vcardStyle.frontColor, vcardStyle.frontGradient)
-      : vcardStyle.frontColor,
-  } as const;
+    backgroundColor: vcardStyle.frontColor,
+    ...vcardFrontTexture,
+  };
 
   const vcardBackStyle = {
     fontFamily: vcardStyle.fontFamily,
     borderRadius: `${vcardStyle.radius}px`,
-    background: vcardStyle.backUseGradient
-      ? makeVcardGradient(vcardStyle.backColor, vcardStyle.backGradient)
-      : vcardStyle.backColor,
-  } as const;
+    backgroundColor: vcardStyle.backColor,
+    ...vcardBackTexture,
+  };
 
   const adaptiveGradientText = 'bg-gradient-to-r from-amber-200 via-yellow-400 to-amber-500 text-transparent bg-clip-text';
   const adaptiveGlowText = 'font-semibold text-transparent bg-clip-text bg-gradient-to-r from-amber-200 via-yellow-400 to-amber-500 drop-shadow-[0_0_10px_rgba(251,191,36,0.35)]';
@@ -1682,6 +1779,10 @@ const Index = () => {
     const diff = Math.abs(normalizeAngle(a) - normalizeAngle(b));
     return diff > 180 ? 360 - diff : diff;
   };
+  const shortestAngleDelta = (from: number, to: number) => {
+    const delta = normalizeAngle(to) - normalizeAngle(from);
+    return ((delta + 540) % 360) - 180;
+  };
   const dialIndex = dialItems.reduce((closestIndex, _item, index) => {
     const iconAngle = index * dialStep - 90 + dialAngle;
     const closestAngle = closestIndex * dialStep - 90 + dialAngle;
@@ -1708,9 +1809,70 @@ const Index = () => {
   const innerRingRadius = Math.max(0, dialRadius - dialIconRadius - dialInnerGap);
   const innerDialInset = Math.max(0, dialOuterRadius - innerRingRadius);
   const rotateDialToIndex = (index: number) => {
+    if (typeof window === 'undefined') return;
     const currentAngle = index * dialStep - 90 + dialAngle;
-    const delta = dialTargetAngle - currentAngle;
-    setDialAngle(dialAngle + delta);
+    const delta = shortestAngleDelta(currentAngle, dialTargetAngle);
+    const startAngle = dialAngle;
+    const targetAngle = dialAngle + delta;
+    const duration = 280;
+
+    if (dialAnimationRef.current !== null) {
+      window.cancelAnimationFrame(dialAnimationRef.current);
+    }
+    if (dialMomentumRef.current !== null) {
+      window.cancelAnimationFrame(dialMomentumRef.current);
+      dialMomentumRef.current = null;
+    }
+
+    const startTime = window.performance.now();
+    const easeInOutCubic = (t: number) =>
+      t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+
+    const step = (now: number) => {
+      const progress = Math.min(1, (now - startTime) / duration);
+      const eased = easeInOutCubic(progress);
+      setDialAngle(startAngle + (targetAngle - startAngle) * eased);
+      if (progress < 1) {
+        dialAnimationRef.current = window.requestAnimationFrame(step);
+      } else {
+        dialAnimationRef.current = null;
+      }
+    };
+
+    dialAnimationRef.current = window.requestAnimationFrame(step);
+  };
+  const startDialMomentum = (initialVelocity: number) => {
+    if (typeof window === 'undefined') return;
+    if (dialMomentumRef.current !== null) {
+      window.cancelAnimationFrame(dialMomentumRef.current);
+    }
+    if (dialAnimationRef.current !== null) {
+      window.cancelAnimationFrame(dialAnimationRef.current);
+      dialAnimationRef.current = null;
+    }
+
+    const friction = 0.92;
+    dialMomentumVelocityRef.current = initialVelocity;
+    dialMomentumLastTimeRef.current = window.performance.now();
+
+    const step = (now: number) => {
+      const dt = Math.min(48, now - dialMomentumLastTimeRef.current);
+      dialMomentumLastTimeRef.current = now;
+      const velocity = dialMomentumVelocityRef.current;
+      setDialAngle((prev) => prev + velocity * dt);
+
+      const decay = Math.pow(friction, dt / 16);
+      const nextVelocity = velocity * decay;
+      dialMomentumVelocityRef.current = nextVelocity;
+
+      if (Math.abs(nextVelocity) > 0.02) {
+        dialMomentumRef.current = window.requestAnimationFrame(step);
+      } else {
+        dialMomentumRef.current = null;
+      }
+    };
+
+    dialMomentumRef.current = window.requestAnimationFrame(step);
   };
   const playDialClick = useCallback(() => {
     if (typeof window === 'undefined') return;
@@ -1759,6 +1921,22 @@ const Index = () => {
       document.body.style.overflow = originalOverflow;
     };
   }, [isDialOpen]);
+
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+    if (!showVcardCustomizer) return;
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = originalOverflow;
+    };
+  }, [showVcardCustomizer]);
+
+  useEffect(() => {
+    if (!showVcardCustomizer) {
+      setShowVcardPreview(false);
+    }
+  }, [showVcardCustomizer]);
 
   useEffect(() => {
     if (!isDialOpen) {
@@ -1891,37 +2069,46 @@ const Index = () => {
         </div>
       )}
 
-      {!isBooting && showUpsell && (
-        <div
-          className="fixed inset-0 z-[70] flex items-center justify-center bg-background/70 backdrop-blur-md px-4"
-          onClick={() => setShowUpsell(false)}
-        >
-          <div
-            className="glass-panel rounded-3xl p-8 w-full max-w-md text-center space-y-4 relative"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <button
-              type="button"
-              className="absolute right-4 top-4 text-xs uppercase tracking-[0.3em] text-muted-foreground transition hover:text-foreground"
-              onClick={() => setShowUpsell(false)}
-            >
-              X
-            </button>
-            <p className="text-xs uppercase tracking-[0.35em] text-muted-foreground">Go Pro</p>
-            <h2 className="text-2xl font-semibold">Unlimited analytics, insights, and more.</h2>
-            <p className="text-sm text-muted-foreground">
-              Unlock advanced data, user interactions, and premium exports with QR Code Studio Pro.
-            </p>
-            <div className="pt-2 space-y-2">
-              <Button className="w-full bg-gradient-primary text-primary-foreground uppercase tracking-[0.2em] text-xs">
-                Go Pro
+      {!isBooting && showGuestWelcome && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-background/90 backdrop-blur-md px-4">
+          <div className="text-center space-y-4">
+            <div className="space-y-1 text-2xl sm:text-3xl font-semibold tracking-[0.2em] text-foreground">
+              <div className={`transition-all duration-500 ${guestIntroStep >= 0 ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+                THE LAST
+              </div>
+              <div className={`transition-all duration-500 ${guestIntroStep >= 1 ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+                QR CODE
+              </div>
+              <div className={`transition-all duration-500 ${guestIntroStep >= 2 ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+                YOU&apos;LL EVER
+              </div>
+            </div>
+            <div className={`text-4xl sm:text-5xl font-semibold tracking-[0.2em] ${guestIntroStep >= 3 ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'} transition-all duration-500`}>
+              <span className="relative inline-block">
+                <span className="text-muted-foreground/70">PRINT!</span>
+                <span className="absolute inset-0 logo-fill">PRINT!</span>
+              </span>
+            </div>
+            <div className="pt-4 space-y-3">
+              <Button
+                className={`w-full sm:w-64 mx-auto bg-gradient-primary text-primary-foreground uppercase tracking-[0.2em] text-xs transition-all duration-500 ${
+                  guestCtaStep >= 1 ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4 pointer-events-none'
+                }`}
+                onClick={() => {
+                  setShowGuestWelcome(false);
+                  navigate('/login?mode=signup');
+                }}
+              >
+                Sign Up
               </Button>
               <button
                 type="button"
-                className="w-full text-xs uppercase tracking-[0.3em] text-muted-foreground transition hover:text-primary"
-                onClick={() => setShowUpsell(false)}
+                className={`w-full sm:w-64 mx-auto text-xs uppercase tracking-[0.3em] text-muted-foreground transition-all duration-500 ${
+                  guestCtaStep >= 2 ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4 pointer-events-none'
+                }`}
+                onClick={() => setShowGuestWelcome(false)}
               >
-                Continue for Free
+                Continue without account
               </button>
             </div>
           </div>
@@ -2338,11 +2525,11 @@ const Index = () => {
 
       {showVcardCustomizer && (
         <div
-          className="fixed inset-0 z-[70] flex items-center justify-center bg-background/70 backdrop-blur-md px-4"
+          className="fixed inset-0 z-[70] overflow-hidden bg-background/70 backdrop-blur-md px-4 py-6"
           onClick={() => setShowVcardCustomizer(false)}
         >
           <div
-            className="glass-panel rounded-3xl p-6 sm:p-8 w-full max-w-6xl space-y-6 relative"
+            className="glass-panel rounded-3xl p-6 sm:p-8 w-full max-w-6xl mx-auto my-auto space-y-6 relative max-h-[90dvh] overflow-y-auto overscroll-contain"
             onClick={(event) => event.stopPropagation()}
           >
             <button
@@ -2366,17 +2553,36 @@ const Index = () => {
               <div className="flex flex-col items-center gap-4">
                 <button
                   type="button"
-                  className="relative h-[420px] w-[260px] sm:h-[460px] sm:w-[280px]"
-                  onClick={() => setVcardPreviewSide((prev) => (prev === 'front' ? 'back' : 'front'))}
-                  aria-label="Flip vcard preview"
+                  className="relative"
+                  style={{
+                    width: `${vcardPreviewScaled.width}px`,
+                    height: `${vcardPreviewScaled.height}px`,
+                  }}
+                  onClick={() => {
+                    if (isMobile) {
+                      setShowVcardPreview(true);
+                      return;
+                    }
+                    setVcardPreviewSide((prev) => (prev === 'front' ? 'back' : 'front'));
+                  }}
+                  aria-label={isMobile ? 'Open vcard preview' : 'Flip vcard preview'}
                 >
                   <div
-                    className="absolute inset-0 transition-transform duration-500"
+                    className="absolute inset-0"
                     style={{
-                      transformStyle: 'preserve-3d',
-                      transform: vcardPreviewSide === 'back' ? 'rotateY(180deg)' : 'rotateY(0deg)',
+                      width: `${vcardPreviewBase.width}px`,
+                      height: `${vcardPreviewBase.height}px`,
+                      transform: `scale(${vcardPreviewScale})`,
+                      transformOrigin: 'top left',
                     }}
                   >
+                    <div
+                      className="absolute inset-0 transition-transform duration-500"
+                      style={{
+                        transformStyle: 'preserve-3d',
+                        transform: vcardPreviewSide === 'back' ? 'rotateY(180deg)' : 'rotateY(0deg)',
+                      }}
+                    >
                     <div
                       className="absolute inset-0 flex flex-col justify-between p-6 text-left text-white shadow-xl"
                       style={{ ...vcardFrontStyle, backfaceVisibility: 'hidden' }}
@@ -2436,9 +2642,12 @@ const Index = () => {
                         Tap to flip
                       </p>
                     </div>
+                    </div>
                   </div>
                 </button>
-                <p className="text-xs text-muted-foreground">Preview is interactive.</p>
+                <p className="text-xs text-muted-foreground">
+                  {isMobile ? 'Tap to expand preview.' : 'Tap to flip preview.'}
+                </p>
               </div>
 
                 <div className="space-y-6">
@@ -2511,6 +2720,28 @@ const Index = () => {
                       </option>
                     ))}
                   </select>
+                </div>
+
+                <div className="space-y-3">
+                  <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">
+                    Texture
+                  </p>
+                  <div className="grid grid-cols-2 gap-2">
+                    {vcardTextureOptions.map((option) => (
+                      <button
+                        key={option.id}
+                        type="button"
+                        onClick={() => setVcardStyle((prev) => ({ ...prev, texture: option.id }))}
+                        className={`rounded-xl border px-3 py-2 text-xs uppercase tracking-[0.3em] transition ${
+                          vcardStyle.texture === option.id
+                            ? 'border-primary bg-secondary/50 text-foreground'
+                            : 'border-border/60 bg-secondary/30 text-muted-foreground hover:border-primary/60'
+                        }`}
+                      >
+                        {option.label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
 
                 <div className="space-y-3">
@@ -2685,6 +2916,100 @@ const Index = () => {
               </div>
             </div>
           </div>
+        </div>
+      )}
+
+      {showVcardPreview && isMobile && (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-background/80 backdrop-blur-md px-4">
+          <motion.div
+            className="relative"
+            initial={{ opacity: 0, scale: 0.92 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.25, ease: 'easeOut' }}
+          >
+            <button
+              type="button"
+              className="absolute -right-8 -top-8 flex h-11 w-11 items-center justify-center rounded-full border border-border/60 bg-primary/90 text-xs uppercase tracking-[0.3em] text-primary-foreground shadow-lg transition hover:bg-primary"
+              onClick={() => setShowVcardPreview(false)}
+              aria-label="Close preview"
+            >
+              X
+            </button>
+            <button
+              type="button"
+              onClick={() => setVcardPreviewSide((prev) => (prev === 'front' ? 'back' : 'front'))}
+              className="relative h-[420px] w-[260px] sm:h-[460px] sm:w-[280px]"
+              aria-label="Flip vcard preview"
+            >
+              <div
+                className="absolute inset-0 transition-transform duration-500"
+                style={{
+                  transformStyle: 'preserve-3d',
+                  transform: vcardPreviewSide === 'back' ? 'rotateY(180deg)' : 'rotateY(0deg)',
+                }}
+              >
+                <div
+                  className="absolute inset-0 flex flex-col justify-between p-6 text-left text-white shadow-xl"
+                  style={{ ...vcardFrontStyle, backfaceVisibility: 'hidden' }}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-1">
+                      <p className="text-xs uppercase tracking-[0.3em] text-white/70">VCard</p>
+                      <h3 className="text-2xl font-semibold">
+                        {vcard.name || 'Your Name'}
+                      </h3>
+                      <p className="text-sm text-white/80">
+                        {vcard.company || 'Your Company'}
+                      </p>
+                    </div>
+                    <div
+                      className="h-16 w-16 rounded-full border border-white/30 bg-white/10"
+                      style={{
+                        backgroundImage: vcardStyle.profilePhotoDataUrl
+                          ? `url(${vcardStyle.profilePhotoDataUrl})`
+                          : undefined,
+                        backgroundSize: `${vcardStyle.photoZoom}%`,
+                        backgroundPosition: `${vcardStyle.photoX}% ${vcardStyle.photoY}%`,
+                        backgroundRepeat: 'no-repeat',
+                      }}
+                    />
+                  </div>
+                  <div className="space-y-2 text-sm text-white/90">
+                    <p>{vcard.phone || '+1 (555) 123-4567'}</p>
+                    <p>{vcard.email || 'you@example.com'}</p>
+                    <p>{vcard.website || 'qrcodestudio.app'}</p>
+                  </div>
+                  <p className="text-[11px] uppercase tracking-[0.4em] text-white/70">
+                    Tap to flip
+                  </p>
+                </div>
+
+                <div
+                  className="absolute inset-0 flex flex-col items-center justify-center gap-4 p-6 text-white shadow-xl"
+                  style={{
+                    ...vcardBackStyle,
+                    transform: 'rotateY(180deg)',
+                    backfaceVisibility: 'hidden',
+                  }}
+                >
+                  {vcardStyle.logoDataUrl ? (
+                    <img
+                      src={vcardStyle.logoDataUrl}
+                      alt="VCard logo"
+                      className="h-20 w-20 rounded-xl object-cover border border-white/20"
+                    />
+                  ) : (
+                    <div className="h-20 w-20 rounded-xl border border-white/20 flex items-center justify-center text-xs text-white/70">
+                      Logo
+                    </div>
+                  )}
+                  <div className="space-y-2 text-sm text-white/90 text-center">
+                    <p>{vcard.about || 'A short brand statement goes here.'}</p>
+                  </div>
+                </div>
+              </div>
+            </button>
+          </motion.div>
         </div>
       )}
 
@@ -3001,10 +3326,10 @@ const Index = () => {
       {/* Header */}
       <header
         className={`sticky top-0 z-30 glass-panel border-b border-border/50 transition ${
-          showUpsell || isBooting ? 'blur-md pointer-events-none select-none' : ''
+          showGuestWelcome || isBooting ? 'blur-md pointer-events-none select-none' : ''
         }`}
       >
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
+        <div className="container mx-auto px-4 py-3 sm:py-4 flex items-center justify-between">
           <button
             type="button"
             className="flex items-center gap-3 text-left"
@@ -3118,26 +3443,27 @@ const Index = () => {
               className="fixed inset-0 z-[90] bg-background/90 backdrop-blur-md"
               onClick={() => setIsDialOpen(false)}
             >
-              <div
-                className="absolute inset-0"
-                onClick={(event) => event.stopPropagation()}
-              >
+              <div className="absolute inset-0">
                 <div className="absolute left-6 top-1/2 z-10 w-[45%] -translate-y-1/2 space-y-2">
                   <p className="text-xs uppercase tracking-[0.4em] text-muted-foreground">Navigation</p>
                   <button
                     type="button"
-                    className={`text-2xl font-semibold tracking-tight text-left ${dialActive?.id === 'adaptive' ? adaptiveGradientText : 'text-foreground'}`}
+                    className="w-full text-left"
                     onClick={() => {
                       playDialClick();
                       setActiveTab(dialActive.id as typeof activeTab);
                       setIsDialOpen(false);
                     }}
                   >
-                    {dialActive?.label}
+                    <span
+                      className={`block text-2xl font-semibold tracking-tight ${dialActive?.id === 'adaptive' ? adaptiveGradientText : 'text-foreground'}`}
+                    >
+                      {dialActive?.label}
+                    </span>
+                    <span className="block text-xs uppercase tracking-[0.28em] text-muted-foreground">
+                      {dialDescriptions[dialActive?.id ?? 'studio']}
+                    </span>
                   </button>
-                  <p className="text-xs uppercase tracking-[0.28em] text-muted-foreground">
-                    {dialDescriptions[dialActive?.id ?? 'studio']}
-                  </p>
                 </div>
                 <button
                   type="button"
@@ -3166,21 +3492,64 @@ const Index = () => {
                     minHeight: dialSize,
                     transform: 'translate(50%, -50%)',
                   }}
+                  onClick={(event) => event.stopPropagation()}
                   onPointerDown={(event) => {
+                    const target = event.target as HTMLElement | null;
+                    if (target?.closest('[data-dial-item]')) {
+                      return;
+                    }
+                    if (dialAnimationRef.current !== null) {
+                      window.cancelAnimationFrame(dialAnimationRef.current);
+                      dialAnimationRef.current = null;
+                    }
+                    if (dialMomentumRef.current !== null) {
+                      window.cancelAnimationFrame(dialMomentumRef.current);
+                      dialMomentumRef.current = null;
+                    }
                     dialStartRef.current = { y: event.clientY, angle: dialAngle };
+                    dialMomentumLastAngleRef.current = dialAngle;
+                    dialMomentumLastTimeRef.current = window.performance.now();
+                    dialMomentumVelocityRef.current = 0;
                     setDialDragging(true);
                     event.currentTarget.setPointerCapture(event.pointerId);
                   }}
                   onPointerMove={(event) => {
                     if (!dialDragging) return;
                     const deltaY = event.clientY - dialStartRef.current.y;
-                    setDialAngle(dialStartRef.current.angle + deltaY * 0.6);
+                    const nextAngle = dialStartRef.current.angle + deltaY * 0.6;
+                    const now = window.performance.now();
+                    const dt = now - dialMomentumLastTimeRef.current;
+                    if (dt > 0) {
+                      dialMomentumVelocityRef.current =
+                        (nextAngle - dialMomentumLastAngleRef.current) / dt;
+                      dialMomentumLastAngleRef.current = nextAngle;
+                      dialMomentumLastTimeRef.current = now;
+                    }
+                    setDialAngle(nextAngle);
                   }}
                   onPointerUp={(event) => {
                     setDialDragging(false);
                     event.currentTarget.releasePointerCapture(event.pointerId);
+                    const velocity = dialMomentumVelocityRef.current;
+                    if (Math.abs(velocity) > 0.12) {
+                      startDialMomentum(velocity);
+                    }
                   }}
                 >
+                  <div
+                    className="absolute inset-0 rounded-full"
+                    style={{
+                      border: '2px solid rgba(251,191,36,0.85)',
+                      boxShadow:
+                        '0 8px 20px rgba(0,0,0,0.25), inset 0 2px 4px rgba(255,255,255,0.45), inset 0 -8px 14px rgba(140,88,0,0.45)',
+                      background:
+                        'radial-gradient(circle at 30% 25%, rgba(255,248,210,0.75), rgba(251,191,36,0.6) 38%, rgba(214,142,16,0.55) 70%, rgba(102,61,0,0.35) 100%), repeating-conic-gradient(from 0deg, rgba(255,214,102,0.55) 0deg 1deg, rgba(120,72,0,0.18) 1deg 6deg)',
+                      WebkitMask: 'radial-gradient(circle at center, transparent 58%, black 66%)',
+                      mask: 'radial-gradient(circle at center, transparent 58%, black 66%)',
+                      transform: 'scale(1.12)',
+                      transformOrigin: 'center',
+                    }}
+                  />
                   <div className="absolute inset-0 rounded-full border border-border/60 bg-card/70 shadow-[0_0_40px_rgba(15,23,42,0.25)]" />
                   <div
                     className={`absolute rounded-full border border-border/40 bg-card/80 overflow-visible ${
@@ -3204,6 +3573,7 @@ const Index = () => {
                         <button
                           key={item.id}
                           type="button"
+                          data-dial-item="true"
                           className={`absolute flex h-24 w-24 items-center justify-center rounded-full border transition touch-manipulation ${
                             isActive
                               ? item.id === 'adaptive'
@@ -3240,14 +3610,14 @@ const Index = () => {
 
       {/* Main Content */}
       <main
-        className={`container mx-auto px-4 py-8 transition ${
-          showUpsell || isBooting ? 'blur-md pointer-events-none select-none' : ''
-        } ${isMobile ? 'min-h-[100dvh] pb-24 flex flex-col' : ''}`}
+        className={`container mx-auto px-4 py-3 sm:py-6 lg:py-8 transition ${
+          showGuestWelcome || isBooting ? 'blur-md pointer-events-none select-none' : ''
+        } ${isMobile ? 'flex flex-col gap-3' : ''}`}
       >
         {activeTab === 'studio' && (
           <>
         {showStudioIntro && isMobile && (
-        <section className="space-y-4">
+        <section className="space-y-3 sm:space-y-4">
           <div>
             <p className="text-xs uppercase tracking-[0.4em] text-muted-foreground">Quick Actions</p>
             <h3 className="text-lg font-semibold">Jump into a new QR</h3>
@@ -3304,7 +3674,7 @@ const Index = () => {
                 onMouseEnter={() => setQuickActionHover(action.id)}
                 onMouseLeave={() => setQuickActionHover(null)}
                 aria-pressed={selectedQuickAction === action.id}
-                className={`group relative flex flex-col items-center justify-center rounded-full border h-10 w-10 sm:h-14 sm:w-14 transition hover:border-primary/60 hover:bg-secondary/40 ${
+                className={`group relative flex flex-col items-center justify-center rounded-full border h-9 w-9 sm:h-14 sm:w-14 transition hover:border-primary/60 hover:bg-secondary/40 ${
                   selectedQuickAction === action.id
                     ? 'border-primary/70 bg-secondary/50 ring-1 ring-primary/40 shadow-[0_0_16px_rgba(99,102,241,0.25)]'
                     : 'border-border/60 bg-secondary/30'
@@ -3332,15 +3702,15 @@ const Index = () => {
         )}
 
         {showStudioIntro && (
-        <section id="studio" className="space-y-6 lg:space-y-8">
-          <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
+        <section id="studio" className="mt-4 space-y-4 border-t border-border/50 pt-4 sm:space-y-5 lg:mt-0 lg:border-0 lg:pt-0 lg:space-y-8">
+          <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 sm:gap-5 lg:gap-6">
             <div>
               <p className="text-xs uppercase tracking-[0.4em] text-muted-foreground">Studio</p>
               <h2 className="text-2xl sm:text-3xl font-semibold tracking-tight">Creative Workspace</h2>
             </div>
           </div>
 
-          <div className="grid lg:grid-cols-[1.1fr_0.9fr] gap-6">
+          <div className="grid lg:grid-cols-[1.1fr_0.9fr] gap-4 sm:gap-5 lg:gap-6">
             <div
               role="button"
               tabIndex={0}
@@ -3351,15 +3721,15 @@ const Index = () => {
                   setActiveTab('analytics');
                 }
               }}
-              className="glass-panel rounded-2xl p-4 sm:p-6 space-y-4 sm:space-y-6 text-left transition hover:border-primary/60 hover:shadow-lg hover:-translate-y-1"
+              className="glass-panel rounded-2xl p-3 sm:p-6 space-y-3 sm:space-y-5 text-left transition hover:border-primary/60 hover:shadow-lg hover:-translate-y-1"
             >
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Overview</p>
-                  <h3 className="text-lg font-semibold">Your QR Arsenal</h3>
+                  <h3 className="text-base sm:text-lg font-semibold">Your QR Arsenal</h3>
                 </div>
               </div>
-              <div className="grid grid-cols-3 gap-3 sm:gap-4">
+              <div className="grid grid-cols-3 gap-2 sm:gap-4">
                 {[
                   { label: 'Total Codes', value: `${arsenalStats.total}`, tab: 'codes' },
                   { label: 'Total Scans', value: `${scanStats.total}`, tab: 'analytics' },
@@ -3372,19 +3742,19 @@ const Index = () => {
                       event.stopPropagation();
                       setActiveTab(item.tab as typeof activeTab);
                     }}
-                    className="rounded-xl border border-border/60 bg-secondary/40 p-3 sm:p-4 text-left transition hover:border-primary/60 hover:bg-secondary/50"
+                    className="rounded-xl border border-border/60 bg-secondary/40 p-2.5 sm:p-4 text-left transition hover:border-primary/60 hover:bg-secondary/50"
                   >
                     <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">{item.label}</p>
-                    <p className="text-xl sm:text-2xl font-semibold mt-2">{item.value}</p>
+                    <p className="text-lg sm:text-2xl font-semibold mt-1.5">{item.value}</p>
                   </button>
                 ))}
               </div>
             </div>
 
-            <div className="glass-panel rounded-2xl p-4 sm:p-6 space-y-3 sm:space-y-4">
+            <div className="glass-panel rounded-2xl p-3 sm:p-6 space-y-2 sm:space-y-4">
               <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Studio Guide</p>
-              <h3 className="text-lg font-semibold">Your QR flow</h3>
-              <div className="space-y-2 text-sm text-muted-foreground">
+              <h3 className="text-base sm:text-lg font-semibold">Your QR flow</h3>
+              <div className="space-y-1.5 text-xs sm:text-sm text-muted-foreground">
                 <p>1. Choose a quick action.</p>
                 <p>2. Fill the details.</p>
                 <p>3. Customize, generate, and export.</p>
