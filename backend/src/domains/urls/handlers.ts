@@ -50,13 +50,34 @@ export const createUrlHandler = (service: UrlsService) => {
   }
 }
 
+const isPrivateIp = (ip: string) => {
+  if (ip === '::1') return true
+  const lower = ip.toLowerCase()
+  if (lower.startsWith('fc') || lower.startsWith('fd')) return true
+  if (lower.startsWith('fe80')) return true
+  const parts = ip.split('.').map((part) => Number(part))
+  if (parts.length !== 4 || parts.some((part) => Number.isNaN(part))) return false
+  if (parts[0] === 10) return true
+  if (parts[0] === 172 && parts[1] >= 16 && parts[1] <= 31) return true
+  if (parts[0] === 192 && parts[1] === 168) return true
+  if (parts[0] === 127) return true
+  return false
+}
+
 const getClientIp = (c: Context<AppBindings>) => {
   const forwarded = c.req.header('x-forwarded-for')
   if (forwarded) {
-    return forwarded.split(',')[0]?.trim() ?? null
+    const candidates = forwarded.split(',').map((entry) => entry.trim()).filter(Boolean)
+    const publicIp = candidates.find((ip) => !isPrivateIp(ip))
+    return publicIp ?? candidates[0] ?? null
   }
-  return c.req.header('x-real-ip') ?? c.req.header('cf-connecting-ip') ?? null
+  const direct = c.req.header('x-real-ip') ?? c.req.header('cf-connecting-ip')
+  if (direct) return direct
+  const raw = c.req.raw as unknown as { socket?: { remoteAddress?: string }; conn?: { remoteAddress?: string } }
+  return raw?.socket?.remoteAddress ?? raw?.conn?.remoteAddress ?? null
 }
+
+const getNowMs = () => (typeof performance !== 'undefined' ? performance.now() : Date.now())
 
 type AdaptiveSlot = {
   id: string
@@ -192,28 +213,21 @@ const resolveAdaptiveTarget = (options: AdaptiveOptions, ip: string | null, isRe
 }
 export const redirectUrlHandler = (service: UrlsService, scansService?: ScansService) => {
   return async (c: Context<AppBindings>) => {
-    const startedAt = Date.now()
+    const startedAt = getNowMs()
     try {
       const params = parseResolveParams(c.req.param())
       const url = await service.resolveUrl(params)
       const ip = getClientIp(c)
       const userAgent = c.req.header('user-agent') ?? null
-      if (scansService) {
-        try {
-          await scansService.recordScan({
-            urlId: url.id,
-            urlRandom: url.random,
-            userId: url.userId,
-            ip,
-            userAgent,
-            responseMs: Date.now() - startedAt
-          })
-        } catch (scanError) {
-          console.error('[scan] failed to record scan', scanError)
-        }
-      }
+      let geo = { city: null, region: null, countryCode: null, lat: null, lon: null }
       try {
-        const geo = await lookupGeo(ip)
+        geo = await lookupGeo(ip)
+      } catch (areaError) {
+        console.error('[scan] failed to lookup geo', areaError)
+      }
+
+      const responseMs = Math.round(getNowMs() - startedAt)
+      try {
         recordAreaScanForUser({
           userId: url.userId,
           ip,
@@ -222,10 +236,25 @@ export const redirectUrlHandler = (service: UrlsService, scansService?: ScansSer
           region: geo.region,
           countryCode: geo.countryCode,
           lat: geo.lat,
-          lon: geo.lon
+          lon: geo.lon,
+          responseMs
         })
       } catch (areaError) {
         console.error('[scan] failed to record area scan', areaError)
+      }
+      if (scansService) {
+        Promise.resolve(
+          scansService.recordScan({
+            urlId: url.id,
+            urlRandom: url.random,
+            userId: url.userId,
+            ip,
+            userAgent,
+            responseMs
+          })
+        ).catch((scanError) => {
+          console.error('[scan] failed to record scan', scanError)
+        })
       }
 
       return c.redirect(url.targetUrl, 302)
@@ -245,6 +274,7 @@ export const redirectUrlHandler = (service: UrlsService, scansService?: ScansSer
 
 export const adaptiveResolveHandler = (service: UrlsService, scansService?: ScansService) => {
   return async (c: Context<AppBindings>) => {
+    const startedAt = getNowMs()
     try {
       const params = parseResolveParams(c.req.param())
       const url = await service.resolveUrl(params)
@@ -257,21 +287,16 @@ export const adaptiveResolveHandler = (service: UrlsService, scansService?: Scan
         const token = crypto.randomUUID()
         c.header('Set-Cookie', `adaptive_token=${token}; Path=/; Max-Age=31536000; SameSite=Lax`)
       }
-      if (scansService) {
-        try {
-          await scansService.recordScan({
-            urlId: url.id,
-            urlRandom: url.random,
-            userId: url.userId,
-            ip,
-            userAgent
-          })
-        } catch (scanError) {
-          console.error('[scan] failed to record adaptive scan', scanError)
-        }
-      }
+      let geo = { city: null, region: null, countryCode: null, lat: null, lon: null }
       try {
-        const geo = await lookupGeo(ip)
+        geo = await lookupGeo(ip)
+      } catch (areaError) {
+        console.error('[scan] failed to lookup adaptive geo', areaError)
+      }
+      const adaptiveTarget = resolveAdaptiveTarget(options, ip, isReturning)
+      const destination = adaptiveTarget ?? url.targetUrl
+      const responseMs = Math.round(getNowMs() - startedAt)
+      try {
         recordAreaScanForUser({
           userId: url.userId,
           ip,
@@ -280,13 +305,26 @@ export const adaptiveResolveHandler = (service: UrlsService, scansService?: Scan
           region: geo.region,
           countryCode: geo.countryCode,
           lat: geo.lat,
-          lon: geo.lon
+          lon: geo.lon,
+          responseMs
         })
       } catch (areaError) {
         console.error('[scan] failed to record adaptive area scan', areaError)
       }
-      const adaptiveTarget = resolveAdaptiveTarget(options, ip, isReturning)
-      const destination = adaptiveTarget ?? url.targetUrl
+      if (scansService) {
+        Promise.resolve(
+          scansService.recordScan({
+            urlId: url.id,
+            urlRandom: url.random,
+            userId: url.userId,
+            ip,
+            userAgent,
+            responseMs
+          })
+        ).catch((scanError) => {
+          console.error('[scan] failed to record adaptive scan', scanError)
+        })
+      }
       return c.redirect(destination, 302)
     } catch (error) {
       if (error instanceof UrlValidationError) {

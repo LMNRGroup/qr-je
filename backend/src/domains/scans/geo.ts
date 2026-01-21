@@ -27,5 +27,32 @@ export const lookupGeo = async (ip: string | null): Promise<GeoLookupResult> => 
     }
   }
 
-  return { city: null, region: null, countryCode: null, lat: null, lon: null }
+  const providerUrlTemplate = process.env.GEO_PROVIDER_URL ?? 'https://ipapi.co/{ip}/json/'
+  const providerUrl = providerUrlTemplate.replace('{ip}', ip)
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), 2000)
+  try {
+    const response = await fetch(providerUrl, { signal: controller.signal })
+    if (!response.ok) {
+      return { city: null, region: null, countryCode: null, lat: null, lon: null }
+    }
+    const data = (await response.json()) as {
+      city?: string
+      region?: string
+      country_code?: string
+      latitude?: number
+      longitude?: number
+    }
+    return {
+      city: data.city ?? null,
+      region: data.region ?? null,
+      countryCode: data.country_code ? data.country_code.toUpperCase() : null,
+      lat: typeof data.latitude === 'number' ? data.latitude : null,
+      lon: typeof data.longitude === 'number' ? data.longitude : null
+    }
+  } catch {
+    return { city: null, region: null, countryCode: null, lat: null, lon: null }
+  } finally {
+    clearTimeout(timeout)
+  }
 }

@@ -20,10 +20,12 @@ const formatScanLabel = (scan: ScanAreaSummary['recentScans'][number]) => {
   const locationParts = [scan.city, scan.region, scan.countryCode].filter(Boolean).join(', ');
   const deviceInfo = `${scan.device} · ${scan.browser}`;
   const time = new Date(scan.timestamp).toLocaleString();
+  const response = typeof scan.responseMs === 'number' ? `${scan.responseMs}ms` : '—';
   return {
     location: locationParts || 'Unknown location',
     deviceInfo,
     time,
+    response,
   };
 };
 
@@ -79,7 +81,7 @@ export function MapDots({ areas }: { areas: ScanAreaSummary[] }) {
             Total: <span className="text-foreground font-semibold">{activeArea.count}</span>
           </div>
           <div className="mt-3 space-y-2 max-h-40 overflow-auto pr-1">
-            {activeArea.recentScans.slice(0, 8).map((scan) => {
+            {activeArea.recentScans.slice(0, 20).map((scan) => {
               const details = formatScanLabel(scan);
               return (
                 <div key={`${scan.timestamp}-${scan.ip}`} className="rounded-lg border border-border/40 bg-secondary/40 p-2">
@@ -87,6 +89,7 @@ export function MapDots({ areas }: { areas: ScanAreaSummary[] }) {
                   <div className="text-[10px] text-muted-foreground">{details.deviceInfo}</div>
                   <div className="text-[10px] text-muted-foreground">{scan.ip ?? 'Masked IP'}</div>
                   <div className="text-[10px] text-muted-foreground">{details.time}</div>
+                  <div className="text-[10px] text-muted-foreground">Response: {details.response}</div>
                 </div>
               );
             })}

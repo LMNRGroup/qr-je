@@ -6,6 +6,7 @@ export type AreaScanRecord = {
   countryCode: string | null
   device: string
   browser: string
+  responseMs: number | null
 }
 
 export type AreaSummary = {
@@ -105,6 +106,7 @@ export const recordAreaScanForUser = (input: {
   countryCode: string | null
   lat: number | null
   lon: number | null
+  responseMs: number | null
 }) => {
   const store = getStoreForUser(input.userId)
   const areaId = resolveAreaId(input.countryCode)
@@ -116,7 +118,8 @@ export const recordAreaScanForUser = (input: {
     region: input.region ?? null,
     countryCode: input.countryCode ?? null,
     device,
-    browser
+    browser,
+    responseMs: input.responseMs ?? null
   }
 
   store.scans.push(scan)

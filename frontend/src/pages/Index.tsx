@@ -507,13 +507,15 @@ const Index = () => {
     if (!isSessionReady) return;
     if (activeTab !== 'analytics') return;
     let cancelled = false;
+    let pollTimer: number | undefined;
     const timeZone =
       userProfile?.timezone ||
       profileForm.timezone ||
       Intl.DateTimeFormat().resolvedOptions().timeZone;
-    setIntelLoading(true);
-    getScanSummary(intelRange, timeZone)
-      .then((summary) => {
+    const fetchSummary = async (showLoading: boolean) => {
+      if (showLoading) setIntelLoading(true);
+      try {
+        const summary = await getScanSummary(intelRange, timeZone);
         if (cancelled) return;
         setIntelSummary({
           total: summary.total,
@@ -521,18 +523,24 @@ const Index = () => {
           rangeTotal: summary.rangeTotal,
           avgResponseMs: summary.avgResponseMs,
         });
-      })
-      .catch((error) => {
+      } catch (error) {
         if (cancelled) return;
-        const message = error instanceof Error ? error.message : 'Failed to load scan summary';
-        toast.error(message);
-      })
-      .finally(() => {
+        if (showLoading) {
+          const message = error instanceof Error ? error.message : 'Failed to load scan summary';
+          toast.error(message);
+        } else {
+          console.warn('[intel] refresh failed', error);
+        }
+      } finally {
         if (cancelled) return;
-        setIntelLoading(false);
-      });
+        if (showLoading) setIntelLoading(false);
+      }
+    };
+    fetchSummary(true);
+    pollTimer = window.setInterval(() => fetchSummary(false), 10000);
     return () => {
       cancelled = true;
+      if (pollTimer) window.clearInterval(pollTimer);
     };
   }, [activeTab, intelRange, isSessionReady, profileForm.timezone, userProfile?.timezone]);
 
@@ -563,18 +571,27 @@ const Index = () => {
     if (!isSessionReady) return;
     if (activeTab !== 'analytics') return;
     let cancelled = false;
-    getScanAreas()
-      .then((areas) => {
+    let pollTimer: number | undefined;
+    const fetchAreas = async (showToast: boolean) => {
+      try {
+        const areas = await getScanAreas();
         if (cancelled) return;
         setScanAreas(areas);
-      })
-      .catch((error) => {
+      } catch (error) {
         if (cancelled) return;
-        const message = error instanceof Error ? error.message : 'Failed to load scan areas';
-        toast.error(message);
-      });
+        if (showToast) {
+          const message = error instanceof Error ? error.message : 'Failed to load scan areas';
+          toast.error(message);
+        } else {
+          console.warn('[intel] area refresh failed', error);
+        }
+      }
+    };
+    fetchAreas(true);
+    pollTimer = window.setInterval(() => fetchAreas(false), 15000);
     return () => {
       cancelled = true;
+      if (pollTimer) window.clearInterval(pollTimer);
     };
   }, [activeTab, isSessionReady]);
 
@@ -830,7 +847,14 @@ const Index = () => {
       (key) => key.startsWith('sb-') && key.endsWith('-auth-token')
     );
     if (supabaseKey) {
-      setHasSessionToken(true);
+      try {
+        const parsed = JSON.parse(window.localStorage.getItem(supabaseKey) ?? '');
+        if (parsed?.access_token) {
+          setHasSessionToken(true);
+        }
+      } catch {
+        // ignore
+      }
     }
   }, []);
 
@@ -4418,7 +4442,7 @@ const Index = () => {
                   setActiveTab('analytics');
                 }
               }}
-              className="glass-panel rounded-2xl p-3 sm:p-6 space-y-3 sm:space-y-5 text-left transition hover:border-primary/60 hover:shadow-lg hover:-translate-y-1"
+              className="glass-panel rounded-2xl p-3 sm:p-6 space-y-3 sm:space-y-5 text-left transition hover:border-primary/60 hover:shadow-lg hover:-translate-y-1 select-none touch-manipulation"
               data-tour-id="overview"
             >
               <div className="flex items-center justify-between">
@@ -4440,7 +4464,7 @@ const Index = () => {
                       event.stopPropagation();
                       setActiveTab(item.tab as typeof activeTab);
                     }}
-                    className="rounded-xl border border-border/60 bg-secondary/40 p-2.5 sm:p-4 text-left transition hover:border-primary/60 hover:bg-secondary/50"
+                    className="rounded-xl border border-border/60 bg-secondary/40 p-2.5 sm:p-4 text-left transition hover:border-primary/60 hover:bg-secondary/50 select-none touch-manipulation"
                   >
                     <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">{item.label}</p>
                     <p className="text-lg sm:text-2xl font-semibold mt-1.5">{item.value}</p>

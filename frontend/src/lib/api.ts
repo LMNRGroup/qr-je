@@ -286,6 +286,7 @@ export type ScanAreaSummary = {
     countryCode: string | null;
     device: string;
     browser: string;
+    responseMs: number | null;
   }>;
   lat: number | null;
   lon: number | null;
