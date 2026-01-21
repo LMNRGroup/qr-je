@@ -183,6 +183,7 @@ export function ArsenalPanel({
   >(null);
   const previewRef = useRef<QRPreviewHandle>(null);
   const detailRef = useRef<HTMLDivElement>(null);
+  const listScrollRef = useRef<HTMLDivElement | null>(null);
   const backButtonRef = useRef<HTMLButtonElement>(null);
   const [scanCounts, setScanCounts] = useState<Record<string, number>>({});
   const t = (en: string, es: string) => (language === 'es' ? es : en);
@@ -773,6 +774,10 @@ export function ArsenalPanel({
         <div className="grid gap-6 lg:grid-cols-[1.4fr_0.6fr]">
           <div className="glass-panel rounded-2xl p-4">
             <ScrollArea
+              ref={(node) => {
+                if (!node) return;
+                listScrollRef.current = node.querySelector('[data-radix-scroll-area-viewport]') as HTMLDivElement | null;
+              }}
               className={
                 isDesktop
                   ? 'h-auto max-h-none'
@@ -833,7 +838,7 @@ export function ArsenalPanel({
                       }`}
                     >
                       {isMobileList ? (
-                        <div className="flex items-center justify-between gap-3">
+                        <div className="flex items-center justify-between gap-3 overflow-hidden">
                           <div className="space-y-1 min-w-0 flex-1 overflow-hidden pr-2">
                             <p className="text-[13px] font-semibold truncate" title={displayName}>
                               {displayName}
@@ -842,11 +847,16 @@ export function ArsenalPanel({
                               {item.content}
                             </p>
                           </div>
-                          <div className="flex items-center justify-end gap-2 text-[9px] uppercase tracking-[0.3em] shrink-0 flex-nowrap">
+                          <div className="flex items-center justify-end gap-2 text-[9px] uppercase tracking-[0.3em] shrink-0 flex-nowrap max-w-[45%] overflow-hidden">
                             <span
                               className={`inline-flex min-w-0 items-center gap-2 rounded-full border px-2.5 py-0.5 ${modeMeta.badge}`}
                             >
-                              <span className="truncate">{parsed.mode === 'dynamic' ? 'Dynamic' : 'Static'}</span>
+                              {parsed.mode === 'dynamic' ? (
+                                <Zap className="h-3 w-3" />
+                              ) : (
+                                <QrCode className="h-3 w-3" />
+                              )}
+                              <span className="sr-only">{parsed.mode === 'dynamic' ? 'Dynamic' : 'Static'}</span>
                             </span>
                             <span
                               className={`inline-flex min-w-0 items-center gap-2 rounded-full border px-2.5 py-0.5 ${typeMeta.badge}`}
@@ -1166,6 +1176,9 @@ export function ArsenalPanel({
                   clearSelection();
                   if (typeof window !== 'undefined') {
                     const container = detailRef.current?.closest('.h-[calc(100dvh-260px)]') as HTMLElement | null;
+                    if (listScrollRef.current) {
+                      listScrollRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+                    }
                     if (container) {
                       container.scrollTo({ top: 0, behavior: 'smooth' });
                     } else {

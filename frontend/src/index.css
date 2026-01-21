@@ -83,13 +83,28 @@
     @apply border-border;
   }
 
+  html {
+    background-color: hsl(var(--background));
+  }
+
   body {
     @apply bg-background text-foreground antialiased;
+    min-height: 100dvh;
     font-family: "Gotham", "Satoshi", "Inter", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
   }
 }
 
 @layer utilities {
+  @media (pointer: coarse) {
+    button,
+    [role="button"],
+    a {
+      -webkit-user-select: none;
+      user-select: none;
+      -webkit-touch-callout: none;
+    }
+  }
+
   .glass-panel {
     @apply bg-card/70 backdrop-blur-2xl border border-border/50 shadow-xl;
   }
