@@ -34,7 +34,7 @@ export function ThemeToggle({ storageKey = 'theme' }: { storageKey?: string }) {
       variant="ghost"
       size="icon"
       onClick={() => setIsDark(!isDark)}
-      className="relative h-9 w-9 rounded-lg"
+      className="relative h-10 w-10 rounded-lg translate-y-[1px]"
     >
       <motion.div
         initial={false}

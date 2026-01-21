@@ -14,6 +14,7 @@ export class DrizzleScansStorageAdapter implements ScansStorage {
       userId: scan.userId,
       ip: scan.ip,
       userAgent: scan.userAgent,
+      responseMs: scan.responseMs,
       scannedAt: new Date(scan.scannedAt)
     })
   }
@@ -42,8 +43,13 @@ export class DrizzleScansStorageAdapter implements ScansStorage {
       userId: row.userId,
       ip: row.ip ?? null,
       userAgent: row.userAgent ?? null,
+      responseMs: row.responseMs ?? null,
       scannedAt: row.scannedAt.toISOString()
     }))
+  }
+
+  async deleteByUrlId(urlId: string) {
+    await db.delete(scans).where(eq(scans.urlId, urlId))
   }
 
   async getTotalForUser(userId: string) {
@@ -65,5 +71,81 @@ export class DrizzleScansStorageAdapter implements ScansStorage {
         )
       )
     return rows[0]?.count ?? 0
+  }
+
+  async getTotalForUserSince(userId: string, since: string) {
+    const rows = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(scans)
+      .where(and(eq(scans.userId, userId), sql`${scans.scannedAt} >= ${since}`))
+    return rows[0]?.count ?? 0
+  }
+
+  async getScansForUserSince(userId: string, since: string) {
+    const rows = await db
+      .select()
+      .from(scans)
+      .where(and(eq(scans.userId, userId), sql`${scans.scannedAt} >= ${since}`))
+      .orderBy(desc(scans.scannedAt))
+
+    return rows.map((row) => ({
+      id: row.id,
+      urlId: row.urlId,
+      urlRandom: row.urlRandom,
+      userId: row.userId,
+      ip: row.ip ?? null,
+      userAgent: row.userAgent ?? null,
+      responseMs: row.responseMs ?? null,
+      scannedAt: row.scannedAt.toISOString()
+    }))
+  }
+
+  async getScanTimestampsForUserSince(userId: string, since: string) {
+    const rows = await db
+      .select({ scannedAt: scans.scannedAt })
+      .from(scans)
+      .where(and(eq(scans.userId, userId), sql`${scans.scannedAt} >= ${since}`))
+      .orderBy(desc(scans.scannedAt))
+
+    return rows.map((row) => row.scannedAt.toISOString())
+  }
+
+  async getDailyCountsForUserSince(userId: string, since: string, timeZone: string) {
+    const dayBucket = sql<string>`date_trunc('day', ${scans.scannedAt} AT TIME ZONE ${timeZone})`
+    const rows = await db
+      .select({ date: dayBucket, count: sql<number>`count(*)` })
+      .from(scans)
+      .where(and(eq(scans.userId, userId), sql`${scans.scannedAt} >= ${new Date(since)}`))
+      .groupBy(dayBucket)
+      .orderBy(dayBucket)
+
+    return rows.map((row) => ({
+      date: new Date(row.date).toISOString(),
+      count: row.count ?? 0
+    }))
+  }
+
+  async getAverageResponseMsForUser(userId: string) {
+    const rows = await db
+      .select({ avg: sql<number | null>`avg(${scans.responseMs})` })
+      .from(scans)
+      .where(and(eq(scans.userId, userId), sql`${scans.responseMs} is not null`))
+    const avg = rows[0]?.avg ?? null
+    return avg === null ? null : Number(avg)
+  }
+
+  async getAverageResponseMsForUserSince(userId: string, since: string) {
+    const rows = await db
+      .select({ avg: sql<number | null>`avg(${scans.responseMs})` })
+      .from(scans)
+      .where(
+        and(
+          eq(scans.userId, userId),
+          sql`${scans.responseMs} is not null`,
+          sql`${scans.scannedAt} >= ${new Date(since)}`
+        )
+      )
+    const avg = rows[0]?.avg ?? null
+    return avg === null ? null : Number(avg)
   }
 }

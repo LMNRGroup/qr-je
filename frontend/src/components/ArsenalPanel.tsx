@@ -92,38 +92,51 @@ const typeStyles: Record<string, { label: string; icon: typeof Link; card: strin
   url: {
     label: 'URL',
     icon: Link,
-    card: 'border-amber-300/50',
-    badge: 'bg-amber-300/10 text-amber-200 border-amber-300/50',
+    card: 'border-border/60',
+    badge: 'bg-secondary/40 text-muted-foreground border-border/60',
   },
   phone: {
     label: 'Phone',
     icon: Phone,
-    card: 'border-emerald-300/50',
-    badge: 'bg-emerald-400/10 text-emerald-200 border-emerald-300/50',
+    card: 'border-border/60',
+    badge: 'bg-secondary/40 text-muted-foreground border-border/60',
   },
   email: {
     label: 'Email',
     icon: Mail,
-    card: 'border-sky-300/50',
-    badge: 'bg-sky-400/10 text-sky-200 border-sky-300/50',
+    card: 'border-border/60',
+    badge: 'bg-secondary/40 text-muted-foreground border-border/60',
   },
   file: {
     label: 'File',
     icon: File,
-    card: 'border-indigo-300/50',
-    badge: 'bg-indigo-400/10 text-indigo-200 border-indigo-300/50',
+    card: 'border-border/60',
+    badge: 'bg-secondary/40 text-muted-foreground border-border/60',
   },
   menu: {
     label: 'Menu',
     icon: Utensils,
-    card: 'border-orange-300/50',
-    badge: 'bg-orange-400/10 text-orange-200 border-orange-300/50',
+    card: 'border-border/60',
+    badge: 'bg-secondary/40 text-muted-foreground border-border/60',
   },
   vcard: {
     label: 'VCard',
     icon: Contact,
-    card: 'border-violet-300/50',
-    badge: 'bg-violet-400/10 text-violet-200 border-violet-300/50',
+    card: 'border-border/60',
+    badge: 'bg-secondary/40 text-muted-foreground border-border/60',
+  },
+};
+
+const modeStyles: Record<'dynamic' | 'static', { card: string; badge: string }> = {
+  dynamic: {
+    card: 'border-violet-500/70 bg-gradient-to-br from-violet-500/15 via-transparent to-amber-400/15 dark:border-violet-400/60 dark:from-violet-500/10 dark:to-amber-400/10',
+    badge:
+      'border-violet-600/70 text-white bg-gradient-to-r from-violet-700/80 to-amber-600/80 ' +
+      'dark:border-violet-400/60 dark:text-violet-200 dark:from-violet-500/20 dark:to-amber-400/20',
+  },
+  static: {
+    card: 'border-border/60 bg-secondary/20',
+    badge: 'border-border/60 text-muted-foreground bg-secondary/40',
   },
 };
 
@@ -170,6 +183,7 @@ export function ArsenalPanel({
   >(null);
   const previewRef = useRef<QRPreviewHandle>(null);
   const detailRef = useRef<HTMLDivElement>(null);
+  const backButtonRef = useRef<HTMLButtonElement>(null);
   const [scanCounts, setScanCounts] = useState<Record<string, number>>({});
   const t = (en: string, es: string) => (language === 'es' ? es : en);
   const isMobile = !isDesktop;
@@ -422,9 +436,12 @@ export function ArsenalPanel({
       return;
     }
     applySelection(item);
-    if (!isDesktop && detailRef.current) {
+    if (!isDesktop) {
       window.setTimeout(() => {
-        detailRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        const target = backButtonRef.current ?? detailRef.current;
+        if (!target) return;
+        const top = target.getBoundingClientRect().top + window.scrollY - 12;
+        window.scrollTo({ top, behavior: 'smooth' });
       }, 0);
     }
   };
@@ -562,16 +579,13 @@ export function ArsenalPanel({
   const renderCardBadge = (item: QRHistoryItem) => {
     const parsed = parseKind(item.kind ?? null);
     const typeMeta = typeStyles[parsed.type] ?? typeStyles.url;
+    const modeMeta = modeStyles[parsed.mode === 'dynamic' ? 'dynamic' : 'static'];
     const ModeIcon = parsed.mode === 'dynamic' ? Zap : QrCode;
     const TypeIcon = typeMeta.icon;
     return (
       <div className="flex flex-wrap items-center gap-2 text-[10px] uppercase tracking-[0.3em] max-w-full">
         <span
-          className={`inline-flex min-w-0 items-center gap-2 rounded-full border px-3 py-1 ${
-            parsed.mode === 'dynamic'
-              ? 'border-cyan-400/60 text-cyan-200 bg-cyan-500/10'
-              : 'border-border/60 text-muted-foreground bg-secondary/40'
-          }`}
+          className={`inline-flex min-w-0 items-center gap-2 rounded-full border px-3 py-1 ${modeMeta.badge}`}
         >
           <ModeIcon className="h-3 w-3" />
           <span className="truncate">{parsed.mode === 'dynamic' ? 'Dynamic' : 'Static'}</span>
@@ -777,6 +791,7 @@ export function ArsenalPanel({
                   const isChecked = selectedIds.has(item.id);
                   const parsed = parseKind(item.kind ?? null);
                   const typeMeta = typeStyles[parsed.type] ?? typeStyles.url;
+                  const modeMeta = modeStyles[parsed.mode === 'dynamic' ? 'dynamic' : 'static'];
                   const isList = viewMode === 'list';
                   const isMobileList = isList && isMobile;
                   const displayName = getDisplayName(item, sortedItems);
@@ -809,8 +824,8 @@ export function ArsenalPanel({
                         isSelectMode && isChecked
                           ? 'border-primary/60 bg-primary/10 shadow-[0_0_18px_rgba(59,130,246,0.18)]'
                           : isSelected
-                          ? 'border-primary/60 bg-primary/5 shadow-[0_0_18px_rgba(59,130,246,0.12)]'
-                          : `${typeMeta.card} hover:border-primary/40 hover:bg-secondary/40`
+                          ? 'border-border/60 bg-secondary/20 shadow-none'
+                          : `${modeMeta.card} hover:border-primary/40 hover:bg-secondary/40`
                       } ${isMobile ? 'p-2.5' : 'p-4'} ${
                         viewMode === 'grid'
                           ? `${isMobile ? 'min-h-[150px]' : 'min-h-[210px]'} h-full flex flex-col justify-between`
@@ -818,20 +833,18 @@ export function ArsenalPanel({
                       }`}
                     >
                       {isMobileList ? (
-                        <div className="space-y-2.5">
-                          <div className="space-y-1 min-w-0">
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="space-y-1 min-w-0 flex-1 overflow-hidden pr-2">
                             <p className="text-[13px] font-semibold truncate" title={displayName}>
                               {displayName}
                             </p>
-                            <p className="text-[11px] text-muted-foreground truncate">{item.content}</p>
+                            <p className="text-[11px] text-muted-foreground truncate max-w-[140px]">
+                              {item.content}
+                            </p>
                           </div>
-                          <div className="flex flex-wrap items-center gap-2 text-[9px] uppercase tracking-[0.3em]">
+                          <div className="flex items-center justify-end gap-2 text-[9px] uppercase tracking-[0.3em] shrink-0 flex-nowrap">
                             <span
-                              className={`inline-flex min-w-0 items-center gap-2 rounded-full border px-2.5 py-0.5 ${
-                                parsed.mode === 'dynamic'
-                                  ? 'border-cyan-400/60 text-cyan-200 bg-cyan-500/10'
-                                  : 'border-border/60 text-muted-foreground bg-secondary/40'
-                              }`}
+                              className={`inline-flex min-w-0 items-center gap-2 rounded-full border px-2.5 py-0.5 ${modeMeta.badge}`}
                             >
                               <span className="truncate">{parsed.mode === 'dynamic' ? 'Dynamic' : 'Static'}</span>
                             </span>
@@ -843,23 +856,75 @@ export function ArsenalPanel({
                             {renderScanCount(item)}
                           </div>
                         </div>
+                      ) : isDesktop && viewMode === 'grid' ? (
+                        <div className="flex flex-col gap-3">
+                          <div className="space-y-1 min-w-0">
+                            <p className="text-sm font-semibold truncate" title={displayName}>
+                              {displayName}
+                            </p>
+                            <p className="text-xs text-muted-foreground truncate">{item.content}</p>
+                          </div>
+                          <div className="flex flex-wrap items-center gap-2 text-[10px] uppercase tracking-[0.3em]">
+                            {renderCardBadge(item)}
+                            {renderScanCount(item)}
+                          </div>
+                        </div>
+                      ) : isMobile && viewMode === 'grid' ? (
+                        <div className="flex items-stretch justify-between gap-3 h-full">
+                          <div className="flex min-w-0 flex-1 flex-col">
+                            <div className="space-y-1">
+                              <p className="text-[13px] font-semibold truncate" title={displayName}>
+                                {displayName}
+                              </p>
+                              <p className="text-[11px] text-muted-foreground truncate">{item.content}</p>
+                            </div>
+                            <div className="mt-auto flex items-center gap-2 flex-nowrap text-[9px] uppercase tracking-[0.3em]">
+                              <span
+                                className={`inline-flex min-w-0 items-center gap-2 rounded-full border px-2.5 py-0.5 ${modeMeta.badge}`}
+                              >
+                                {parsed.mode === 'dynamic' ? (
+                                  <Zap className="h-3 w-3" />
+                                ) : (
+                                  <QrCode className="h-3 w-3" />
+                                )}
+                                <span className="truncate">{parsed.mode === 'dynamic' ? 'Dynamic' : 'Static'}</span>
+                              </span>
+                              <span
+                                className={`inline-flex min-w-0 items-center gap-2 rounded-full border px-2.5 py-0.5 ${typeMeta.badge}`}
+                              >
+                                <typeMeta.icon className="h-3 w-3" />
+                                <span className="truncate">{typeMeta.label}</span>
+                              </span>
+                              {renderScanCount(item)}
+                            </div>
+                          </div>
+                          <div
+                            className={`shrink-0 border overflow-hidden rounded-lg p-0.5 ${modeMeta.card}`}
+                          >
+                            <QRPreview
+                              options={cardOptions}
+                              showCaption={false}
+                              innerPadding={4}
+                            />
+                          </div>
+                        </div>
                       ) : (
-                        <div className="flex items-start justify-between gap-3">
+                        <div className="flex items-center justify-between gap-3">
                           <div className="space-y-2 min-w-0 flex-1">
                             <p className="text-sm font-semibold truncate" title={displayName}>
                               {displayName}
                             </p>
                             <p className="text-xs text-muted-foreground truncate">{item.content}</p>
-                            <div className="flex flex-wrap items-center gap-2">
-                              {renderScanCount(item)}
-                              {renderCardBadge(item)}
-                            </div>
+                          </div>
+                          <div className="flex items-center justify-end gap-2 shrink-0 flex-nowrap">
+                            {renderCardBadge(item)}
+                            {renderScanCount(item)}
                           </div>
                           {!isDesktop && (
                             <div
                               className={`shrink-0 border overflow-hidden ${
                                 isMobile ? 'rounded-lg p-0.5' : 'rounded-xl p-1'
-                              } ${typeMeta.card}`}
+                              } ${modeMeta.card}`}
                             >
                               <QRPreview
                                 options={cardOptions}
@@ -985,26 +1050,13 @@ export function ArsenalPanel({
                       <p className="text-xs uppercase tracking-[0.35em] text-muted-foreground">
                         {t('Selected', 'Seleccionado')}
                       </p>
-                      {isEditingTitle ? (
-                        <Input
-                          value={editName}
-                          placeholder={selectedDisplayName}
-                          onChange={(event) => setEditName(event.target.value.slice(0, 25))}
-                          onBlur={() => setIsEditingTitle(false)}
-                          className="bg-secondary/40 border-border max-w-[280px]"
-                          maxLength={25}
-                          autoFocus
-                        />
-                      ) : (
-                        <button
-                          type="button"
-                          className="text-lg font-semibold truncate text-left hover:text-primary transition"
-                          title={selectedDisplayName}
-                          onClick={() => setIsEditingTitle(true)}
-                        >
-                          {selectedDisplayName}
-                        </button>
-                      )}
+                      <Input
+                        value={editName}
+                        placeholder={selectedDisplayName}
+                        onChange={(event) => setEditName(event.target.value.slice(0, 25))}
+                        className="bg-secondary/40 border-border max-w-[280px]"
+                        maxLength={25}
+                      />
                     </div>
                     <div className="flex flex-wrap items-center gap-2 max-w-full">
                       {renderScanCount(selectedItem)}
@@ -1023,6 +1075,9 @@ export function ArsenalPanel({
                     showCaption={false}
                   />
                 </div>
+                <p className="text-center text-xs uppercase tracking-[0.3em] text-muted-foreground">
+                  {t('QRC Name', 'Nombre del QRC')}: {editName.trim() || selectedDisplayName}
+                </p>
                 <button
                   type="button"
                   onClick={handleCopy}
@@ -1034,18 +1089,6 @@ export function ArsenalPanel({
                     {t('Copy', 'Copiar')}
                   </span>
                 </button>
-
-                <div className="space-y-3">
-                  <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">
-                    {t('QR Name', 'Nombre del QR')}
-                  </p>
-                  <Input
-                    value={editName}
-                    placeholder={selectedDisplayName}
-                    className="bg-secondary/40 border-border"
-                    readOnly
-                  />
-                </div>
 
                 <div className="space-y-3">
                   <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">
@@ -1116,12 +1159,18 @@ export function ArsenalPanel({
           {selectedItem ? (
             <>
               <button
+                ref={backButtonRef}
                 type="button"
                 className="inline-flex items-center gap-2 text-xs uppercase tracking-[0.3em] text-muted-foreground transition hover:text-primary"
                 onClick={() => {
                   clearSelection();
                   if (typeof window !== 'undefined') {
-                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                    const container = detailRef.current?.closest('.h-[calc(100dvh-260px)]') as HTMLElement | null;
+                    if (container) {
+                      container.scrollTo({ top: 0, behavior: 'smooth' });
+                    } else {
+                      window.scrollTo({ top: 0, behavior: 'smooth' });
+                    }
                   }
                 }}
               >
@@ -1206,26 +1255,13 @@ export function ArsenalPanel({
                   <p className="text-xs uppercase tracking-[0.35em] text-muted-foreground">
                     {t('Selected', 'Seleccionado')}
                   </p>
-                  {isEditingTitle ? (
-                    <Input
-                      value={editName}
-                      placeholder={selectedDisplayName}
-                      onChange={(event) => setEditName(event.target.value.slice(0, 25))}
-                      onBlur={() => setIsEditingTitle(false)}
-                      className="bg-secondary/40 border-border max-w-[280px]"
-                      maxLength={25}
-                      autoFocus
-                    />
-                  ) : (
-                    <button
-                      type="button"
-                      className="text-lg font-semibold truncate text-left hover:text-primary transition"
-                      title={selectedDisplayName}
-                      onClick={() => setIsEditingTitle(true)}
-                    >
-                      {selectedDisplayName}
-                    </button>
-                  )}
+                  <Input
+                    value={editName}
+                    placeholder={selectedDisplayName}
+                    onChange={(event) => setEditName(event.target.value.slice(0, 25))}
+                    className="bg-secondary/40 border-border max-w-[280px]"
+                    maxLength={25}
+                  />
                 </div>
                 <div className="flex flex-wrap items-center justify-end gap-2">
                   {renderScanCount(selectedItem)}
@@ -1244,6 +1280,9 @@ export function ArsenalPanel({
                   showCaption={false}
                 />
               </div>
+              <p className="text-center text-xs uppercase tracking-[0.3em] text-muted-foreground">
+                {t('QRC Name', 'Nombre del QRC')}: {editName.trim() || selectedDisplayName}
+              </p>
               <button
                 type="button"
                 onClick={handleCopy}
@@ -1255,18 +1294,6 @@ export function ArsenalPanel({
                   {t('Copy', 'Copiar')}
                 </span>
               </button>
-
-              <div className="space-y-3">
-                <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">
-                  {t('QR Name', 'Nombre del QR')}
-                </p>
-                <Input
-                  value={editName}
-                  placeholder={selectedDisplayName}
-                  className="bg-secondary/40 border-border"
-                  readOnly
-                />
-              </div>
 
               <div className="space-y-3">
                 <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">

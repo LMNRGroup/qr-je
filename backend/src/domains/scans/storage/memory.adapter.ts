@@ -18,6 +18,10 @@ export class InMemoryScansStorageAdapter implements ScansStorage {
       .slice(0, limit)
   }
 
+  async deleteByUrlId(urlId: string) {
+    this.records = this.records.filter((scan) => scan.urlId !== urlId)
+  }
+
   async getTotalForUser(userId: string) {
     return this.records.filter((scan) => scan.userId === userId).length
   }
@@ -28,5 +32,65 @@ export class InMemoryScansStorageAdapter implements ScansStorage {
     return this.records.filter(
       (scan) => scan.userId === userId && new Date(scan.scannedAt) >= startOfDay
     ).length
+  }
+
+  async getTotalForUserSince(userId: string, since: string) {
+    const sinceDate = new Date(since)
+    return this.records.filter(
+      (scan) => scan.userId === userId && new Date(scan.scannedAt) >= sinceDate
+    ).length
+  }
+
+  async getScansForUserSince(userId: string, since: string) {
+    const sinceDate = new Date(since)
+    return this.records.filter(
+      (scan) => scan.userId === userId && new Date(scan.scannedAt) >= sinceDate
+    )
+  }
+
+  async getScanTimestampsForUserSince(userId: string, since: string) {
+    const sinceDate = new Date(since)
+    return this.records
+      .filter((scan) => scan.userId === userId && new Date(scan.scannedAt) >= sinceDate)
+      .map((scan) => scan.scannedAt)
+  }
+
+  async getDailyCountsForUserSince(userId: string, since: string, _timeZone: string) {
+    const sinceDate = new Date(since)
+    const counts = new Map<string, number>()
+    this.records.forEach((scan) => {
+      if (scan.userId !== userId) return
+      const scannedAt = new Date(scan.scannedAt)
+      if (scannedAt < sinceDate) return
+      const key = new Date(scannedAt.getFullYear(), scannedAt.getMonth(), scannedAt.getDate()).toISOString()
+      counts.set(key, (counts.get(key) ?? 0) + 1)
+    })
+    return Array.from(counts.entries())
+      .sort(([a], [b]) => new Date(a).getTime() - new Date(b).getTime())
+      .map(([date, count]) => ({ date, count }))
+  }
+
+  async getAverageResponseMsForUser(userId: string) {
+    const values = this.records
+      .filter((scan) => scan.userId === userId && typeof scan.responseMs === 'number')
+      .map((scan) => scan.responseMs as number)
+    if (values.length === 0) return null
+    const total = values.reduce((sum, value) => sum + value, 0)
+    return total / values.length
+  }
+
+  async getAverageResponseMsForUserSince(userId: string, since: string) {
+    const sinceDate = new Date(since)
+    const values = this.records
+      .filter(
+        (scan) =>
+          scan.userId === userId &&
+          typeof scan.responseMs === 'number' &&
+          new Date(scan.scannedAt) >= sinceDate
+      )
+      .map((scan) => scan.responseMs as number)
+    if (values.length === 0) return null
+    const total = values.reduce((sum, value) => sum + value, 0)
+    return total / values.length
   }
 }

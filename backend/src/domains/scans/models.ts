@@ -5,6 +5,7 @@ export type Scan = {
   userId: string
   ip: string | null
   userAgent: string | null
+  responseMs: number | null
   scannedAt: string
 }
 
@@ -14,5 +15,6 @@ export type CreateScanInput = {
   userId: string
   ip?: string | null
   userAgent?: string | null
+  responseMs?: number | null
   scannedAt?: string
 }

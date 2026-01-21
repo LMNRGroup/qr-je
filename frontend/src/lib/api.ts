@@ -102,7 +102,16 @@ const request = async (path: string, init?: RequestInit) => {
 
   if (!response.ok) {
     const errorText = await response.text();
-    throw new Error(errorText || 'Request failed');
+    const message = errorText || 'Request failed';
+    window.dispatchEvent(
+      new CustomEvent('qrc:api-error', {
+        detail: {
+          message: `${response.status} ${response.statusText}`,
+          detail: `${path}\n${message}`,
+        },
+      })
+    );
+    throw new Error(message);
   }
 
   return response;
@@ -203,7 +212,7 @@ export async function getPublicVcard(slug: string): Promise<VcardResponse> {
 }
 
 export async function getQRHistory(): Promise<{ success: boolean; data: QRHistoryItem[] }> {
-  const response = await request('/urls?summary=1');
+  const response = await request('/urls');
   const data = (await response.json()) as UrlResponse[];
   return { success: true, data: data.map(toHistoryItem) };
 }
@@ -224,14 +233,67 @@ export async function getScanCount(id: string, random: string): Promise<number> 
   return Number(data.count ?? 0);
 }
 
-export async function getScanSummary(timeZone?: string): Promise<{ total: number; today: number }> {
-  const query = timeZone ? `?tz=${encodeURIComponent(timeZone)}` : '';
+export async function getScanSummary(
+  range: 'all' | 'today' | '7d' | '30d' = 'all',
+  timeZone?: string
+): Promise<{ total: number; today: number; range: string; rangeTotal: number; avgResponseMs: number | null }> {
+  const params = new URLSearchParams();
+  params.set('range', range);
+  if (timeZone) params.set('tz', timeZone);
+  const query = params.toString() ? `?${params.toString()}` : '';
   const response = await request(`/scans/summary${query}`);
-  const data = (await response.json()) as { total?: number | string; today?: number | string };
+  const data = (await response.json()) as {
+    total?: number | string;
+    today?: number | string;
+    range?: string;
+    rangeTotal?: number | string;
+    avgResponseMs?: number | string | null;
+  };
   return {
     total: Number(data.total ?? 0),
     today: Number(data.today ?? 0),
+    range: data.range ?? range,
+    rangeTotal: Number(data.rangeTotal ?? data.total ?? 0),
+    avgResponseMs: data.avgResponseMs === null || data.avgResponseMs === undefined
+      ? null
+      : Number(data.avgResponseMs),
   };
+}
+
+export async function getScanTrends(
+  days = 7,
+  timeZone?: string
+): Promise<Array<{ date: string; count: number }>> {
+  const params = new URLSearchParams();
+  params.set('days', String(days));
+  if (timeZone) params.set('tz', timeZone);
+  const query = params.toString() ? `?${params.toString()}` : '';
+  const response = await request(`/scans/trends${query}`);
+  const data = (await response.json()) as { points?: Array<{ date: string; count: number }> };
+  return data.points ?? [];
+}
+
+export type ScanAreaSummary = {
+  areaId: string;
+  label: string;
+  count: number;
+  lastSeenAt: string;
+  recentScans: Array<{
+    timestamp: string;
+    ip: string | null;
+    city: string | null;
+    region: string | null;
+    countryCode: string | null;
+    device: string;
+    browser: string;
+  }>;
+  lat: number | null;
+  lon: number | null;
+};
+
+export async function getScanAreas(): Promise<ScanAreaSummary[]> {
+  const response = await request('/scans/areas');
+  return (await response.json()) as ScanAreaSummary[];
 }
 
 export async function getUserProfile(): Promise<UserProfile> {

@@ -1,4 +1,4 @@
-import { index, jsonb, pgTable, primaryKey, text, timestamp } from 'drizzle-orm/pg-core'
+import { index, integer, jsonb, pgTable, primaryKey, text, timestamp } from 'drizzle-orm/pg-core'
 
 export const users = pgTable('users', {
   id: text('id').primaryKey(),
@@ -46,6 +46,7 @@ export const scans = pgTable(
       .references(() => users.id, { onDelete: 'cascade' }),
     ip: text('ip'),
     userAgent: text('user_agent'),
+    responseMs: integer('response_ms'),
     scannedAt: timestamp('scanned_at', { withTimezone: true }).notNull().defaultNow()
   },
   (table) => ({

@@ -4,6 +4,8 @@ import { buildShortUrl } from '../../config/env'
 import { UrlConflictError, UrlNotFoundError, UrlValidationError } from './errors'
 import { UrlsService } from './service'
 import type { ScansService } from '../scans/service'
+import { recordAreaScanForUser } from '../scans/areaStore'
+import { lookupGeo } from '../scans/geo'
 import { parseCreateUrlInput, parseResolveParams, parseUpdateUrlInput } from './validators'
 import type { AppBindings } from '../../shared/http/types'
 
@@ -190,21 +192,40 @@ const resolveAdaptiveTarget = (options: AdaptiveOptions, ip: string | null, isRe
 }
 export const redirectUrlHandler = (service: UrlsService, scansService?: ScansService) => {
   return async (c: Context<AppBindings>) => {
+    const startedAt = Date.now()
     try {
       const params = parseResolveParams(c.req.param())
       const url = await service.resolveUrl(params)
+      const ip = getClientIp(c)
+      const userAgent = c.req.header('user-agent') ?? null
       if (scansService) {
         try {
           await scansService.recordScan({
             urlId: url.id,
             urlRandom: url.random,
             userId: url.userId,
-            ip: getClientIp(c),
-            userAgent: c.req.header('user-agent') ?? null
+            ip,
+            userAgent,
+            responseMs: Date.now() - startedAt
           })
         } catch (scanError) {
           console.error('[scan] failed to record scan', scanError)
         }
+      }
+      try {
+        const geo = await lookupGeo(ip)
+        recordAreaScanForUser({
+          userId: url.userId,
+          ip,
+          userAgent,
+          city: geo.city,
+          region: geo.region,
+          countryCode: geo.countryCode,
+          lat: geo.lat,
+          lon: geo.lon
+        })
+      } catch (areaError) {
+        console.error('[scan] failed to record area scan', areaError)
       }
 
       return c.redirect(url.targetUrl, 302)
@@ -229,6 +250,7 @@ export const adaptiveResolveHandler = (service: UrlsService, scansService?: Scan
       const url = await service.resolveUrl(params)
       const options = (url.options ?? {}) as AdaptiveOptions
       const ip = getClientIp(c)
+      const userAgent = c.req.header('user-agent') ?? null
       const tokenCookie = c.req.header('cookie')?.match(/adaptive_token=([^;]+)/)?.[1] ?? null
       const isReturning = Boolean(tokenCookie)
       if (!tokenCookie) {
@@ -242,11 +264,26 @@ export const adaptiveResolveHandler = (service: UrlsService, scansService?: Scan
             urlRandom: url.random,
             userId: url.userId,
             ip,
-            userAgent: c.req.header('user-agent') ?? null
+            userAgent
           })
         } catch (scanError) {
           console.error('[scan] failed to record adaptive scan', scanError)
         }
+      }
+      try {
+        const geo = await lookupGeo(ip)
+        recordAreaScanForUser({
+          userId: url.userId,
+          ip,
+          userAgent,
+          city: geo.city,
+          region: geo.region,
+          countryCode: geo.countryCode,
+          lat: geo.lat,
+          lon: geo.lon
+        })
+      } catch (areaError) {
+        console.error('[scan] failed to record adaptive area scan', areaError)
       }
       const adaptiveTarget = resolveAdaptiveTarget(options, ip, isReturning)
       const destination = adaptiveTarget ?? url.targetUrl
@@ -360,7 +397,7 @@ export const updateUrlHandler = (service: UrlsService) => {
   }
 }
 
-export const deleteUrlHandler = (service: UrlsService) => {
+export const deleteUrlHandler = (service: UrlsService, scansService?: ScansService) => {
   return async (c: Context<AppBindings>) => {
     const userId = c.get('userId')
 
@@ -373,6 +410,13 @@ export const deleteUrlHandler = (service: UrlsService) => {
       return c.json({ message: 'id is required' }, 400)
     }
 
+    if (scansService) {
+      try {
+        await scansService.deleteByUrlId(id)
+      } catch (error) {
+        console.error('[scan] failed to delete scans', error)
+      }
+    }
     await service.deleteUrl(id)
     return c.json({ success: true })
   }

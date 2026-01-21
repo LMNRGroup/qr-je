@@ -3,6 +3,7 @@ import { CornerStylePicker } from '@/components/CornerStylePicker';
 import { ErrorCorrectionSelector } from '@/components/ErrorCorrectionSelector';
 import { ArsenalPanel } from '@/components/ArsenalPanel';
 import { LogoUpload } from '@/components/LogoUpload';
+import { MapDots } from '@/components/MapDots';
 import { QRPreview, QRPreviewHandle } from '@/components/QRPreview';
 import { SizeSlider } from '@/components/SizeSlider';
 import { ThemeToggle } from '@/components/ThemeToggle';
@@ -28,9 +29,13 @@ import {
   createVcard,
   generateQR,
   getQRHistory,
+  getScanAreas,
+  getScanSummary,
+  getScanTrends,
   getUserProfile,
   updateQR,
   updateUserProfile,
+  type ScanAreaSummary,
   type UserProfile,
 } from '@/lib/api';
 import { QROptions, defaultQROptions } from '@/types/qr';
@@ -73,7 +78,6 @@ import { toast } from 'sonner';
 const BUILD_STAMP = '2026-01-20T16:52:00Z';
 const GUEST_WELCOME_KEY = `qr.guest.welcome.${BUILD_STAMP}`;
 const TOUR_GUEST_KEY = `qr.tour.guest.${BUILD_STAMP}`;
-const VCARD_ASSETS_BUCKET = 'vcards';
 const QR_ASSETS_BUCKET = 'qr-uploads';
 const MAX_FILE_BYTES = 5 * 1024 * 1024;
 const MAX_MENU_FILE_BYTES = 2.5 * 1024 * 1024;
@@ -158,6 +162,18 @@ const Index = () => {
   const [actionRingOrigin, setActionRingOrigin] = useState({ x: 50, y: 50 });
   const [arsenalStats, setArsenalStats] = useState({ total: 0, dynamic: 0 });
   const [scanStats, setScanStats] = useState({ total: 0 });
+  const [intelRange, setIntelRange] = useState<'all' | 'today' | '7d' | '30d'>('today');
+  const [intelSummary, setIntelSummary] = useState({
+    total: 0,
+    today: 0,
+    rangeTotal: 0,
+    avgResponseMs: null as number | null,
+  });
+  const [intelLoading, setIntelLoading] = useState(false);
+  const [intelTrends, setIntelTrends] = useState<Array<{ date: string; count: number }>>([]);
+  const [scanAreas, setScanAreas] = useState<ScanAreaSummary[]>([]);
+  const [isSignalsMenuOpen, setIsSignalsMenuOpen] = useState(false);
+  const signalsCardRef = useRef<HTMLDivElement>(null);
   const [arsenalRefreshKey, setArsenalRefreshKey] = useState(0);
   const [navHint, setNavHint] = useState('');
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
@@ -478,6 +494,108 @@ const Index = () => {
   useEffect(() => {
     refreshArsenalStats();
   }, [refreshArsenalStats, arsenalRefreshKey]);
+
+  const intelRangeLabels: Record<'all' | 'today' | '7d' | '30d', string> = {
+    all: 'All time',
+    today: 'Today',
+    '7d': 'Last 7 days',
+    '30d': 'Last 30 days',
+  };
+
+  useEffect(() => {
+    if (!isSessionReady) return;
+    if (activeTab !== 'analytics') return;
+    let cancelled = false;
+    const timeZone =
+      userProfile?.timezone ||
+      profileForm.timezone ||
+      Intl.DateTimeFormat().resolvedOptions().timeZone;
+    setIntelLoading(true);
+    getScanSummary(intelRange, timeZone)
+      .then((summary) => {
+        if (cancelled) return;
+        setIntelSummary({
+          total: summary.total,
+          today: summary.today,
+          rangeTotal: summary.rangeTotal,
+          avgResponseMs: summary.avgResponseMs,
+        });
+      })
+      .catch((error) => {
+        if (cancelled) return;
+        const message = error instanceof Error ? error.message : 'Failed to load scan summary';
+        toast.error(message);
+      })
+      .finally(() => {
+        if (cancelled) return;
+        setIntelLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [activeTab, intelRange, isSessionReady, profileForm.timezone, userProfile?.timezone]);
+
+  useEffect(() => {
+    if (!isSessionReady) return;
+    if (activeTab !== 'analytics') return;
+    let cancelled = false;
+    const timeZone =
+      userProfile?.timezone ||
+      profileForm.timezone ||
+      Intl.DateTimeFormat().resolvedOptions().timeZone;
+    getScanTrends(7, timeZone)
+      .then((points) => {
+        if (cancelled) return;
+        setIntelTrends(points);
+      })
+      .catch((error) => {
+        if (cancelled) return;
+        const message = error instanceof Error ? error.message : 'Failed to load scan trends';
+        toast.error(message);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [activeTab, isSessionReady, profileForm.timezone, userProfile?.timezone]);
+
+  useEffect(() => {
+    if (!isSessionReady) return;
+    if (activeTab !== 'analytics') return;
+    let cancelled = false;
+    getScanAreas()
+      .then((areas) => {
+        if (cancelled) return;
+        setScanAreas(areas);
+      })
+      .catch((error) => {
+        if (cancelled) return;
+        const message = error instanceof Error ? error.message : 'Failed to load scan areas';
+        toast.error(message);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [activeTab, isSessionReady]);
+
+  useEffect(() => {
+    if (!isSignalsMenuOpen) return;
+    const handlePointerDown = (event: MouseEvent) => {
+      if (!signalsCardRef.current) return;
+      if (signalsCardRef.current.contains(event.target as Node)) return;
+      setIsSignalsMenuOpen(false);
+    };
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setIsSignalsMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handlePointerDown);
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDown);
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isSignalsMenuOpen]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -1508,39 +1626,22 @@ const Index = () => {
     const { data } = supabase.storage.from(QR_ASSETS_BUCKET).getPublicUrl(filePath);
     return data.publicUrl;
   };
-  const uploadVcardAsset = async (file: File, folder: 'logos' | 'photos', dataUrl?: string) => {
-    if (!isSupabaseConfigured) {
-      toast.error('Image storage is not configured yet.');
-      return null;
-    }
-    const dataUrlMime = dataUrl?.match(/data:(.*?);base64/)?.[1];
-    const contentType = dataUrlMime || file.type;
-    const extension = dataUrlMime
-      ? dataUrlMime.includes('jpeg')
-        ? 'jpg'
-        : dataUrlMime.split('/')[1] || 'png'
-      : file.name.split('.').pop() || 'png';
-    const fileName = `${crypto.randomUUID()}.${extension}`;
-    const filePath = `vcard-assets/${folder}/${fileName}`;
-    const payload = dataUrl ? dataUrlToBlob(dataUrl) : file;
-    const { error } = await supabase.storage
-      .from(VCARD_ASSETS_BUCKET)
-      .upload(filePath, payload, { upsert: true, contentType });
-    if (error) {
-      toast.error('Failed to upload image.');
-      return null;
-    }
-    const { data } = supabase.storage.from(VCARD_ASSETS_BUCKET).getPublicUrl(filePath);
-    return data.publicUrl;
-  };
-
   const handleVcardLogoChange = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
-    const url = await uploadVcardAsset(file, 'logos');
-    if (!url) return;
-    setVcardStyle((prev) => ({ ...prev, logoDataUrl: url }));
     event.target.value = '';
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please upload an image file.');
+      return;
+    }
+    const dataUrl = await compressImageFile(file, { maxDimension: 1200, quality: 0.9 });
+    const blob = dataUrlToBlob(dataUrl);
+    const maxSizeMb = (MAX_VCARD_PHOTO_BYTES / (1024 * 1024)).toFixed(1);
+    if (blob.size > MAX_VCARD_PHOTO_BYTES) {
+      toast.error(`Logo is too large. Please use an image under ${maxSizeMb} MB.`);
+      return;
+    }
+    setVcardStyle((prev) => ({ ...prev, logoDataUrl: dataUrl }));
   };
 
   const handleVcardPhotoChange = async (event: ChangeEvent<HTMLInputElement>) => {
@@ -1556,19 +1657,16 @@ const Index = () => {
     let compressedDataUrl = '';
     if (file.size > MAX_VCARD_PHOTO_BYTES) {
       toast.info('Large photo detected. Compressing for your vCard...');
-      compressedDataUrl = await compressImageFile(file, { maxDimension: 1200, quality: 0.82 });
-      const compressedBlob = dataUrlToBlob(compressedDataUrl);
-      if (compressedBlob.size > MAX_VCARD_PHOTO_BYTES) {
-        toast.error(`Photo is too large. Please use an image under ${maxSizeMb} MB.`);
-        return;
-      }
     }
-
-    const url = await uploadVcardAsset(file, 'photos', compressedDataUrl || undefined);
-    if (!url) return;
+    compressedDataUrl = await compressImageFile(file, { maxDimension: 1200, quality: 0.82 });
+    const compressedBlob = dataUrlToBlob(compressedDataUrl);
+    if (compressedBlob.size > MAX_VCARD_PHOTO_BYTES) {
+      toast.error(`Photo is too large. Please use an image under ${maxSizeMb} MB.`);
+      return;
+    }
     setVcardStyle((prev) => ({
       ...prev,
-      profilePhotoDataUrl: url,
+      profilePhotoDataUrl: compressedDataUrl,
       photoZoom: 110,
       photoX: 50,
       photoY: 50,
@@ -1848,7 +1946,8 @@ const Index = () => {
     ...vcardBackTexture,
   };
 
-  const adaptiveGradientText = 'bg-gradient-to-r from-amber-200 via-yellow-400 to-amber-500 text-transparent bg-clip-text';
+  const adaptiveGradientText =
+    'bg-gradient-to-r from-amber-200 via-yellow-400 to-amber-500 text-transparent bg-clip-text';
   const adaptiveGlowText = 'font-semibold text-transparent bg-clip-text bg-gradient-to-r from-amber-200 via-yellow-400 to-amber-500 drop-shadow-[0_0_10px_rgba(251,191,36,0.35)]';
   const isAndroid = typeof navigator !== 'undefined' && /android/i.test(navigator.userAgent);
   const dialDragSensitivity = isAndroid ? 1.25 : 0.6;
@@ -1902,18 +2001,10 @@ const Index = () => {
   }, [showWelcomeIntro, tourActive, user]);
 
   useEffect(() => {
-    if (typeof window === 'undefined') return;
-    if (showGuestWelcome) {
-      tourGuestSeenRef.current = true;
-      return;
-    }
-    if (user || !tourGuestSeenRef.current) return;
-    if (tourActive) return;
-    if (localStorage.getItem(TOUR_GUEST_KEY)) return;
-    localStorage.setItem(TOUR_GUEST_KEY, 'true');
-    setTourActive(true);
-    setTourStepIndex(0);
-  }, [showGuestWelcome, tourActive, user]);
+    if (!tourActive) return;
+    if (user) return;
+    endTour();
+  }, [tourActive, user, endTour]);
 
   useEffect(() => {
     if (!tourActive || !tourTargetId) {
@@ -1983,7 +2074,9 @@ const Index = () => {
 
   useEffect(() => {
     if (!tourActive || !isTourDialStep) {
-      setTourDialState({ opened: false, rotated: false, closed: false });
+      if (tourDialState.opened || tourDialState.rotated || tourDialState.closed) {
+        setTourDialState({ opened: false, rotated: false, closed: false });
+      }
       tourDialStartAngleRef.current = null;
       return;
     }
@@ -3830,20 +3923,20 @@ const Index = () => {
           ) : null}
           </div>
           <div className="flex items-center gap-3">
-            <div data-tour-id="dark-mode">
+            <div data-tour-id="dark-mode" className="flex items-center">
               <ThemeToggle storageKey={isLoggedIn && user?.id ? `theme:${user.id}` : 'theme:guest'} />
             </div>
             <div className="relative group">
               <button
                 type="button"
-                className="h-9 w-9 rounded-full border border-border/60 bg-secondary/50 flex items-center justify-center transition hover:border-primary/50"
+                className="h-10 w-10 rounded-lg border border-border/60 bg-secondary/50 flex items-center justify-center transition hover:border-primary/50"
                 data-tour-id="profile-icon"
                 aria-label="My Account"
                 onClick={() => setShowAccountModal(true)}
               >
                 {hasSavedAvatar && headerAvatarColor ? (
                   <span
-                    className={`flex h-8 w-8 items-center justify-center rounded-full ${headerAvatarColor.bg} ${headerAvatarColor.text}`}
+                    className={`flex h-9 w-9 items-center justify-center rounded-md ${headerAvatarColor.bg} ${headerAvatarColor.text}`}
                   >
                     {headerAvatarType === 'letter' ? (
                       <span className="text-xs font-semibold">{avatarLetter}</span>
@@ -3856,7 +3949,7 @@ const Index = () => {
                     )}
                   </span>
                 ) : (
-                  <User className="h-5 w-5 text-muted-foreground group-hover:text-primary transition" />
+                  <User className="h-4 w-4 text-muted-foreground group-hover:text-primary transition" />
                 )}
               </button>
               <div className="pointer-events-none absolute right-0 top-full mt-2 w-40 opacity-0 transition group-hover:opacity-100">
@@ -4274,7 +4367,7 @@ const Index = () => {
             <div
               role="button"
               tabIndex={0}
-              onClick={() => setActiveTab('analytics')}
+              onClick={() => setActiveTab('codes')}
               onKeyDown={(event) => {
                 if (event.key === 'Enter' || event.key === ' ') {
                   event.preventDefault();
@@ -4294,7 +4387,7 @@ const Index = () => {
                 {[
                   { label: 'Total Codes', value: `${arsenalStats.total}`, tab: 'codes' },
                   { label: 'Total Scans', value: `${scanStats.total}`, tab: 'analytics' },
-                  { label: 'Dynamic Live', value: `${arsenalStats.dynamic}`, tab: 'analytics' },
+                  { label: 'Dynamic Live', value: `${arsenalStats.dynamic}`, tab: 'codes' },
                 ].map((item) => (
                   <button
                     key={item.label}
@@ -4463,8 +4556,8 @@ const Index = () => {
                     <Button
                       size="sm"
                       className={qrMode === 'static'
-                        ? 'bg-card/80 text-foreground border border-primary/50 border-b-transparent rounded-t-xl uppercase tracking-[0.2em] text-xs shadow-[0_0_14px_rgba(99,102,241,0.18)]'
-                        : 'bg-secondary/40 border border-border/60 text-muted-foreground rounded-t-xl uppercase tracking-[0.2em] text-xs hover:text-primary'}
+                        ? 'bg-card/80 text-foreground border border-primary/50 rounded-xl uppercase tracking-[0.2em] text-xs shadow-[0_0_14px_rgba(99,102,241,0.18)]'
+                        : 'bg-secondary/40 border border-border/60 text-muted-foreground rounded-xl uppercase tracking-[0.2em] text-xs hover:text-primary'}
                       onClick={() => {
                         setQrMode('static');
                         if (!selectedQuickAction) {
@@ -4481,8 +4574,8 @@ const Index = () => {
                     <Button
                       size="sm"
                       className={qrMode === 'dynamic'
-                        ? 'bg-card/80 text-foreground border border-primary/50 border-b-transparent rounded-t-xl uppercase tracking-[0.2em] text-xs shadow-[0_0_14px_rgba(99,102,241,0.18)]'
-                        : 'bg-secondary/40 border border-border/60 text-muted-foreground rounded-t-xl uppercase tracking-[0.2em] text-xs hover:text-primary'}
+                        ? 'bg-card/80 text-foreground border border-primary/50 rounded-xl uppercase tracking-[0.2em] text-xs shadow-[0_0_14px_rgba(99,102,241,0.18)]'
+                        : 'bg-secondary/40 border border-border/60 text-muted-foreground rounded-xl uppercase tracking-[0.2em] text-xs hover:text-primary'}
                       onClick={() => {
                         setQrMode('dynamic');
                         if (!selectedQuickAction) {
@@ -4800,7 +4893,7 @@ const Index = () => {
                       <Button
                         type="button"
                         variant="outline"
-                        className="mt-2 w-full max-w-xs border border-amber-300/70 bg-amber-300/15 text-amber-200 shadow-[0_0_18px_rgba(251,191,36,0.25)] hover:border-amber-300 hover:bg-amber-300/25 uppercase tracking-[0.2em] text-xs sm:w-auto sm:max-w-none sm:bg-transparent sm:text-foreground sm:shadow-none"
+                        className="mt-2 w-full max-w-xs border border-amber-400/80 bg-amber-200/60 text-amber-900 shadow-[0_0_18px_rgba(251,191,36,0.15)] hover:border-amber-400 hover:bg-amber-200/70 uppercase tracking-[0.2em] text-xs dark:border-amber-300/70 dark:bg-amber-300/15 dark:text-amber-200 dark:hover:border-amber-300 dark:hover:bg-amber-300/25 sm:w-auto sm:max-w-none sm:bg-transparent sm:text-foreground sm:shadow-none"
                         onClick={() => {
                           setShowVcardCustomizer(true);
                           setVcardPreviewSide('front');
@@ -4835,7 +4928,7 @@ const Index = () => {
                     <div className="flex flex-col items-center justify-center gap-3 sm:flex-row">
                       <Button
                         type="button"
-                        className="min-w-[170px] gap-2 border border-amber-300/70 bg-amber-300/15 text-amber-200 shadow-[0_0_18px_rgba(251,191,36,0.25)] hover:border-amber-300 hover:bg-amber-300/25 uppercase tracking-[0.2em] text-xs"
+                        className="min-w-[170px] gap-2 border border-amber-400/80 bg-amber-200/60 text-amber-900 shadow-[0_0_18px_rgba(251,191,36,0.15)] hover:border-amber-400 hover:bg-amber-200/70 uppercase tracking-[0.2em] text-xs dark:border-amber-300/70 dark:bg-amber-300/15 dark:text-amber-200 dark:hover:border-amber-300 dark:hover:bg-amber-300/25"
                         onClick={() => setMobileCustomizeStep(true)}
                         disabled={!canGenerate}
                       >
@@ -5188,7 +5281,7 @@ const Index = () => {
               <button
                 type="button"
                 onClick={handleAdaptiveMockOpen}
-                className="group text-left rounded-2xl border border-amber-400/60 bg-secondary/20 p-4 shadow-[0_0_20px_rgba(251,191,36,0.15)] transition hover:border-amber-300"
+                className="group text-left rounded-2xl border border-border/40 bg-black/90 p-4 shadow-none transition hover:border-amber-300"
               >
                 <div className="flex items-center justify-between">
                   <span className="inline-flex items-center gap-2 text-xs uppercase tracking-[0.3em]">
@@ -5199,10 +5292,10 @@ const Index = () => {
                     Adaptive QRC™
                   </span>
                 </div>
-                <p className="mt-3 text-sm font-semibold text-foreground">
+                <p className="mt-3 text-sm font-semibold text-white">
                   <span className={adaptiveGradientText}>Adaptive QRC™</span> · Lunch Routing
                 </p>
-                <p className="mt-1 text-xs text-muted-foreground">
+                <p className="mt-1 text-xs text-white/70">
                   Routes by time, returning visitors, and admin IPs.
                 </p>
               </button>
@@ -5229,24 +5322,30 @@ const Index = () => {
         {activeTab === 'analytics' && (
           <section id="intel" className="space-y-6">
             <div className="relative">
-              <div className="space-y-6 blur-sm pointer-events-none select-none">
-                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="space-y-6">
+                <div className="flex flex-wrap items-start justify-between gap-2 sm:flex-nowrap sm:items-center">
                   <div>
                     <p className="text-xs uppercase tracking-[0.4em] text-muted-foreground">Intel</p>
                     <h2 className="text-3xl font-semibold tracking-tight">Live Intelligence</h2>
                   </div>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="outline" className="border-border text-xs uppercase tracking-[0.3em]">
-                        Export CSV
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="bg-card/95 border-border">
-                      <DropdownMenuItem onClick={() => handleExportCsv('day')}>Today</DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => handleExportCsv('week')}>This Week</DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => handleExportCsv('month')}>This Month</DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+                  <div className="relative ml-auto">
+                    <select
+                      defaultValue=""
+                      onChange={(event) => {
+                        const value = event.target.value as 'day' | 'week' | 'month' | '';
+                        if (!value) return;
+                        handleExportCsv(value);
+                        event.target.value = '';
+                      }}
+                      className="appearance-none rounded-xl border border-border bg-secondary/30 px-3 py-2 text-xs uppercase tracking-[0.3em] text-foreground pr-7 hover:bg-secondary/40"
+                    >
+                      <option value="" disabled>Export CSV</option>
+                      <option value="day">Today</option>
+                      <option value="week">This Week</option>
+                      <option value="month">This Month</option>
+                    </select>
+                    <ChevronDown className="pointer-events-none absolute right-2 top-1/2 h-3 w-3 -translate-y-1/2 text-muted-foreground" />
+                  </div>
                 </div>
 
                 <div className="grid lg:grid-cols-[1.2fr_0.8fr] gap-6">
@@ -5262,67 +5361,127 @@ const Index = () => {
                     <div className="rounded-2xl border border-border/60 bg-secondary/20 p-4 space-y-3">
                       <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Radar</p>
                       <div className="relative h-56 rounded-2xl border border-amber-300/30 bg-[radial-gradient(circle_at_center,rgba(251,191,36,0.12),rgba(17,24,39,0.9))] overflow-hidden">
+                        <img
+                          src="/map.svg"
+                          alt="World map outline"
+                          className="absolute inset-0 h-full w-full object-cover opacity-35"
+                          loading="lazy"
+                        />
+                        <MapDots areas={scanAreas} />
                         <div className="absolute inset-6 rounded-full border border-amber-200/30" />
                         <div className="absolute inset-12 rounded-full border border-amber-200/20" />
                         <div className="absolute inset-20 rounded-full border border-amber-200/10" />
                         <div className="absolute left-1/2 top-1/2 h-[140%] w-[140%] -translate-x-1/2 -translate-y-1/2 rounded-full border border-amber-300/10" />
                         <div className="absolute inset-0 radar-sweep" />
-                        {[
-                          { top: '30%', left: '20%' },
-                          { top: '60%', left: '62%' },
-                          { top: '45%', left: '78%' },
-                          { top: '72%', left: '38%' },
-                        ].map((ping, index) => (
-                          <div
-                            key={`${ping.top}-${ping.left}-${index}`}
-                            className="absolute h-3 w-3 rounded-full bg-amber-300 shadow-[0_0_16px_rgba(251,191,36,0.8)]"
-                            style={{ top: ping.top, left: ping.left }}
-                          />
-                        ))}
+                        {scanAreas.length === 0 &&
+                          [
+                            { top: '30%', left: '20%' },
+                            { top: '60%', left: '62%' },
+                            { top: '45%', left: '78%' },
+                            { top: '72%', left: '38%' },
+                          ].map((ping, index) => (
+                            <div
+                              key={`${ping.top}-${ping.left}-${index}`}
+                              className="absolute h-3 w-3 rounded-full bg-amber-300 shadow-[0_0_16px_rgba(251,191,36,0.8)]"
+                              style={{ top: ping.top, left: ping.left }}
+                            />
+                          ))}
                       </div>
                     </div>
 
-                    <div className="grid sm:grid-cols-3 gap-4">
-                      {[
-                        { label: 'Active Nodes', value: '12' },
-                        { label: 'Signals', value: '4.2k' },
-                        { label: 'Response Time', value: '0.8s' },
-                      ].map((item) => (
-                        <div key={item.label} className="rounded-xl border border-border/60 bg-secondary/30 p-4">
-                          <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">{item.label}</p>
-                          <p className="text-2xl font-semibold mt-2">{item.value}</p>
+                    <div className="grid grid-cols-3 gap-2 sm:gap-4">
+                      <button
+                        type="button"
+                        onClick={() => setActiveTab('codes')}
+                        className="rounded-xl border border-border/60 bg-secondary/30 p-3 sm:p-4 text-center transition hover:border-primary/60 hover:bg-secondary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
+                      >
+                        <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Active Nodes</p>
+                        <p className="text-lg sm:text-2xl font-semibold mt-2">{arsenalStats.total.toLocaleString()}</p>
+                      </button>
+                      <div
+                        ref={signalsCardRef}
+                        onClick={() => setIsSignalsMenuOpen((prev) => !prev)}
+                        role="button"
+                        tabIndex={0}
+                        onKeyDown={(event) => {
+                          if (event.key === 'Enter' || event.key === ' ') {
+                            event.preventDefault();
+                            setIsSignalsMenuOpen((prev) => !prev);
+                          }
+                        }}
+                        className="relative rounded-xl border border-border/60 bg-secondary/30 p-3 sm:p-4 text-center transition hover:border-primary/60 hover:bg-secondary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
+                      >
+                        <div className="flex items-center justify-center">
+                          <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Signals</p>
                         </div>
-                      ))}
+                        <p className="text-lg sm:text-2xl font-semibold mt-2">
+                          {intelLoading ? '...' : intelSummary.rangeTotal.toLocaleString()}
+                        </p>
+                        <p className="mt-2 text-[10px] uppercase tracking-[0.3em] text-muted-foreground">
+                          {intelRangeLabels[intelRange]}
+                        </p>
+                        {isSignalsMenuOpen && (
+                          <div className="absolute left-1/2 top-full z-20 mt-2 w-40 -translate-x-1/2 rounded-xl border border-border/80 bg-card/95 p-2 text-left shadow-lg">
+                            {(['today', '7d', '30d', 'all'] as const).map((range) => (
+                              <div
+                                key={range}
+                                role="button"
+                                tabIndex={0}
+                                onClick={() => {
+                                  setIntelRange(range);
+                                  setIsSignalsMenuOpen(false);
+                                }}
+                                onKeyDown={(event) => {
+                                  if (event.key === 'Enter' || event.key === ' ') {
+                                    event.preventDefault();
+                                    setIntelRange(range);
+                                    setIsSignalsMenuOpen(false);
+                                  }
+                                }}
+                                className="w-full rounded-lg px-2 py-1 text-xs uppercase tracking-[0.25em] text-muted-foreground transition hover:bg-secondary/50 hover:text-foreground"
+                              >
+                                {intelRangeLabels[range]}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                      <div className="rounded-xl border border-border/60 bg-secondary/30 p-3 sm:p-4 text-center">
+                        <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Response Time</p>
+                        <p className="text-lg sm:text-2xl font-semibold mt-2">
+                          {intelLoading
+                            ? '...'
+                            : intelSummary.avgResponseMs === null
+                              ? '0'
+                              : `${(intelSummary.avgResponseMs / 1000).toFixed(2)}s`}
+                        </p>
+                      </div>
                     </div>
 
                     <div className="grid sm:grid-cols-2 gap-4">
-                      <div className="rounded-xl border border-border/60 bg-secondary/30 p-4">
-                        <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Top Regions</p>
-                        <div className="mt-3 space-y-2 text-sm">
-                          <div className="flex items-center justify-between">
-                            <span>Frankfurt</span>
-                            <span className="text-primary">38%</span>
-                          </div>
-                          <div className="flex items-center justify-between">
-                            <span>Singapore</span>
-                            <span className="text-primary">24%</span>
-                          </div>
-                          <div className="flex items-center justify-between">
-                            <span>Dallas</span>
-                            <span className="text-primary">18%</span>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="rounded-xl border border-border/60 bg-secondary/30 p-4">
+                      <div className="rounded-xl border border-border/60 bg-secondary/30 p-4 sm:col-span-2 lg:col-span-2">
                         <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Signal Trends</p>
-                        <div className="mt-4 h-20 flex items-end gap-2">
-                          {[30, 50, 22, 60, 80, 45, 68].map((value, index) => (
-                            <div
-                              key={`${value}-${index}`}
-                              className="flex-1 rounded-full bg-gradient-to-t from-amber-300/20 to-amber-300/80"
-                              style={{ height: `${value}%` }}
-                            />
-                          ))}
+                        <div className="mt-4 h-24 flex items-end gap-2">
+                          {(intelTrends.length ? intelTrends : Array.from({ length: 7 }, () => ({ count: 0, date: '' }))).map((point, index, arr) => {
+                            const max = Math.max(1, ...arr.map((item) => item.count ?? 0));
+                            const height = Math.max(12, Math.round(((point.count ?? 0) / max) * 100));
+                            const label = point.date
+                              ? new Intl.DateTimeFormat('en-US', { weekday: 'short' }).format(new Date(point.date))
+                              : ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][index % 7];
+                            return (
+                              <div key={`${point.date}-${index}`} className="flex h-full flex-1 flex-col items-center">
+                                <div className="flex w-full flex-1 items-end">
+                                  <div
+                                    className="w-full rounded-md bg-gradient-to-t from-amber-300/20 to-amber-300/80"
+                                    style={{ height: `${height}%` }}
+                                  />
+                                </div>
+                                <span className="mt-2 text-[10px] uppercase tracking-[0.3em] text-muted-foreground">
+                                  {label}
+                                </span>
+                              </div>
+                            );
+                          })}
                         </div>
                       </div>
                     </div>
@@ -5346,15 +5505,21 @@ const Index = () => {
                         </div>
                       </div>
                     </div>
-
-                    <div className="glass-panel rounded-2xl p-6">
-                      <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">QR Preview</p>
-                      <div className="mt-4 flex justify-center">
-                        <QRPreview
-                          options={options}
-                          contentOverride={generatedContent || 'https://preview.qrcodestudio.app'}
-                          showCaption={false}
-                        />
+                    <div className="glass-panel rounded-2xl p-6 hidden lg:block">
+                      <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Top Regions</p>
+                      <div className="mt-3 space-y-2 text-sm">
+                        <div className="flex items-center justify-between">
+                          <span>Frankfurt</span>
+                          <span className="text-primary">38%</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span>Singapore</span>
+                          <span className="text-primary">24%</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span>Dallas</span>
+                          <span className="text-primary">18%</span>
+                        </div>
                       </div>
                     </div>
                   </div>
