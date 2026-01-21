@@ -172,6 +172,7 @@ const Index = () => {
   const [intelLoading, setIntelLoading] = useState(false);
   const [intelTrends, setIntelTrends] = useState<Array<{ date: string; count: number }>>([]);
   const [scanAreas, setScanAreas] = useState<ScanAreaSummary[]>([]);
+  const [radarLabel, setRadarLabel] = useState('LOOKING FOR SIGNALS');
   const [isSignalsMenuOpen, setIsSignalsMenuOpen] = useState(false);
   const signalsCardRef = useRef<HTMLDivElement>(null);
   const [arsenalRefreshKey, setArsenalRefreshKey] = useState(0);
@@ -596,6 +597,49 @@ const Index = () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
   }, [isSignalsMenuOpen]);
+
+  useEffect(() => {
+    const baseText = 'LOOKING FOR SIGNALS';
+    if (scanAreas.length > 0) {
+      setRadarLabel(baseText);
+      return;
+    }
+    let cancelled = false;
+    let flickerTimer: number | undefined;
+    let resetTimer: number | undefined;
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    const schedule = () => {
+      const delay = 840 + Math.random() * 1120;
+      flickerTimer = window.setTimeout(() => {
+        if (cancelled) return;
+        const indexes: number[] = [];
+        const count = Math.random() > 0.6 ? 2 : 1;
+        while (indexes.length < count) {
+          const idx = Math.floor(Math.random() * baseText.length);
+          if (baseText[idx] === ' ') continue;
+          if (!indexes.includes(idx)) indexes.push(idx);
+        }
+        const next = baseText
+          .split('')
+          .map((char, index) =>
+            indexes.includes(index) ? chars[Math.floor(Math.random() * chars.length)] : char
+          )
+          .join('');
+        setRadarLabel(next);
+        resetTimer = window.setTimeout(() => {
+          if (cancelled) return;
+          setRadarLabel(baseText);
+        }, 260);
+        schedule();
+      }, delay);
+    };
+    schedule();
+    return () => {
+      cancelled = true;
+      if (flickerTimer) window.clearTimeout(flickerTimer);
+      if (resetTimer) window.clearTimeout(resetTimer);
+    };
+  }, [scanAreas.length]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -5367,25 +5411,19 @@ const Index = () => {
                           className="absolute inset-0 h-full w-full object-cover opacity-35"
                           loading="lazy"
                         />
+                        {scanAreas.length === 0 ? (
+                          <div className="absolute inset-0 flex items-center justify-center">
+                            <div className="rounded-md border border-amber-300/40 bg-black/40 px-4 py-2 text-[10px] uppercase tracking-[0.5em] text-amber-200 font-semibold">
+                              {radarLabel}
+                            </div>
+                          </div>
+                        ) : null}
                         <MapDots areas={scanAreas} />
                         <div className="absolute inset-6 rounded-full border border-amber-200/30" />
                         <div className="absolute inset-12 rounded-full border border-amber-200/20" />
                         <div className="absolute inset-20 rounded-full border border-amber-200/10" />
                         <div className="absolute left-1/2 top-1/2 h-[140%] w-[140%] -translate-x-1/2 -translate-y-1/2 rounded-full border border-amber-300/10" />
                         <div className="absolute inset-0 radar-sweep" />
-                        {scanAreas.length === 0 &&
-                          [
-                            { top: '30%', left: '20%' },
-                            { top: '60%', left: '62%' },
-                            { top: '45%', left: '78%' },
-                            { top: '72%', left: '38%' },
-                          ].map((ping, index) => (
-                            <div
-                              key={`${ping.top}-${ping.left}-${index}`}
-                              className="absolute h-3 w-3 rounded-full bg-amber-300 shadow-[0_0_16px_rgba(251,191,36,0.8)]"
-                              style={{ top: ping.top, left: ping.left }}
-                            />
-                          ))}
                       </div>
                     </div>
 
@@ -5451,9 +5489,9 @@ const Index = () => {
                         <p className="text-lg sm:text-2xl font-semibold mt-2">
                           {intelLoading
                             ? '...'
-                            : intelSummary.avgResponseMs === null
-                              ? '0'
-                              : `${(intelSummary.avgResponseMs / 1000).toFixed(2)}s`}
+                            : Number.isFinite(intelSummary.avgResponseMs)
+                              ? `${(intelSummary.avgResponseMs! / 1000).toFixed(2)}s`
+                              : '0'}
                         </p>
                       </div>
                     </div>
