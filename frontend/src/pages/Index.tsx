@@ -79,6 +79,7 @@ const MAX_FILE_BYTES = 5 * 1024 * 1024;
 const MAX_MENU_FILE_BYTES = 2.5 * 1024 * 1024;
 const MAX_MENU_TOTAL_BYTES = 12 * 1024 * 1024;
 const MAX_MENU_FILES = 15;
+const MAX_VCARD_PHOTO_BYTES = 1.5 * 1024 * 1024;
 
 const Index = () => {
   const { user, loading: authLoading, signOut, signUp } = useAuth();
@@ -1507,17 +1508,24 @@ const Index = () => {
     const { data } = supabase.storage.from(QR_ASSETS_BUCKET).getPublicUrl(filePath);
     return data.publicUrl;
   };
-  const uploadVcardAsset = async (file: File, folder: 'logos' | 'photos') => {
+  const uploadVcardAsset = async (file: File, folder: 'logos' | 'photos', dataUrl?: string) => {
     if (!isSupabaseConfigured) {
       toast.error('Image storage is not configured yet.');
       return null;
     }
-    const extension = file.name.split('.').pop() || 'png';
+    const dataUrlMime = dataUrl?.match(/data:(.*?);base64/)?.[1];
+    const contentType = dataUrlMime || file.type;
+    const extension = dataUrlMime
+      ? dataUrlMime.includes('jpeg')
+        ? 'jpg'
+        : dataUrlMime.split('/')[1] || 'png'
+      : file.name.split('.').pop() || 'png';
     const fileName = `${crypto.randomUUID()}.${extension}`;
     const filePath = `vcard-assets/${folder}/${fileName}`;
+    const payload = dataUrl ? dataUrlToBlob(dataUrl) : file;
     const { error } = await supabase.storage
       .from(VCARD_ASSETS_BUCKET)
-      .upload(filePath, file, { upsert: true, contentType: file.type });
+      .upload(filePath, payload, { upsert: true, contentType });
     if (error) {
       toast.error('Failed to upload image.');
       return null;
@@ -1538,7 +1546,25 @@ const Index = () => {
   const handleVcardPhotoChange = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
-    const url = await uploadVcardAsset(file, 'photos');
+    event.target.value = '';
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please upload an image file.');
+      return;
+    }
+
+    const maxSizeMb = (MAX_VCARD_PHOTO_BYTES / (1024 * 1024)).toFixed(1);
+    let compressedDataUrl = '';
+    if (file.size > MAX_VCARD_PHOTO_BYTES) {
+      toast.info('Large photo detected. Compressing for your vCard...');
+      compressedDataUrl = await compressImageFile(file, { maxDimension: 1200, quality: 0.82 });
+      const compressedBlob = dataUrlToBlob(compressedDataUrl);
+      if (compressedBlob.size > MAX_VCARD_PHOTO_BYTES) {
+        toast.error(`Photo is too large. Please use an image under ${maxSizeMb} MB.`);
+        return;
+      }
+    }
+
+    const url = await uploadVcardAsset(file, 'photos', compressedDataUrl || undefined);
     if (!url) return;
     setVcardStyle((prev) => ({
       ...prev,
@@ -1547,7 +1573,6 @@ const Index = () => {
       photoX: 50,
       photoY: 50,
     }));
-    event.target.value = '';
   };
 
   const handlePhotoPointerDown = (event: PointerEvent<HTMLDivElement>) => {
@@ -1595,7 +1620,10 @@ const Index = () => {
     });
   };
 
-  const compressImageFile = async (file: File) => {
+  const compressImageFile = async (
+    file: File,
+    { maxDimension = 2000, quality = 0.85 }: { maxDimension?: number; quality?: number } = {}
+  ) => {
     const dataUrl = await readAsDataUrl(file);
     const image = new Image();
     await new Promise((resolve, reject) => {
@@ -1603,7 +1631,6 @@ const Index = () => {
       image.onerror = reject;
       image.src = dataUrl;
     });
-    const maxDimension = 2000;
     const scale = Math.min(1, maxDimension / Math.max(image.width, image.height));
     const canvas = document.createElement('canvas');
     canvas.width = Math.max(1, Math.round(image.width * scale));
@@ -1611,7 +1638,7 @@ const Index = () => {
     const ctx = canvas.getContext('2d');
     if (!ctx) return dataUrl;
     ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
-    return canvas.toDataURL('image/jpeg', 0.85);
+    return canvas.toDataURL('image/jpeg', quality);
   };
 
   const handleMenuLogoChange = async (event: ChangeEvent<HTMLInputElement>) => {

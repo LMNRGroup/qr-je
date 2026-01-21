@@ -919,8 +919,8 @@ export function ArsenalPanel({
                     </>
                   )}
                 </div>
-                  <div className="flex flex-wrap items-start gap-3">
-                    <div className="min-w-0 flex-1">
+                  <div className="space-y-2">
+                    <div className="min-w-0">
                       <p className="text-xs uppercase tracking-[0.35em] text-muted-foreground">
                         {t('Selected', 'Seleccionado')}
                       </p>
