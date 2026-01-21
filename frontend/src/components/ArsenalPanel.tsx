@@ -599,6 +599,67 @@ export function ArsenalPanel({
     onStatsChange({ total: items.length, dynamic: dynamicCount });
   }, [items, onStatsChange]);
 
+  useEffect(() => {
+    if (!isDesktop) return;
+    if (!pagedItems.length) return;
+
+    const isInteractiveTarget = (target: EventTarget | null) => {
+      if (!(target instanceof HTMLElement)) return false;
+      const tag = target.tagName.toLowerCase();
+      return (
+        tag === 'input' ||
+        tag === 'textarea' ||
+        tag === 'select' ||
+        target.isContentEditable
+      );
+    };
+
+    const getGridColumns = () => {
+      if (viewMode !== 'grid') return 1;
+      if (typeof window === 'undefined') return 1;
+      const width = window.innerWidth;
+      if (width >= 1536) return 4;
+      if (width >= 1280) return 3;
+      if (width >= 768) return 2;
+      return 1;
+    };
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (isInteractiveTarget(event.target)) return;
+      if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
+      if (event.key === 'Delete') {
+        if (!selectedId) return;
+        const selected = sortedItems.find((item) => item.id === selectedId);
+        if (selected) {
+          event.preventDefault();
+          setDeleteTarget(selected);
+        }
+        return;
+      }
+      const keys = ['ArrowRight', 'ArrowLeft', 'ArrowUp', 'ArrowDown'];
+      if (!keys.includes(event.key)) return;
+
+      const currentIndex = pagedItems.findIndex((item) => item.id === selectedId);
+      const startIndex = currentIndex >= 0 ? currentIndex : 0;
+      const cols = getGridColumns();
+      let nextIndex = startIndex;
+
+      if (event.key === 'ArrowRight') nextIndex = startIndex + 1;
+      if (event.key === 'ArrowLeft') nextIndex = startIndex - 1;
+      if (event.key === 'ArrowDown') nextIndex = startIndex + cols;
+      if (event.key === 'ArrowUp') nextIndex = startIndex - cols;
+
+      nextIndex = Math.max(0, Math.min(pagedItems.length - 1, nextIndex));
+      if (nextIndex !== startIndex) {
+        event.preventDefault();
+        applySelection(pagedItems[nextIndex]);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isDesktop, pagedItems, selectedId, sortedItems, viewMode]);
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -794,7 +855,7 @@ export function ArsenalPanel({
                               {renderCardBadge(item)}
                             </div>
                           </div>
-                          {(isDesktop || viewMode === 'grid') && (
+                          {!isDesktop && (
                             <div
                               className={`shrink-0 border overflow-hidden ${
                                 isMobile ? 'rounded-lg p-0.5' : 'rounded-xl p-1'
