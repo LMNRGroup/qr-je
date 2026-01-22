@@ -19,6 +19,7 @@ export function UserMenu({ trigger }: { trigger?: React.ReactNode }) {
   const [userFeed, setUserFeed] = useState<Array<{ id: string; message: string; createdAt: number }>>([]);
   const [dismissedSystemIds, setDismissedSystemIds] = useState<Set<string>>(new Set());
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [lastSeenAt, setLastSeenAt] = useState(0);
 
   const systemNotifications = useMemo(
     () => [
@@ -48,6 +49,9 @@ export function UserMenu({ trigger }: { trigger?: React.ReactNode }) {
   useEffect(() => {
     if (!user?.id) return;
     setDismissedSystemIds(new Set());
+    const key = `qrc.feed.seen.${user.id}`;
+    const stored = window.localStorage.getItem(key);
+    setLastSeenAt(stored ? Number(stored) : 0);
   }, [user?.id]);
 
   useEffect(() => {
@@ -89,7 +93,18 @@ export function UserMenu({ trigger }: { trigger?: React.ReactNode }) {
     .slice()
     .sort((a, b) => b.createdAt - a.createdAt)
     .slice(0, Math.max(0, 5 - visibleSystem.length));
+  const latestNotificationAt = useMemo(() => {
+    const systemLatest = systemNotifications.reduce((max, note) => Math.max(max, note.createdAt), 0);
+    const userLatest = userFeed.reduce((max, note) => Math.max(max, note.createdAt), 0);
+    return Math.max(systemLatest, userLatest);
+  }, [systemNotifications, userFeed]);
   const hasNotifications = visibleSystem.length + visibleUser.length > 0;
+  const hasUnread = latestNotificationAt > lastSeenAt;
+  const markFeedSeen = () => {
+    if (!user?.id) return;
+    setLastSeenAt(latestNotificationAt);
+    window.localStorage.setItem(`qrc.feed.seen.${user.id}`, String(latestNotificationAt));
+  };
 
   const handleClearFeed = () => {
     if (typeof window === 'undefined') return;
@@ -130,7 +145,9 @@ export function UserMenu({ trigger }: { trigger?: React.ReactNode }) {
       variant="ghost"
       size="icon"
       className={`h-9 w-9 rounded-full border border-border bg-secondary/50 hover:bg-secondary ${
-        hasNotifications ? 'ring-2 ring-amber-300/80 shadow-[0_0_16px_rgba(251,191,36,0.6)] animate-pulse' : ''
+        hasNotifications && hasUnread
+          ? 'ring-2 ring-amber-300/80 shadow-[0_0_16px_rgba(251,191,36,0.6)] animate-pulse'
+          : ''
       }`}
     >
       <User className="h-4 w-4" />
@@ -139,7 +156,7 @@ export function UserMenu({ trigger }: { trigger?: React.ReactNode }) {
   const triggerNode = trigger && isValidElement(trigger)
     ? cloneElement(trigger, {
         className: `${trigger.props.className ?? ''} ${
-          hasNotifications
+          hasNotifications && hasUnread
             ? 'ring-2 ring-amber-300/80 shadow-[0_0_16px_rgba(251,191,36,0.6)] animate-pulse'
             : ''
         }`.trim(),
@@ -147,7 +164,9 @@ export function UserMenu({ trigger }: { trigger?: React.ReactNode }) {
     : defaultTrigger;
 
   return (
-    <DropdownMenu>
+    <DropdownMenu onOpenChange={(open) => {
+      if (open) markFeedSeen();
+    }}>
       <DropdownMenuTrigger asChild>
         {triggerNode}
       </DropdownMenuTrigger>

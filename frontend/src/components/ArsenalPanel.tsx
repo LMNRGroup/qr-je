@@ -610,6 +610,26 @@ export function ArsenalPanel({
     }
   };
 
+  const handleShare = async () => {
+    if (!selectedItem) return;
+    const shareUrl = selectedItem.shortUrl ?? selectedItem.content;
+    const shareTitle = getDisplayName(selectedItem, sortedItems);
+    try {
+      if (navigator.share) {
+        await navigator.share({
+          title: shareTitle,
+          text: shareTitle,
+          url: shareUrl,
+        });
+        return;
+      }
+      await navigator.clipboard.writeText(shareUrl);
+      toast.success('Link copied');
+    } catch {
+      toast.error('Failed to share link');
+    }
+  };
+
   const handleDownload = async (format: 'png' | 'svg' | 'jpeg' | 'pdf') => {
     if (!previewRef.current) return;
     try {
@@ -802,7 +822,7 @@ export function ArsenalPanel({
             size="icon"
             variant="outline"
             className="group relative border-border"
-            onClick={handleCopy}
+            onClick={handleShare}
           >
             <Copy className="h-4 w-4" />
             <span className="pointer-events-none absolute -bottom-6 left-1/2 -translate-x-1/2 text-[10px] uppercase tracking-[0.35em] text-muted-foreground opacity-0 transition group-hover:opacity-100">
@@ -1136,7 +1156,7 @@ export function ArsenalPanel({
         </div>
       ) : (
         <div className="grid gap-6 lg:grid-cols-[1.4fr_0.6fr]">
-          <div className="glass-panel rounded-2xl p-4">
+          <div className="glass-panel rounded-2xl p-4 min-w-0 max-w-full">
             <ScrollArea
               ref={(node) => {
                 if (!node) return;
@@ -1144,17 +1164,17 @@ export function ArsenalPanel({
               }}
               className={
                 isDesktop
-                  ? 'h-auto max-h-none'
+                  ? 'h-auto max-h-none w-full max-w-full min-w-0 overflow-x-hidden'
                   : `h-[calc(100dvh-260px)] sm:h-[calc(100dvh-320px)] ${
-                      isMobileV2 ? 'qrc-arsenal-scroll qrc-no-scroll-x max-w-full' : ''
+                      isMobileV2 ? 'qrc-arsenal-scroll qrc-no-scroll-x max-w-full' : 'max-w-full'
                     }`
               }
             >
               <div
                 className={
                   viewMode === 'grid'
-                    ? 'grid gap-4 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 auto-rows-fr'
-                    : `space-y-2 w-full max-w-full ${isMobileV2 ? 'qrc-arsenal-list' : ''}`
+                    ? 'grid gap-4 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 auto-rows-fr min-w-0 max-w-full overflow-x-hidden'
+                    : `space-y-2 w-full max-w-full min-w-0 overflow-x-hidden ${isMobileV2 ? 'qrc-arsenal-list' : ''}`
                 }
               >
                 {pagedItems.map((item) => {
@@ -1260,11 +1280,13 @@ export function ArsenalPanel({
                                 {item.content}
                               </p>
                             </div>
-                            <div
-                              className={`flex items-center justify-end gap-2 text-[9px] uppercase tracking-[0.3em] shrink-0 ${
-                                isMobileV2 ? 'flex-wrap max-w-full min-w-0' : 'flex-nowrap max-w-[45%] overflow-hidden'
-                              }`}
-                            >
+                          <div
+                            className={`flex items-center justify-end gap-2 text-[9px] uppercase tracking-[0.3em] ${
+                              isMobileV2
+                                ? 'flex-wrap max-w-full min-w-0'
+                                : 'flex-wrap max-w-[45%] min-w-0 overflow-hidden'
+                            }`}
+                          >
                               <span
                                 className={`inline-flex min-w-0 items-center gap-2 rounded-full border px-2.5 py-0.5 ${modeMeta.badge}`}
                               >
@@ -1381,14 +1403,14 @@ export function ArsenalPanel({
                           </div>
                         )
                       ) : (
-                        <div className="flex items-center justify-between gap-3">
+                        <div className="flex items-center justify-between gap-3 min-w-0 w-full overflow-hidden">
                           <div className="space-y-2 min-w-0 flex-1">
                             <p className="text-sm font-semibold truncate" title={displayName}>
                               {displayName}
                             </p>
                             <p className="text-xs text-muted-foreground truncate">{item.content}</p>
                           </div>
-                          <div className="flex items-center justify-end gap-2 shrink-0 flex-nowrap">
+                          <div className="flex items-center justify-end gap-2 min-w-0 flex-wrap overflow-hidden">
                             {renderCardBadge(item)}
                             {renderScanCount(item)}
                           </div>
@@ -1469,7 +1491,7 @@ export function ArsenalPanel({
                     size="icon"
                     variant="outline"
                     className="group relative border-border"
-                    onClick={handleCopy}
+                    onClick={handleShare}
                   >
                     <Copy className="h-4 w-4" />
                     <span className="pointer-events-none absolute -bottom-6 left-1/2 -translate-x-1/2 text-[10px] uppercase tracking-[0.35em] text-muted-foreground opacity-0 transition group-hover:opacity-100">

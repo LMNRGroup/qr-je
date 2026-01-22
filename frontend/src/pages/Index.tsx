@@ -220,6 +220,7 @@ const Index = () => {
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [pendingCreateScroll, setPendingCreateScroll] = useState(false);
   const [accountLoading, setAccountLoading] = useState(false);
+  const [uiErrorBadge, setUiErrorBadge] = useState<{ code: string; message: string } | null>(null);
   const [accountForm, setAccountForm] = useState({
     username: '',
     fullName: '',
@@ -228,6 +229,34 @@ const Index = () => {
   });
   const isSpanish = profileForm.language === 'es';
   const t = (en: string, es: string) => (isSpanish ? es : en);
+
+  const normalizeUiErrorMessage = (value: unknown) => {
+    if (typeof value === 'string') return value;
+    if (value instanceof Error) return value.message || 'Unexpected error';
+    if (value && typeof value === 'object' && 'message' in value) {
+      const message = (value as { message?: unknown }).message;
+      if (typeof message === 'string') return message;
+    }
+    return 'Unexpected error';
+  };
+
+  const getUiErrorCode = useCallback((source: 'error' | 'rejection' | 'custom', message: string) => {
+    const lowered = message.toLowerCase();
+    if (lowered.includes('failed to fetch') || lowered.includes('network') || lowered.includes('offline')) {
+      return 'NET-001';
+    }
+    if (lowered.includes('timeout')) return 'NET-002';
+    if (lowered.includes('not found') || lowered.includes('404')) return 'API-404';
+    if (lowered.includes('unauthorized') || lowered.includes('401')) return 'AUTH-401';
+    if (lowered.includes('forbidden') || lowered.includes('403')) return 'AUTH-403';
+    return source === 'rejection' ? 'APP-REJ' : source === 'custom' ? 'APP-CUS' : 'APP-ERR';
+  }, []);
+
+  const pushUiErrorBadge = useCallback((source: 'error' | 'rejection' | 'custom', value: unknown) => {
+    const message = normalizeUiErrorMessage(value).slice(0, 140);
+    const code = getUiErrorCode(source, message);
+    setUiErrorBadge({ code, message });
+  }, [getUiErrorCode]);
 
   const actionRingIcons = useMemo(
     () => ({
@@ -485,15 +514,19 @@ const Index = () => {
   const refreshArsenalStats = useCallback(async () => {
     if (!isSessionReady) {
       setArsenalStats({ total: 0, dynamic: 0 });
+      setScanStats({ total: 0 });
       return;
     }
     try {
-      const response = await getQRHistory();
+      const [response, summary] = await Promise.all([getQRHistory(), getScanSummary('all')]);
       if (response.success) {
         const dynamicCount = response.data.filter(
           (item) => parseKind(item.kind ?? null).mode === 'dynamic'
         ).length;
         setArsenalStats({ total: response.data.length, dynamic: dynamicCount });
+      }
+      if (Number.isFinite(summary.total)) {
+        setScanStats({ total: summary.total });
       }
     } catch {
       // ignore stats errors
@@ -2029,6 +2062,10 @@ const Index = () => {
     'bg-gradient-to-r from-amber-200 via-yellow-400 to-amber-500 text-transparent bg-clip-text';
   const adaptiveGlowText = 'font-semibold text-transparent bg-clip-text bg-gradient-to-r from-amber-200 via-yellow-400 to-amber-500 drop-shadow-[0_0_10px_rgba(251,191,36,0.35)]';
   const isAndroid = typeof navigator !== 'undefined' && /android/i.test(navigator.userAgent);
+  const isStandalone =
+    typeof window !== 'undefined' &&
+    (window.matchMedia?.('(display-mode: standalone)').matches ||
+      (window.navigator as Navigator & { standalone?: boolean }).standalone);
   const dialDragSensitivity = isAndroid ? 1.25 : 0.6;
   const dialMomentumThreshold = isAndroid ? 0.08 : 0.12;
   const usernameCooldownUntil = userProfile?.usernameChangedAt
@@ -2555,7 +2592,10 @@ const Index = () => {
   const showMobileCreateFlow = isMobile && Boolean(selectedQuickAction || qrType);
   const showStudioIntro = !isMobile || !showMobileCreateFlow;
   const showCreateSection = !isMobile || showMobileCreateFlow;
-  const showMobileCustomize = !isMobile || mobileCustomizeStep || (isMobileV2 && mobileStudioStep === 4);
+  const effectiveMobileStudioStep =
+    isMobileV2 && selectedQuickAction ? Math.max(mobileStudioStep, 2) : mobileStudioStep;
+  const showMobileCustomize =
+    !isMobile || mobileCustomizeStep || (isMobileV2 && effectiveMobileStudioStep === 4);
   const getQrTypeIcon = () => {
     switch (qrType) {
       case 'website':
@@ -2584,8 +2624,10 @@ const Index = () => {
   useEffect(() => {
     if (!isMobileV2) return;
     if (!hasSelectedMode) {
-      if (selectedQuickAction && mobileStudioStep === 1) {
-        setMobileStudioStep(2);
+      if (selectedQuickAction) {
+        if (mobileStudioStep < 2) {
+          setMobileStudioStep(2);
+        }
         return;
       }
       if (mobileStudioStep > 1) {
@@ -2600,6 +2642,69 @@ const Index = () => {
       return;
     }
   }, [hasSelectedMode, hasSelectedType, isMobileV2, mobileStudioStep, selectedQuickAction]);
+
+  useEffect(() => {
+    if (!isMobile || !isStandalone) return;
+    let startY = 0;
+    let isPulling = false;
+    const threshold = 80;
+    const getScrollTop = () =>
+      window.scrollY || document.documentElement.scrollTop || document.body.scrollTop || 0;
+
+    const handleTouchStart = (event: TouchEvent) => {
+      if (getScrollTop() > 0) return;
+      startY = event.touches[0]?.clientY ?? 0;
+      isPulling = true;
+    };
+
+    const handleTouchMove = (event: TouchEvent) => {
+      if (!isPulling) return;
+      const currentY = event.touches[0]?.clientY ?? 0;
+      const delta = currentY - startY;
+      if (delta > threshold) {
+        isPulling = false;
+        window.location.reload();
+      }
+    };
+
+    const handleTouchEnd = () => {
+      isPulling = false;
+    };
+
+    window.addEventListener('touchstart', handleTouchStart, { passive: true });
+    window.addEventListener('touchmove', handleTouchMove, { passive: true });
+    window.addEventListener('touchend', handleTouchEnd, { passive: true });
+    return () => {
+      window.removeEventListener('touchstart', handleTouchStart);
+      window.removeEventListener('touchmove', handleTouchMove);
+      window.removeEventListener('touchend', handleTouchEnd);
+    };
+  }, [isMobile, isStandalone]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const handleError = (event: ErrorEvent) => {
+      pushUiErrorBadge('error', event.error ?? event.message);
+    };
+    const handleRejection = (event: PromiseRejectionEvent) => {
+      pushUiErrorBadge('rejection', event.reason);
+    };
+    const handleCustom = (event: Event) => {
+      const detail = (event as CustomEvent<{ code?: string; message?: string }>).detail;
+      if (!detail) return;
+      const message = detail.message || 'Unexpected error';
+      const code = detail.code || getUiErrorCode('custom', message);
+      setUiErrorBadge({ code, message: message.slice(0, 140) });
+    };
+    window.addEventListener('error', handleError);
+    window.addEventListener('unhandledrejection', handleRejection);
+    window.addEventListener('qrc:ui-error', handleCustom as EventListener);
+    return () => {
+      window.removeEventListener('error', handleError);
+      window.removeEventListener('unhandledrejection', handleRejection);
+      window.removeEventListener('qrc:ui-error', handleCustom as EventListener);
+    };
+  }, [getUiErrorCode, pushUiErrorBadge]);
   const fgColorPresets = [
     '#2B2B2B',
     '#D4AF37',
@@ -4568,6 +4673,27 @@ const Index = () => {
         </div>
       )}
 
+      {uiErrorBadge && (
+        <div className="fixed top-3 right-3 z-[95] max-w-[92vw] rounded-2xl border border-amber-300/60 bg-black/80 px-4 py-3 text-amber-100 shadow-[0_0_18px_rgba(251,191,36,0.35)] backdrop-blur">
+          <div className="flex items-start justify-between gap-3">
+            <div className="space-y-1">
+              <p className="text-[10px] uppercase tracking-[0.4em] text-amber-200/90">
+                Error {uiErrorBadge.code}
+              </p>
+              <p className="text-xs leading-snug text-amber-50/90">{uiErrorBadge.message}</p>
+            </div>
+            <button
+              type="button"
+              className="text-xs uppercase tracking-[0.3em] text-amber-200/80 hover:text-amber-100"
+              onClick={() => setUiErrorBadge(null)}
+              aria-label="Dismiss error badge"
+            >
+              x
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Main Content */}
       <main
         className={`container mx-auto px-4 py-3 sm:py-6 lg:py-8 transition ${
@@ -4669,7 +4795,7 @@ const Index = () => {
 
         {showStudioIntro && (
         <section id="studio" className={`mt-4 space-y-4 border-t border-border/50 pt-4 sm:space-y-5 lg:mt-0 lg:border-0 lg:pt-0 lg:space-y-8 ${isMobileV2 ? 'qrc-v2-section' : ''}`}>
-          <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 sm:gap-5 lg:gap-6">
+          <div className="flex items-center justify-between gap-4 sm:gap-5 lg:gap-6">
             <div>
               <p className="text-xs uppercase tracking-[0.4em] text-muted-foreground">Studio</p>
               <h2 className="text-2xl sm:text-3xl font-semibold tracking-tight">Creative Workspace</h2>
@@ -4930,7 +5056,7 @@ const Index = () => {
           ref={createSectionRef}
           id="create"
           className={`mt-8 lg:mt-14 ${isMobileV2 ? 'qrc-v2-section' : ''}`}
-          data-mobile-step-current={isMobileV2 ? mobileStudioStep : undefined}
+          data-mobile-step-current={isMobileV2 ? effectiveMobileStudioStep : undefined}
         >
           {isMobile && showMobileCreateFlow && (
             <button
@@ -4962,16 +5088,20 @@ const Index = () => {
                 <button
                   key={step}
                   type="button"
+                  disabled={step === 1 && Boolean(selectedQuickAction)}
                   onClick={() => {
                     if (step === 1) {
+                      if (selectedQuickAction) return;
                       setSelectedQuickAction(null);
                       setQrType(null);
                     }
                     setMobileStudioStep(step as 1 | 2 | 3 | 4);
                   }}
                   className={`rounded-xl border px-2 py-2 ${
-                    mobileStudioStep === step ? 'border-primary/60 text-primary' : 'border-border/60'
-                  }`}
+                    effectiveMobileStudioStep === step
+                      ? 'border-primary/60 text-primary'
+                      : 'border-border/60'
+                  } ${step === 1 && selectedQuickAction ? 'cursor-not-allowed opacity-60' : ''}`}
                 >
                   <span className="flex items-center justify-center gap-1 text-[10px] uppercase tracking-[0.2em]">
                     <span className="font-semibold">{step}</span>
@@ -4988,7 +5118,7 @@ const Index = () => {
           <div className="grid lg:grid-cols-[1fr_400px] gap-8">
             {/* Left Panel - Input & Preview */}
             <div className="space-y-6">
-              {isMobileV2 && mobileStudioStep === 1 && (
+              {isMobileV2 && effectiveMobileStudioStep === 1 && (
                 <div data-mobile-step="1" className="glass-panel rounded-2xl p-6 space-y-3">
                   <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Step 1 · Quick Actions</p>
                   <p className="text-sm text-muted-foreground">
@@ -5871,7 +6001,11 @@ const Index = () => {
               <ArsenalPanel
                 refreshKey={arsenalRefreshKey}
                 onStatsChange={setArsenalStats}
-                onScansChange={(total) => setScanStats({ total })}
+                onScansChange={(total) =>
+                  setScanStats((prev) => ({
+                    total: total > 0 ? Math.max(prev.total, total) : prev.total,
+                  }))
+                }
                 onRefreshRequest={() => setArsenalRefreshKey((prev) => prev + 1)}
                 language={(userProfile?.language ?? profileForm.language) as 'en' | 'es'}
                 timeZone={userProfile?.timezone || profileForm.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone}
