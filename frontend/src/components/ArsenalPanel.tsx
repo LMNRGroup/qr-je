@@ -432,7 +432,6 @@ export function ArsenalPanel({
     if (!items.length) return;
     let interval: number | undefined;
     const pollScans = () => {
-      if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return;
       loadScanCounts(items, false);
     };
     pollScans();
@@ -683,11 +682,12 @@ export function ArsenalPanel({
 
   const getScanCountValue = (item: QRHistoryItem) => scanCounts[item.id] ?? 0;
 
-  const renderScanCount = (item: QRHistoryItem) => {
+  const renderScanCount = (item: QRHistoryItem, size: 'sm' | 'md' = 'md') => {
     const count = getScanCountValue(item);
+    const sizeClass = size === 'sm' ? 'text-base' : 'text-xl';
     return (
-      <span className="inline-flex min-w-0 items-center gap-2 rounded-full border border-border/60 bg-secondary/40 px-3 py-1 text-[10px] uppercase tracking-[0.3em] text-muted-foreground max-w-full">
-        <span className="truncate">{t('Scans', 'Escaneos')} {count}</span>
+      <span className={`min-w-[40px] text-right font-semibold tabular-nums ${sizeClass}`}>
+        {count}
       </span>
     );
   };
@@ -1242,29 +1242,20 @@ export function ArsenalPanel({
                       {isMobileList ? (
                         isMobileV2 ? (
                           <div className="flex flex-col gap-2 min-w-0 w-full overflow-hidden">
-                            <div className="flex items-center gap-3 min-w-0">
-                              <div className="min-w-0 flex-1 space-y-1">
-                                <p
-                                  className="text-[13px] font-semibold leading-snug max-h-[2.6em] overflow-hidden"
-                                  title={displayName}
-                                >
-                                  {displayName}
-                                </p>
-                                <p className="text-[11px] text-muted-foreground truncate max-w-full">
-                                  {item.content}
-                                </p>
-                              </div>
-                              <div className={`shrink-0 border overflow-hidden rounded-lg p-0.5 ${modeMeta.card}`}>
-                                <QRPreview
-                                  options={{ ...cardOptions, size: 56 }}
-                                  showCaption={false}
-                                  innerPadding={4}
-                                />
-                              </div>
+                            <div className="min-w-0 space-y-1">
+                              <p
+                                className="text-[13px] font-semibold leading-snug max-h-[2.6em] overflow-hidden"
+                                title={displayName}
+                              >
+                                {displayName}
+                              </p>
+                              <p className="text-[11px] text-muted-foreground truncate max-w-full">
+                                {item.content}
+                              </p>
                             </div>
-                            <div className="grid grid-cols-3 gap-2 text-[8px] uppercase tracking-[0.25em] min-w-0">
+                            <div className="grid grid-cols-3 items-center gap-2 min-w-0">
                               <span
-                                className={`inline-flex min-w-0 items-center justify-center gap-1 rounded-full border px-2 py-0.5 ${modeMeta.badge}`}
+                                className={`inline-flex min-w-0 items-center justify-center gap-1 rounded-full border px-2 py-0.5 text-[9px] uppercase tracking-[0.25em] ${modeMeta.badge}`}
                               >
                                 {parsed.mode === 'dynamic' ? (
                                   <Zap className="h-3 w-3" />
@@ -1276,13 +1267,13 @@ export function ArsenalPanel({
                                 </span>
                               </span>
                               <span
-                                className={`inline-flex min-w-0 items-center justify-center gap-1 rounded-full border px-2 py-0.5 ${typeMeta.badge}`}
+                                className={`inline-flex min-w-0 items-center justify-center gap-1 rounded-full border px-2 py-0.5 text-[9px] uppercase tracking-[0.25em] ${typeMeta.badge}`}
                               >
                                 <span className="truncate">{typeMeta.label}</span>
                               </span>
-                              <span className="inline-flex min-w-0 items-center justify-center rounded-full border border-border/60 bg-secondary/40 px-2 py-0.5 text-[8px] uppercase tracking-[0.25em] text-muted-foreground">
-                                <span className="truncate">{t('Scans', 'Escaneos')} {getScanCountValue(item)}</span>
-                              </span>
+                              <div className="flex justify-end">
+                                {renderScanCount(item, 'md')}
+                              </div>
                             </div>
                           </div>
                         ) : (

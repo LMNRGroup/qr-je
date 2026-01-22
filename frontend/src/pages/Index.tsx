@@ -223,6 +223,8 @@ const Index = () => {
   const [accountLoading, setAccountLoading] = useState(false);
   const [uiErrorBadge, setUiErrorBadge] = useState<{ code: string; message: string } | null>(null);
   const [pullRefreshState, setPullRefreshState] = useState({ visible: false, progress: 0, ready: false });
+  const [stageOverlayOpen, setStageOverlayOpen] = useState(false);
+  const [activeStageId, setActiveStageId] = useState<'stage1' | 'stage2' | 'stage3'>('stage1');
   const [accountForm, setAccountForm] = useState({
     username: '',
     fullName: '',
@@ -238,6 +240,51 @@ const Index = () => {
     }),
     [options]
   );
+  const productionStages = useMemo(
+    () => [
+      {
+        id: 'stage1' as const,
+        label: 'Stage 1 · Friends & Family',
+        title: 'FRIENDS & FAMILY',
+        description:
+          'This is where it all starts.\n\n' +
+          'Right now, this app is being shared only with friends, family, and people we trust enough to be honest with us.\n\n' +
+          'Things may change, break, improve, or evolve quickly — and that’s intentional.\n\n' +
+          'If you’re here at this stage, it means you’re not just using the app…\n' +
+          'you’re helping shape it.\n\n' +
+          'Seriously — thank you for being part of the beginning 🤍',
+      },
+      {
+        id: 'stage2' as const,
+        label: 'Stage 2 · MVP (Word of Mouth)',
+        title: 'MVP · Word of Mouth',
+        description:
+          'Okay… now things start getting interesting.\n\n' +
+          'At this stage, we’re officially live in the wild.\n' +
+          'People are sharing the app, talking about it, and probably telling their friends way more than we expected.\n\n' +
+          'We assume at this point you’ve already said something like:\n' +
+          '“Bro, you HAVE to check this out.”\n\n' +
+          'This is where analytics really start to matter, features get sharper, and feedback comes in hot.\n\n' +
+          'It’s still an MVP — but a dangerous one 😏',
+      },
+      {
+        id: 'stage3' as const,
+        label: 'Stage 3 · DE PUERTO RICO PA’L MUNDO',
+        title: 'DE PUERTO RICO PA’L MUNDO 🇵🇷🌍',
+        description:
+          'This is it.\n\n' +
+          'No more “early.” No more “testing.”\n\n' +
+          'We’re going FULL SEND.\n\n' +
+          'The product is solid, the systems are ready, and the app is built to scale — globally.\n\n' +
+          'What started small is now moving fast, reaching creators, businesses, and teams everywhere.\n\n' +
+          'Built with love, pressure, and long nights.\n\n' +
+          'DE PUERTO RICO PA’L MUNDO.\n\n' +
+          'Let’s go. 🚀',
+      },
+    ],
+    []
+  );
+  const activeStage = productionStages.find((stage) => stage.id === activeStageId) ?? productionStages[0];
 
   const normalizeUiErrorMessage = (value: unknown) => {
     if (typeof value === 'string') return value;
@@ -824,7 +871,7 @@ const Index = () => {
     isNewAccountRef.current = isNewAccount;
     if (!wasWelcomed && isNewAccount) {
       setWelcomeHeadline(`Yo ${displayName}!`);
-      setWelcomeSubline('Not everyone makes great decisions… but today you did.\nWelcome to QRC Studio.');
+    setWelcomeSubline('Not everyone makes great decisions… but today you did.\nWelcome to QR Code Studio.');
       localStorage.setItem(firstLoginKey, 'true');
       welcomeTourReadyRef.current = true;
     } else {
@@ -1195,6 +1242,11 @@ const Index = () => {
         setHasGenerated(true);
         setArsenalRefreshKey((prev) => prev + 1);
         setShowGenerateSuccess(true);
+        resetCreateFlow();
+        setMobileCustomizeStep(false);
+        if (isMobileV2) {
+          setMobileStudioStep(1);
+        }
       } else {
         toast.error('Failed to generate QR code');
       }
@@ -2665,7 +2717,9 @@ const Index = () => {
     if (!isMobile || !isStandalone) return;
     let startY = 0;
     let isPulling = false;
+    let isReady = false;
     const threshold = 80;
+    const revealOffset = 16;
     const getScrollTop = () =>
       window.scrollY || document.documentElement.scrollTop || document.body.scrollTop || 0;
 
@@ -2673,24 +2727,28 @@ const Index = () => {
       if (getScrollTop() > 0) return;
       startY = event.touches[0]?.clientY ?? 0;
       isPulling = true;
-      setPullRefreshState({ visible: true, progress: 0, ready: false });
+      isReady = false;
     };
 
     const handleTouchMove = (event: TouchEvent) => {
       if (!isPulling) return;
       const currentY = event.touches[0]?.clientY ?? 0;
       const delta = currentY - startY;
-      const progress = Math.min(1, Math.max(0, delta / threshold));
-      const ready = delta > threshold;
-      setPullRefreshState({ visible: true, progress, ready });
-      if (delta > threshold) {
-        isPulling = false;
-        window.location.reload();
+      if (delta <= revealOffset) {
+        setPullRefreshState({ visible: false, progress: 0, ready: false });
+        return;
       }
+      const progress = Math.min(1, Math.max(0, delta / threshold));
+      isReady = delta > threshold;
+      setPullRefreshState({ visible: true, progress, ready: isReady });
     };
 
     const handleTouchEnd = () => {
+      if (isPulling && isReady) {
+        window.location.reload();
+      }
       isPulling = false;
+      isReady = false;
       setPullRefreshState({ visible: false, progress: 0, ready: false });
     };
 
@@ -3108,6 +3166,49 @@ const Index = () => {
               </span>
             </div>
             <p className="text-xs uppercase tracking-[0.4em] text-muted-foreground">Sending to Arsenal</p>
+          </div>
+        </div>
+      )}
+
+      {stageOverlayOpen && (
+        <div className="fixed inset-0 z-[92] flex items-center justify-center bg-background/80 backdrop-blur-sm px-4">
+          <div className="glass-panel w-full max-w-3xl rounded-2xl p-6 space-y-4">
+            <div className="flex items-center justify-between">
+              <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Production Stages</p>
+              <button
+                type="button"
+                className="text-xs uppercase tracking-[0.3em] text-primary"
+                onClick={() => setStageOverlayOpen(false)}
+              >
+                Close
+              </button>
+            </div>
+            <div className="grid gap-4 sm:grid-cols-[220px_1fr]">
+              <div className="space-y-2">
+                {productionStages.map((stage) => (
+                  <button
+                    key={stage.id}
+                    type="button"
+                    onClick={() => setActiveStageId(stage.id)}
+                    className={`w-full rounded-xl border px-3 py-2 text-left text-xs uppercase tracking-[0.2em] transition ${
+                      activeStageId === stage.id
+                        ? 'border-amber-300/80 bg-amber-300/15 text-amber-200'
+                        : 'border-border/60 text-muted-foreground hover:border-amber-300/60 hover:text-foreground'
+                    }`}
+                  >
+                    {stage.label}
+                  </button>
+                ))}
+              </div>
+              <div className="rounded-xl border border-border/60 bg-secondary/20 p-4">
+                <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">
+                  {activeStage.title}
+                </p>
+                <p className="mt-3 text-sm text-foreground/90 whitespace-pre-line">
+                  {activeStage.description}
+                </p>
+              </div>
+            </div>
           </div>
         </div>
       )}
@@ -4442,7 +4543,7 @@ const Index = () => {
           >
             <img
               src="/assets/QRC Studio Logo Button.png"
-              alt="Open QRC Studio navigation"
+              alt="Open QR Code Studio navigation"
               className="h-14 w-14"
               loading="lazy"
             />
@@ -4873,6 +4974,13 @@ const Index = () => {
               </button>
             )}
           </div>
+          <button
+            type="button"
+            onClick={() => setStageOverlayOpen(true)}
+            className="w-full rounded-xl border border-amber-300/60 bg-amber-200/20 px-4 py-2 text-center text-[10px] uppercase tracking-[0.35em] text-amber-200/90 hover:border-amber-300/80 hover:bg-amber-200/30 transition"
+          >
+            Prod Stage: FRIENDS &amp; FAMILY
+          </button>
 
           <div className="grid lg:grid-cols-[1.1fr_0.9fr] gap-4 sm:gap-5 lg:gap-6">
             <div

@@ -3,7 +3,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/contexts/AuthContext';
 import { motion } from 'framer-motion';
-import { ArrowRight, Loader2, Lock, Mail, QrCode } from 'lucide-react';
+import { ArrowRight, Loader2, Lock, Mail } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -80,15 +80,15 @@ const Login = () => {
       >
         {/* Logo */}
         <div className="flex flex-col items-center mb-8">
-          <motion.div 
+          <motion.img
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
             transition={{ type: 'spring', stiffness: 200, damping: 15 }}
-            className="h-16 w-16 rounded-2xl bg-gradient-to-br from-primary to-cyan-400 flex items-center justify-center glow mb-4"
-          >
-            <QrCode className="h-8 w-8 text-primary-foreground" />
-          </motion.div>
-          <h1 className="text-2xl font-bold gradient-text">QRC Studio</h1>
+            src="/assets/QRC Studio Logo Button.png"
+            alt="QR Code Studio"
+            className="h-16 w-16 rounded-2xl glow mb-4"
+          />
+          <h1 className="text-2xl font-bold gradient-text">QR Code Studio</h1>
           <p className="text-muted-foreground text-sm mt-1">
             {isSignUp ? 'Create your account' : 'Welcome back'}
           </p>
