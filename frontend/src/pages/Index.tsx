@@ -56,6 +56,7 @@ import {
   Music2,
   Paintbrush,
   BarChart3,
+  RefreshCcw,
   Rocket,
   ArrowLeft,
   Info,
@@ -1355,6 +1356,25 @@ const Index = () => {
     }
   };
 
+  const handleClearStudioCache = async () => {
+    if (typeof window === 'undefined') return;
+    try {
+      if ('caches' in window) {
+        const keys = await caches.keys();
+        await Promise.all(keys.map((key) => caches.delete(key)));
+      }
+      if ('serviceWorker' in navigator) {
+        const regs = await navigator.serviceWorker.getRegistrations();
+        await Promise.all(regs.map((reg) => reg.unregister()));
+      }
+      toast.success('Cache cleared. Reloading…');
+      window.location.reload();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to clear cache';
+      toast.error(message);
+    }
+  };
+
   const handleCopyUrl = async () => {
     if (!generatedContent) return;
     try {
@@ -2563,6 +2583,10 @@ const Index = () => {
   useEffect(() => {
     if (!isMobileV2) return;
     if (!hasSelectedMode) {
+      if (selectedQuickAction && mobileStudioStep === 1) {
+        setMobileStudioStep(2);
+        return;
+      }
       if (mobileStudioStep > 1) {
         setMobileStudioStep(1);
       }
@@ -2574,7 +2598,7 @@ const Index = () => {
       }
       return;
     }
-  }, [hasSelectedMode, hasSelectedType, isMobileV2, mobileStudioStep]);
+  }, [hasSelectedMode, hasSelectedType, isMobileV2, mobileStudioStep, selectedQuickAction]);
   const fgColorPresets = [
     '#2B2B2B',
     '#D4AF37',
@@ -4657,6 +4681,18 @@ const Index = () => {
               <p className="text-xs uppercase tracking-[0.4em] text-muted-foreground">Studio</p>
               <h2 className="text-2xl sm:text-3xl font-semibold tracking-tight">Creative Workspace</h2>
             </div>
+            {isMobileV2 && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="ml-auto border-border text-xs uppercase tracking-[0.25em]"
+                onClick={handleClearStudioCache}
+              >
+                <RefreshCcw className="mr-2 h-3.5 w-3.5" />
+                Refresh
+              </Button>
+            )}
           </div>
 
           <div className="grid lg:grid-cols-[1.1fr_0.9fr] gap-4 sm:gap-5 lg:gap-6">
@@ -5225,7 +5261,7 @@ const Index = () => {
                   ) : (
                     <div className="rounded-2xl border border-dashed border-border/70 bg-secondary/20 p-4 text-sm text-muted-foreground">
                       {isMobileV2
-                        ? 'Pick a quick action or QR type to continue.'
+                        ? 'Select a QR type above to continue.'
                         : 'Choose Static or Dynamic to continue.'}
                     </div>
                   )}
