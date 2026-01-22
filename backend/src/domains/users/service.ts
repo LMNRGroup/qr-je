@@ -22,6 +22,7 @@ export const createUsersService = (storage: UsersStorage): UsersService => {
       theme: existing?.theme ?? null,
       avatarType: existing?.avatarType ?? null,
       avatarColor: existing?.avatarColor ?? null,
+      leftie: existing?.leftie ?? false,
       usernameChangedAt: existing?.usernameChangedAt ?? null,
       createdAt: existing?.createdAt ?? new Date().toISOString()
     }
