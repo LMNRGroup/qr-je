@@ -303,6 +303,12 @@ export async function getScanCount(id: string, random: string): Promise<number> 
   return Number(data.count ?? 0);
 }
 
+export async function getScanCounts(): Promise<Record<string, number>> {
+  const response = await request('/scans/counts');
+  const data = (await response.json()) as { counts?: Record<string, number> };
+  return data.counts ?? {};
+}
+
 export async function getScanSummary(
   range: 'all' | 'today' | '7d' | '30d' = 'all',
   timeZone?: string

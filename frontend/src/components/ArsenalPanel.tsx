@@ -26,7 +26,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { QRHistoryItem, QROptions } from '@/types/qr';
-import { deleteQRFromHistory, getQRHistory, getScanCount, updateQR } from '@/lib/api';
+import { deleteQRFromHistory, getQRHistory, getScanCounts, updateQR } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import {
   AlertDialog,
@@ -198,6 +198,8 @@ export function ArsenalPanel({
   const backButtonRef = useRef<HTMLButtonElement>(null);
   const previousScanCountsRef = useRef<Record<string, number>>({});
   const [scanCounts, setScanCounts] = useState<Record<string, number>>({});
+  const scanCountsCacheRef = useRef<{ data: Record<string, number>; timestamp: number } | null>(null);
+  const SCAN_COUNTS_CACHE_TTL_MS = 15 * 1000; // 15 seconds frontend cache
   const t = (en: string, es: string) => (language === 'es' ? es : en);
   const isMobile = !isDesktop;
   const isMobileUiV2 =
@@ -240,48 +242,81 @@ export function ArsenalPanel({
       previousScanCountsRef.current = {};
       return { counts: {} as Record<string, number>, today: 0 };
     }
-    let todayTotal = 0;
-    const results = await Promise.all(
-      list.map(async (item) => {
+
+    // Check frontend cache first
+    const now = Date.now();
+    const cached = scanCountsCacheRef.current;
+    if (cached && now - cached.timestamp < SCAN_COUNTS_CACHE_TTL_MS) {
+      // Use cached data, but still map to item IDs
+      const mappedCounts: Record<string, number> = {};
+      let totalScans = 0;
+      list.forEach((item) => {
         if (!item.random) {
-          return { id: item.id, count: 0 };
+          mappedCounts[item.id] = 0;
+          return;
         }
-        try {
-          const count = await getScanCount(item.id, item.random);
-          return { id: item.id, count };
-        } catch {
-          return { id: item.id, count: 0 };
-        }
-      })
-    );
-    setScanCounts((prev) => {
-      const next = { ...prev };
-      results.forEach(({ id, count }) => {
-        next[id] = count;
+        const key = `${item.id}:${item.random}`;
+        const count = cached.data[key] ?? 0;
+        mappedCounts[item.id] = count;
+        totalScans += count;
       });
-      return next;
-    });
-    const totalScans = results.reduce((sum, { count }) => sum + count, 0);
-    if (includeSummary) {
-      todayTotal = totalScans;
-      lastTodayRef.current = totalScans;
-      onScansChange?.(totalScans);
-    }
-    const counts = results.reduce<Record<string, number>>((acc, { id, count }) => {
-      acc[id] = count;
-      return acc;
-    }, {});
-    const previousCounts = previousScanCountsRef.current;
-    results.forEach(({ id, count }) => {
-      const previous = previousCounts[id];
-      if (previous !== undefined && count > previous) {
-        const item = list.find((entry) => entry.id === id);
-        const label = item ? getDisplayName(item, list) : 'QRC';
-        pushScanNotification(label);
+      setScanCounts((prev) => ({ ...prev, ...mappedCounts }));
+      if (includeSummary) {
+        lastTodayRef.current = totalScans;
+        onScansChange?.(totalScans);
       }
-    });
-    previousScanCountsRef.current = counts;
-    return { counts, today: todayTotal };
+      return { counts: mappedCounts, today: totalScans };
+    }
+
+    // Fetch from API
+    try {
+      const bulkCounts = await getScanCounts();
+      scanCountsCacheRef.current = { data: bulkCounts, timestamp: now };
+
+      // Map bulk response (key: "urlId:urlRandom") to item IDs
+      const mappedCounts: Record<string, number> = {};
+      let totalScans = 0;
+      list.forEach((item) => {
+        if (!item.random) {
+          mappedCounts[item.id] = 0;
+          return;
+        }
+        const key = `${item.id}:${item.random}`;
+        const count = bulkCounts[key] ?? 0;
+        mappedCounts[item.id] = count;
+        totalScans += count;
+      });
+
+      setScanCounts((prev) => ({ ...prev, ...mappedCounts }));
+
+      if (includeSummary) {
+        lastTodayRef.current = totalScans;
+        onScansChange?.(totalScans);
+      }
+
+      // Check for new scans and trigger notifications
+      const previousCounts = previousScanCountsRef.current;
+      list.forEach((item) => {
+        const current = mappedCounts[item.id] ?? 0;
+        const previous = previousCounts[item.id] ?? 0;
+        if (previous !== undefined && current > previous) {
+          const label = getDisplayName(item, list);
+          pushScanNotification(label);
+        }
+      });
+      previousScanCountsRef.current = mappedCounts;
+
+      return { counts: mappedCounts, today: totalScans };
+    } catch (error) {
+      console.error('[ArsenalPanel] failed to load scan counts', error);
+      // Fallback: set all to 0
+      const zeroCounts: Record<string, number> = {};
+      list.forEach((item) => {
+        zeroCounts[item.id] = 0;
+      });
+      setScanCounts((prev) => ({ ...prev, ...zeroCounts }));
+      return { counts: zeroCounts, today: 0 };
+    }
   };
 
   const readCache = () => {
@@ -430,14 +465,38 @@ export function ArsenalPanel({
 
   useEffect(() => {
     if (!items.length) return;
+    
+    // Only poll when tab is visible
+    const isVisible = () => {
+      if (typeof document === 'undefined') return true;
+      return !document.hidden;
+    };
+
     let interval: number | undefined;
     const pollScans = () => {
+      if (!isVisible()) return; // Skip if tab is hidden
       loadScanCounts(items, false);
     };
+
+    // Initial poll
     pollScans();
-    interval = window.setInterval(pollScans, 15000);
+
+    // Poll every 45 seconds (reduced from 15s to reduce load)
+    interval = window.setInterval(pollScans, 45000);
+
+    // Also poll on visibility change (when tab becomes visible)
+    const handleVisibilityChange = () => {
+      if (isVisible()) {
+        // Clear cache to force fresh fetch when tab becomes visible
+        scanCountsCacheRef.current = null;
+        pollScans();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
     return () => {
       if (interval) window.clearInterval(interval);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [items]);

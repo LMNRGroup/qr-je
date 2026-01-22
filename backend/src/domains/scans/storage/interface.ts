@@ -17,4 +17,5 @@ export type ScansStorage = {
   ) => Promise<Array<{ date: string; count: number }>>
   getAverageResponseMsForUser: (userId: string) => Promise<number | null>
   getAverageResponseMsForUserSince: (userId: string, since: string) => Promise<number | null>
+  getCountsByUser: (userId: string) => Promise<Record<string, number>>
 }

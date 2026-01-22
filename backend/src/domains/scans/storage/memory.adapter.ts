@@ -93,4 +93,14 @@ export class InMemoryScansStorageAdapter implements ScansStorage {
     const total = values.reduce((sum, value) => sum + value, 0)
     return total / values.length
   }
+
+  async getCountsByUser(userId: string) {
+    const counts = new Map<string, number>()
+    this.records.forEach((scan) => {
+      if (scan.userId !== userId) return
+      const key = `${scan.urlId}:${scan.urlRandom}`
+      counts.set(key, (counts.get(key) ?? 0) + 1)
+    })
+    return Object.fromEntries(counts)
+  }
 }

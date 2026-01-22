@@ -31,7 +31,7 @@ import {
   createVcard,
   generateQR,
   getQRHistory,
-  getScanCount,
+  getScanCounts,
   getScanAreas,
   getScanSummary,
   getScanTrends,
@@ -282,13 +282,12 @@ const Index = () => {
         label: 'Stage 1 · Friends & Family',
         title: 'FRIENDS & FAMILY',
         description:
-          'This is where it all starts.\n\n' +
-          'Right now, this app is being shared only with friends, family, and people we trust enough to be honest with us.\n\n' +
-          'Things may change, break, improve, or evolve quickly — and that’s intentional.\n\n' +
-          'If you’re here at this stage, it means you’re not just using the app…\n' +
-          'you’re helping shape it.\n\n' +
-          'Seriously — thank you for being part of the beginning 🤍\n\n' +
-          'Sincerely José & Erwin',
+          'This is where it all begins.\n\n' +
+          'Right now, this app is only being shared with a small circle — friends, family, and people we trust enough to be honest with us. You\'re seeing it early, while things are still growing, changing, and sometimes breaking… and that\'s exactly how it\'s supposed to be.\n\n' +
+          'At this stage, you\'re not just using the app — you\'re helping shape it. Your feedback, your patience, and even your frustration matter more than you know. Every tap, every comment, every "hey, this feels weird" helps push it forward.\n\n' +
+          'We truly couldn\'t start this without you.\n' +
+          'Thank you for believing in it early and for being part of the beginning 🤍\n\n' +
+          '— Jose',
       },
       {
         id: 'stage2' as const,
@@ -656,12 +655,18 @@ const Index = () => {
         const history = await getQRHistory();
         if (!history.success || cancelled) return;
         const targets = history.data.slice(0, 10);
-        const results = await Promise.all(
-          targets.map(async (item) => {
-            const count = await getScanCount(item.id, item.random);
-            return { id: item.id, count, label: getLabel(item) };
-          })
-        );
+        
+        // Use bulk endpoint instead of per-QR calls
+        const bulkCounts = await getScanCounts();
+        const results = targets.map((item) => {
+          if (!item.random) {
+            return { id: item.id, count: 0, label: getLabel(item) };
+          }
+          const key = `${item.id}:${item.random}`;
+          const count = bulkCounts[key] ?? 0;
+          return { id: item.id, count, label: getLabel(item) };
+        });
+        
         const prev = scanNotifyRef.current;
         results.forEach(({ id, count, label }) => {
           const previous = prev[id];
@@ -3314,12 +3319,48 @@ const Index = () => {
                 ))}
               </div>
               <div className="rounded-xl border border-border/60 bg-secondary/20 p-4">
-                <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">
-                  {activeStage.title}
-                </p>
-                <p className="mt-3 text-sm text-foreground/90 whitespace-pre-line">
-                  {activeStage.description}
-                </p>
+                {activeStage.id === 'stage1' ? (
+                  <>
+                    {/* Desktop: Standard view */}
+                    <div className="hidden sm:block">
+                      <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">
+                        {activeStage.title}
+                      </p>
+                      <p className="mt-3 text-sm text-foreground/90 whitespace-pre-line">
+                        {activeStage.description}
+                      </p>
+                    </div>
+                    {/* Mobile V2: Handwritten letter */}
+                    <div className="sm:hidden qrc-letter-card">
+                      <div className="qrc-letter-header">
+                        <img
+                          src="/assets/Gdev.png"
+                          alt="Jose"
+                          className="qrc-letter-avatar"
+                        />
+                        <div className="qrc-letter-author">
+                          <p className="qrc-letter-name">Jose</p>
+                          <p className="qrc-letter-label">Developer</p>
+                        </div>
+                      </div>
+                      <div className="qrc-letter-content">
+                        <h3 className="qrc-letter-title">Friends & Family</h3>
+                        <div className="qrc-letter-body">
+                          {activeStage.description}
+                        </div>
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">
+                      {activeStage.title}
+                    </p>
+                    <p className="mt-3 text-sm text-foreground/90 whitespace-pre-line">
+                      {activeStage.description}
+                    </p>
+                  </>
+                )}
               </div>
             </div>
           </div>

@@ -148,4 +148,24 @@ export class DrizzleScansStorageAdapter implements ScansStorage {
     const avg = rows[0]?.avg ?? null
     return avg === null ? null : Number(avg)
   }
+
+  async getCountsByUser(userId: string) {
+    const rows = await db
+      .select({
+        urlId: scans.urlId,
+        urlRandom: scans.urlRandom,
+        count: sql<number>`count(*)`
+      })
+      .from(scans)
+      .where(eq(scans.userId, userId))
+      .groupBy(scans.urlId, scans.urlRandom)
+
+    const result: Record<string, number> = {}
+    for (const row of rows) {
+      // Key format: urlId:urlRandom
+      const key = `${row.urlId}:${row.urlRandom}`
+      result[key] = row.count ?? 0
+    }
+    return result
+  }
 }

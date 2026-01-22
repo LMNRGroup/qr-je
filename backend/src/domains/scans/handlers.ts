@@ -202,3 +202,20 @@ export const getScanAreasHandler = () => {
     return c.json(getAreasForUser(userId))
   }
 }
+
+export const getUserScanCountsHandler = (scansService: ScansService) => {
+  return async (c: Context<AppBindings>) => {
+    const userId = c.get('userId')
+    if (!userId) {
+      return c.json({ message: 'Unauthorized' }, 401)
+    }
+
+    try {
+      const counts = await scansService.getCountsByUser(userId)
+      return c.json({ counts })
+    } catch (error) {
+      console.error('[scans] failed to load counts', error)
+      return c.json({ message: 'Failed to load scan counts' }, 500)
+    }
+  }
+}

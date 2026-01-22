@@ -9,6 +9,31 @@ export type AuthMiddlewareOptions = {
   publicPaths?: string[]
 }
 
+// In-memory cache to track when users were last synced
+// Key: userId, Value: timestamp of last sync
+const userSyncCache = new Map<string, number>()
+const USER_SYNC_CACHE_TTL_MS = 15 * 60 * 1000 // 15 minutes
+
+const shouldSyncUser = (userId: string): boolean => {
+  const lastSync = userSyncCache.get(userId)
+  if (!lastSync) return true
+  const now = Date.now()
+  return now - lastSync > USER_SYNC_CACHE_TTL_MS
+}
+
+const markUserSynced = (userId: string) => {
+  userSyncCache.set(userId, Date.now())
+  // Cleanup old entries periodically (keep cache size reasonable)
+  if (userSyncCache.size > 10000) {
+    const now = Date.now()
+    for (const [id, timestamp] of userSyncCache.entries()) {
+      if (now - timestamp > USER_SYNC_CACHE_TTL_MS * 2) {
+        userSyncCache.delete(id)
+      }
+    }
+  }
+}
+
 export const createAuthMiddleware = ({ usersService, publicPaths = [] }: AuthMiddlewareOptions) => {
   const middleware: MiddlewareHandler<AppBindings> = async (c, next) => {
     if (c.req.method === 'OPTIONS') {
@@ -31,11 +56,16 @@ export const createAuthMiddleware = ({ usersService, publicPaths = [] }: AuthMid
 
     try {
       const verified = await verifySupabaseToken(token)
-      await usersService.upsertUser({
-        id: verified.userId,
-        name: verified.name,
-        email: verified.email
-      })
+      // Only upsert user if not recently synced (cache miss or expired)
+      if (shouldSyncUser(verified.userId)) {
+        await usersService.upsertUser({
+          id: verified.userId,
+          name: verified.name,
+          email: verified.email
+        })
+        markUserSynced(verified.userId)
+      }
+      // Set userId for downstream handlers (no need to return full user object)
       c.set('userId', verified.userId)
       await next()
     } catch (error) {

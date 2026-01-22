@@ -12,6 +12,7 @@ import {
 import {
   getScanAreasHandler,
   getScanCountHandler,
+  getUserScanCountsHandler,
   getUserScanSummaryHandler,
   getUserScanTrendsHandler,
   listScansHandler
@@ -34,6 +35,7 @@ export const registerUrlsRoutes = (
   app.get('/scans/summary', getUserScanSummaryHandler(scansService))
   app.get('/scans/trends', getUserScanTrendsHandler(scansService))
   app.get('/scans/areas', getScanAreasHandler())
+  app.get('/scans/counts', getUserScanCountsHandler(scansService))
   app.get('/urls', listUrlsHandler(service))
   app.patch('/urls/:id', updateUrlHandler(service))
   app.delete('/urls/:id', deleteUrlHandler(service, scansService))

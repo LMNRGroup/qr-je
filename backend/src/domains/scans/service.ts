@@ -18,6 +18,7 @@ export type ScansService = {
   ) => Promise<Array<{ date: string; count: number }>>
   getAverageResponseMsForUser: (userId: string) => Promise<number | null>
   getAverageResponseMsForUserSince: (userId: string, since: string) => Promise<number | null>
+  getCountsByUser: (userId: string) => Promise<Record<string, number>>
 }
 
 export const createScansService = (storage: ScansStorage): ScansService => {
@@ -81,6 +82,10 @@ export const createScansService = (storage: ScansStorage): ScansService => {
     return storage.getAverageResponseMsForUserSince(userId, since)
   }
 
+  const getCountsByUser = (userId: string) => {
+    return storage.getCountsByUser(userId)
+  }
+
   return {
     recordScan,
     getScanCount,
@@ -93,6 +98,7 @@ export const createScansService = (storage: ScansStorage): ScansService => {
     getScanTimestampsForUserSince,
     getDailyCountsForUserSince,
     getAverageResponseMsForUser,
-    getAverageResponseMsForUserSince
+    getAverageResponseMsForUserSince,
+    getCountsByUser
   }
 }
