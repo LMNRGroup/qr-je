@@ -204,6 +204,7 @@ const Index = () => {
     username: '',
     timezone: '',
     language: 'en',
+    leftie: false,
     currentPassword: '',
     newPassword: '',
     confirmPassword: '',
@@ -233,6 +234,7 @@ const Index = () => {
   });
   const isSpanish = profileForm.language === 'es';
   const t = (en: string, es: string) => (isSpanish ? es : en);
+  const isLeftie = Boolean(userProfile?.leftie ?? profileForm.leftie);
   const previewOptions = useMemo(
     () => ({
       ...options,
@@ -908,6 +910,7 @@ const Index = () => {
           username: profile.username ?? prev.username,
           timezone: profile.timezone ?? prev.timezone,
           language: profile.language ?? prev.language ?? 'en',
+          leftie: profile.leftie ?? prev.leftie,
           avatarType: profile.avatarType ?? prev.avatarType ?? 'letter',
           avatarColor: profile.avatarColor ?? prev.avatarColor ?? 'purple',
         }));
@@ -1072,6 +1075,7 @@ const Index = () => {
         username: '',
         timezone: '',
         language: 'en',
+        leftie: false,
         currentPassword: '',
         newPassword: '',
         confirmPassword: '',
@@ -1576,6 +1580,7 @@ const Index = () => {
         timezone: profileForm.timezone || null,
         language: profileForm.language || 'en',
         theme: theme || null,
+        leftie: profileForm.leftie,
         ...(shouldPersistAvatar
           ? {
               avatarType: profileForm.avatarType || null,
@@ -1589,6 +1594,7 @@ const Index = () => {
         username: updated.username ?? prev.username,
         timezone: updated.timezone ?? prev.timezone,
         language: updated.language ?? prev.language,
+        leftie: updated.leftie ?? prev.leftie,
         avatarType: updated.avatarType ?? prev.avatarType,
         avatarColor: updated.avatarColor ?? prev.avatarColor,
         currentPassword: '',
@@ -4546,7 +4552,7 @@ const Index = () => {
         <>
           <button
             type="button"
-            className={`fixed bottom-6 right-6 flex items-center justify-center rounded-full border border-amber-300/50 bg-card/80 p-2 shadow-lg shadow-[0_0_14px_rgba(251,191,36,0.2)] transition hover:border-amber-300/70 hover:bg-card ${
+            className={`fixed bottom-6 ${isLeftie ? 'left-6' : 'right-6'} flex items-center justify-center rounded-full border border-amber-300/50 bg-card/80 p-2 shadow-lg shadow-[0_0_14px_rgba(251,191,36,0.2)] transition hover:border-amber-300/70 hover:bg-card ${
               isDialOpen ? 'opacity-0 pointer-events-none' : 'opacity-100'
             } ${tourActive && isTourDialStep ? 'z-[95]' : 'z-[70]'}`}
             data-tour-id="dial-open"
@@ -4567,7 +4573,7 @@ const Index = () => {
               onClick={() => setIsDialOpen(false)}
             >
               <div className="absolute inset-0">
-                <div className="absolute left-6 top-1/2 z-10 w-[45%] -translate-y-1/2 space-y-2">
+                <div className={`absolute ${isLeftie ? 'right-6' : 'left-6'} top-1/2 z-10 w-[45%] -translate-y-1/2 space-y-2`}>
                   <p className="text-xs uppercase tracking-[0.4em] text-muted-foreground">Navigation</p>
                   <button
                     type="button"
@@ -4590,7 +4596,7 @@ const Index = () => {
                 </div>
                 <button
                   type="button"
-                  className="absolute right-6 top-6 z-10 flex h-10 w-10 items-center justify-center rounded-full border border-border/60 bg-card/80 text-muted-foreground transition hover:border-primary/60 hover:text-primary"
+                  className={`absolute ${isLeftie ? 'left-6' : 'right-6'} top-6 z-10 flex h-10 w-10 items-center justify-center rounded-full border border-border/60 bg-card/80 text-muted-foreground transition hover:border-primary/60 hover:text-primary`}
                   onClick={() => setIsDialOpen(false)}
                   aria-label="Close navigation dial"
                   data-tour-id="dial-close"
@@ -4609,12 +4615,12 @@ const Index = () => {
                 <div
                   className="absolute top-1/2 z-20 flex-none overflow-visible"
                   style={{
-                    right: 0,
+                    ...(isLeftie ? { left: 0 } : { right: 0 }),
                     width: dialSize,
                     height: dialSize,
                     minWidth: dialSize,
                     minHeight: dialSize,
-                    transform: 'translate(50%, -50%)',
+                    transform: isLeftie ? 'translate(-50%, -50%)' : 'translate(50%, -50%)',
                     touchAction: 'none',
                   }}
                   data-tour-id="dial-panel"
@@ -6297,6 +6303,21 @@ const Index = () => {
                 <div className="space-y-2">
                   <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Theme</p>
                   <ThemeToggle storageKey={`theme:${user?.id ?? 'default'}`} />
+                </div>
+                <div className="flex items-center justify-between rounded-xl border border-border/60 bg-secondary/20 px-4 py-3">
+                  <div>
+                    <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Leftie</p>
+                    <p className="text-[11px] text-muted-foreground">Left-sided dial controls</p>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={profileForm.leftie}
+                    onChange={(event) =>
+                      setProfileForm((prev) => ({ ...prev, leftie: event.target.checked }))
+                    }
+                    className="accent-primary h-4 w-4"
+                    aria-label="Leftie"
+                  />
                 </div>
                 <div className="space-y-4">
                   <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">

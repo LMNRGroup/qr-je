@@ -12,6 +12,7 @@ const ensureAvatarColumns = async () => {
     avatarColumnsPromise = (async () => {
       await db.execute(sql`ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "avatar_type" text`)
       await db.execute(sql`ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "avatar_color" text`)
+      await db.execute(sql`ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "leftie" boolean NOT NULL DEFAULT false`)
       avatarColumnsEnsured = true
     })().catch((error) => {
       avatarColumnsPromise = null
@@ -23,7 +24,7 @@ const ensureAvatarColumns = async () => {
 
 const isMissingAvatarColumn = (error: unknown) => {
   const message = error instanceof Error ? error.message : ''
-  return message.includes('avatar_type') || message.includes('avatar_color')
+  return message.includes('avatar_type') || message.includes('avatar_color') || message.includes('leftie')
 }
 
 const withAvatarColumns = async <T>(task: () => Promise<T>) => {
@@ -55,6 +56,7 @@ export class DrizzleUsersStorageAdapter implements UsersStorage {
           theme: user.theme,
           avatarType: user.avatarType,
           avatarColor: user.avatarColor,
+          leftie: user.leftie,
           usernameChangedAt: user.usernameChangedAt ? new Date(user.usernameChangedAt) : null,
           createdAt: new Date(user.createdAt)
         })
@@ -69,6 +71,7 @@ export class DrizzleUsersStorageAdapter implements UsersStorage {
             theme: user.theme,
             avatarType: user.avatarType,
             avatarColor: user.avatarColor,
+            leftie: user.leftie,
             usernameChangedAt: user.usernameChangedAt ? new Date(user.usernameChangedAt) : null
           }
         })
@@ -124,6 +127,7 @@ export class DrizzleUsersStorageAdapter implements UsersStorage {
     if ('theme' in updates) payload.theme = updates.theme
     if ('avatarType' in updates) payload.avatarType = updates.avatarType
     if ('avatarColor' in updates) payload.avatarColor = updates.avatarColor
+    if ('leftie' in updates) payload.leftie = updates.leftie
     if ('usernameChangedAt' in updates) {
       payload.usernameChangedAt = updates.usernameChangedAt
         ? new Date(updates.usernameChangedAt)
@@ -156,6 +160,7 @@ export class DrizzleUsersStorageAdapter implements UsersStorage {
       theme: row.theme ?? null,
       avatarType: row.avatarType ?? null,
       avatarColor: row.avatarColor ?? null,
+      leftie: row.leftie ?? false,
       usernameChangedAt: row.usernameChangedAt ? row.usernameChangedAt.toISOString() : null,
       createdAt: row.createdAt.toISOString()
     }

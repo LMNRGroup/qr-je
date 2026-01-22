@@ -10,6 +10,7 @@ export type User = {
   theme: string | null
   avatarType: string | null
   avatarColor: string | null
+  leftie: boolean
   usernameChangedAt: string | null
   createdAt: string
 }
@@ -28,5 +29,6 @@ export type UpdateUserInput = {
   theme?: string | null
   avatarType?: string | null
   avatarColor?: string | null
+  leftie?: boolean
   usernameChangedAt?: string | null
 }

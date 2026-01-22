@@ -1,4 +1,4 @@
-import { index, integer, jsonb, pgTable, primaryKey, text, timestamp } from 'drizzle-orm/pg-core'
+import { boolean, index, integer, jsonb, pgTable, primaryKey, text, timestamp } from 'drizzle-orm/pg-core'
 
 export const users = pgTable('users', {
   id: text('id').primaryKey(),
@@ -10,6 +10,7 @@ export const users = pgTable('users', {
   theme: text('theme'),
   avatarType: text('avatar_type'),
   avatarColor: text('avatar_color'),
+  leftie: boolean('leftie').notNull().default(false),
   usernameChangedAt: timestamp('username_changed_at', { withTimezone: true }),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow()
 })

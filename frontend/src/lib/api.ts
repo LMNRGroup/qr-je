@@ -36,6 +36,7 @@ export type UserProfile = {
   theme: string | null;
   avatarType: string | null;
   avatarColor: string | null;
+  leftie: boolean;
   usernameChangedAt: string | null;
   createdAt: string;
 };
@@ -379,6 +380,7 @@ export async function updateUserProfile(payload: {
   theme?: string | null;
   avatarType?: string | null;
   avatarColor?: string | null;
+  leftie?: boolean;
 }): Promise<UserProfile> {
   const response = await request('/users/me', {
     method: 'PATCH',

@@ -61,6 +61,9 @@ export const updateMeHandler = (usersService: UsersService) => {
       }
       updates.avatarColor = normalized
     }
+    if (typeof payload.leftie === 'boolean') {
+      updates.leftie = payload.leftie
+    }
 
     if (typeof payload.username === 'string') {
       const validation = validateUsername(payload.username)

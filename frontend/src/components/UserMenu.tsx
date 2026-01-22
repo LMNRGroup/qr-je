@@ -72,7 +72,11 @@ export function UserMenu({ trigger }: { trigger?: React.ReactNode }) {
       try {
         const raw = window.localStorage.getItem('qrc.feed.user');
         const parsed = raw ? (JSON.parse(raw) as Array<{ id: string; message: string; createdAt: number }>) : [];
-        setUserFeed(Array.isArray(parsed) ? parsed : []);
+        const next = Array.isArray(parsed) ? parsed.slice(0, 10) : [];
+        setUserFeed(next);
+        if (next.length !== parsed?.length) {
+          window.localStorage.setItem('qrc.feed.user', JSON.stringify(next));
+        }
       } catch {
         setUserFeed([]);
       }
@@ -196,7 +200,12 @@ export function UserMenu({ trigger }: { trigger?: React.ReactNode }) {
               ? `${note.message.slice(0, 120).trim()}...`
               : note.message;
             return (
-              <div key={note.id} className="rounded-xl border border-border/70 bg-card/60 p-3 space-y-2 h-20 overflow-hidden">
+              <div
+                key={note.id}
+                className={`rounded-xl border border-border/70 bg-card/60 p-3 space-y-2 ${
+                  isExpanded ? '' : 'h-20 overflow-hidden'
+                }`}
+              >
                 <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.3em] text-muted-foreground">
                   <User className="h-3.5 w-3.5 text-primary" />
                   Activity
@@ -211,10 +220,10 @@ export function UserMenu({ trigger }: { trigger?: React.ReactNode }) {
                 {isLong && (
                   <button
                     type="button"
-                    className="flex items-center gap-1 text-[10px] uppercase tracking-[0.3em] text-muted-foreground hover:text-foreground"
+                    className="flex items-center justify-between text-[10px] uppercase tracking-[0.3em] text-muted-foreground hover:text-foreground"
                     onClick={() => setExpandedId((prev) => (prev === note.id ? null : note.id))}
                   >
-                    Read more
+                    <span>{isExpanded ? 'Less' : 'More'}</span>
                     {isExpanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
                   </button>
                 )}
@@ -228,21 +237,17 @@ export function UserMenu({ trigger }: { trigger?: React.ReactNode }) {
               ? `${note.message.slice(0, 120).trim()}...`
               : note.message;
             return (
-              <div key={note.id} className="rounded-xl border border-border/70 bg-secondary/30 p-3 space-y-2 h-20 overflow-hidden">
+              <div
+                key={note.id}
+                className={`rounded-xl border border-border/70 bg-secondary/30 p-3 space-y-2 ${
+                  isExpanded ? '' : 'h-20 overflow-hidden'
+                }`}
+              >
                 <div className="flex items-center justify-between text-[10px] uppercase tracking-[0.3em] text-muted-foreground">
                   <span className="flex items-center gap-2">
                     <Bell className="h-3.5 w-3.5 text-primary" />
                     System
                   </span>
-                  <button
-                    type="button"
-                    className="text-muted-foreground hover:text-foreground transition"
-                    onClick={() =>
-                      setDismissedSystemIds((prev) => new Set([...Array.from(prev), note.id]))
-                    }
-                  >
-                    Clear
-                  </button>
                 </div>
                 <button
                   type="button"
@@ -254,11 +259,22 @@ export function UserMenu({ trigger }: { trigger?: React.ReactNode }) {
                 {isLong && (
                   <button
                     type="button"
-                    className="flex items-center gap-1 text-[10px] uppercase tracking-[0.3em] text-muted-foreground hover:text-foreground"
+                    className="flex items-center justify-between text-[10px] uppercase tracking-[0.3em] text-muted-foreground hover:text-foreground"
                     onClick={() => setExpandedId((prev) => (prev === note.id ? null : note.id))}
                   >
-                    Read more
+                    <span>{isExpanded ? 'Less' : 'More'}</span>
                     {isExpanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+                  </button>
+                )}
+                {isExpanded && (
+                  <button
+                    type="button"
+                    className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground hover:text-foreground"
+                    onClick={() =>
+                      setDismissedSystemIds((prev) => new Set([...Array.from(prev), note.id]))
+                    }
+                  >
+                    Clear
                   </button>
                 )}
               </div>
