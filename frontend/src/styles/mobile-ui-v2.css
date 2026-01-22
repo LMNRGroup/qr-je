@@ -1,0 +1,44 @@
+@media (max-width: 768px) {
+  html[data-mobile-ui="v2"] body {
+    min-height: auto;
+    overflow-x: hidden;
+  }
+
+  html[data-mobile-ui="v2"] #root {
+    min-height: auto;
+  }
+
+  html[data-mobile-ui="v2"] .qrc-v2-main {
+    padding-left: 12px;
+    padding-right: 12px;
+    gap: 12px;
+    overflow-x: hidden;
+  }
+
+  html[data-mobile-ui="v2"] .qrc-v2-section {
+    margin-top: 12px;
+  }
+
+  html[data-mobile-ui="v2"] .qrc-v2-card {
+    padding: 12px;
+    border-radius: 16px;
+  }
+
+  html[data-mobile-ui="v2"] .qrc-no-scroll-x {
+    overflow-x: hidden;
+  }
+
+  html[data-mobile-ui="v2"] .qrc-arsenal-scroll [data-radix-scroll-area-viewport] {
+    overflow-x: hidden;
+  }
+
+  html[data-mobile-ui="v2"] [data-mobile-step] {
+    display: none;
+  }
+
+  html[data-mobile-ui="v2"] [data-mobile-step-current="1"] [data-mobile-step="1"],
+  html[data-mobile-ui="v2"] [data-mobile-step-current="2"] [data-mobile-step="2"],
+  html[data-mobile-ui="v2"] [data-mobile-step-current="3"] [data-mobile-step="3"] {
+    display: block;
+  }
+}

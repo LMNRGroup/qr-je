@@ -13,6 +13,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from '@/components/ui/accordion';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -109,6 +110,10 @@ const Index = () => {
     return 'studio';
   });
   const [isMobile, setIsMobile] = useState(false);
+  const isMobileUiV2 =
+    typeof document !== 'undefined' && document.documentElement.dataset.mobileUi === 'v2';
+  const isMobileV2 = isMobile && isMobileUiV2;
+  const [mobileStudioStep, setMobileStudioStep] = useState<1 | 2 | 3>(1);
   const [isDialOpen, setIsDialOpen] = useState(false);
   const [dialAngle, setDialAngle] = useState(0);
   const [dialDragging, setDialDragging] = useState(false);
@@ -2545,6 +2550,19 @@ const Index = () => {
   const showStudioIntro = !isMobile || !showMobileCreateFlow;
   const showCreateSection = !isMobile || showMobileCreateFlow;
   const showMobileCustomize = !isMobile || mobileCustomizeStep;
+
+  useEffect(() => {
+    if (!isMobileV2) return;
+    if (!hasSelectedMode) {
+      setMobileStudioStep(1);
+      return;
+    }
+    if (!hasSelectedType) {
+      setMobileStudioStep(2);
+      return;
+    }
+    setMobileStudioStep(3);
+  }, [hasSelectedMode, hasSelectedType, isMobileV2]);
   const fgColorPresets = [
     '#2B2B2B',
     '#D4AF37',
@@ -2606,6 +2624,179 @@ const Index = () => {
     if (!hasInteractedRef.current) return;
     scrollToRef(customizeSectionRef, 'start');
   }, [showMobileCustomize, hasSelectedMode, hasSelectedType, scrollToRef]);
+
+  const intelMapPanel = (
+    <div className="glass-panel rounded-2xl p-6 space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Intel</p>
+          <h3 className="text-lg font-semibold">Command Map</h3>
+        </div>
+        <span className="text-xs uppercase tracking-[0.3em] text-primary">Live</span>
+      </div>
+
+      <div className="rounded-2xl border border-border/60 bg-secondary/20 p-4 space-y-3">
+        <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Radar</p>
+        <div className="relative h-56 rounded-2xl border border-amber-300/30 bg-[radial-gradient(circle_at_center,rgba(251,191,36,0.12),rgba(17,24,39,0.9))] overflow-hidden">
+          <img
+            src="/map.svg"
+            alt="World map outline"
+            className="absolute inset-0 h-full w-full object-cover opacity-35"
+            loading="lazy"
+          />
+          {scanAreas.length === 0 ? (
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="rounded-md border border-amber-300/40 bg-black/40 px-4 py-2 text-[10px] uppercase tracking-[0.5em] text-amber-200 font-semibold">
+                {radarLabel}
+              </div>
+            </div>
+          ) : null}
+          <MapDots areas={scanAreas} />
+          <div className="absolute inset-6 rounded-full border border-amber-200/30" />
+          <div className="absolute inset-12 rounded-full border border-amber-200/20" />
+          <div className="absolute inset-20 rounded-full border border-amber-200/10" />
+          <div className="absolute left-1/2 top-1/2 h-[140%] w-[140%] -translate-x-1/2 -translate-y-1/2 rounded-full border border-amber-300/10" />
+          <div className="absolute inset-0 radar-sweep" />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-3 gap-2 sm:gap-4">
+        <button
+          type="button"
+          onClick={() => setActiveTab('codes')}
+          className="rounded-xl border border-border/60 bg-secondary/30 p-3 sm:p-4 text-center transition hover:border-primary/60 hover:bg-secondary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
+        >
+          <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Active Nodes</p>
+          <p className="text-lg sm:text-2xl font-semibold mt-2">{arsenalStats.total.toLocaleString()}</p>
+        </button>
+        <div
+          ref={signalsCardRef}
+          onClick={() => setIsSignalsMenuOpen((prev) => !prev)}
+          role="button"
+          tabIndex={0}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter' || event.key === ' ') {
+              event.preventDefault();
+              setIsSignalsMenuOpen((prev) => !prev);
+            }
+          }}
+          className="relative rounded-xl border border-border/60 bg-secondary/30 p-3 sm:p-4 text-center transition hover:border-primary/60 hover:bg-secondary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
+        >
+          <div className="flex items-center justify-center">
+            <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Signals</p>
+          </div>
+          <p className="text-lg sm:text-2xl font-semibold mt-2">
+            {intelLoading ? '...' : intelSummary.rangeTotal.toLocaleString()}
+          </p>
+          <p className="mt-2 text-[10px] uppercase tracking-[0.3em] text-muted-foreground">
+            {intelRangeLabels[intelRange]}
+          </p>
+          {isSignalsMenuOpen && (
+            <div className="absolute left-1/2 top-full z-20 mt-2 w-40 -translate-x-1/2 rounded-xl border border-border/80 bg-card/95 p-2 text-left shadow-lg">
+              {(['today', '7d', '30d', 'all'] as const).map((range) => (
+                <div
+                  key={range}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => {
+                    setIntelRange(range);
+                    setIsSignalsMenuOpen(false);
+                  }}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault();
+                      setIntelRange(range);
+                      setIsSignalsMenuOpen(false);
+                    }
+                  }}
+                  className="w-full rounded-lg px-2 py-1 text-xs uppercase tracking-[0.25em] text-muted-foreground transition hover:bg-secondary/50 hover:text-foreground"
+                >
+                  {intelRangeLabels[range]}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+        <div className="rounded-xl border border-border/60 bg-secondary/30 p-3 sm:p-4 text-center">
+          <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Response Time</p>
+          <p className="text-lg sm:text-2xl font-semibold mt-2">
+            {intelLoading
+              ? '...'
+              : Number.isFinite(intelSummary.avgResponseMs)
+                ? `${(intelSummary.avgResponseMs! / 1000).toFixed(2)}s`
+                : '0'}
+          </p>
+        </div>
+      </div>
+
+      <div className="grid sm:grid-cols-2 gap-4">
+        <div className="rounded-xl border border-border/60 bg-secondary/30 p-4 sm:col-span-2 lg:col-span-2">
+          <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Signal Trends</p>
+          <div className="mt-4 h-24 flex items-end gap-2">
+            {(intelTrends.length ? intelTrends : Array.from({ length: 7 }, () => ({ count: 0, date: '' }))).map((point, index, arr) => {
+              const max = Math.max(1, ...arr.map((item) => item.count ?? 0));
+              const height = Math.max(12, Math.round(((point.count ?? 0) / max) * 100));
+              const label = point.date
+                ? new Intl.DateTimeFormat('en-US', { weekday: 'short' }).format(new Date(point.date))
+                : ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][index % 7];
+              return (
+                <div key={`${point.date}-${index}`} className="flex h-full flex-1 flex-col items-center">
+                  <div className="flex w-full flex-1 items-end">
+                    <div
+                      className="w-full rounded-md bg-gradient-to-t from-amber-300/20 to-amber-300/80"
+                      style={{ height: `${height}%` }}
+                    />
+                  </div>
+                  <span className="mt-2 text-[10px] uppercase tracking-[0.3em] text-muted-foreground">
+                    {label}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  const intelSnapshotPanel = (
+    <div className="space-y-6">
+      <div className="glass-panel rounded-2xl p-6">
+        <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Mission Snapshot</p>
+        <div className="mt-4 space-y-3 text-sm text-muted-foreground">
+          <div className="flex items-center justify-between">
+            <span>Signal Strength</span>
+            <span className="text-primary">92%</span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span>Scan Velocity</span>
+            <span className="text-primary">+18%</span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span>Adaptive Nodes</span>
+            <span className="text-primary">4</span>
+          </div>
+        </div>
+      </div>
+      <div className="glass-panel rounded-2xl p-6 hidden lg:block">
+        <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Top Regions</p>
+        <div className="mt-3 space-y-2 text-sm">
+          <div className="flex items-center justify-between">
+            <span>Frankfurt</span>
+            <span className="text-primary">38%</span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span>Singapore</span>
+            <span className="text-primary">24%</span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span>Dallas</span>
+            <span className="text-primary">18%</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 
   return (
     <div className="min-h-screen bg-background" data-build={BUILD_STAMP}>
@@ -4329,12 +4520,12 @@ const Index = () => {
       <main
         className={`container mx-auto px-4 py-3 sm:py-6 lg:py-8 transition ${
           showGuestWelcome || isBooting ? 'blur-md pointer-events-none select-none' : ''
-        } ${isMobile ? 'flex flex-col gap-3' : ''}`}
+        } ${isMobile ? 'flex flex-col gap-3' : ''} ${isMobileV2 ? 'qrc-v2-main' : ''}`}
       >
         {activeTab === 'studio' && (
           <>
         {showStudioIntro && isMobile && (
-        <section className="space-y-3 sm:space-y-4" data-tour-id="quick-actions">
+        <section className={`space-y-3 sm:space-y-4 ${isMobileV2 ? 'qrc-v2-section' : ''}`} data-tour-id="quick-actions">
           <div>
             <p className="text-xs uppercase tracking-[0.4em] text-muted-foreground">Quick Actions</p>
             <h3 className="text-lg font-semibold">Jump into a new QR</h3>
@@ -4423,7 +4614,7 @@ const Index = () => {
         )}
 
         {showStudioIntro && (
-        <section id="studio" className="mt-4 space-y-4 border-t border-border/50 pt-4 sm:space-y-5 lg:mt-0 lg:border-0 lg:pt-0 lg:space-y-8">
+        <section id="studio" className={`mt-4 space-y-4 border-t border-border/50 pt-4 sm:space-y-5 lg:mt-0 lg:border-0 lg:pt-0 lg:space-y-8 ${isMobileV2 ? 'qrc-v2-section' : ''}`}>
           <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 sm:gap-5 lg:gap-6">
             <div>
               <p className="text-xs uppercase tracking-[0.4em] text-muted-foreground">Studio</p>
@@ -4442,7 +4633,9 @@ const Index = () => {
                   setActiveTab('analytics');
                 }
               }}
-              className="glass-panel rounded-2xl p-3 sm:p-6 space-y-3 sm:space-y-5 text-left transition hover:border-primary/60 hover:shadow-lg hover:-translate-y-1 select-none touch-manipulation"
+              className={`glass-panel rounded-2xl p-3 sm:p-6 space-y-3 sm:space-y-5 text-left transition hover:border-primary/60 hover:shadow-lg hover:-translate-y-1 select-none touch-manipulation ${
+                isMobileV2 ? 'qrc-v2-card' : ''
+              }`}
               data-tour-id="overview"
             >
               <div className="flex items-center justify-between">
@@ -4473,7 +4666,12 @@ const Index = () => {
               </div>
             </div>
 
-            <div className="glass-panel rounded-2xl p-3 sm:p-6 space-y-2 sm:space-y-4" data-tour-id="studio-guide">
+            <div
+              className={`glass-panel rounded-2xl p-3 sm:p-6 space-y-2 sm:space-y-4 ${
+                isMobileV2 ? 'qrc-v2-card' : ''
+              }`}
+              data-tour-id="studio-guide"
+            >
               <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Studio Guide</p>
               <h3 className="text-base sm:text-lg font-semibold">Your QR flow</h3>
               <div className="space-y-1.5 text-xs sm:text-sm text-muted-foreground">
@@ -4576,7 +4774,12 @@ const Index = () => {
         )}
 
         {showCreateSection && (
-        <section ref={createSectionRef} id="create" className="mt-8 lg:mt-14">
+        <section
+          ref={createSectionRef}
+          id="create"
+          className={`mt-8 lg:mt-14 ${isMobileV2 ? 'qrc-v2-section' : ''}`}
+          data-mobile-step-current={isMobileV2 ? mobileStudioStep : undefined}
+        >
           {isMobile && showMobileCreateFlow && (
             <button
               type="button"
@@ -4585,6 +4788,9 @@ const Index = () => {
                 setSelectedQuickAction(null);
                 setQrType(null);
                 setPendingCreateScroll(false);
+                if (isMobileV2) {
+                  setMobileStudioStep(1);
+                }
               }}
             >
               <ArrowLeft className="h-3.5 w-3.5" />
@@ -4598,6 +4804,22 @@ const Index = () => {
             </div>
             <span className="text-xs uppercase tracking-[0.3em] text-primary">Step-by-step</span>
           </div>
+          {isMobileV2 && (
+            <div className="mb-4 grid grid-cols-3 gap-2 text-xs uppercase tracking-[0.3em] text-muted-foreground">
+              {[1, 2, 3].map((step) => (
+                <button
+                  key={step}
+                  type="button"
+                  onClick={() => setMobileStudioStep(step as 1 | 2 | 3)}
+                  className={`rounded-xl border px-2 py-2 ${
+                    mobileStudioStep === step ? 'border-primary/60 text-primary' : 'border-border/60'
+                  }`}
+                >
+                  Step {step}
+                </button>
+              ))}
+            </div>
+          )}
 
           <div className="grid lg:grid-cols-[1fr_400px] gap-8">
             {/* Left Panel - Input & Preview */}
@@ -4606,11 +4828,12 @@ const Index = () => {
                 ref={modeSectionRef}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
+                data-mobile-step="1"
                 className={`glass-panel rounded-2xl p-6 space-y-6 ${
                   qrMode === 'dynamic'
                     ? 'border-cyan-400/40 bg-cyan-500/5 shadow-[0_0_25px_rgba(34,211,238,0.12)]'
                     : ''
-                }`}
+                } ${isMobileV2 ? 'qrc-v2-card' : ''}`}
               >
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
@@ -4634,6 +4857,9 @@ const Index = () => {
                         setWebsiteTouched(false);
                         setEmailTouched(false);
                         setPhoneTouched(false);
+                        if (isMobileV2) {
+                          setMobileStudioStep(2);
+                        }
                       }}
                     >
                       <QrCode className="mr-2 h-4 w-4" />
@@ -4652,6 +4878,9 @@ const Index = () => {
                         setWebsiteTouched(false);
                         setEmailTouched(false);
                         setPhoneTouched(false);
+                        if (isMobileV2) {
+                          setMobileStudioStep(2);
+                        }
                       }}
                     >
                       <Zap className="mr-2 h-4 w-4" />
@@ -4659,10 +4888,11 @@ const Index = () => {
                     </Button>
                   </div>
                 </div>
+              </motion.div>
 
                 <div ref={detailsSectionRef} className="space-y-6">
                   {hasSelectedMode && !selectedQuickAction ? (
-                    <div className="space-y-4">
+                    <div className="space-y-4" data-mobile-step="2">
                       <div className="flex items-center justify-between">
                         <h3 className="font-semibold">Step 2 · QR Type</h3>
                         <span className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Choose</span>
@@ -4676,6 +4906,9 @@ const Index = () => {
                             setEmailTouched(false);
                             setPhoneTouched(false);
                             setSelectedQuickAction(null);
+                            if (isMobileV2) {
+                              setMobileStudioStep(3);
+                            }
                           }}
                           className={`rounded-t-2xl border px-4 py-3 text-left transition-all ${
                             qrType === 'website'
@@ -4691,6 +4924,9 @@ const Index = () => {
                           onClick={() => {
                             setQrType('vcard');
                             setSelectedQuickAction(null);
+                            if (isMobileV2) {
+                              setMobileStudioStep(3);
+                            }
                           }}
                           className={`rounded-t-2xl border px-4 py-3 text-left transition-all ${
                             qrType === 'vcard'
@@ -4707,6 +4943,9 @@ const Index = () => {
                             setQrType('email');
                             setEmailTouched(false);
                             setSelectedQuickAction(null);
+                            if (isMobileV2) {
+                              setMobileStudioStep(3);
+                            }
                           }}
                           className={`rounded-t-2xl border px-4 py-3 text-left transition-all ${
                             qrType === 'email'
@@ -4724,6 +4963,9 @@ const Index = () => {
                             setPhoneTouched(false);
                             setFileTouched(false);
                             setSelectedQuickAction(null);
+                            if (isMobileV2) {
+                              setMobileStudioStep(3);
+                            }
                           }}
                           className={`rounded-t-2xl border px-4 py-3 text-left transition-all ${
                             qrType === 'phone'
@@ -4740,6 +4982,9 @@ const Index = () => {
                             setQrType('file');
                             setFileTouched(false);
                             setSelectedQuickAction(null);
+                            if (isMobileV2) {
+                              setMobileStudioStep(3);
+                            }
                           }}
                           className={`rounded-t-2xl border px-4 py-3 text-left transition-all ${
                             qrType === 'file'
@@ -4755,6 +5000,9 @@ const Index = () => {
                           onClick={() => {
                             setQrType('menu');
                             setSelectedQuickAction(null);
+                            if (isMobileV2) {
+                              setMobileStudioStep(3);
+                            }
                           }}
                           className={`rounded-t-2xl border px-4 py-3 text-left transition-all ${
                             qrType === 'menu'
@@ -4773,6 +5021,7 @@ const Index = () => {
                     </div>
                   )}
 
+                <div data-mobile-step="3" className="space-y-6">
                 {hasSelectedMode && hasSelectedType ? (
                   qrType === 'website' ? (
                     <div className="space-y-3">
@@ -5092,8 +5341,8 @@ const Index = () => {
                   )
                 ) : null}
                 </div>
-              </motion.div>
-
+              </div>
+            </div>
               {showMobileCustomize && (
                 <motion.div
                   initial={{ opacity: 0, y: 20 }}
@@ -5248,8 +5497,7 @@ const Index = () => {
                   )}
                 </motion.div>
               )}
-            </div>
-
+              
             {/* Right Panel - Customization */}
             <motion.div
               ref={customizeSectionRef}
@@ -5344,7 +5592,7 @@ const Index = () => {
         )}
 
         {activeTab === 'codes' && (
-          <section id="arsenal" className="space-y-6">
+          <section id="arsenal" className={`space-y-6 ${isMobileV2 ? 'qrc-v2-section' : ''}`}>
             <div className="grid gap-4 md:grid-cols-2">
               <button
                 type="button"
@@ -5388,7 +5636,7 @@ const Index = () => {
         )}
 
         {activeTab === 'analytics' && (
-          <section id="intel" className="space-y-6">
+          <section id="intel" className={`space-y-6 ${isMobileV2 ? 'qrc-v2-section' : ''}`}>
             <div className="relative">
               <div className="space-y-6">
                 <div className="flex flex-wrap items-start justify-between gap-2 sm:flex-nowrap sm:items-center">
@@ -5416,176 +5664,21 @@ const Index = () => {
                   </div>
                 </div>
 
-                <div className="grid lg:grid-cols-[1.2fr_0.8fr] gap-6">
-                  <div className="glass-panel rounded-2xl p-6 space-y-6">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Intel</p>
-                        <h3 className="text-lg font-semibold">Command Map</h3>
-                      </div>
-                      <span className="text-xs uppercase tracking-[0.3em] text-primary">Live</span>
-                    </div>
-
-                    <div className="rounded-2xl border border-border/60 bg-secondary/20 p-4 space-y-3">
-                      <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Radar</p>
-                      <div className="relative h-56 rounded-2xl border border-amber-300/30 bg-[radial-gradient(circle_at_center,rgba(251,191,36,0.12),rgba(17,24,39,0.9))] overflow-hidden">
-                        <img
-                          src="/map.svg"
-                          alt="World map outline"
-                          className="absolute inset-0 h-full w-full object-cover opacity-35"
-                          loading="lazy"
-                        />
-                        {scanAreas.length === 0 ? (
-                          <div className="absolute inset-0 flex items-center justify-center">
-                            <div className="rounded-md border border-amber-300/40 bg-black/40 px-4 py-2 text-[10px] uppercase tracking-[0.5em] text-amber-200 font-semibold">
-                              {radarLabel}
-                            </div>
-                          </div>
-                        ) : null}
-                        <MapDots areas={scanAreas} />
-                        <div className="absolute inset-6 rounded-full border border-amber-200/30" />
-                        <div className="absolute inset-12 rounded-full border border-amber-200/20" />
-                        <div className="absolute inset-20 rounded-full border border-amber-200/10" />
-                        <div className="absolute left-1/2 top-1/2 h-[140%] w-[140%] -translate-x-1/2 -translate-y-1/2 rounded-full border border-amber-300/10" />
-                        <div className="absolute inset-0 radar-sweep" />
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-3 gap-2 sm:gap-4">
-                      <button
-                        type="button"
-                        onClick={() => setActiveTab('codes')}
-                        className="rounded-xl border border-border/60 bg-secondary/30 p-3 sm:p-4 text-center transition hover:border-primary/60 hover:bg-secondary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
-                      >
-                        <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Active Nodes</p>
-                        <p className="text-lg sm:text-2xl font-semibold mt-2">{arsenalStats.total.toLocaleString()}</p>
-                      </button>
-                      <div
-                        ref={signalsCardRef}
-                        onClick={() => setIsSignalsMenuOpen((prev) => !prev)}
-                        role="button"
-                        tabIndex={0}
-                        onKeyDown={(event) => {
-                          if (event.key === 'Enter' || event.key === ' ') {
-                            event.preventDefault();
-                            setIsSignalsMenuOpen((prev) => !prev);
-                          }
-                        }}
-                        className="relative rounded-xl border border-border/60 bg-secondary/30 p-3 sm:p-4 text-center transition hover:border-primary/60 hover:bg-secondary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
-                      >
-                        <div className="flex items-center justify-center">
-                          <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Signals</p>
-                        </div>
-                        <p className="text-lg sm:text-2xl font-semibold mt-2">
-                          {intelLoading ? '...' : intelSummary.rangeTotal.toLocaleString()}
-                        </p>
-                        <p className="mt-2 text-[10px] uppercase tracking-[0.3em] text-muted-foreground">
-                          {intelRangeLabels[intelRange]}
-                        </p>
-                        {isSignalsMenuOpen && (
-                          <div className="absolute left-1/2 top-full z-20 mt-2 w-40 -translate-x-1/2 rounded-xl border border-border/80 bg-card/95 p-2 text-left shadow-lg">
-                            {(['today', '7d', '30d', 'all'] as const).map((range) => (
-                              <div
-                                key={range}
-                                role="button"
-                                tabIndex={0}
-                                onClick={() => {
-                                  setIntelRange(range);
-                                  setIsSignalsMenuOpen(false);
-                                }}
-                                onKeyDown={(event) => {
-                                  if (event.key === 'Enter' || event.key === ' ') {
-                                    event.preventDefault();
-                                    setIntelRange(range);
-                                    setIsSignalsMenuOpen(false);
-                                  }
-                                }}
-                                className="w-full rounded-lg px-2 py-1 text-xs uppercase tracking-[0.25em] text-muted-foreground transition hover:bg-secondary/50 hover:text-foreground"
-                              >
-                                {intelRangeLabels[range]}
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                      <div className="rounded-xl border border-border/60 bg-secondary/30 p-3 sm:p-4 text-center">
-                        <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Response Time</p>
-                        <p className="text-lg sm:text-2xl font-semibold mt-2">
-                          {intelLoading
-                            ? '...'
-                            : Number.isFinite(intelSummary.avgResponseMs)
-                              ? `${(intelSummary.avgResponseMs! / 1000).toFixed(2)}s`
-                              : '0'}
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="grid sm:grid-cols-2 gap-4">
-                      <div className="rounded-xl border border-border/60 bg-secondary/30 p-4 sm:col-span-2 lg:col-span-2">
-                        <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Signal Trends</p>
-                        <div className="mt-4 h-24 flex items-end gap-2">
-                          {(intelTrends.length ? intelTrends : Array.from({ length: 7 }, () => ({ count: 0, date: '' }))).map((point, index, arr) => {
-                            const max = Math.max(1, ...arr.map((item) => item.count ?? 0));
-                            const height = Math.max(12, Math.round(((point.count ?? 0) / max) * 100));
-                            const label = point.date
-                              ? new Intl.DateTimeFormat('en-US', { weekday: 'short' }).format(new Date(point.date))
-                              : ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][index % 7];
-                            return (
-                              <div key={`${point.date}-${index}`} className="flex h-full flex-1 flex-col items-center">
-                                <div className="flex w-full flex-1 items-end">
-                                  <div
-                                    className="w-full rounded-md bg-gradient-to-t from-amber-300/20 to-amber-300/80"
-                                    style={{ height: `${height}%` }}
-                                  />
-                                </div>
-                                <span className="mt-2 text-[10px] uppercase tracking-[0.3em] text-muted-foreground">
-                                  {label}
-                                </span>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    </div>
+                {isMobileV2 ? (
+                  <Tabs defaultValue="map">
+                    <TabsList className="grid w-full grid-cols-2">
+                      <TabsTrigger value="map">Map</TabsTrigger>
+                      <TabsTrigger value="snapshot">Snapshot</TabsTrigger>
+                    </TabsList>
+                    <TabsContent value="map">{intelMapPanel}</TabsContent>
+                    <TabsContent value="snapshot">{intelSnapshotPanel}</TabsContent>
+                  </Tabs>
+                ) : (
+                  <div className="grid lg:grid-cols-[1.2fr_0.8fr] gap-6">
+                    {intelMapPanel}
+                    {intelSnapshotPanel}
                   </div>
-
-                  <div className="space-y-6">
-                    <div className="glass-panel rounded-2xl p-6">
-                      <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Mission Snapshot</p>
-                      <div className="mt-4 space-y-3 text-sm text-muted-foreground">
-                        <div className="flex items-center justify-between">
-                          <span>Signal Strength</span>
-                          <span className="text-primary">92%</span>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span>Scan Velocity</span>
-                          <span className="text-primary">+18%</span>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span>Adaptive Nodes</span>
-                          <span className="text-primary">4</span>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="glass-panel rounded-2xl p-6 hidden lg:block">
-                      <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Top Regions</p>
-                      <div className="mt-3 space-y-2 text-sm">
-                        <div className="flex items-center justify-between">
-                          <span>Frankfurt</span>
-                          <span className="text-primary">38%</span>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span>Singapore</span>
-                          <span className="text-primary">24%</span>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span>Dallas</span>
-                          <span className="text-primary">18%</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
+                )}
               </div>
             </div>
           </section>

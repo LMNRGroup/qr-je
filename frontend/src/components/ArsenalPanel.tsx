@@ -37,6 +37,13 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import {
+  Drawer,
+  DrawerClose,
+  DrawerContent,
+  DrawerHeader,
+  DrawerTitle,
+} from '@/components/ui/drawer';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
@@ -179,6 +186,7 @@ export function ArsenalPanel({
   const [pendingAction, setPendingAction] = useState<
     | { type: 'select'; item: QRHistoryItem }
     | { type: 'cancel' }
+    | { type: 'close' }
     | null
   >(null);
   const previewRef = useRef<QRPreviewHandle>(null);
@@ -188,6 +196,9 @@ export function ArsenalPanel({
   const [scanCounts, setScanCounts] = useState<Record<string, number>>({});
   const t = (en: string, es: string) => (language === 'es' ? es : en);
   const isMobile = !isDesktop;
+  const isMobileUiV2 =
+    typeof document !== 'undefined' && document.documentElement.dataset.mobileUi === 'v2';
+  const isMobileV2 = isMobile && isMobileUiV2;
   const cacheId = cacheKey ? `qrc.arsenal.cache:${cacheKey}` : null;
   const CACHE_TTL_MS = 5 * 60 * 1000;
   const lastTodayRef = useRef(0);
@@ -200,6 +211,23 @@ export function ArsenalPanel({
     media.addEventListener('change', update);
     return () => media.removeEventListener('change', update);
   }, []);
+
+  useEffect(() => {
+    if (!isMobileV2 || !import.meta.env.DEV) return;
+    const check = () => {
+      const offenders: Element[] = [];
+      document.querySelectorAll('[data-overflow-check] *').forEach((element) => {
+        const node = element as HTMLElement;
+        if (node.scrollWidth > node.clientWidth + 1) offenders.push(node);
+      });
+      if (offenders.length) {
+        console.warn('[mobile-v2] overflow offenders', offenders);
+      }
+    };
+    check();
+    window.addEventListener('resize', check);
+    return () => window.removeEventListener('resize', check);
+  }, [isMobileV2]);
 
   const loadScanCounts = async (list: QRHistoryItem[], includeSummary = true) => {
     if (!list.length) {
@@ -437,7 +465,7 @@ export function ArsenalPanel({
       return;
     }
     applySelection(item);
-    if (!isDesktop) {
+    if (!isDesktop && !isMobileV2) {
       window.setTimeout(() => {
         const target = backButtonRef.current ?? detailRef.current;
         if (!target) return;
@@ -463,6 +491,10 @@ export function ArsenalPanel({
     }
     if (pending?.type === 'select') {
       applySelection(pending.item);
+      return;
+    }
+    if (pending?.type === 'close') {
+      clearSelection();
       return;
     }
     if (pending?.type === 'cancel' && action === 'discard') {
@@ -675,8 +707,219 @@ export function ArsenalPanel({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isDesktop, pagedItems, selectedId, sortedItems, viewMode]);
 
+  const renderMobileDetailContent = ({ showBackButton }: { showBackButton: boolean }) => {
+    if (!selectedItem) {
+      return (
+        <div className="flex items-center justify-center rounded-xl border border-border/60 bg-secondary/20 px-4 py-6 text-sm text-muted-foreground">
+          {t('Tap a QR to view details.', 'Toca un QR para ver detalles.')}
+        </div>
+      );
+    }
+
+    return (
+      <>
+        {showBackButton && (
+          <button
+            ref={backButtonRef}
+            type="button"
+            className="inline-flex items-center gap-2 text-xs uppercase tracking-[0.3em] text-muted-foreground transition hover:text-primary"
+            onClick={() => {
+              clearSelection();
+              if (typeof window !== 'undefined') {
+                const container = detailRef.current?.closest('.h-[calc(100dvh-260px)]') as HTMLElement | null;
+                if (listScrollRef.current) {
+                  listScrollRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+                }
+                if (container) {
+                  container.scrollTo({ top: 0, behavior: 'smooth' });
+                } else {
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                }
+              }
+            }}
+          >
+            <ArrowLeft className="h-3.5 w-3.5" />
+            {t('Back to Arsenal', 'Volver al Arsenal')}
+          </button>
+        )}
+        <div className="flex flex-wrap items-center gap-2 overflow-visible">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                size="icon"
+                variant="outline"
+                className="group relative border-border"
+              >
+                <Download className="h-4 w-4" />
+                <span className="pointer-events-none absolute -bottom-6 left-1/2 -translate-x-1/2 text-[10px] uppercase tracking-[0.35em] text-muted-foreground opacity-0 transition group-hover:opacity-100">
+                  {t('Download', 'Descargar')}
+                </span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="bg-card/95 border-border">
+              <DropdownMenuItem onClick={() => handleDownload('png')}>PNG</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleDownload('svg')}>SVG</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleDownload('jpeg')}>JPEG</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleDownload('pdf')}>PDF</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <Button
+            size="icon"
+            variant="outline"
+            className="group relative border-border"
+            onClick={handleCopy}
+          >
+            <Copy className="h-4 w-4" />
+            <span className="pointer-events-none absolute -bottom-6 left-1/2 -translate-x-1/2 text-[10px] uppercase tracking-[0.35em] text-muted-foreground opacity-0 transition group-hover:opacity-100">
+              {t('Share', 'Compartir')}
+            </span>
+          </Button>
+          <Button
+            size="icon"
+            variant="outline"
+            className="group relative border-destructive/40 text-destructive hover:bg-destructive/10"
+            onClick={() => setDeleteTarget(selectedItem)}
+          >
+            <Trash2 className="h-4 w-4" />
+            <span className="pointer-events-none absolute -bottom-6 left-1/2 -translate-x-1/2 text-[10px] uppercase tracking-[0.35em] text-destructive/80 opacity-0 transition group-hover:opacity-100">
+              {t('Delete', 'Eliminar')}
+            </span>
+          </Button>
+          {hasUnsavedChanges && (
+            <>
+              <Button
+                size="icon"
+                className="group relative bg-gradient-primary text-primary-foreground"
+                onClick={handleSave}
+                disabled={isSaving}
+              >
+                <Check className="h-4 w-4" />
+                <span className="pointer-events-none absolute -bottom-6 left-1/2 -translate-x-1/2 text-[10px] uppercase tracking-[0.35em] text-muted-foreground opacity-0 transition group-hover:opacity-100">
+                  {isSaving ? t('Saving', 'Guardando') : t('Save', 'Guardar')}
+                </span>
+              </Button>
+              <Button
+                size="icon"
+                variant="outline"
+                className="group relative border-border"
+                onClick={() => {
+                  setPendingAction({ type: 'cancel' });
+                  setShowUnsavedPrompt(true);
+                }}
+              >
+                <X className="h-4 w-4" />
+                <span className="pointer-events-none absolute -bottom-6 left-1/2 -translate-x-1/2 text-[10px] uppercase tracking-[0.35em] text-muted-foreground opacity-0 transition group-hover:opacity-100">
+                  {t('Cancel', 'Cancelar')}
+                </span>
+              </Button>
+            </>
+          )}
+        </div>
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0">
+            <p className="text-xs uppercase tracking-[0.35em] text-muted-foreground">
+              {t('Selected', 'Seleccionado')}
+            </p>
+            <Input
+              value={editName}
+              placeholder={selectedDisplayName}
+              onChange={(event) => setEditName(event.target.value.slice(0, 25))}
+              className="bg-secondary/40 border-border max-w-[280px]"
+              maxLength={25}
+            />
+          </div>
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            {renderScanCount(selectedItem)}
+            {renderCardBadge(selectedItem)}
+          </div>
+        </div>
+
+        <div className="flex justify-center">
+          <QRPreview
+            ref={previewRef}
+            options={{
+              ...selectedItem.options,
+              content: getQrPreviewContent(selectedItem),
+              size: 180,
+            }}
+            showCaption={false}
+          />
+        </div>
+        <p className="text-center text-xs uppercase tracking-[0.3em] text-muted-foreground">
+          {t('QRC Name', 'Nombre del QRC')}: {editName.trim() || selectedDisplayName}
+        </p>
+        <button
+          type="button"
+          onClick={handleCopy}
+          className="group relative w-full text-center text-xs text-muted-foreground truncate hover:text-primary transition"
+          title={selectedItem.shortUrl ?? selectedItem.content}
+        >
+          {selectedItem.shortUrl ?? selectedItem.content}
+          <span className="pointer-events-none absolute -bottom-5 left-1/2 -translate-x-1/2 text-[10px] uppercase tracking-[0.35em] text-muted-foreground opacity-0 transition group-hover:opacity-100">
+            {t('Copy', 'Copiar')}
+          </span>
+        </button>
+
+        <div className="space-y-3">
+          <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">
+            {isDynamic ? t('Dynamic URL', 'URL dinamica') : t('QR Destination', 'Destino del QR')}
+          </p>
+          <button
+            type="button"
+            onClick={handleCopy}
+            className="group relative w-full text-left rounded-md transition hover:ring-1 hover:ring-primary/40"
+          >
+            <Input
+              value={editContent}
+              onChange={(event) => setEditContent(event.target.value)}
+              className="bg-secondary/40 border-border pr-14 cursor-pointer transition group-hover:bg-secondary/60"
+              readOnly={!isDynamic}
+            />
+            <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[10px] uppercase tracking-[0.35em] text-muted-foreground opacity-0 transition group-hover:opacity-100">
+              {t('Copy', 'Copiar')}
+            </span>
+          </button>
+          {!isDynamic && (
+            <p className="text-[11px] uppercase tracking-[0.3em] text-muted-foreground">
+              {t('Static QR destinations are read-only.', 'Los destinos QR estaticos son de solo lectura.')}
+            </p>
+          )}
+        </div>
+
+        <div className="space-y-3">
+          <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">
+            {t('Live Preview', 'Vista previa')}
+          </p>
+          <div className="rounded-2xl border border-border/60 bg-secondary/20 overflow-hidden">
+            <div className="flex items-center gap-1.5 bg-card/80 px-3 py-2 text-[10px] uppercase tracking-[0.35em] text-muted-foreground">
+              <span className="h-2 w-2 rounded-full bg-rose-400/70" />
+              <span className="h-2 w-2 rounded-full bg-amber-400/70" />
+              <span className="h-2 w-2 rounded-full bg-emerald-400/70" />
+              <span className="ml-2">{t('Preview', 'Vista previa')}</span>
+            </div>
+            {isWebUrl(selectedItem.content) ? (
+              <img
+                src={`https://image.thum.io/get/width/1200/${selectedItem.content}`}
+                alt="Destination preview"
+                className="aspect-video w-full object-cover"
+                onError={(event) => {
+                  (event.currentTarget as HTMLImageElement).src = '';
+                }}
+              />
+            ) : (
+              <div className="flex aspect-video w-full flex-col items-center justify-center gap-2 text-muted-foreground text-sm">
+                <ExternalLink className="h-6 w-6 text-primary" />
+                {t('Preview available for web URLs only.', 'Vista previa disponible solo para URLs web.')}
+              </div>
+            )}
+          </div>
+        </div>
+      </>
+    );
+  };
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" data-overflow-check>
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <p className="text-xs uppercase tracking-[0.4em] text-muted-foreground">Arsenal</p>
@@ -781,7 +1024,9 @@ export function ArsenalPanel({
               className={
                 isDesktop
                   ? 'h-auto max-h-none'
-                  : 'h-[calc(100dvh-260px)] sm:h-[calc(100dvh-320px)]'
+                  : `h-[calc(100dvh-260px)] sm:h-[calc(100dvh-320px)] ${
+                      isMobileV2 ? 'qrc-arsenal-scroll qrc-no-scroll-x max-w-full' : ''
+                    }`
               }
             >
               <div
@@ -835,19 +1080,31 @@ export function ArsenalPanel({
                         viewMode === 'grid'
                           ? `${isMobile ? 'min-h-[150px]' : 'min-h-[210px]'} h-full flex flex-col justify-between`
                           : ''
-                      }`}
+                      } ${isMobileV2 ? 'max-w-full' : ''}`}
                     >
                       {isMobileList ? (
-                        <div className="flex items-center justify-between gap-3 overflow-hidden">
-                          <div className="space-y-1 min-w-0 flex-1 overflow-hidden pr-2">
+                        <div
+                          className={`flex items-center justify-between gap-3 overflow-hidden ${
+                            isMobileV2 ? 'min-w-0 max-w-full' : ''
+                          }`}
+                        >
+                          <div className={`space-y-1 min-w-0 flex-1 overflow-hidden ${isMobileV2 ? 'pr-0' : 'pr-2'}`}>
                             <p className="text-[13px] font-semibold truncate" title={displayName}>
                               {displayName}
                             </p>
-                            <p className="text-[11px] text-muted-foreground truncate max-w-[140px]">
+                            <p
+                              className={`text-[11px] text-muted-foreground truncate ${
+                                isMobileV2 ? 'max-w-full' : 'max-w-[140px]'
+                              }`}
+                            >
                               {item.content}
                             </p>
                           </div>
-                          <div className="flex items-center justify-end gap-2 text-[9px] uppercase tracking-[0.3em] shrink-0 flex-nowrap max-w-[45%] overflow-hidden">
+                          <div
+                            className={`flex items-center justify-end gap-2 text-[9px] uppercase tracking-[0.3em] shrink-0 ${
+                              isMobileV2 ? 'flex-wrap max-w-full min-w-0' : 'flex-nowrap max-w-[45%] overflow-hidden'
+                            }`}
+                          >
                             <span
                               className={`inline-flex min-w-0 items-center gap-2 rounded-full border px-2.5 py-0.5 ${modeMeta.badge}`}
                             >
@@ -1165,210 +1422,43 @@ export function ArsenalPanel({
       )}
 
       {!isLoading && sortedItems.length > 0 && (
-        <div ref={detailRef} className="glass-panel rounded-2xl p-6 space-y-6 lg:hidden">
-          {selectedItem ? (
-            <>
-              <button
-                ref={backButtonRef}
-                type="button"
-                className="inline-flex items-center gap-2 text-xs uppercase tracking-[0.3em] text-muted-foreground transition hover:text-primary"
-                onClick={() => {
-                  clearSelection();
-                  if (typeof window !== 'undefined') {
-                    const container = detailRef.current?.closest('.h-[calc(100dvh-260px)]') as HTMLElement | null;
-                    if (listScrollRef.current) {
-                      listScrollRef.current.scrollTo({ top: 0, behavior: 'smooth' });
-                    }
-                    if (container) {
-                      container.scrollTo({ top: 0, behavior: 'smooth' });
-                    } else {
-                      window.scrollTo({ top: 0, behavior: 'smooth' });
-                    }
-                  }
-                }}
-              >
-                <ArrowLeft className="h-3.5 w-3.5" />
-                {t('Back to Arsenal', 'Volver al Arsenal')}
-              </button>
-              <div className="flex flex-wrap items-center gap-2 overflow-visible">
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      size="icon"
-                      variant="outline"
-                      className="group relative border-border"
-                    >
-                      <Download className="h-4 w-4" />
-                      <span className="pointer-events-none absolute -bottom-6 left-1/2 -translate-x-1/2 text-[10px] uppercase tracking-[0.35em] text-muted-foreground opacity-0 transition group-hover:opacity-100">
-                        {t('Download', 'Descargar')}
-                      </span>
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="start" className="bg-card/95 border-border">
-                    <DropdownMenuItem onClick={() => handleDownload('png')}>PNG</DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => handleDownload('svg')}>SVG</DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => handleDownload('jpeg')}>JPEG</DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => handleDownload('pdf')}>PDF</DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-                <Button
-                  size="icon"
-                  variant="outline"
-                  className="group relative border-border"
-                  onClick={handleCopy}
-                >
-                  <Copy className="h-4 w-4" />
-                  <span className="pointer-events-none absolute -bottom-6 left-1/2 -translate-x-1/2 text-[10px] uppercase tracking-[0.35em] text-muted-foreground opacity-0 transition group-hover:opacity-100">
-                    {t('Share', 'Compartir')}
-                  </span>
-                </Button>
-                <Button
-                  size="icon"
-                  variant="outline"
-                  className="group relative border-destructive/40 text-destructive hover:bg-destructive/10"
-                  onClick={() => setDeleteTarget(selectedItem)}
-                >
-                  <Trash2 className="h-4 w-4" />
-                  <span className="pointer-events-none absolute -bottom-6 left-1/2 -translate-x-1/2 text-[10px] uppercase tracking-[0.35em] text-destructive/80 opacity-0 transition group-hover:opacity-100">
-                    {t('Delete', 'Eliminar')}
-                  </span>
-                </Button>
-                {hasUnsavedChanges && (
-                  <>
-                    <Button
-                      size="icon"
-                      className="group relative bg-gradient-primary text-primary-foreground"
-                      onClick={handleSave}
-                      disabled={isSaving}
-                    >
-                      <Check className="h-4 w-4" />
-                      <span className="pointer-events-none absolute -bottom-6 left-1/2 -translate-x-1/2 text-[10px] uppercase tracking-[0.35em] text-muted-foreground opacity-0 transition group-hover:opacity-100">
-                        {isSaving ? t('Saving', 'Guardando') : t('Save', 'Guardar')}
-                      </span>
-                    </Button>
-                    <Button
-                      size="icon"
-                      variant="outline"
-                      className="group relative border-border"
-                      onClick={() => {
-                        setPendingAction({ type: 'cancel' });
-                        setShowUnsavedPrompt(true);
-                      }}
-                    >
-                      <X className="h-4 w-4" />
-                      <span className="pointer-events-none absolute -bottom-6 left-1/2 -translate-x-1/2 text-[10px] uppercase tracking-[0.35em] text-muted-foreground opacity-0 transition group-hover:opacity-100">
-                        {t('Cancel', 'Cancelar')}
-                      </span>
-                    </Button>
-                  </>
-                )}
-              </div>
-              <div className="flex items-start justify-between gap-4">
-                <div className="min-w-0">
-                  <p className="text-xs uppercase tracking-[0.35em] text-muted-foreground">
-                    {t('Selected', 'Seleccionado')}
-                  </p>
-                  <Input
-                    value={editName}
-                    placeholder={selectedDisplayName}
-                    onChange={(event) => setEditName(event.target.value.slice(0, 25))}
-                    className="bg-secondary/40 border-border max-w-[280px]"
-                    maxLength={25}
-                  />
-                </div>
-                <div className="flex flex-wrap items-center justify-end gap-2">
-                  {renderScanCount(selectedItem)}
-                  {renderCardBadge(selectedItem)}
-                </div>
-              </div>
-
-              <div className="flex justify-center">
-                <QRPreview
-                  ref={previewRef}
-                  options={{
-                    ...selectedItem.options,
-                    content: getQrPreviewContent(selectedItem),
-                    size: 180,
-                  }}
-                  showCaption={false}
-                />
-              </div>
-              <p className="text-center text-xs uppercase tracking-[0.3em] text-muted-foreground">
-                {t('QRC Name', 'Nombre del QRC')}: {editName.trim() || selectedDisplayName}
-              </p>
-              <button
-                type="button"
-                onClick={handleCopy}
-                className="group relative w-full text-center text-xs text-muted-foreground truncate hover:text-primary transition"
-                title={selectedItem.shortUrl ?? selectedItem.content}
-              >
-                {selectedItem.shortUrl ?? selectedItem.content}
-                <span className="pointer-events-none absolute -bottom-5 left-1/2 -translate-x-1/2 text-[10px] uppercase tracking-[0.35em] text-muted-foreground opacity-0 transition group-hover:opacity-100">
-                  {t('Copy', 'Copiar')}
-                </span>
-              </button>
-
-              <div className="space-y-3">
-                <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">
-                  {isDynamic ? t('Dynamic URL', 'URL dinamica') : t('QR Destination', 'Destino del QR')}
-                </p>
-                <button
-                  type="button"
-                  onClick={handleCopy}
-                  className="group relative w-full text-left rounded-md transition hover:ring-1 hover:ring-primary/40"
-                >
-                  <Input
-                    value={editContent}
-                    onChange={(event) => setEditContent(event.target.value)}
-                    className="bg-secondary/40 border-border pr-14 cursor-pointer transition group-hover:bg-secondary/60"
-                    readOnly={!isDynamic}
-                  />
-                  <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[10px] uppercase tracking-[0.35em] text-muted-foreground opacity-0 transition group-hover:opacity-100">
-                    {t('Copy', 'Copiar')}
-                  </span>
-                </button>
-                {!isDynamic && (
-                  <p className="text-[11px] uppercase tracking-[0.3em] text-muted-foreground">
-                    {t('Static QR destinations are read-only.', 'Los destinos QR estaticos son de solo lectura.')}
-                  </p>
-                )}
-              </div>
-
-              <div className="space-y-3">
-                <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">
-                  {t('Live Preview', 'Vista previa')}
-                </p>
-                <div className="rounded-2xl border border-border/60 bg-secondary/20 overflow-hidden">
-                  <div className="flex items-center gap-1.5 bg-card/80 px-3 py-2 text-[10px] uppercase tracking-[0.35em] text-muted-foreground">
-                    <span className="h-2 w-2 rounded-full bg-rose-400/70" />
-                    <span className="h-2 w-2 rounded-full bg-amber-400/70" />
-                    <span className="h-2 w-2 rounded-full bg-emerald-400/70" />
-                    <span className="ml-2">{t('Preview', 'Vista previa')}</span>
-                  </div>
-                  {isWebUrl(selectedItem.content) ? (
-                    <img
-                      src={`https://image.thum.io/get/width/1200/${selectedItem.content}`}
-                      alt="Destination preview"
-                      className="aspect-video w-full object-cover"
-                      onError={(event) => {
-                        (event.currentTarget as HTMLImageElement).src = '';
-                      }}
-                    />
-                  ) : (
-                    <div className="flex aspect-video w-full flex-col items-center justify-center gap-2 text-muted-foreground text-sm">
-                      <ExternalLink className="h-6 w-6 text-primary" />
-                      {t('Preview available for web URLs only.', 'Vista previa disponible solo para URLs web.')}
-                    </div>
-                  )}
-                </div>
-              </div>
-            </>
-          ) : (
-            <div className="flex items-center justify-center rounded-xl border border-border/60 bg-secondary/20 px-4 py-6 text-sm text-muted-foreground">
-              {t('Tap a QR to view details.', 'Toca un QR para ver detalles.')}
-            </div>
-          )}
+        <div
+          ref={detailRef}
+          className={`glass-panel rounded-2xl p-6 space-y-6 lg:hidden ${isMobileV2 ? 'hidden' : ''}`}
+        >
+          {renderMobileDetailContent({ showBackButton: true })}
         </div>
+      )}
+
+      {isMobileV2 && (
+        <Drawer
+          open={Boolean(selectedItem)}
+          onOpenChange={(open) => {
+            if (open) return;
+            if (hasUnsavedChanges) {
+              setPendingAction({ type: 'close' });
+              setShowUnsavedPrompt(true);
+              return;
+            }
+            clearSelection();
+          }}
+        >
+          <DrawerContent className="max-h-[90dvh] overflow-y-auto">
+            <DrawerHeader className="flex items-center justify-between">
+              <DrawerTitle>
+                {selectedItem ? getDisplayName(selectedItem, sortedItems) : t('QR Details', 'Detalles del QR')}
+              </DrawerTitle>
+              <DrawerClose asChild>
+                <button type="button" className="text-xs uppercase tracking-[0.3em] text-muted-foreground">
+                  {t('Close', 'Cerrar')}
+                </button>
+              </DrawerClose>
+            </DrawerHeader>
+            <div className="px-4 pb-6 space-y-6">
+              {renderMobileDetailContent({ showBackButton: false })}
+            </div>
+          </DrawerContent>
+        </Drawer>
       )}
 
       <AlertDialog open={showBulkDelete} onOpenChange={setShowBulkDelete}>

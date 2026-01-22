@@ -1,4 +1,5 @@
 import supabase, { isSupabaseConfigured } from '@/lib/supabase';
+import type { Session } from '@supabase/supabase-js';
 import { QRHistoryItem, QROptions } from '@/types/qr';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '';
@@ -46,6 +47,44 @@ const requireBaseUrl = () => {
   return API_BASE_URL.replace(/\/+$/, '');
 };
 
+const readStoredSession = (): { access_token: string; refresh_token: string } | null => {
+  if (typeof window === 'undefined') {
+    return null;
+  }
+  const raw = localStorage.getItem('qrc.auth.session');
+  if (!raw) {
+    return null;
+  }
+  try {
+    const parsed = JSON.parse(raw);
+    if (parsed?.access_token && parsed?.refresh_token) {
+      return parsed;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+};
+
+const writeStoredSession = (session?: Session | null) => {
+  if (typeof window === 'undefined') {
+    return;
+  }
+  if (session?.access_token && session?.refresh_token) {
+    localStorage.setItem('qrc.auth.token', session.access_token);
+    localStorage.setItem(
+      'qrc.auth.session',
+      JSON.stringify({
+        access_token: session.access_token,
+        refresh_token: session.refresh_token,
+      })
+    );
+    return;
+  }
+  localStorage.removeItem('qrc.auth.token');
+  localStorage.removeItem('qrc.auth.session');
+};
+
 const getStoredToken = () => {
   if (typeof window === 'undefined') {
     return null;
@@ -88,17 +127,47 @@ const getAuthHeaders = async () => {
   return token ? { Authorization: `Bearer ${token}` } : {};
 };
 
+const refreshAuthToken = async () => {
+  if (!isSupabaseConfigured) {
+    return null;
+  }
+  const storedSession = readStoredSession();
+  if (!storedSession) {
+    return null;
+  }
+  const { data, error } = await supabase.auth.refreshSession({
+    refresh_token: storedSession.refresh_token,
+  });
+  if (error || !data.session) {
+    return null;
+  }
+  writeStoredSession(data.session);
+  return data.session.access_token;
+};
+
 const request = async (path: string, init?: RequestInit) => {
   const baseUrl = requireBaseUrl();
   const authHeaders = await getAuthHeaders();
-  const response = await fetch(`${baseUrl}${path}`, {
-    ...init,
-    headers: {
-      'Content-Type': 'application/json',
-      ...authHeaders,
-      ...(init?.headers ?? {}),
-    },
+  const buildHeaders = (extra?: Record<string, string>) => ({
+    'Content-Type': 'application/json',
+    ...authHeaders,
+    ...(extra ?? {}),
+    ...(init?.headers ?? {}),
   });
+  let response = await fetch(`${baseUrl}${path}`, {
+    ...init,
+    headers: buildHeaders(),
+  });
+
+  if (response.status === 401 && isSupabaseConfigured) {
+    const refreshedToken = await refreshAuthToken();
+    if (refreshedToken) {
+      response = await fetch(`${baseUrl}${path}`, {
+        ...init,
+        headers: buildHeaders({ Authorization: `Bearer ${refreshedToken}` }),
+      });
+    }
+  }
 
   if (!response.ok) {
     const errorText = await response.text();
