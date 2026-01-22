@@ -1056,12 +1056,6 @@ export function ArsenalPanel({
   return (
     <div className="space-y-6" data-overflow-check>
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <p className="text-xs uppercase tracking-[0.4em] text-muted-foreground">Arsenal</p>
-          <h2 className="text-3xl font-semibold tracking-tight">
-            {t('Your QR Arsenal', 'Tu Arsenal QR')}
-          </h2>
-        </div>
         {isMobileV2 ? (
           <div className="flex w-full items-center justify-between gap-2 flex-nowrap qrc-arsenal-toolbar">
             <div className="flex min-w-0 flex-1 items-center gap-2">
