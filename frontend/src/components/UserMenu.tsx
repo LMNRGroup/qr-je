@@ -247,11 +247,11 @@ export function UserMenu({ trigger }: { trigger?: React.ReactNode }) {
                   isExpanded ? '' : 'h-20 overflow-hidden'
                 }`}
               >
-                <div className="flex items-center justify-between text-[10px] uppercase tracking-[0.3em] text-muted-foreground">
-                  <span className="flex items-center gap-2">
-                    <Bell className="h-3.5 w-3.5 text-primary" />
-                    System
-                  </span>
+              <div className="flex items-center justify-between text-[10px] uppercase tracking-[0.3em] text-muted-foreground">
+                <span className="flex items-center gap-2">
+                  <Bell className="h-3.5 w-3.5 text-primary" />
+                  System
+                </span>
                 </div>
                 <button
                   type="button"
@@ -278,12 +278,12 @@ export function UserMenu({ trigger }: { trigger?: React.ReactNode }) {
                   <button
                     type="button"
                     className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground hover:text-foreground"
-                    onClick={() =>
-                      setDismissedSystemIds((prev) => new Set([...Array.from(prev), note.id]))
-                    }
-                  >
-                    Clear
-                  </button>
+                  onClick={() =>
+                    setDismissedSystemIds((prev) => new Set([...Array.from(prev), note.id]))
+                  }
+                >
+                  Clear
+                </button>
                 )}
               </div>
             );
@@ -307,12 +307,26 @@ export function UserMenu({ trigger }: { trigger?: React.ReactNode }) {
           </Button>
         </div>
         <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={handlePreferences} className="cursor-pointer h-11 px-3">
+        <DropdownMenuItem
+          onClick={handlePreferences}
+          onSelect={(event) => {
+            event.preventDefault();
+            handlePreferences();
+          }}
+          className="cursor-pointer h-11 px-3"
+        >
           <Settings className="mr-2 h-4 w-4" />
           Preferences
         </DropdownMenuItem>
         {isMobileV2 && (
-          <DropdownMenuItem onClick={handleClearCache} className="cursor-pointer h-11 px-3">
+          <DropdownMenuItem
+            onClick={handleClearCache}
+            onSelect={(event) => {
+              event.preventDefault();
+              handleClearCache();
+            }}
+            className="cursor-pointer h-11 px-3"
+          >
             <RefreshCcw className="mr-2 h-4 w-4" />
             Clear cache
           </DropdownMenuItem>

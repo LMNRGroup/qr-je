@@ -39,7 +39,7 @@ const App = () => (
               >
                 Terms & Conditions
               </a>
-              <p className="mt-2">© {new Date().getFullYear()} GDev x Luminar Apps.</p>
+              <p className="mt-2">© {new Date().getFullYear()} GDev x Luminar Apps. Puerto Rico.</p>
             </footer>
           </div>
         </BrowserRouter>

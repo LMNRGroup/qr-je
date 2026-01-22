@@ -31,6 +31,7 @@ import {
   createVcard,
   generateQR,
   getQRHistory,
+  getScanCount,
   getScanAreas,
   getScanSummary,
   getScanTrends,
@@ -40,7 +41,7 @@ import {
   type ScanAreaSummary,
   type UserProfile,
 } from '@/lib/api';
-import { QROptions, defaultQROptions } from '@/types/qr';
+import { QROptions, QRHistoryItem, defaultQROptions } from '@/types/qr';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   ChevronDown,
@@ -222,6 +223,7 @@ const Index = () => {
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [pendingCreateScroll, setPendingCreateScroll] = useState(false);
   const [accountLoading, setAccountLoading] = useState(false);
+  const [profileSaving, setProfileSaving] = useState(false);
   const [uiErrorBadge, setUiErrorBadge] = useState<{ code: string; message: string } | null>(null);
   const [pullRefreshState, setPullRefreshState] = useState({ visible: false, progress: 0, ready: false });
   const [stageOverlayOpen, setStageOverlayOpen] = useState(false);
@@ -235,6 +237,8 @@ const Index = () => {
   const isSpanish = profileForm.language === 'es';
   const t = (en: string, es: string) => (isSpanish ? es : en);
   const isLeftie = Boolean(userProfile?.leftie ?? profileForm.leftie);
+  const trendTimeZone =
+    userProfile?.timezone || profileForm.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
   const previewOptions = useMemo(
     () => ({
       ...options,
@@ -242,6 +246,35 @@ const Index = () => {
     }),
     [options]
   );
+  const trendPoints = useMemo(() => {
+    const keyFormatter = new Intl.DateTimeFormat('en-CA', {
+      timeZone: trendTimeZone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    });
+    const labelFormatter = new Intl.DateTimeFormat('en-US', {
+      timeZone: trendTimeZone,
+      weekday: 'short',
+    });
+    const map = new Map<string, number>();
+    intelTrends.forEach((point) => {
+      if (!point.date) return;
+      const key = keyFormatter.format(new Date(point.date));
+      map.set(key, point.count ?? 0);
+    });
+    const today = new Date();
+    return Array.from({ length: 7 }, (_, index) => {
+      const date = new Date(today);
+      date.setDate(today.getDate() - (6 - index));
+      const key = keyFormatter.format(date);
+      return {
+        date,
+        count: map.get(key) ?? 0,
+        label: labelFormatter.format(date),
+      };
+    });
+  }, [intelTrends, trendTimeZone]);
   const productionStages = useMemo(
     () => [
       {
@@ -282,8 +315,7 @@ const Index = () => {
           'What started small is now moving fast, reaching creators, businesses, and teams everywhere.\n\n' +
           'Built with love, pressure, and long nights.\n\n' +
           'DE PUERTO RICO PA’L MUNDO.\n\n' +
-          'Let’s go. 🚀\n\n' +
-          'Puerto Rico.',
+          'Let’s go. 🚀',
       },
     ],
     []
@@ -577,6 +609,87 @@ const Index = () => {
     }
     return { mode: 'static', type: kind };
   }, []);
+
+  const scanNotifyRef = useRef<Record<string, number>>({});
+  const scanNotifyPollingRef = useRef(false);
+  const pushScanNotification = useCallback((label: string) => {
+    if (typeof window === 'undefined') return;
+    try {
+      const raw = window.localStorage.getItem('qrc.feed.user');
+      const parsed = raw ? (JSON.parse(raw) as Array<{ id: string; message: string; createdAt: number }>) : [];
+      const next = Array.isArray(parsed) ? parsed : [];
+      next.unshift({
+        id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        message: `${label} got a scan!`,
+        createdAt: Date.now(),
+      });
+      const trimmed = next.slice(0, 10);
+      window.localStorage.setItem('qrc.feed.user', JSON.stringify(trimmed));
+      window.dispatchEvent(new CustomEvent('qrc:feed-update'));
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!isLoggedIn || !user?.id) return;
+    if (!isMobile) return;
+    if (activeTab === 'codes') return;
+    let cancelled = false;
+    let interval: number | undefined;
+    const storageKey = `qrc.scan.counts.${user.id}`;
+    const loadStoredCounts = () => {
+      if (typeof window === 'undefined') return {};
+      try {
+        const raw = window.localStorage.getItem(storageKey);
+        return raw ? (JSON.parse(raw) as Record<string, number>) : {};
+      } catch {
+        return {};
+      }
+    };
+    scanNotifyRef.current = loadStoredCounts();
+    const getLabel = (item: QRHistoryItem) => item.name?.trim() || 'QRC';
+    const poll = async () => {
+      if (cancelled || scanNotifyPollingRef.current) return;
+      scanNotifyPollingRef.current = true;
+      try {
+        const history = await getQRHistory();
+        if (!history.success || cancelled) return;
+        const targets = history.data.slice(0, 10);
+        const results = await Promise.all(
+          targets.map(async (item) => {
+            const count = await getScanCount(item.id, item.random);
+            return { id: item.id, count, label: getLabel(item) };
+          })
+        );
+        const prev = scanNotifyRef.current;
+        results.forEach(({ id, count, label }) => {
+          const previous = prev[id];
+          if (previous !== undefined && count > previous) {
+            pushScanNotification(label);
+          }
+        });
+        const nextCounts = results.reduce<Record<string, number>>((acc, { id, count }) => {
+          acc[id] = count;
+          return acc;
+        }, {});
+        scanNotifyRef.current = nextCounts;
+        if (typeof window !== 'undefined') {
+          window.localStorage.setItem(storageKey, JSON.stringify(nextCounts));
+        }
+      } catch {
+        // ignore polling errors
+      } finally {
+        scanNotifyPollingRef.current = false;
+      }
+    };
+    poll();
+    interval = window.setInterval(poll, 15000);
+    return () => {
+      cancelled = true;
+      if (interval) window.clearInterval(interval);
+    };
+  }, [activeTab, isLoggedIn, isMobile, pushScanNotification, user?.id]);
 
   const refreshArsenalStats = useCallback(async () => {
     if (!isSessionReady) {
@@ -1531,21 +1644,26 @@ const Index = () => {
 
   const handleProfileSave = async () => {
     if (!isLoggedIn || !user) return;
+    if (profileSaving) return;
     if (!isSupabaseConfigured) {
       toast.error('Profile updates require a connected backend.');
       return;
     }
+    setProfileSaving(true);
     if (profileForm.newPassword || profileForm.currentPassword || profileForm.confirmPassword) {
       if (!profileForm.currentPassword || !profileForm.newPassword) {
         toast.error('Enter your current and new password.');
+        setProfileSaving(false);
         return;
       }
       if (profileForm.newPassword !== profileForm.confirmPassword) {
         toast.error('New passwords do not match.');
+        setProfileSaving(false);
         return;
       }
       if (!user.email) {
         toast.error('Unable to verify password without an email.');
+        setProfileSaving(false);
         return;
       }
       const { error: signInError } = await supabase.auth.signInWithPassword({
@@ -1554,6 +1672,7 @@ const Index = () => {
       });
       if (signInError) {
         toast.error('Current password is incorrect.');
+        setProfileSaving(false);
         return;
       }
       const { error: passwordError } = await supabase.auth.updateUser({
@@ -1561,23 +1680,24 @@ const Index = () => {
       });
       if (passwordError) {
         toast.error(passwordError.message);
-        return;
-      }
-    }
-
-    const metadataUpdates: Record<string, unknown> = {};
-    if (profileForm.fullName.trim()) {
-      metadataUpdates.data = { full_name: profileForm.fullName.trim() };
-    }
-    if (Object.keys(metadataUpdates).length > 0) {
-      const { error } = await supabase.auth.updateUser(metadataUpdates);
-      if (error) {
-        toast.error(error.message);
+        setProfileSaving(false);
         return;
       }
     }
 
     try {
+      const metadataUpdates: Record<string, unknown> = {};
+      if (profileForm.fullName.trim()) {
+        metadataUpdates.data = { full_name: profileForm.fullName.trim() };
+      }
+      if (Object.keys(metadataUpdates).length > 0) {
+        const { error } = await supabase.auth.updateUser(metadataUpdates);
+        if (error) {
+          toast.error(error.message);
+          return;
+        }
+      }
+
       const themeKey = user?.id ? `theme:${user.id}` : 'theme:default';
       const theme = localStorage.getItem(themeKey);
       const shouldPersistAvatar = avatarDirty || hasSavedAvatar;
@@ -1615,6 +1735,8 @@ const Index = () => {
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to update preferences.';
       toast.error(message);
+    } finally {
+      setProfileSaving(false);
     }
   };
 
@@ -2947,7 +3069,7 @@ const Index = () => {
             </div>
           )}
         </div>
-        <div className="rounded-xl border border-border/60 bg-secondary/30 p-3 sm:p-4 text-center">
+        <div className="rounded-xl border border-border/60 bg-secondary/30 p-3 sm:p-4 text-center flex flex-col items-center">
           <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Response Time</p>
           <p className="text-lg sm:text-2xl font-semibold mt-2">
             {intelLoading
@@ -2963,14 +3085,11 @@ const Index = () => {
         <div className="rounded-xl border border-border/60 bg-secondary/30 p-4 sm:col-span-2 lg:col-span-2">
           <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Signal Trends</p>
           <div className="mt-4 h-24 flex items-end gap-2">
-            {(intelTrends.length ? intelTrends : Array.from({ length: 7 }, () => ({ count: 0, date: '' }))).map((point, index, arr) => {
+            {trendPoints.map((point, index, arr) => {
               const max = Math.max(1, ...arr.map((item) => item.count ?? 0));
               const height = Math.max(12, Math.round(((point.count ?? 0) / max) * 100));
-              const label = point.date
-                ? new Intl.DateTimeFormat('en-US', { weekday: 'short' }).format(new Date(point.date))
-                : ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][index % 7];
               return (
-                <div key={`${point.date}-${index}`} className="flex h-full flex-1 flex-col items-center">
+                <div key={`${point.label}-${index}`} className="flex h-full flex-1 flex-col items-center">
                   <div className="flex w-full flex-1 items-end">
                     <div
                       className="w-full rounded-md bg-gradient-to-t from-amber-300/20 to-amber-300/80"
@@ -2978,7 +3097,7 @@ const Index = () => {
                     />
                   </div>
                   <span className="mt-2 text-[10px] uppercase tracking-[0.3em] text-muted-foreground">
-                    {label}
+                    {point.label}
                   </span>
                 </div>
               );
@@ -4111,11 +4230,11 @@ const Index = () => {
 
       {showMenuBuilder && (
         <div
-          className="fixed inset-0 z-[70] flex items-center justify-center bg-background/70 backdrop-blur-md px-4"
+          className="fixed inset-0 z-[70] flex items-center justify-center bg-background/70 backdrop-blur-md px-4 py-4"
           onClick={() => setShowMenuBuilder(false)}
         >
           <div
-            className="glass-panel rounded-3xl p-6 sm:p-8 w-full max-w-6xl space-y-6 relative"
+            className="glass-panel rounded-3xl p-4 sm:p-6 w-full max-w-6xl space-y-4 relative max-h-[90dvh] overflow-y-auto"
             onClick={(event) => event.stopPropagation()}
           >
             <button
@@ -4135,7 +4254,7 @@ const Index = () => {
               </div>
             </div>
 
-            <div className="grid lg:grid-cols-[0.9fr_1.1fr] gap-6">
+            <div className="grid lg:grid-cols-[0.9fr_1.1fr] gap-4">
               <div className="flex flex-col items-center gap-5">
                 <div className="w-full rounded-2xl border border-border/60 bg-secondary/30 p-4 space-y-3">
                   <div className="flex items-center justify-between">
@@ -4145,7 +4264,7 @@ const Index = () => {
                     </span>
                   </div>
                   <div className="flex items-center justify-center">
-                    <div className="relative h-[420px] w-[260px] sm:h-[460px] sm:w-[280px] rounded-2xl border border-border/70 bg-card/80 overflow-hidden shadow-xl">
+                    <div className="relative h-[320px] w-[200px] sm:h-[380px] sm:w-[240px] rounded-2xl border border-border/70 bg-card/80 overflow-hidden shadow-xl">
                       {menuLogoDataUrl ? (
                         <div className="absolute left-4 top-4 h-12 w-12 rounded-full border border-white/30 bg-white/10 shadow-lg">
                           <div
@@ -4261,7 +4380,7 @@ const Index = () => {
               </div>
 
               <div className="space-y-6">
-                <div className="glass-panel rounded-2xl p-5 space-y-4">
+                <div className="glass-panel rounded-2xl p-4 space-y-3">
                   <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Menu Type</p>
                   <div className="flex flex-wrap gap-3">
                     <Button
@@ -4287,7 +4406,7 @@ const Index = () => {
                   </div>
                 </div>
 
-                <div className="glass-panel rounded-2xl p-5 space-y-4">
+                <div className="glass-panel rounded-2xl p-4 space-y-3">
                   <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Branding</p>
                   <div className="flex flex-wrap items-center gap-4">
                     <label className="flex flex-col gap-2 text-xs uppercase tracking-[0.3em] text-muted-foreground">
@@ -4307,7 +4426,7 @@ const Index = () => {
                   </div>
                 </div>
 
-                <div className="glass-panel rounded-2xl p-5 space-y-4">
+                <div className="glass-panel rounded-2xl p-4 space-y-3">
                   <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Menu Pages</p>
                   <p className="text-sm text-muted-foreground">
                     Upload up to 15 JPG/PNG pages or a single PDF file.
@@ -4325,7 +4444,7 @@ const Index = () => {
                       : 'No menu pages uploaded yet.'}
                   </div>
                   {menuFiles.length > 1 && menuFiles.every((file) => file.type === 'image') ? (
-                    <div className="space-y-2 text-xs text-muted-foreground">
+                    <div className="space-y-2 text-xs text-muted-foreground max-h-40 overflow-y-auto pr-1">
                       {menuFiles.map((file, index) => (
                         <div key={`${file.url}-${index}`} className="flex items-center justify-between gap-2 rounded-lg border border-border/60 bg-secondary/30 px-3 py-2">
                           <span className="truncate">Page {index + 1}</span>
@@ -4360,7 +4479,7 @@ const Index = () => {
                   ) : null}
                 </div>
 
-                <div className="glass-panel rounded-2xl p-5 space-y-4">
+                <div className="glass-panel rounded-2xl p-4 space-y-3">
                   <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Social Links</p>
                   <div className="grid sm:grid-cols-2 gap-3">
                     <div className="flex items-center gap-2 rounded-xl border border-border/60 bg-secondary/30 px-3">
@@ -6553,8 +6672,9 @@ const Index = () => {
                     type="button"
                     className="bg-gradient-primary text-primary-foreground uppercase tracking-[0.2em] text-xs"
                     onClick={handleProfileSave}
+                    disabled={profileSaving}
                   >
-                    {t('Save Preferences', 'Guardar preferencias')}
+                    {profileSaving ? t('Saving...', 'Guardando...') : t('Save Preferences', 'Guardar preferencias')}
                   </Button>
                 </div>
               </div>
