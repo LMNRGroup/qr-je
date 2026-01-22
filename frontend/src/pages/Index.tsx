@@ -221,6 +221,7 @@ const Index = () => {
   const [pendingCreateScroll, setPendingCreateScroll] = useState(false);
   const [accountLoading, setAccountLoading] = useState(false);
   const [uiErrorBadge, setUiErrorBadge] = useState<{ code: string; message: string } | null>(null);
+  const [pullRefreshState, setPullRefreshState] = useState({ visible: false, progress: 0, ready: false });
   const [accountForm, setAccountForm] = useState({
     username: '',
     fullName: '',
@@ -2655,12 +2656,16 @@ const Index = () => {
       if (getScrollTop() > 0) return;
       startY = event.touches[0]?.clientY ?? 0;
       isPulling = true;
+      setPullRefreshState({ visible: true, progress: 0, ready: false });
     };
 
     const handleTouchMove = (event: TouchEvent) => {
       if (!isPulling) return;
       const currentY = event.touches[0]?.clientY ?? 0;
       const delta = currentY - startY;
+      const progress = Math.min(1, Math.max(0, delta / threshold));
+      const ready = delta > threshold;
+      setPullRefreshState({ visible: true, progress, ready });
       if (delta > threshold) {
         isPulling = false;
         window.location.reload();
@@ -2669,6 +2674,7 @@ const Index = () => {
 
     const handleTouchEnd = () => {
       isPulling = false;
+      setPullRefreshState({ visible: false, progress: 0, ready: false });
     };
 
     window.addEventListener('touchstart', handleTouchStart, { passive: true });
@@ -4673,6 +4679,18 @@ const Index = () => {
         </div>
       )}
 
+      {pullRefreshState.visible && (
+        <div className="fixed top-2 left-1/2 z-[92] -translate-x-1/2 rounded-full border border-border/70 bg-card/90 px-3 py-1.5 text-[10px] uppercase tracking-[0.3em] text-muted-foreground shadow-lg backdrop-blur pointer-events-none">
+          <span className="flex items-center gap-2">
+            <RefreshCcw
+              className={`h-3.5 w-3.5 ${pullRefreshState.ready ? 'animate-spin text-primary' : ''}`}
+              style={{ transform: `rotate(${Math.round(pullRefreshState.progress * 180)}deg)` }}
+            />
+            {pullRefreshState.ready ? 'Release to refresh' : 'Keep pulling'}
+          </span>
+        </div>
+      )}
+
       {uiErrorBadge && (
         <div className="fixed top-3 right-3 z-[95] max-w-[92vw] rounded-2xl border border-amber-300/60 bg-black/80 px-4 py-3 text-amber-100 shadow-[0_0_18px_rgba(251,191,36,0.35)] backdrop-blur">
           <div className="flex items-start justify-between gap-3">
@@ -5403,7 +5421,7 @@ const Index = () => {
                       </div>
                       <Input
                         value={websiteUrl}
-                        onChange={(e) => setWebsiteUrl(e.target.value)}
+                        onChange={(e) => setWebsiteUrl(e.target.value.toLowerCase())}
                         onBlur={() => setWebsiteTouched(true)}
                         placeholder="example.com or https://example.com"
                         className="h-14 text-lg pl-4 pr-12 border-border bg-secondary/50 focus:border-primary input-glow"
@@ -5592,9 +5610,22 @@ const Index = () => {
                       </Button>
                     </div>
                   )
-                ) : (
+                ) : !hasSelectedType ? (
                   <div className="rounded-2xl border border-dashed border-border/70 bg-secondary/20 p-4 text-sm text-muted-foreground">
                     Select a QR type to continue building your code.
+                  </div>
+                ) : null}
+
+                {isMobileV2 && hasSelectedMode && hasSelectedType && canGenerate && mobileStudioStep < 4 && (
+                  <div className="flex">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="border-border text-xs uppercase tracking-[0.3em]"
+                      onClick={() => setMobileStudioStep(4)}
+                    >
+                      Continue to Step 4
+                    </Button>
                   </div>
                 )}
 
@@ -5885,7 +5916,7 @@ const Index = () => {
               transition={{ delay: 0.15 }}
               className="space-y-6"
             >
-              {hasSelectedMode && hasSelectedType && (!isMobile || mobileCustomizeStep || (isMobileV2 && mobileStudioStep === 4)) ? (
+              {hasSelectedMode && hasSelectedType && (!isMobile || mobileCustomizeStep || (isMobileV2 && effectiveMobileStudioStep === 4)) ? (
                 <div className="glass-panel rounded-2xl p-4">
                   <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground px-4 pt-2">
                     Step 4 · Customize

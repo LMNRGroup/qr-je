@@ -18,6 +18,7 @@ import {
   Mail,
   Phone,
   QrCode,
+  Send,
   Trash2,
   Utensils,
   X,
@@ -427,6 +428,21 @@ export function ArsenalPanel({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page, selectedId, items]);
 
+  useEffect(() => {
+    if (!items.length) return;
+    let interval: number | undefined;
+    const pollScans = () => {
+      if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return;
+      loadScanCounts(getCountTargets(items), false);
+    };
+    pollScans();
+    interval = window.setInterval(pollScans, 15000);
+    return () => {
+      if (interval) window.clearInterval(interval);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [items, page, selectedId]);
+
   const sortedItems = useMemo(() => {
     const copy = [...items];
     if (sortMode === 'newest') {
@@ -684,7 +700,7 @@ export function ArsenalPanel({
       const next = Array.isArray(parsed) ? parsed : [];
       next.unshift({
         id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-        message: `${label} just got scanned!`,
+        message: `${label} got a scan!`,
         createdAt: Date.now(),
       });
       const trimmed = next.slice(0, MAX_USER_FEED);
@@ -824,7 +840,7 @@ export function ArsenalPanel({
             className="group relative border-border"
             onClick={handleShare}
           >
-            <Copy className="h-4 w-4" />
+            <Send className="h-4 w-4" />
             <span className="pointer-events-none absolute -bottom-6 left-1/2 -translate-x-1/2 text-[10px] uppercase tracking-[0.35em] text-muted-foreground opacity-0 transition group-hover:opacity-100">
               {t('Share', 'Compartir')}
             </span>
@@ -1225,19 +1241,30 @@ export function ArsenalPanel({
                     >
                       {isMobileList ? (
                         isMobileV2 ? (
-                          <div className="flex items-center gap-3 overflow-hidden">
-                            <div className="min-w-0 flex-1 space-y-1">
-                              <p
-                                className="text-[13px] font-semibold leading-snug max-h-[2.6em] overflow-hidden"
-                                title={displayName}
-                              >
-                                {displayName}
-                              </p>
-                              <p className="text-[11px] text-muted-foreground truncate max-w-full">{item.content}</p>
+                          <div className="flex flex-col gap-2 min-w-0 w-full overflow-hidden">
+                            <div className="flex items-center gap-3 min-w-0">
+                              <div className="min-w-0 flex-1 space-y-1">
+                                <p
+                                  className="text-[13px] font-semibold leading-snug max-h-[2.6em] overflow-hidden"
+                                  title={displayName}
+                                >
+                                  {displayName}
+                                </p>
+                                <p className="text-[11px] text-muted-foreground truncate max-w-full">
+                                  {item.content}
+                                </p>
+                              </div>
+                              <div className={`shrink-0 border overflow-hidden rounded-lg p-0.5 ${modeMeta.card}`}>
+                                <QRPreview
+                                  options={{ ...cardOptions, size: 56 }}
+                                  showCaption={false}
+                                  innerPadding={4}
+                                />
+                              </div>
                             </div>
-                            <div className="flex w-[84px] flex-col items-start justify-center gap-1 text-[8px] uppercase tracking-[0.25em] shrink-0 text-left">
+                            <div className="grid grid-cols-3 gap-2 text-[8px] uppercase tracking-[0.25em] min-w-0">
                               <span
-                                className={`inline-flex w-full items-center justify-start gap-1 rounded-full border px-2 py-0.5 ${modeMeta.badge}`}
+                                className={`inline-flex min-w-0 items-center justify-center gap-1 rounded-full border px-2 py-0.5 ${modeMeta.badge}`}
                               >
                                 {parsed.mode === 'dynamic' ? (
                                   <Zap className="h-3 w-3" />
@@ -1249,17 +1276,13 @@ export function ArsenalPanel({
                                 </span>
                               </span>
                               <span
-                                className={`inline-flex w-full items-center justify-start gap-1 rounded-full border px-2 py-0.5 ${typeMeta.badge}`}
+                                className={`inline-flex min-w-0 items-center justify-center gap-1 rounded-full border px-2 py-0.5 ${typeMeta.badge}`}
                               >
                                 <span className="truncate">{typeMeta.label}</span>
                               </span>
-                              <div className="w-full flex items-center justify-center">
-                                <div className="mt-1 flex flex-col items-center justify-center">
-                                  <span className="text-base font-semibold text-foreground">
-                                    {getScanCountValue(item)}
-                                  </span>
-                                </div>
-                              </div>
+                              <span className="inline-flex min-w-0 items-center justify-center rounded-full border border-border/60 bg-secondary/40 px-2 py-0.5 text-[8px] uppercase tracking-[0.25em] text-muted-foreground">
+                                <span className="truncate">{t('Scans', 'Escaneos')} {getScanCountValue(item)}</span>
+                              </span>
                             </div>
                           </div>
                         ) : (
@@ -1493,7 +1516,7 @@ export function ArsenalPanel({
                     className="group relative border-border"
                     onClick={handleShare}
                   >
-                    <Copy className="h-4 w-4" />
+                    <Send className="h-4 w-4" />
                     <span className="pointer-events-none absolute -bottom-6 left-1/2 -translate-x-1/2 text-[10px] uppercase tracking-[0.35em] text-muted-foreground opacity-0 transition group-hover:opacity-100">
                       {t('Share', 'Compartir')}
                     </span>
