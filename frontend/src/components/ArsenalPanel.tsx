@@ -631,8 +631,10 @@ export function ArsenalPanel({
     );
   };
 
+  const getScanCountValue = (item: QRHistoryItem) => scanCounts[item.id] ?? 0;
+
   const renderScanCount = (item: QRHistoryItem) => {
-    const count = scanCounts[item.id] ?? 0;
+    const count = getScanCountValue(item);
     return (
       <span className="inline-flex min-w-0 items-center gap-2 rounded-full border border-border/60 bg-secondary/40 px-3 py-1 text-[10px] uppercase tracking-[0.3em] text-muted-foreground max-w-full">
         <span className="truncate">{t('Scans', 'Escaneos')} {count}</span>
@@ -928,12 +930,12 @@ export function ArsenalPanel({
           </h2>
         </div>
         {isMobileV2 ? (
-          <div className="flex w-full flex-col gap-2">
-            <div className="flex items-center justify-between gap-2">
+          <div className="flex w-full items-center justify-between gap-2 flex-nowrap">
+            <div className="flex min-w-0 flex-1 items-center gap-2">
               <Button
                 variant={isSelectMode ? 'secondary' : 'outline'}
                 size="sm"
-                className="border-border text-xs uppercase tracking-[0.25em]"
+                className="border-border text-xs uppercase tracking-[0.25em] min-w-0 max-w-[45%]"
                 onClick={() => {
                   if (isSelectMode) {
                     setSelectedIds(new Set());
@@ -941,13 +943,15 @@ export function ArsenalPanel({
                   setIsSelectMode((prev) => !prev);
                 }}
               >
-                {isSelectMode ? t('Cancel Select', 'Cancelar seleccion') : t('Select Multiple', 'Seleccion multiple')}
+                <span className="truncate">
+                  {isSelectMode ? t('Cancel Select', 'Cancelar seleccion') : t('Select Multiple', 'Seleccion multiple')}
+                </span>
               </Button>
               {isSelectMode && (
                 <Button
                   variant="outline"
                   size="icon"
-                  className="group relative border-border"
+                  className="group relative border-border shrink-0"
                   onClick={() => setShowBulkDelete(true)}
                   disabled={selectedIds.size === 0}
                 >
@@ -958,8 +962,7 @@ export function ArsenalPanel({
                 </Button>
               )}
             </div>
-            {/* Mobile V2: keep view toggle + sort on one row */}
-            <div className="flex items-center justify-end gap-2">
+            <div className="flex items-center gap-2 shrink-0">
               <div className="inline-flex rounded-full border border-border/60 bg-secondary/30 p-1">
                 <button
                   type="button"
@@ -1114,7 +1117,7 @@ export function ArsenalPanel({
                 className={
                   viewMode === 'grid'
                     ? 'grid gap-4 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 auto-rows-fr'
-                    : 'space-y-2'
+                    : `space-y-2 w-full max-w-full ${isMobileV2 ? 'qrc-arsenal-list' : ''}`
                 }
               >
                 {pagedItems.map((item) => {
@@ -1151,7 +1154,7 @@ export function ArsenalPanel({
                         }
                         handleSelect(item);
                       }}
-                      className={`group w-full rounded-2xl border text-left transition overflow-hidden ${
+                      className={`group w-full rounded-2xl border text-left transition overflow-hidden min-w-0 max-w-full ${
                         isSelectMode && isChecked
                           ? 'border-primary/60 bg-primary/10 shadow-[0_0_18px_rgba(59,130,246,0.18)]'
                           : isSelected
@@ -1175,7 +1178,7 @@ export function ArsenalPanel({
                               </p>
                               <p className="text-[11px] text-muted-foreground truncate">{item.content}</p>
                             </div>
-                            <div className="flex w-[96px] flex-col items-center justify-center gap-1 text-[9px] uppercase tracking-[0.3em] shrink-0">
+                            <div className="flex w-[88px] flex-col items-center justify-center gap-1 text-[8px] uppercase tracking-[0.25em] shrink-0">
                               <span
                                 className={`inline-flex w-full items-center justify-center gap-1 rounded-full border px-2 py-0.5 ${modeMeta.badge}`}
                               >
@@ -1194,7 +1197,11 @@ export function ArsenalPanel({
                                 <span className="truncate">{typeMeta.label}</span>
                               </span>
                               <div className="w-full flex items-center justify-center">
-                                {renderScanCount(item)}
+                                <div className="mt-1 flex flex-col items-center justify-center">
+                                  <span className="text-base font-semibold text-foreground">
+                                    {getScanCountValue(item)}
+                                  </span>
+                                </div>
                               </div>
                             </div>
                           </div>
@@ -1604,8 +1611,8 @@ export function ArsenalPanel({
             clearSelection();
           }}
         >
-          <DrawerContent className="max-h-[90dvh] overflow-y-auto qrc-v2-drawer">
-            <DrawerHeader className="flex items-center justify-between">
+          <DrawerContent className="max-h-[90dvh] overflow-hidden qrc-v2-drawer flex flex-col">
+            <DrawerHeader className="flex items-center justify-between qrc-v2-drawer-header">
               <DrawerTitle>
                 {selectedItem ? getDisplayName(selectedItem, sortedItems) : t('QR Details', 'Detalles del QR')}
               </DrawerTitle>
@@ -1615,7 +1622,7 @@ export function ArsenalPanel({
                 </button>
               </DrawerClose>
             </DrawerHeader>
-            <div className="px-4 pb-6 space-y-6">
+            <div className="px-4 pb-6 space-y-6 qrc-v2-drawer-body">
               {renderMobileDetailContent({ showBackButton: false })}
             </div>
           </DrawerContent>

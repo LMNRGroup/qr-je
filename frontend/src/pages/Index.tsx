@@ -2882,6 +2882,18 @@ const Index = () => {
               </Button>
               <button
                 type="button"
+                className={`w-full sm:w-64 mx-auto text-xs uppercase tracking-[0.3em] text-foreground transition-all duration-500 ${
+                  guestCtaStep >= 2 ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4 pointer-events-none'
+                }`}
+                onClick={() => {
+                  setShowGuestWelcome(false);
+                  navigate('/login');
+                }}
+              >
+                Login
+              </button>
+              <button
+                type="button"
                 className={`w-full sm:w-64 mx-auto text-xs uppercase tracking-[0.3em] text-muted-foreground transition-all duration-500 ${
                   guestCtaStep >= 2 ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4 pointer-events-none'
                 }`}

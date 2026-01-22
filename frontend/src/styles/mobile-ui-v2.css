@@ -32,12 +32,32 @@
     overflow-x: hidden;
   }
 
+  html[data-mobile-ui="v2"] .qrc-arsenal-list {
+    overflow-x: hidden;
+  }
+
+  html[data-mobile-ui="v2"] .qrc-arsenal-list > * {
+    max-width: 100%;
+  }
+
   html[data-mobile-ui="v2"] .qrc-v2-drawer {
     max-height: calc(100dvh - env(safe-area-inset-top) - 72px);
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  html[data-mobile-ui="v2"] .qrc-v2-drawer-header {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background: hsl(var(--card) / 0.95);
+    backdrop-filter: blur(8px);
+  }
+
+  html[data-mobile-ui="v2"] .qrc-v2-drawer-body {
+    flex: 1;
     overflow-y: auto;
     overscroll-behavior: contain;
     -webkit-overflow-scrolling: touch;
-    padding-bottom: env(safe-area-inset-bottom);
   }
 
   html[data-mobile-ui="v2"] [data-mobile-step] {
