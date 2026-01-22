@@ -90,7 +90,6 @@ const MAX_VCARD_PHOTO_BYTES = 1.5 * 1024 * 1024;
 const Index = () => {
   const { user, loading: authLoading, signOut, signUp } = useAuth();
   const isLoggedIn = Boolean(user);
-  const [hasSessionToken, setHasSessionToken] = useState(false);
   const [options, setOptions] = useState<QROptions>(defaultQROptions);
   const [isGenerating, setIsGenerating] = useState(false);
   const [hasGenerated, setHasGenerated] = useState(false);
@@ -465,7 +464,7 @@ const Index = () => {
     : hasSelectedType
       ? 'https://preview.qrcodestudio.app'
       : '';
-  const isSessionReady = isLoggedIn || hasSessionToken;
+  const isSessionReady = isLoggedIn;
 
   const parseKind = useCallback((kind?: string | null) => {
     if (!kind) return { mode: 'static', type: 'url' };
@@ -831,39 +830,6 @@ const Index = () => {
     };
   }, [isLoggedIn]);
 
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const direct = window.localStorage.getItem('qrc.auth.token');
-    if (direct) {
-      setHasSessionToken(true);
-      return;
-    }
-    const sessionRaw = window.localStorage.getItem('qrc.auth.session');
-    if (sessionRaw) {
-      try {
-        const parsed = JSON.parse(sessionRaw);
-        if (parsed?.access_token) {
-          setHasSessionToken(true);
-          return;
-        }
-      } catch {
-        // ignore
-      }
-    }
-    const supabaseKey = Object.keys(window.localStorage).find(
-      (key) => key.startsWith('sb-') && key.endsWith('-auth-token')
-    );
-    if (supabaseKey) {
-      try {
-        const parsed = JSON.parse(window.localStorage.getItem(supabaseKey) ?? '');
-        if (parsed?.access_token) {
-          setHasSessionToken(true);
-        }
-      } catch {
-        // ignore
-      }
-    }
-  }, []);
 
   const handleSignOut = useCallback(async () => {
     if (user?.id) {
@@ -887,7 +853,6 @@ const Index = () => {
         localStorage.removeItem(key);
       }
     });
-    setHasSessionToken(false);
     setShowWelcomeIntro(false);
     window.setTimeout(() => {
       window.location.reload();
