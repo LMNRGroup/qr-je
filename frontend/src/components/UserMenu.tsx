@@ -21,16 +21,28 @@ export function UserMenu({ trigger }: { trigger?: React.ReactNode }) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [lastSeenAt, setLastSeenAt] = useState(0);
 
+  const displayName = useMemo(() => {
+    const metadata = user?.user_metadata as Record<string, string> | undefined;
+    const rawName = metadata?.first_name || metadata?.full_name || metadata?.name || '';
+    if (rawName.trim()) return rawName.trim().split(' ')[0];
+    if (user?.email) return user.email.split('@')[0];
+    return 'there';
+  }, [user]);
+
   const systemNotifications = useMemo(
     () => [
       {
         id: 'system-welcome-2026-01',
         message:
-          'Welcome and thanks for joining. We are early in development, so you may see issues. We are working fast to deliver the best experience.',
+          `Hey ${displayName}.\n\n` +
+          'Just a quick heads-up. We’re early. We’re building fast. And yeah — you might see a bug or two along the way.\n\n' +
+          'If something feels off, know this: it’s being worked on, and you’re part of why this thing is getting better every day.\n\n' +
+          'Thanks for being here this early. That actually means more than you think.\n\n' +
+          '— Erwin, Luminar Apps 🚀',
         createdAt: new Date('2026-01-21T00:00:00Z').getTime(),
       },
     ],
-    []
+    [displayName]
   );
 
   const handleSignOut = async () => {
@@ -80,13 +92,7 @@ export function UserMenu({ trigger }: { trigger?: React.ReactNode }) {
     };
   }, []);
 
-  const displayName = useMemo(() => {
-    const metadata = user?.user_metadata as Record<string, string> | undefined;
-    const rawName = metadata?.first_name || metadata?.full_name || metadata?.name || '';
-    if (rawName.trim()) return rawName.trim().split(' ')[0];
-    if (user?.email) return user.email.split('@')[0];
-    return 'Your';
-  }, [user]);
+  const headerName = displayName === 'there' ? 'Your' : displayName;
 
   const visibleSystem = systemNotifications.filter((note) => !dismissedSystemIds.has(note.id)).slice(0, 2);
   const visibleUser = userFeed
@@ -173,7 +179,7 @@ export function UserMenu({ trigger }: { trigger?: React.ReactNode }) {
       <DropdownMenuContent align="end" className="w-80 glass-panel">
         <div className="px-3 pt-3">
           <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Feed</p>
-          <p className="text-lg font-semibold">{displayName}&apos;s Feed</p>
+          <p className="text-lg font-semibold">{headerName}&apos;s Feed</p>
         </div>
         <div className="px-3 pt-2 pb-3 max-h-64 overflow-y-auto space-y-2">
           {visibleSystem.map((note) => (

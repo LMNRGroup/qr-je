@@ -433,7 +433,7 @@ export function ArsenalPanel({
     let interval: number | undefined;
     const pollScans = () => {
       if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return;
-      loadScanCounts(getCountTargets(items), false);
+      loadScanCounts(items, false);
     };
     pollScans();
     interval = window.setInterval(pollScans, 15000);
@@ -441,7 +441,7 @@ export function ArsenalPanel({
       if (interval) window.clearInterval(interval);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [items, page, selectedId]);
+  }, [items]);
 
   const sortedItems = useMemo(() => {
     const copy = [...items];
