@@ -4595,7 +4595,7 @@ const Index = () => {
           showGuestWelcome || isBooting ? 'blur-md pointer-events-none select-none' : ''
         } ${showEasterEggBanner ? 'qrc-header-with-banner' : ''}`}
       >
-        <div className="container mx-auto px-4 py-3 sm:py-4 flex items-center justify-between">
+        <div className="container mx-auto px-4 py-3 sm:py-4 flex items-center justify-between overflow-visible">
           <button
             type="button"
             className="flex items-center gap-3 text-left"
@@ -4668,16 +4668,16 @@ const Index = () => {
             </div>
           ) : null}
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 overflow-visible">
             <div data-tour-id="dark-mode" className="flex items-center">
               <ThemeToggle storageKey={isLoggedIn && user?.id ? `theme:${user.id}` : 'theme:guest'} />
             </div>
-            <div className="relative group">
+            <div className="relative group overflow-visible">
               <UserMenu
                 trigger={
                   <button
                     type="button"
-                    className="h-10 w-10 rounded-lg border border-border/60 bg-secondary/50 flex items-center justify-center transition hover:border-primary/50"
+                    className="relative h-10 w-10 rounded-lg border border-border/60 bg-secondary/50 flex items-center justify-center transition hover:border-primary/50 overflow-visible"
                     data-tour-id="profile-icon"
                     aria-label="My Account"
                   >
@@ -6471,21 +6471,6 @@ const Index = () => {
                   <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Theme</p>
                   <ThemeToggle storageKey={`theme:${user?.id ?? 'default'}`} />
                 </div>
-                <div className="flex items-center justify-between rounded-xl border border-border/60 bg-secondary/20 px-4 py-3">
-                  <div>
-                    <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Leftie</p>
-                    <p className="text-[11px] text-muted-foreground">Left-sided dial controls</p>
-                  </div>
-                  <input
-                    type="checkbox"
-                    checked={profileForm.leftie}
-                    onChange={(event) =>
-                      setProfileForm((prev) => ({ ...prev, leftie: event.target.checked }))
-                    }
-                    className="accent-primary h-4 w-4"
-                    aria-label="Leftie"
-                  />
-                </div>
                 <div className="space-y-4">
                   <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">
                     {t('Profile', 'Perfil')}
@@ -6655,6 +6640,21 @@ const Index = () => {
                       </div>
                     </div>
                   )}
+                  <div className="flex items-center justify-between rounded-xl border border-border/60 bg-secondary/20 px-4 py-3">
+                    <div>
+                      <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Leftie</p>
+                      <p className="text-[11px] text-muted-foreground">Left-sided dial controls</p>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={profileForm.leftie}
+                      onChange={(event) =>
+                        setProfileForm((prev) => ({ ...prev, leftie: event.target.checked }))
+                      }
+                      className="accent-primary h-4 w-4"
+                      aria-label="Leftie"
+                    />
+                  </div>
                   <div className="grid gap-3 sm:grid-cols-2">
                     <label className="text-xs uppercase tracking-[0.3em] text-muted-foreground">
                       {t('Timezone', 'Zona horaria')}

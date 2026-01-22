@@ -24,3 +24,6 @@ lerna-debug.log*
 *.njsproj
 *.sln
 *.sw?
+
+# Local documentation (not for version control)
+STYLE_GUIDE.md

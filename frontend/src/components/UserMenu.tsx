@@ -153,7 +153,7 @@ export function UserMenu({ trigger }: { trigger?: React.ReactNode }) {
 
   const notificationBadge = userNotificationCount > 0
     ? (
-        <span className="absolute -top-1 -left-1 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-semibold text-white">
+        <span className="absolute -top-1 -right-1 z-10 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-semibold text-white shadow-sm">
           {userNotificationCount}
         </span>
       )
@@ -162,7 +162,7 @@ export function UserMenu({ trigger }: { trigger?: React.ReactNode }) {
     <Button
       variant="ghost"
       size="icon"
-      className="relative h-9 w-9 rounded-full border border-border bg-secondary/50 hover:bg-secondary"
+      className="relative overflow-visible h-9 w-9 rounded-full border border-border bg-secondary/50 hover:bg-secondary"
     >
       {notificationBadge}
       <User className="h-4 w-4" />
@@ -170,7 +170,7 @@ export function UserMenu({ trigger }: { trigger?: React.ReactNode }) {
   );
   const triggerNode = trigger && isValidElement(trigger)
     ? cloneElement(trigger, {
-        className: `relative ${trigger.props.className ?? ''}`.trim(),
+        className: `relative overflow-visible ${trigger.props.className ?? ''}`.trim(),
         children: (
           <>
             {notificationBadge}
