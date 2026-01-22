@@ -469,6 +469,10 @@ const Index = () => {
     tiktok: '',
     website: '',
   });
+  const [menuBuilderStep, setMenuBuilderStep] = useState<'menu' | 'logo' | 'socials'>('menu');
+  const [showMenuOrganize, setShowMenuOrganize] = useState(false);
+  const menuFileInputRef = useRef<HTMLInputElement>(null);
+  const menuLogoInputRef = useRef<HTMLInputElement>(null);
   const qrRef = useRef<QRPreviewHandle>(null);
   const optionsRef = useRef(options);
   const createSectionRef = useRef<HTMLDivElement>(null);
@@ -1252,6 +1256,7 @@ const Index = () => {
       }
       if (showMenuBuilder) {
         setShowMenuBuilder(false);
+    setMenuBuilderStep('menu'); // Reset step when closing
         return;
       }
       if (showAccountModal) {
@@ -1459,6 +1464,7 @@ const Index = () => {
     setShowVcardCustomizer(false);
     setShowVcardPreview(false);
     setShowMenuBuilder(false);
+    setMenuBuilderStep('menu'); // Reset step when closing
     setOptions({ ...defaultQROptions });
     setGeneratedShortUrl('');
     setGeneratedLongUrl('');
@@ -2057,6 +2063,20 @@ const Index = () => {
     setMenuLogoDataUrl(url);
   };
 
+  const handleMenuContinue = () => {
+    if (menuBuilderStep === 'menu' && menuFiles.length > 0) {
+      setMenuBuilderStep('logo');
+    } else if (menuBuilderStep === 'logo') {
+      setMenuBuilderStep('socials');
+    } else if (menuBuilderStep === 'socials') {
+      // Menu is complete, close builder and go to step 4
+      setShowMenuBuilder(false);
+    setMenuBuilderStep('menu'); // Reset step when closing
+      setMobileStudioStep(4);
+      setMobileCustomizeStep(true);
+    }
+  };
+
   const handleMenuFilesChange = async (event: ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.target.files ?? []);
     event.target.value = '';
@@ -2101,6 +2121,7 @@ const Index = () => {
       setMenuFiles(uploads);
       setMenuFlip(false);
       setMenuCarouselIndex(0);
+      setMenuBuilderStep('logo'); // Advance to logo step after menu upload
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to process menu files.';
       toast.error(message);
@@ -2154,6 +2175,7 @@ const Index = () => {
     setActiveTab('studio');
     setSelectedQuickAction('menu');
     setPendingCreateScroll(true);
+    setMenuBuilderStep('menu'); // Reset to menu step
   };
 
   const handleMenuSwipeStart = (event: PointerEvent<HTMLDivElement>) => {
@@ -4277,16 +4299,16 @@ const Index = () => {
 
       {showMenuBuilder && (
         <div
-          className="fixed inset-0 z-[70] flex items-center justify-center bg-background/70 backdrop-blur-md px-4 py-4"
+          className="fixed inset-0 z-[70] flex items-center justify-center bg-background/70 backdrop-blur-md px-2 sm:px-4 py-4"
           onClick={() => setShowMenuBuilder(false)}
         >
           <div
-            className="glass-panel rounded-3xl p-4 sm:p-6 w-full max-w-6xl space-y-4 relative max-h-[90dvh] overflow-y-auto"
+            className="glass-panel rounded-3xl p-4 sm:p-6 w-full max-w-4xl space-y-4 relative max-h-[90dvh] overflow-y-auto"
             onClick={(event) => event.stopPropagation()}
           >
             <button
               type="button"
-              className="absolute right-4 top-4 text-xs uppercase tracking-[0.3em] text-muted-foreground transition hover:text-foreground"
+              className="absolute right-4 top-4 text-xs uppercase tracking-[0.3em] text-muted-foreground transition hover:text-foreground z-10"
               onClick={() => setShowMenuBuilder(false)}
             >
               X
@@ -4295,25 +4317,42 @@ const Index = () => {
               <div>
                 <p className="text-xs uppercase tracking-[0.35em] text-muted-foreground">Menu</p>
                 <h2 className="text-2xl font-semibold">Dynamic Menu Builder</h2>
-                <p className="text-sm text-muted-foreground">
-                  Upload pages, add your logo, and preview swipe or flip motion.
-                </p>
               </div>
             </div>
 
-            <div className="grid lg:grid-cols-[0.9fr_1.1fr] gap-4">
-              <div className="flex flex-col items-center gap-5">
+            <div className="flex flex-col lg:flex-row gap-4">
+      {showMenuBuilder && (
+        <div
+          className="fixed inset-0 z-[70] flex items-center justify-center bg-background/70 backdrop-blur-md px-2 sm:px-4 py-4"
+          onClick={() => setShowMenuBuilder(false)}
+        >
+          <div
+            className="glass-panel rounded-3xl p-4 sm:p-6 w-full max-w-4xl space-y-4 relative max-h-[90dvh] overflow-y-auto"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <button
+              type="button"
+              className="absolute right-4 top-4 text-xs uppercase tracking-[0.3em] text-muted-foreground transition hover:text-foreground z-10"
+              onClick={() => setShowMenuBuilder(false)}
+            >
+              X
+            </button>
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <div>
+                <p className="text-xs uppercase tracking-[0.35em] text-muted-foreground">Menu</p>
+                <h2 className="text-2xl font-semibold">Dynamic Menu Builder</h2>
+              </div>
+            </div>
+
+            <div className="flex flex-col lg:flex-row gap-4">
+              {/* Preview Section */}
+              <div className="flex flex-col items-center gap-5 w-full lg:w-auto">
                 <div className="w-full rounded-2xl border border-border/60 bg-secondary/30 p-4 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Preview</p>
-                    <span className="text-[10px] uppercase tracking-[0.3em] text-primary">
-                      {menuType === 'restaurant' ? 'Restaurant' : 'Services'}
-                    </span>
-                  </div>
+                  <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground text-center">Preview</p>
                   <div className="flex items-center justify-center">
-                    <div className="relative h-[320px] w-[200px] sm:h-[380px] sm:w-[240px] rounded-2xl border border-border/70 bg-card/80 overflow-hidden shadow-xl">
-                      {menuLogoDataUrl ? (
-                        <div className="absolute left-4 top-4 h-12 w-12 rounded-full border border-white/30 bg-white/10 shadow-lg">
+                    <div className="relative h-[280px] w-[180px] sm:h-[320px] sm:w-[200px] lg:h-[380px] lg:w-[240px] rounded-2xl border border-border/70 bg-card/80 overflow-hidden shadow-xl">
+                      {menuLogoDataUrl && menuBuilderStep !== 'menu' ? (
+                        <div className="absolute left-4 top-4 h-12 w-12 rounded-full border border-white/30 bg-white/10 shadow-lg z-10">
                           <div
                             className="h-full w-full rounded-full bg-cover bg-center"
                             style={{ backgroundImage: `url(${menuLogoDataUrl})` }}
@@ -4387,17 +4426,60 @@ const Index = () => {
                           </div>
                         </div>
                       ) : menuHasFiles ? (
-                        <img
-                          src={menuFiles[0]?.url}
-                          alt="Menu preview"
-                          className="h-full w-full object-cover"
-                        />
+                        <button
+                          type="button"
+                          className="relative h-full w-full"
+                          onClick={() => {
+                            if (menuBuilderStep === 'menu') {
+                              menuFileInputRef.current?.click();
+                            }
+                          }}
+                        >
+                          <img
+                            src={menuFiles[0]?.url}
+                            alt="Menu preview"
+                            className="h-full w-full object-cover"
+                          />
+                          {menuBuilderStep === 'menu' && (
+                            <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center gap-3 opacity-0 hover:opacity-100 transition-opacity">
+                              <div className="flex gap-2">
+                                <Button
+                                  size="sm"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    menuFileInputRef.current?.click();
+                                  }}
+                                  className="text-xs"
+                                >
+                                  Replace
+                                </Button>
+                                {menuFiles.length > 1 && menuFiles.every((f) => f.type === 'image') && (
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setShowMenuOrganize(true);
+                                    }}
+                                    className="text-xs"
+                                  >
+                                    Organize
+                                  </Button>
+                                )}
+                              </div>
+                            </div>
+                          )}
+                        </button>
                       ) : (
-                        <div className="flex h-full w-full flex-col items-center justify-center gap-3 text-center text-muted-foreground">
-                          <Utensils className="h-10 w-10 text-primary" />
-                          <p className="text-sm font-semibold text-foreground">Upload menu pages</p>
-                          <p className="text-xs">Add up to 15 images or a single PDF.</p>
-                        </div>
+                        <button
+                          type="button"
+                          className="flex h-full w-full flex-col items-center justify-center gap-3 text-center text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                          onClick={() => menuFileInputRef.current?.click()}
+                        >
+                          <Utensils className="h-12 w-12 text-primary" />
+                          <p className="text-sm font-semibold text-foreground">Upload your restaurant or services menu</p>
+                          <p className="text-xs">Click to upload up to 15 pages</p>
+                        </button>
                       )}
 
                       <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/60 to-transparent px-4 py-3 text-[10px] uppercase tracking-[0.3em] text-white/80">
@@ -4405,175 +4487,263 @@ const Index = () => {
                       </div>
                     </div>
                   </div>
-                  <div className="flex items-center justify-center gap-3 text-xs text-muted-foreground">
-                    <div className={`flex items-center gap-1 ${menuSocials.instagram ? 'text-primary' : 'opacity-40'}`}>
-                      <Instagram className="h-4 w-4" />
-                      Instagram
+                  {/* Social Icons Preview */}
+                  {(menuBuilderStep === 'socials' || menuBuilderStep === 'logo') && (
+                    <div className="flex items-center justify-center gap-3 text-xs text-muted-foreground">
+                      {menuSocials.instagram && (
+                        <div className="flex items-center gap-1 text-primary">
+                          <Instagram className="h-4 w-4" />
+                        </div>
+                      )}
+                      {menuSocials.facebook && (
+                        <div className="flex items-center gap-1 text-primary">
+                          <Facebook className="h-4 w-4" />
+                        </div>
+                      )}
+                      {menuSocials.tiktok && (
+                        <div className="flex items-center gap-1 text-primary">
+                          <Music2 className="h-4 w-4" />
+                        </div>
+                      )}
+                      {menuSocials.website && (
+                        <div className="flex items-center gap-1 text-primary">
+                          <Globe className="h-4 w-4" />
+                        </div>
+                      )}
                     </div>
-                    <div className={`flex items-center gap-1 ${menuSocials.facebook ? 'text-primary' : 'opacity-40'}`}>
-                      <Facebook className="h-4 w-4" />
-                      Facebook
-                    </div>
-                    <div className={`flex items-center gap-1 ${menuSocials.tiktok ? 'text-primary' : 'opacity-40'}`}>
-                      <Music2 className="h-4 w-4" />
-                      TikTok
-                    </div>
-                    <div className={`flex items-center gap-1 ${menuSocials.website ? 'text-primary' : 'opacity-40'}`}>
-                      <Globe className="h-4 w-4" />
-                      Website
-                    </div>
-                  </div>
+                  )}
                 </div>
               </div>
 
-              <div className="space-y-6">
-                <div className="glass-panel rounded-2xl p-4 space-y-3">
-                  <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Menu Type</p>
-                  <div className="flex flex-wrap gap-3">
-                    <Button
-                      type="button"
-                      size="sm"
-                      className={menuType === 'restaurant'
-                        ? 'bg-card/80 text-foreground border border-border/70 uppercase tracking-[0.2em] text-xs'
-                        : 'bg-secondary/40 border border-border/60 text-muted-foreground uppercase tracking-[0.2em] text-xs hover:text-primary'}
-                      onClick={() => setMenuType('restaurant')}
-                    >
-                      Restaurant
-                    </Button>
-                    <Button
-                      type="button"
-                      size="sm"
-                      className={menuType === 'service'
-                        ? 'bg-card/80 text-foreground border border-border/70 uppercase tracking-[0.2em] text-xs'
-                        : 'bg-secondary/40 border border-border/60 text-muted-foreground uppercase tracking-[0.2em] text-xs hover:text-primary'}
-                      onClick={() => setMenuType('service')}
-                    >
-                      Services
-                    </Button>
-                  </div>
-                </div>
+              {/* Controls Section */}
+              <div className="space-y-4 flex-1 min-w-0">
+                <input
+                  ref={menuFileInputRef}
+                  type="file"
+                  accept="image/*,application/pdf"
+                  multiple
+                  onChange={handleMenuFilesChange}
+                  className="hidden"
+                />
 
-                <div className="glass-panel rounded-2xl p-4 space-y-3">
-                  <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Branding</p>
-                  <div className="flex flex-wrap items-center gap-4">
-                    <label className="flex flex-col gap-2 text-xs uppercase tracking-[0.3em] text-muted-foreground">
-                      Upload Logo
-                      <input
-                        type="file"
-                        accept="image/*"
-                        onChange={handleMenuLogoChange}
-                        className="text-xs"
-                      />
-                    </label>
-                    {menuLogoDataUrl ? (
-                      <span className="text-xs text-muted-foreground">Logo ready</span>
+                {/* Step 1: Menu Upload */}
+                {menuBuilderStep === 'menu' && (
+                  <div className="glass-panel rounded-2xl p-4 space-y-4">
+                    <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Menu Pages</p>
+                    {!menuHasFiles ? (
+                      <div className="space-y-3">
+                        <p className="text-sm text-muted-foreground">
+                          Upload up to 15 JPG/PNG pages or a single PDF file.
+                        </p>
+                        <Button
+                          type="button"
+                          onClick={() => menuFileInputRef.current?.click()}
+                          className="w-full"
+                        >
+                          Upload Menu
+                        </Button>
+                      </div>
                     ) : (
-                      <span className="text-xs text-muted-foreground">Logo optional</span>
+                      <div className="space-y-3">
+                        <p className="text-sm text-muted-foreground">
+                          {menuFiles.length} file{menuFiles.length === 1 ? '' : 's'} uploaded
+                        </p>
+                        <div className="flex gap-2">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => menuFileInputRef.current?.click()}
+                            className="flex-1"
+                          >
+                            Replace
+                          </Button>
+                          {menuFiles.length > 1 && menuFiles.every((f) => f.type === 'image') && (
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setShowMenuOrganize(true)}
+                              className="flex-1"
+                            >
+                              Organize
+                            </Button>
+                          )}
+                        </div>
+                      </div>
                     )}
                   </div>
-                </div>
+                )}
 
-                <div className="glass-panel rounded-2xl p-4 space-y-3">
-                  <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Menu Pages</p>
-                  <p className="text-sm text-muted-foreground">
-                    Upload up to 15 JPG/PNG pages or a single PDF file.
-                  </p>
-                  <input
-                    type="file"
-                    accept="image/*,application/pdf"
-                    multiple
-                    onChange={handleMenuFilesChange}
-                    className="text-xs"
-                  />
-                  <div className="text-xs text-muted-foreground">
-                    {menuHasFiles
-                      ? `Uploaded ${menuFiles.length} file${menuFiles.length === 1 ? '' : 's'}`
-                      : 'No menu pages uploaded yet.'}
-                  </div>
-                  {menuFiles.length > 1 && menuFiles.every((file) => file.type === 'image') ? (
-                    <div className="space-y-2 text-xs text-muted-foreground max-h-40 overflow-y-auto pr-1">
-                      {menuFiles.map((file, index) => (
-                        <div key={`${file.url}-${index}`} className="flex items-center justify-between gap-2 rounded-lg border border-border/60 bg-secondary/30 px-3 py-2">
-                          <span className="truncate">Page {index + 1}</span>
-                          <div className="flex items-center gap-2">
-                            <button
-                              type="button"
-                              onClick={() => moveMenuFile(index, -1)}
-                              disabled={index === 0}
-                              className="rounded-md border border-border/60 px-2 py-1 text-[10px] uppercase tracking-[0.3em] disabled:opacity-40"
-                            >
-                              Up
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => moveMenuFile(index, 1)}
-                              disabled={index === menuFiles.length - 1}
-                              className="rounded-md border border-border/60 px-2 py-1 text-[10px] uppercase tracking-[0.3em] disabled:opacity-40"
-                            >
-                              Down
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => removeMenuFile(index)}
-                              className="rounded-md border border-border/60 px-2 py-1 text-[10px] uppercase tracking-[0.3em] text-destructive"
-                            >
-                              Remove
-                            </button>
-                          </div>
+                {/* Step 2: Logo Upload */}
+                {menuBuilderStep === 'logo' && (
+                  <div className="glass-panel rounded-2xl p-4 space-y-4">
+                    <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Branding</p>
+                    {!menuLogoDataUrl ? (
+                      <div className="space-y-3">
+                        <p className="text-sm text-muted-foreground">Upload your logo (optional)</p>
+                        <input
+                          ref={menuLogoInputRef}
+                          type="file"
+                          accept="image/*"
+                          onChange={handleMenuLogoChange}
+                          className="hidden"
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => menuLogoInputRef.current?.click()}
+                          className="w-full"
+                        >
+                          Upload Logo
+                        </Button>
+                        <Button
+                          type="button"
+                          onClick={handleMenuContinue}
+                          className="w-full"
+                        >
+                          Continue
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        <p className="text-sm text-muted-foreground">Logo uploaded</p>
+                        <div className="flex gap-2">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => menuLogoInputRef.current?.click()}
+                            className="flex-1"
+                          >
+                            Replace
+                          </Button>
+                          <Button
+                            type="button"
+                            size="sm"
+                            onClick={handleMenuContinue}
+                            className="flex-1"
+                          >
+                            Continue
+                          </Button>
                         </div>
-                      ))}
-                    </div>
-                  ) : null}
-                </div>
+                      </div>
+                    )}
+                  </div>
+                )}
 
-                <div className="glass-panel rounded-2xl p-4 space-y-3">
-                  <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Social Links</p>
-                  <div className="grid sm:grid-cols-2 gap-3">
-                    <div className="flex items-center gap-2 rounded-xl border border-border/60 bg-secondary/30 px-3">
-                      <Instagram className="h-4 w-4 text-primary" />
-                      <Input
-                        value={menuSocials.instagram}
-                        onChange={(e) => setMenuSocials((prev) => ({ ...prev, instagram: e.target.value }))}
-                        placeholder="Instagram URL"
-                        className="border-0 bg-transparent"
-                      />
-                    </div>
-                    <div className="flex items-center gap-2 rounded-xl border border-border/60 bg-secondary/30 px-3">
-                      <Facebook className="h-4 w-4 text-primary" />
-                      <Input
-                        value={menuSocials.facebook}
-                        onChange={(e) => setMenuSocials((prev) => ({ ...prev, facebook: e.target.value }))}
-                        placeholder="Facebook URL"
-                        className="border-0 bg-transparent"
-                      />
-                    </div>
-                    <div className="flex items-center gap-2 rounded-xl border border-border/60 bg-secondary/30 px-3">
-                      <Music2 className="h-4 w-4 text-primary" />
-                      <Input
-                        value={menuSocials.tiktok}
-                        onChange={(e) => setMenuSocials((prev) => ({ ...prev, tiktok: e.target.value }))}
-                        placeholder="TikTok URL"
-                        className="border-0 bg-transparent"
-                      />
-                    </div>
-                    <div className="flex items-center gap-2 rounded-xl border border-border/60 bg-secondary/30 px-3">
-                      <Globe className="h-4 w-4 text-primary" />
-                      <Input
-                        value={menuSocials.website}
-                        onChange={(e) => setMenuSocials((prev) => ({ ...prev, website: e.target.value }))}
-                        placeholder="Website URL"
-                        className="border-0 bg-transparent"
-                      />
+                {/* Step 3: Social Links */}
+                {menuBuilderStep === 'socials' && (
+                  <div className="glass-panel rounded-2xl p-4 space-y-4">
+                    <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Social Links (Optional)</p>
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-2 rounded-xl border border-border/60 bg-secondary/30 px-3">
+                        <Instagram className="h-4 w-4 text-primary" />
+                        <Input
+                          value={menuSocials.instagram}
+                          onChange={(e) => setMenuSocials((prev) => ({ ...prev, instagram: e.target.value }))}
+                          placeholder="Instagram URL"
+                          className="border-0 bg-transparent"
+                        />
+                      </div>
+                      <div className="flex items-center gap-2 rounded-xl border border-border/60 bg-secondary/30 px-3">
+                        <Facebook className="h-4 w-4 text-primary" />
+                        <Input
+                          value={menuSocials.facebook}
+                          onChange={(e) => setMenuSocials((prev) => ({ ...prev, facebook: e.target.value }))}
+                          placeholder="Facebook URL"
+                          className="border-0 bg-transparent"
+                        />
+                      </div>
+                      <div className="flex items-center gap-2 rounded-xl border border-border/60 bg-secondary/30 px-3">
+                        <Music2 className="h-4 w-4 text-primary" />
+                        <Input
+                          value={menuSocials.tiktok}
+                          onChange={(e) => setMenuSocials((prev) => ({ ...prev, tiktok: e.target.value }))}
+                          placeholder="TikTok URL"
+                          className="border-0 bg-transparent"
+                        />
+                      </div>
+                      <div className="flex items-center gap-2 rounded-xl border border-border/60 bg-secondary/30 px-3">
+                        <Globe className="h-4 w-4 text-primary" />
+                        <Input
+                          value={menuSocials.website}
+                          onChange={(e) => setMenuSocials((prev) => ({ ...prev, website: e.target.value }))}
+                          placeholder="Website URL"
+                          className="border-0 bg-transparent"
+                        />
+                      </div>
+                      <Button
+                        type="button"
+                        onClick={handleMenuContinue}
+                        className="w-full"
+                      >
+                        Continue to Customization
+                      </Button>
                     </div>
                   </div>
-                </div>
-
-                <div className="flex items-center justify-between rounded-2xl border border-border/60 bg-secondary/20 px-5 py-4 text-xs uppercase tracking-[0.3em] text-muted-foreground">
-                  <span>Interactive preview enabled</span>
-                  <span className="text-primary">Swipe · Flip · Tap</span>
-                </div>
+                )}
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Organize Menu Pages Overlay */}
+      {showMenuOrganize && (
+        <div
+          className="fixed inset-0 z-[80] flex items-center justify-center bg-background/80 backdrop-blur-md px-4 py-4"
+          onClick={() => setShowMenuOrganize(false)}
+        >
+          <div
+            className="glass-panel rounded-3xl p-6 w-full max-w-md space-y-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between">
+              <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Organize Pages</p>
+              <button
+                type="button"
+                className="text-xs uppercase tracking-[0.3em] text-muted-foreground hover:text-foreground"
+                onClick={() => setShowMenuOrganize(false)}
+              >
+                Close
+              </button>
+            </div>
+            <div className="space-y-2 max-h-[60vh] overflow-y-auto">
+              {menuFiles.map((file, index) => (
+                <div key={`${file.url}-${index}`} className="flex items-center gap-3 rounded-lg border border-border/60 bg-secondary/30 p-3">
+                  <span className="text-sm font-semibold min-w-[60px]">Page {index + 1}</span>
+                  <div className="flex-1 min-w-0">
+                    <img src={file.url} alt={`Page ${index + 1}`} className="h-12 w-12 object-cover rounded" />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <button
+                      type="button"
+                      onClick={() => moveMenuFile(index, -1)}
+                      disabled={index === 0}
+                      className="rounded border border-border/60 px-2 py-1 text-[10px] uppercase tracking-[0.3em] disabled:opacity-40"
+                    >
+                      ↑
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => moveMenuFile(index, 1)}
+                      disabled={index === menuFiles.length - 1}
+                      className="rounded border border-border/60 px-2 py-1 text-[10px] uppercase tracking-[0.3em] disabled:opacity-40"
+                    >
+                      ↓
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <Button
+              type="button"
+              onClick={() => setShowMenuOrganize(false)}
+              className="w-full"
+            >
+              Done
+            </Button>
           </div>
         </div>
       )}
