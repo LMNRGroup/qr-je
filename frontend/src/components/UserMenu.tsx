@@ -1,4 +1,4 @@
-import { Bell, LogOut, RefreshCcw, Settings, Trash2, User } from 'lucide-react';
+import { Bell, ChevronDown, ChevronUp, LogOut, RefreshCcw, Settings, Trash2, User } from 'lucide-react';
 import { cloneElement, isValidElement, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -98,7 +98,7 @@ export function UserMenu({ trigger }: { trigger?: React.ReactNode }) {
   const visibleUser = userFeed
     .slice()
     .sort((a, b) => b.createdAt - a.createdAt)
-    .slice(0, Math.max(0, 5 - visibleSystem.length));
+    .slice(0, Math.max(0, 10));
   const latestNotificationAt = useMemo(() => {
     const systemLatest = systemNotifications.reduce((max, note) => Math.max(max, note.createdAt), 0);
     const userLatest = userFeed.reduce((max, note) => Math.max(max, note.createdAt), 0);
@@ -106,6 +106,7 @@ export function UserMenu({ trigger }: { trigger?: React.ReactNode }) {
   }, [systemNotifications, userFeed]);
   const hasNotifications = visibleSystem.length + visibleUser.length > 0;
   const hasUnread = latestNotificationAt > lastSeenAt;
+  const userNotificationCount = Math.min(userFeed.length, 10);
   const markFeedSeen = () => {
     if (!user?.id) return;
     setLastSeenAt(latestNotificationAt);
@@ -146,26 +147,32 @@ export function UserMenu({ trigger }: { trigger?: React.ReactNode }) {
     navigate('/');
   };
 
+  const notificationBadge = userNotificationCount > 0
+    ? (
+        <span className="absolute -top-1 -left-1 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-semibold text-white">
+          {userNotificationCount}
+        </span>
+      )
+    : null;
   const defaultTrigger = (
     <Button
       variant="ghost"
       size="icon"
-      className={`h-9 w-9 rounded-full border border-border bg-secondary/50 hover:bg-secondary ${
-        hasNotifications && hasUnread
-          ? 'ring-2 ring-amber-300/80 shadow-[0_0_16px_rgba(251,191,36,0.6)] animate-pulse'
-          : ''
-      }`}
+      className="relative h-9 w-9 rounded-full border border-border bg-secondary/50 hover:bg-secondary"
     >
+      {notificationBadge}
       <User className="h-4 w-4" />
     </Button>
   );
   const triggerNode = trigger && isValidElement(trigger)
     ? cloneElement(trigger, {
-        className: `${trigger.props.className ?? ''} ${
-          hasNotifications && hasUnread
-            ? 'ring-2 ring-amber-300/80 shadow-[0_0_16px_rgba(251,191,36,0.6)] animate-pulse'
-            : ''
-        }`.trim(),
+        className: `relative ${trigger.props.className ?? ''}`.trim(),
+        children: (
+          <>
+            {notificationBadge}
+            {trigger.props.children}
+          </>
+        ),
       })
     : defaultTrigger;
 
@@ -182,51 +189,81 @@ export function UserMenu({ trigger }: { trigger?: React.ReactNode }) {
           <p className="text-lg font-semibold">{headerName}&apos;s Feed</p>
         </div>
         <div className="px-3 pt-2 pb-3 max-h-64 overflow-y-auto space-y-2">
-          {visibleSystem.map((note) => (
-            <div key={note.id} className="rounded-xl border border-border/70 bg-secondary/30 p-3 space-y-2">
-              <div className="flex items-center justify-between text-[10px] uppercase tracking-[0.3em] text-muted-foreground">
-                <span className="flex items-center gap-2">
-                  <Bell className="h-3.5 w-3.5 text-primary" />
-                  System
-                </span>
+          {visibleUser.map((note) => {
+            const isExpanded = expandedId === note.id;
+            const isLong = note.message.length > 120;
+            const displayMessage = !isExpanded && isLong
+              ? `${note.message.slice(0, 120).trim()}...`
+              : note.message;
+            return (
+              <div key={note.id} className="rounded-xl border border-border/70 bg-card/60 p-3 space-y-2 h-20 overflow-hidden">
+                <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.3em] text-muted-foreground">
+                  <User className="h-3.5 w-3.5 text-primary" />
+                  Activity
+                </div>
                 <button
                   type="button"
-                  className="text-muted-foreground hover:text-foreground transition"
-                  onClick={() =>
-                    setDismissedSystemIds((prev) => new Set([...Array.from(prev), note.id]))
-                  }
+                  className="text-sm text-foreground text-left w-full"
+                  onClick={() => setExpandedId((prev) => (prev === note.id ? null : note.id))}
                 >
-                  Clear
+                  <span className="block truncate">{displayMessage}</span>
                 </button>
+                {isLong && (
+                  <button
+                    type="button"
+                    className="flex items-center gap-1 text-[10px] uppercase tracking-[0.3em] text-muted-foreground hover:text-foreground"
+                    onClick={() => setExpandedId((prev) => (prev === note.id ? null : note.id))}
+                  >
+                    Read more
+                    {isExpanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+                  </button>
+                )}
               </div>
-              <button
-                type="button"
-                className={`text-sm text-foreground text-left ${
-                  expandedId === note.id ? '' : 'max-h-[2.8em] overflow-hidden'
-                }`}
-                onClick={() => setExpandedId((prev) => (prev === note.id ? null : note.id))}
-              >
-                {note.message}
-              </button>
-            </div>
-          ))}
-          {visibleUser.map((note) => (
-            <div key={note.id} className="rounded-xl border border-border/70 bg-card/60 p-3 space-y-2">
-              <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.3em] text-muted-foreground">
-                <User className="h-3.5 w-3.5 text-primary" />
-                Activity
+            );
+          })}
+          {visibleSystem.map((note) => {
+            const isExpanded = expandedId === note.id;
+            const isLong = note.message.length > 120;
+            const displayMessage = !isExpanded && isLong
+              ? `${note.message.slice(0, 120).trim()}...`
+              : note.message;
+            return (
+              <div key={note.id} className="rounded-xl border border-border/70 bg-secondary/30 p-3 space-y-2 h-20 overflow-hidden">
+                <div className="flex items-center justify-between text-[10px] uppercase tracking-[0.3em] text-muted-foreground">
+                  <span className="flex items-center gap-2">
+                    <Bell className="h-3.5 w-3.5 text-primary" />
+                    System
+                  </span>
+                  <button
+                    type="button"
+                    className="text-muted-foreground hover:text-foreground transition"
+                    onClick={() =>
+                      setDismissedSystemIds((prev) => new Set([...Array.from(prev), note.id]))
+                    }
+                  >
+                    Clear
+                  </button>
+                </div>
+                <button
+                  type="button"
+                  className="text-sm text-foreground text-left w-full"
+                  onClick={() => setExpandedId((prev) => (prev === note.id ? null : note.id))}
+                >
+                  <span className="block truncate">{displayMessage}</span>
+                </button>
+                {isLong && (
+                  <button
+                    type="button"
+                    className="flex items-center gap-1 text-[10px] uppercase tracking-[0.3em] text-muted-foreground hover:text-foreground"
+                    onClick={() => setExpandedId((prev) => (prev === note.id ? null : note.id))}
+                  >
+                    Read more
+                    {isExpanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+                  </button>
+                )}
               </div>
-              <button
-                type="button"
-                className={`text-sm text-foreground text-left ${
-                  expandedId === note.id ? '' : 'max-h-[2.8em] overflow-hidden'
-                }`}
-                onClick={() => setExpandedId((prev) => (prev === note.id ? null : note.id))}
-              >
-                {note.message}
-              </button>
-            </div>
-          ))}
+            );
+          })}
           {visibleSystem.length === 0 && visibleUser.length === 0 && (
             <div className="rounded-xl border border-border/70 bg-secondary/20 p-3 text-sm text-muted-foreground">
               No notifications yet.

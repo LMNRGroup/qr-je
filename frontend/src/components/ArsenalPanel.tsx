@@ -59,7 +59,7 @@ type ViewMode = 'grid' | 'list';
 type SortMode = 'newest' | 'oldest' | 'alpha';
 const PAGE_SIZE = 10;
 const USER_FEED_KEY = 'qrc.feed.user';
-const MAX_USER_FEED = 5;
+const MAX_USER_FEED = 10;
 
 const getDisplayName = (item: QRHistoryItem, list: QRHistoryItem[] = []) => {
   const name = item.name?.trim();
@@ -682,11 +682,16 @@ export function ArsenalPanel({
 
   const getScanCountValue = (item: QRHistoryItem) => scanCounts[item.id] ?? 0;
 
-  const renderScanCount = (item: QRHistoryItem, size: 'sm' | 'md' = 'md') => {
+  const renderScanCount = (
+    item: QRHistoryItem,
+    size: 'sm' | 'md' | 'lg' = 'md',
+    align: 'left' | 'center' | 'right' = 'right'
+  ) => {
     const count = getScanCountValue(item);
-    const sizeClass = size === 'sm' ? 'text-base' : 'text-xl';
+    const sizeClass = size === 'sm' ? 'text-base' : size === 'lg' ? 'text-2xl' : 'text-xl';
+    const alignClass = align === 'center' ? 'text-center' : align === 'left' ? 'text-left' : 'text-right';
     return (
-      <span className={`min-w-[40px] text-right font-semibold tabular-nums ${sizeClass}`}>
+      <span className={`min-w-[40px] font-semibold tabular-nums ${sizeClass} ${alignClass}`}>
         {count}
       </span>
     );
@@ -1178,6 +1183,7 @@ export function ArsenalPanel({
                 if (!node) return;
                 listScrollRef.current = node.querySelector('[data-radix-scroll-area-viewport]') as HTMLDivElement | null;
               }}
+              style={{ paddingRight: isMobile ? 12 : 0 }}
               className={
                 isDesktop
                   ? 'h-auto max-h-none w-full max-w-full min-w-0 overflow-x-hidden'
@@ -1272,7 +1278,7 @@ export function ArsenalPanel({
                                 <span className="truncate">{typeMeta.label}</span>
                               </span>
                               <div className="flex justify-end">
-                                {renderScanCount(item, 'md')}
+                                {renderScanCount(item, 'md', 'center')}
                               </div>
                             </div>
                           </div>
@@ -1328,9 +1334,9 @@ export function ArsenalPanel({
                             </p>
                             <p className="text-xs text-muted-foreground truncate">{item.content}</p>
                           </div>
-                          <div className="flex flex-wrap items-center gap-2 text-[10px] uppercase tracking-[0.3em]">
+                          <div className="flex flex-wrap items-center justify-between gap-2 text-[10px] uppercase tracking-[0.3em]">
                             {renderCardBadge(item)}
-                            {renderScanCount(item)}
+                            {renderScanCount(item, 'lg')}
                           </div>
                         </div>
                       ) : isMobile && viewMode === 'grid' ? (
@@ -1344,7 +1350,7 @@ export function ArsenalPanel({
                                 {displayName}
                               </p>
                               <p className="text-[11px] text-muted-foreground truncate">{item.content}</p>
-                              <div className="mt-2 flex flex-col gap-1 text-[9px] uppercase tracking-[0.3em]">
+                          <div className="mt-2 flex flex-col gap-1 text-[9px] uppercase tracking-[0.3em]">
                                 <span
                                   className={`inline-flex w-full items-center justify-center gap-1 rounded-full border px-2 py-0.5 ${typeMeta.badge}`}
                                 >
@@ -1363,7 +1369,7 @@ export function ArsenalPanel({
                                     {parsed.mode === 'dynamic' ? 'Dynamic' : 'Static'}
                                   </span>
                                 </span>
-                                {renderScanCount(item)}
+                            {renderScanCount(item, 'lg', 'center')}
                               </div>
                             </div>
                             <div
@@ -1426,7 +1432,7 @@ export function ArsenalPanel({
                           </div>
                           <div className="flex items-center justify-end gap-2 min-w-0 flex-wrap overflow-hidden">
                             {renderCardBadge(item)}
-                            {renderScanCount(item)}
+                            {renderScanCount(item, 'lg')}
                           </div>
                           {!isDesktop && (
                             <div
