@@ -4969,22 +4969,14 @@ const Index = () => {
         )}
 
         {showStudioIntro && (
-        <section id="studio" className={`mt-4 space-y-4 border-t border-border/50 pt-4 sm:space-y-5 lg:mt-0 lg:border-0 lg:pt-0 lg:space-y-8 ${isMobileV2 ? 'qrc-v2-section' : ''}`}>
+        <section id="studio" className={`mt-4 space-y-4 sm:space-y-5 lg:mt-0 lg:pt-0 lg:space-y-8 ${isMobileV2 ? 'qrc-v2-section' : ''}`}>
           <button
             type="button"
             onClick={() => setStageOverlayOpen(true)}
-            className="group w-full rounded-2xl border border-amber-300/50 bg-black/90 p-3 sm:p-4 text-left transition hover:border-amber-300"
+            className="group w-full rounded-2xl border border-amber-300/50 bg-black/90 px-4 py-2 text-left transition hover:border-amber-300"
           >
-            <div className="flex items-center justify-between">
-              <span className={`text-xs uppercase tracking-[0.3em] ${adaptiveGradientText}`}>
-                Prod Stage
-              </span>
-              <span className="rounded-full border border-amber-300/50 px-2 py-1 text-[10px] uppercase tracking-[0.3em] text-amber-200">
-                Stage 1
-              </span>
-            </div>
-            <p className="mt-2 text-sm font-semibold text-white">
-              <span className={adaptiveGradientText}>FRIENDS &amp; FAMILY</span>
+            <p className="text-xs uppercase tracking-[0.3em] text-white">
+              Prod Stage: <span className={adaptiveGradientText}>FRIENDS &amp; FAMILY</span>
             </p>
           </button>
           <div className="flex items-center justify-between gap-4 sm:gap-5 lg:gap-6">

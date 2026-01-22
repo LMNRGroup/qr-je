@@ -84,7 +84,7 @@ const Login = () => {
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
             transition={{ type: 'spring', stiffness: 200, damping: 15 }}
-            src="/assets/QRC Studio Logo Button.png"
+            src="/assets/QRC App Icon.png"
             alt="QR Code Studio"
             className="h-16 w-16 rounded-2xl glow mb-4"
           />
