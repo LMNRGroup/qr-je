@@ -97,6 +97,7 @@ const Index = () => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [hasGenerated, setHasGenerated] = useState(false);
   const [lastGeneratedContent, setLastGeneratedContent] = useState('');
+  const [showNavOverlay, setShowNavOverlay] = useState(false);
   const [activeTab, setActiveTab] = useState<'studio' | 'codes' | 'analytics' | 'settings' | 'upgrade' | 'adaptive'>(() => {
     if (typeof window === 'undefined') return 'studio';
     const stored = window.localStorage.getItem('qrc.activeTab');
@@ -5150,7 +5151,12 @@ const Index = () => {
           <div className="flex items-center justify-between gap-4 sm:gap-5 lg:gap-6">
             <div>
               <p className="text-xs uppercase tracking-[0.4em] text-muted-foreground">Studio</p>
-              <h2 className="text-2xl sm:text-3xl font-semibold tracking-tight">Creative Workspace</h2>
+              <h2 
+                className="text-2xl sm:text-3xl font-semibold tracking-tight cursor-pointer hover:text-primary/80 transition-colors"
+                onClick={() => setShowNavOverlay(true)}
+              >
+                Creative Workspace
+              </h2>
             </div>
             {isMobileV2 && (
               <button
@@ -6338,6 +6344,15 @@ const Index = () => {
 
         {activeTab === 'codes' && (
           <section id="arsenal" className={`space-y-6 ${isMobileV2 ? 'qrc-v2-section' : ''}`}>
+            <div>
+              <p className="text-xs uppercase tracking-[0.4em] text-muted-foreground">Arsenal</p>
+              <h2 
+                className="text-2xl sm:text-3xl font-semibold tracking-tight cursor-pointer hover:text-primary/80 transition-colors"
+                onClick={() => setShowNavOverlay(true)}
+              >
+                Your QR Codes
+              </h2>
+            </div>
             <div className="grid gap-4 md:grid-cols-2">
               <button
                 type="button"
@@ -6391,7 +6406,12 @@ const Index = () => {
                 <div className="flex flex-wrap items-start justify-between gap-2 sm:flex-nowrap sm:items-center">
                   <div>
                     <p className="text-xs uppercase tracking-[0.4em] text-muted-foreground">Intel</p>
-                    <h2 className="text-3xl font-semibold tracking-tight">Live Intelligence</h2>
+                    <h2 
+                      className="text-3xl font-semibold tracking-tight cursor-pointer hover:text-primary/80 transition-colors"
+                      onClick={() => setShowNavOverlay(true)}
+                    >
+                      Live Intelligence
+                    </h2>
                   </div>
                   <div className="relative ml-auto">
                     <select
@@ -6437,7 +6457,12 @@ const Index = () => {
           <section id="config" className="space-y-6">
             <div>
               <p className="text-xs uppercase tracking-[0.4em] text-muted-foreground">Config</p>
-              <h2 className="text-3xl font-semibold tracking-tight">Preferences</h2>
+              <h2 
+                className="text-3xl font-semibold tracking-tight cursor-pointer hover:text-primary/80 transition-colors"
+                onClick={() => setShowNavOverlay(true)}
+              >
+                Preferences
+              </h2>
             </div>
             {!isLoggedIn ? (
               <div className="glass-panel rounded-2xl p-6 text-sm text-muted-foreground space-y-4">
@@ -6732,7 +6757,12 @@ const Index = () => {
           <section id="upgrade" className="space-y-10">
             <div className="text-center space-y-3">
               <p className="text-xs uppercase tracking-[0.4em] text-muted-foreground">Upgrade</p>
-              <h2 className="text-3xl font-semibold tracking-tight">QR Code Studio by Luminar Apps</h2>
+              <h2 
+                className="text-3xl font-semibold tracking-tight cursor-pointer hover:text-primary/80 transition-colors inline-block"
+                onClick={() => setShowNavOverlay(true)}
+              >
+                QR Code Studio by Luminar Apps
+              </h2>
               <p className="text-sm text-muted-foreground">Pricing comparison for every team size.</p>
             </div>
 
@@ -6978,7 +7008,10 @@ const Index = () => {
           <section id="adaptive" className="space-y-10">
             <div className="text-center space-y-4">
               <p className="text-xs uppercase tracking-[0.4em] text-muted-foreground">Adaptive QRC™</p>
-              <h2 className={`text-4xl sm:text-5xl font-semibold tracking-tight ${adaptiveGradientText}`}>
+              <h2 
+                className={`text-4xl sm:text-5xl font-semibold tracking-tight ${adaptiveGradientText} cursor-pointer hover:opacity-80 transition-opacity inline-block`}
+                onClick={() => setShowNavOverlay(true)}
+              >
                 Adaptive QRC™
               </h2>
               <p className={`text-xs uppercase tracking-[0.3em] ${adaptiveGradientText}`}>
@@ -7402,6 +7435,67 @@ const Index = () => {
         )}
 
       </main>
+
+      {/* Navigation Overlay */}
+      {showNavOverlay && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-background/80 backdrop-blur-sm px-4"
+          onClick={() => setShowNavOverlay(false)}
+        >
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: 20 }}
+            transition={{ duration: 0.2 }}
+            className="glass-panel rounded-3xl p-6 sm:p-8 w-full max-w-md space-y-6"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between">
+              <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Navigation</p>
+              <button
+                type="button"
+                className="text-xs uppercase tracking-[0.3em] text-muted-foreground hover:text-foreground transition"
+                onClick={() => setShowNavOverlay(false)}
+              >
+                Close
+              </button>
+            </div>
+            <div className="grid gap-2">
+              {dialItems.map((item) => {
+                const isActive = activeTab === item.id;
+                const Icon = item.Icon;
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => {
+                      setActiveTab(item.id);
+                      setShowNavOverlay(false);
+                      if (typeof window !== 'undefined') {
+                        window.localStorage.setItem('qrc.activeTab', item.id);
+                      }
+                    }}
+                    className={`flex items-center gap-3 rounded-xl border p-4 text-left transition ${
+                      isActive
+                        ? 'border-primary/60 bg-primary/10 text-foreground'
+                        : 'border-border/60 bg-secondary/20 text-muted-foreground hover:border-primary/40 hover:bg-secondary/40 hover:text-foreground'
+                    }`}
+                  >
+                    <Icon className={`h-5 w-5 ${item.color} flex-shrink-0`} />
+                    <div className="flex-1">
+                      <p className="font-semibold">{item.label}</p>
+                      <p className="text-xs opacity-70">{dialDescriptions[item.id]}</p>
+                    </div>
+                    {isActive && (
+                      <div className="h-2 w-2 rounded-full bg-primary flex-shrink-0" />
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </motion.div>
+        </div>
+      )}
     </div>
   );
 };
