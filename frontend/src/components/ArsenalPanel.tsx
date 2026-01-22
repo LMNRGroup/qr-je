@@ -930,12 +930,12 @@ export function ArsenalPanel({
           </h2>
         </div>
         {isMobileV2 ? (
-          <div className="flex w-full items-center justify-between gap-2 flex-nowrap">
+          <div className="flex w-full items-center justify-between gap-2 flex-nowrap qrc-arsenal-toolbar">
             <div className="flex min-w-0 flex-1 items-center gap-2">
               <Button
                 variant={isSelectMode ? 'secondary' : 'outline'}
                 size="sm"
-                className="border-border text-xs uppercase tracking-[0.25em] min-w-0 max-w-[45%]"
+                className="border-border text-[10px] uppercase tracking-[0.2em] whitespace-nowrap px-2"
                 onClick={() => {
                   if (isSelectMode) {
                     setSelectedIds(new Set());
@@ -962,11 +962,11 @@ export function ArsenalPanel({
                 </Button>
               )}
             </div>
-            <div className="flex items-center gap-2 shrink-0">
+            <div className="flex items-center gap-1 shrink-0">
               <div className="inline-flex rounded-full border border-border/60 bg-secondary/30 p-1">
                 <button
                   type="button"
-                  className={`h-9 w-9 rounded-full transition ${
+                  className={`h-8 w-8 rounded-full transition ${
                     viewMode === 'grid' ? 'bg-primary/15 text-primary' : 'text-muted-foreground hover:text-foreground'
                   }`}
                   onClick={() => setViewMode('grid')}
@@ -976,7 +976,7 @@ export function ArsenalPanel({
                 </button>
                 <button
                   type="button"
-                  className={`h-9 w-9 rounded-full transition ${
+                  className={`h-8 w-8 rounded-full transition ${
                     viewMode === 'list' ? 'bg-primary/15 text-primary' : 'text-muted-foreground hover:text-foreground'
                   }`}
                   onClick={() => setViewMode('list')}
@@ -987,7 +987,11 @@ export function ArsenalPanel({
               </div>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm" className="border-border text-xs uppercase tracking-[0.25em]">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="border-border text-[10px] uppercase tracking-[0.2em] px-2"
+                  >
                     <ArrowDownUp className="h-3.5 w-3.5" />
                     Sort
                   </Button>
@@ -1176,11 +1180,11 @@ export function ArsenalPanel({
                               >
                                 {displayName}
                               </p>
-                              <p className="text-[11px] text-muted-foreground truncate">{item.content}</p>
+                              <p className="text-[11px] text-muted-foreground truncate max-w-full">{item.content}</p>
                             </div>
-                            <div className="flex w-[88px] flex-col items-center justify-center gap-1 text-[8px] uppercase tracking-[0.25em] shrink-0">
+                            <div className="flex w-[84px] flex-col items-start justify-center gap-1 text-[8px] uppercase tracking-[0.25em] shrink-0 text-left">
                               <span
-                                className={`inline-flex w-full items-center justify-center gap-1 rounded-full border px-2 py-0.5 ${modeMeta.badge}`}
+                                className={`inline-flex w-full items-center justify-start gap-1 rounded-full border px-2 py-0.5 ${modeMeta.badge}`}
                               >
                                 {parsed.mode === 'dynamic' ? (
                                   <Zap className="h-3 w-3" />
@@ -1192,7 +1196,7 @@ export function ArsenalPanel({
                                 </span>
                               </span>
                               <span
-                                className={`inline-flex w-full items-center justify-center gap-1 rounded-full border px-2 py-0.5 ${typeMeta.badge}`}
+                                className={`inline-flex w-full items-center justify-start gap-1 rounded-full border px-2 py-0.5 ${typeMeta.badge}`}
                               >
                                 <span className="truncate">{typeMeta.label}</span>
                               </span>
