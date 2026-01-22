@@ -15,17 +15,27 @@ interface LogoUploadProps {
 
 export function LogoUpload({ logo, maxLogoSize, onLogoChange }: LogoUploadProps) {
   const [isDragging, setIsDragging] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handleFile = useCallback(
     (file: File) => {
-      if (file.type !== 'image/png') {
-        toast.error('Only PNG logos are supported for QR code readability.');
+      const allowedTypes = ['image/png', 'image/jpeg'];
+      if (!allowedTypes.includes(file.type)) {
+        const message = 'Only PNG or JPG logos are supported for QR code readability.';
+        setError(message);
+        toast.error(message);
         return;
       }
+      setError(null);
       const reader = new FileReader();
       reader.onload = (e) => {
         const result = e.target?.result as string;
-        if (!result) return;
+        if (!result) {
+          const message = 'Unable to read that file.';
+          setError(message);
+          toast.error(message);
+          return;
+        }
         const img = new Image();
         img.onload = () => {
           const aspect = img.width / img.height || 1;
@@ -34,8 +44,14 @@ export function LogoUpload({ logo, maxLogoSize, onLogoChange }: LogoUploadProps)
           const width = Math.max(1, Math.round(img.width * scale));
           const height = Math.max(1, Math.round(img.height * scale));
           onLogoChange(result, { width, height, aspect });
+          setError(null);
         };
         img.src = result;
+      };
+      reader.onerror = () => {
+        const message = 'Unable to read that file.';
+        setError(message);
+        toast.error(message);
       };
       reader.readAsDataURL(file);
     },
@@ -76,6 +92,11 @@ export function LogoUpload({ logo, maxLogoSize, onLogoChange }: LogoUploadProps)
   return (
     <div className="space-y-3">
       <label className="text-sm font-medium text-foreground">Center Logo</label>
+      {error && (
+        <div className="rounded-md border border-destructive/40 bg-destructive/10 px-2 py-1 text-xs text-destructive">
+          {error}
+        </div>
+      )}
 
       <AnimatePresence mode="wait">
         {logo ? (
@@ -126,7 +147,7 @@ export function LogoUpload({ logo, maxLogoSize, onLogoChange }: LogoUploadProps)
             >
               <input
                 type="file"
-                accept="image/png"
+                accept="image/png,image/jpeg"
                 onChange={handleInputChange}
                 className="sr-only"
               />

@@ -212,6 +212,7 @@ const Index = () => {
   });
   const [generatedShortUrl, setGeneratedShortUrl] = useState('');
   const [generatedLongUrl, setGeneratedLongUrl] = useState('');
+  const [showGenerateSuccess, setShowGenerateSuccess] = useState(false);
   const [showVcardCustomizer, setShowVcardCustomizer] = useState(false);
   const [showVcardPreview, setShowVcardPreview] = useState(false);
   const [vcardPreviewSide, setVcardPreviewSide] = useState<'front' | 'back'>('front');
@@ -230,6 +231,13 @@ const Index = () => {
   });
   const isSpanish = profileForm.language === 'es';
   const t = (en: string, es: string) => (isSpanish ? es : en);
+  const previewOptions = useMemo(
+    () => ({
+      ...options,
+      size: Math.max(180, Math.round(options.size * 0.75)),
+    }),
+    [options]
+  );
 
   const normalizeUiErrorMessage = (value: unknown) => {
     if (typeof value === 'string') return value;
@@ -382,6 +390,10 @@ const Index = () => {
   const modeSectionRef = useRef<HTMLDivElement>(null);
   const detailsSectionRef = useRef<HTMLDivElement>(null);
   const customizeSectionRef = useRef<HTMLDivElement>(null);
+  const customizePreviewRef = useRef<HTMLDivElement>(null);
+  const colorsSectionRef = useRef<HTMLDivElement>(null);
+  const styleSectionRef = useRef<HTMLDivElement>(null);
+  const logoSectionRef = useRef<HTMLDivElement>(null);
   const quickActionsRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
 
@@ -959,13 +971,17 @@ const Index = () => {
     const revealSignUpTimer = window.setTimeout(() => {
       setGuestCtaStep(1);
     }, 2600);
-    const revealContinueTimer = window.setTimeout(() => {
+    const revealLoginTimer = window.setTimeout(() => {
       setGuestCtaStep(2);
     }, 3600);
+    const revealContinueTimer = window.setTimeout(() => {
+      setGuestCtaStep(3);
+    }, 4400);
 
     return () => {
       timers.forEach((timer) => window.clearTimeout(timer));
       window.clearTimeout(revealSignUpTimer);
+      window.clearTimeout(revealLoginTimer);
       window.clearTimeout(revealContinueTimer);
     };
   }, [showGuestWelcome]);
@@ -1178,6 +1194,7 @@ const Index = () => {
         toast.success('QR code generated!');
         setHasGenerated(true);
         setArsenalRefreshKey((prev) => prev + 1);
+        setShowGenerateSuccess(true);
       } else {
         toast.error('Failed to generate QR code');
       }
@@ -2770,8 +2787,21 @@ const Index = () => {
   useEffect(() => {
     if (!showMobileCustomize || !hasSelectedMode || !hasSelectedType) return;
     if (!hasInteractedRef.current) return;
+    if (isMobile) {
+      scrollToRef(customizePreviewRef, 'start');
+      return;
+    }
     scrollToRef(customizeSectionRef, 'start');
-  }, [showMobileCustomize, hasSelectedMode, hasSelectedType, scrollToRef]);
+  }, [showMobileCustomize, hasSelectedMode, hasSelectedType, scrollToRef, isMobile]);
+
+  useEffect(() => {
+    if (!showGenerateSuccess) return;
+    const timer = window.setTimeout(() => {
+      setShowGenerateSuccess(false);
+      setActiveTab('codes');
+    }, 1200);
+    return () => window.clearTimeout(timer);
+  }, [showGenerateSuccess]);
 
   const intelMapPanel = (
     <div className="glass-panel rounded-2xl p-6 space-y-6">
@@ -3016,7 +3046,7 @@ const Index = () => {
                 <span className="absolute inset-0 logo-fill">PRINT!</span>
               </span>
             </div>
-            <div className="pt-4 space-y-3">
+            <div className="pt-4 space-y-4">
               <Button
                 className={`w-full sm:w-64 mx-auto bg-gradient-primary text-primary-foreground uppercase tracking-[0.2em] text-xs transition-all duration-500 ${
                   guestCtaStep >= 1 ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4 pointer-events-none'
@@ -3042,12 +3072,12 @@ const Index = () => {
               </button>
               <button
                 type="button"
-                className={`w-full sm:w-64 mx-auto text-xs uppercase tracking-[0.3em] text-muted-foreground transition-all duration-500 ${
-                  guestCtaStep >= 2 ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4 pointer-events-none'
+                className={`w-full sm:w-64 mx-auto mt-4 text-xs uppercase tracking-[0.3em] text-muted-foreground transition-all duration-500 ${
+                  guestCtaStep >= 3 ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4 pointer-events-none'
                 }`}
                 onClick={() => setShowGuestWelcome(false)}
               >
-                Continue without account
+                Continue for free
               </button>
             </div>
           </div>
@@ -3064,6 +3094,20 @@ const Index = () => {
               </span>
             </div>
             <p className="text-xs uppercase tracking-[0.4em] text-muted-foreground">Generating your QR</p>
+          </div>
+        </div>
+      )}
+
+      {showGenerateSuccess && (
+        <div className="fixed inset-0 z-[55] flex items-center justify-center bg-background/80 backdrop-blur-sm">
+          <div className="text-center space-y-3">
+            <div className="text-3xl sm:text-4xl font-semibold tracking-[0.35em]">
+              <span className="relative inline-block">
+                <span className="text-muted-foreground/70">SUCCESS</span>
+                <span className="absolute inset-0 logo-fill">SUCCESS</span>
+              </span>
+            </div>
+            <p className="text-xs uppercase tracking-[0.4em] text-muted-foreground">Sending to Arsenal</p>
           </div>
         </div>
       )}
@@ -5403,11 +5447,9 @@ const Index = () => {
                         </button>
                       </div>
                     </div>
-                  ) : (
+                  ) : isMobileV2 ? null : (
                     <div className="rounded-2xl border border-dashed border-border/70 bg-secondary/20 p-4 text-sm text-muted-foreground">
-                      {isMobileV2
-                        ? 'Select a QR type above to continue.'
-                        : 'Choose Static or Dynamic to continue.'}
+                      Choose Static or Dynamic to continue.
                     </div>
                   )}
 
@@ -5610,24 +5652,7 @@ const Index = () => {
                       </Button>
                     </div>
                   )
-                ) : !hasSelectedType ? (
-                  <div className="rounded-2xl border border-dashed border-border/70 bg-secondary/20 p-4 text-sm text-muted-foreground">
-                    Select a QR type to continue building your code.
-                  </div>
                 ) : null}
-
-                {isMobileV2 && hasSelectedMode && hasSelectedType && canGenerate && mobileStudioStep < 4 && (
-                  <div className="flex">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="border-border text-xs uppercase tracking-[0.3em]"
-                      onClick={() => setMobileStudioStep(4)}
-                    >
-                      Continue to Step 4
-                    </Button>
-                  </div>
-                )}
 
                 {!isMobileV2 && isMobile && hasSelectedMode && hasSelectedType && !mobileCustomizeStep && (
                   <div className="glass-panel rounded-2xl border border-primary/30 bg-primary/5 p-5 space-y-4">
@@ -5682,22 +5707,6 @@ const Index = () => {
                 {!isMobile ? (
                   hasSelectedType && showMobileCustomize ? (
                     <div className="flex flex-col items-center gap-3 sm:flex-row sm:justify-start">
-                      <Button
-                        size="lg"
-                        className="gap-2 bg-gradient-primary hover:opacity-90 text-primary-foreground glow uppercase tracking-[0.2em] text-xs"
-                        disabled={!canGenerate || isGenerating}
-                        onClick={handleGenerate}
-                      >
-                        {isGenerating ? (
-                          <>
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                            Generating
-                          </>
-                        ) : (
-                          <>Generate My QR Code</>
-                        )}
-                      </Button>
-
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button
@@ -5787,35 +5796,18 @@ const Index = () => {
                     </div>
                   )}
                   {hasSelectedMode && hasSelectedType ? (
-                    <QRPreview
-                      ref={qrRef}
-                      options={options}
-                      isGenerating={isGenerating}
-                      contentOverride={previewContent}
-                      showCaption={hasGenerated}
-                    />
+                    <div ref={customizePreviewRef}>
+                      <QRPreview
+                        ref={qrRef}
+                        options={previewOptions}
+                        isGenerating={isGenerating}
+                        contentOverride={previewContent}
+                        showCaption={hasGenerated}
+                      />
+                    </div>
                   ) : (
                     <div className="glass-panel rounded-2xl p-8 text-center text-sm text-muted-foreground">
                       Select a mode and type to preview your QR design.
-                    </div>
-                  )}
-                  {isMobile && hasSelectedMode && hasSelectedType && showMobileCustomize && (
-                    <div className="mt-4 flex w-full flex-col items-center gap-3">
-                      <Button
-                        size="lg"
-                        className="w-full max-w-xs gap-2 bg-gradient-primary hover:opacity-90 text-primary-foreground glow uppercase tracking-[0.2em] text-xs"
-                        disabled={!canGenerate || isGenerating}
-                        onClick={handleGenerate}
-                      >
-                        {isGenerating ? (
-                          <>
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                            Generating
-                          </>
-                        ) : (
-                          <>Generate My QR Code</>
-                        )}
-                      </Button>
                     </div>
                   )}
                 </motion.div>
@@ -5921,79 +5913,130 @@ const Index = () => {
                   <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground px-4 pt-2">
                     Step 4 · Customize
                   </p>
-                  <Accordion type="multiple" defaultValue={['colors', 'style']} className="space-y-2">
+                  <Accordion type="multiple" defaultValue={['colors', 'style', 'logo']} className="space-y-2">
                     <AccordionItem value="colors" className="border-none">
-                      <AccordionTrigger className="py-3 px-4 rounded-lg hover:bg-secondary/50 hover:no-underline">
+                      <AccordionTrigger
+                        className="py-3 px-4 rounded-lg hover:bg-secondary/50 hover:no-underline"
+                        onClick={() => {
+                          window.setTimeout(() => scrollToRef(colorsSectionRef, 'start'), 30);
+                        }}
+                      >
                         <span className="text-sm font-medium">Colors</span>
                       </AccordionTrigger>
-                      <AccordionContent className="px-4 pb-4 pt-2 space-y-5">
-                        <ColorPicker
-                          label="Foreground Color"
-                          value={options.fgColor}
-                          onChange={(v) => updateOption('fgColor', v)}
-                          presets={fgColorPresets}
-                        />
-                        <ColorPicker
-                          label="Background Color"
-                          value={options.bgColor}
-                          onChange={(v) => updateOption('bgColor', v)}
-                          presets={bgColorPresets}
-                        />
+                      <AccordionContent className="px-4 pb-4 pt-2">
+                        <div ref={colorsSectionRef} className="space-y-5">
+                          <ColorPicker
+                            label="Foreground Color"
+                            value={options.fgColor}
+                            onChange={(v) => updateOption('fgColor', v)}
+                            presets={fgColorPresets}
+                          />
+                          <ColorPicker
+                            label="Background Color"
+                            value={options.bgColor}
+                            onChange={(v) => updateOption('bgColor', v)}
+                            presets={bgColorPresets}
+                          />
+                        </div>
                       </AccordionContent>
                     </AccordionItem>
 
                     <AccordionItem value="style" className="border-none">
-                      <AccordionTrigger className="py-3 px-4 rounded-lg hover:bg-secondary/50 hover:no-underline">
+                      <AccordionTrigger
+                        className="py-3 px-4 rounded-lg hover:bg-secondary/50 hover:no-underline"
+                        onClick={() => {
+                          window.setTimeout(() => scrollToRef(styleSectionRef, 'start'), 30);
+                        }}
+                      >
                         <span className="text-sm font-medium">Style</span>
                       </AccordionTrigger>
-                      <AccordionContent className="px-4 pb-4 pt-2 space-y-5">
-                        <CornerStylePicker
-                          value={options.cornerStyle}
-                          onChange={(v) => updateOption('cornerStyle', v)}
-                        />
-                        <ErrorCorrectionSelector
-                          value={options.errorCorrectionLevel}
-                          onChange={(v) => updateOption('errorCorrectionLevel', v)}
-                        />
+                      <AccordionContent className="px-4 pb-4 pt-2">
+                        <div ref={styleSectionRef} className="space-y-5">
+                          <CornerStylePicker
+                            value={options.cornerStyle}
+                            onChange={(v) => updateOption('cornerStyle', v)}
+                          />
+                          <ErrorCorrectionSelector
+                            value={options.errorCorrectionLevel}
+                            onChange={(v) => updateOption('errorCorrectionLevel', v)}
+                          />
+                        </div>
                       </AccordionContent>
                     </AccordionItem>
 
                     <AccordionItem value="logo" className="border-none">
-                      <AccordionTrigger className="py-3 px-4 rounded-lg hover:bg-secondary/50 hover:no-underline">
+                      <AccordionTrigger
+                        className="py-3 px-4 rounded-lg hover:bg-secondary/50 hover:no-underline"
+                        onClick={() => {
+                          window.setTimeout(() => scrollToRef(logoSectionRef, 'start'), 30);
+                        }}
+                      >
                         <span className="text-sm font-medium">Logo</span>
                       </AccordionTrigger>
                       <AccordionContent className="px-4 pb-4 pt-2">
-                        <LogoUpload
-                          logo={options.logo}
-                          maxLogoSize={Math.round((options.size - 32) * 0.22)}
-                          onLogoChange={(v, meta) => {
-                            updateOption('logo', v);
-                            updateOption('logoAspect', meta?.aspect);
-                            updateOption('logoWidth', meta?.width);
-                            updateOption('logoHeight', meta?.height);
-                          }}
-                        />
-                        {options.logo && (
-                          <div className="mt-4">
-                            <SizeSlider
-                              value={options.logoSize || 50}
-                              onChange={(v) => updateOption('logoSize', v)}
-                              min={20}
-                              max={100}
-                            />
-                          </div>
-                        )}
+                        <div ref={logoSectionRef} className="space-y-4">
+                          <LogoUpload
+                            logo={options.logo}
+                            maxLogoSize={Math.round((options.size - 32) * 0.22)}
+                            onLogoChange={(v, meta) => {
+                              updateOption('logo', v);
+                              updateOption('logoAspect', meta?.aspect);
+                              updateOption('logoWidth', meta?.width);
+                              updateOption('logoHeight', meta?.height);
+                            }}
+                          />
+                          {options.logo && (
+                            <div>
+                              <SizeSlider
+                                value={options.logoSize || 50}
+                                onChange={(v) => updateOption('logoSize', v)}
+                                min={20}
+                                max={100}
+                              />
+                            </div>
+                          )}
+                        </div>
                       </AccordionContent>
                     </AccordionItem>
                   </Accordion>
+                  <div className="px-4 pb-4 pt-2 space-y-3">
+                    <Button
+                      size="lg"
+                      className="w-full gap-2 bg-gradient-primary hover:opacity-90 text-primary-foreground glow uppercase tracking-[0.2em] text-xs"
+                      disabled={!canGenerate || isGenerating}
+                      onClick={handleGenerate}
+                    >
+                      {isGenerating ? (
+                        <>
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          Generating
+                        </>
+                      ) : (
+                        <>Generate My QR Code</>
+                      )}
+                    </Button>
+                  </div>
                 </div>
               ) : (
                 <div className="glass-panel rounded-2xl p-6 text-sm text-muted-foreground">
-                  {isMobileV2
-                    ? 'Complete steps 2–3 to unlock customization.'
-                    : isMobile
-                    ? 'Choose Customize to edit colors, style, and logo.'
-                    : 'Customize colors, style, and logo once you pick a mode and QR type.'}
+                  {isMobileV2 ? (
+                    canGenerate ? (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="border-border text-xs uppercase tracking-[0.3em]"
+                        onClick={() => setMobileStudioStep(4)}
+                      >
+                        Continue to Step 4
+                      </Button>
+                    ) : (
+                      'Complete steps 2–3 to unlock customization.'
+                    )
+                  ) : isMobile ? (
+                    'Choose Customize to edit colors, style, and logo.'
+                  ) : (
+                    'Customize colors, style, and logo once you pick a mode and QR type.'
+                  )}
                 </div>
               )}
             </motion.div>
