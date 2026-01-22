@@ -252,7 +252,8 @@ const Index = () => {
           'Things may change, break, improve, or evolve quickly — and that’s intentional.\n\n' +
           'If you’re here at this stage, it means you’re not just using the app…\n' +
           'you’re helping shape it.\n\n' +
-          'Seriously — thank you for being part of the beginning 🤍',
+          'Seriously — thank you for being part of the beginning 🤍\n\n' +
+          'Sincerely José & Erwin',
       },
       {
         id: 'stage2' as const,
@@ -2716,16 +2717,22 @@ const Index = () => {
   useEffect(() => {
     if (!isMobile || !isStandalone) return;
     let startY = 0;
+    let startX = 0;
     let isPulling = false;
     let isReady = false;
-    const threshold = 80;
-    const revealOffset = 16;
+    const threshold = 120;
+    const revealOffset = 32;
+    const startZone = 24;
     const getScrollTop = () =>
       window.scrollY || document.documentElement.scrollTop || document.body.scrollTop || 0;
 
     const handleTouchStart = (event: TouchEvent) => {
       if (getScrollTop() > 0) return;
-      startY = event.touches[0]?.clientY ?? 0;
+      const touchY = event.touches[0]?.clientY ?? 0;
+      const touchX = event.touches[0]?.clientX ?? 0;
+      if (touchY > startZone) return;
+      startY = touchY;
+      startX = touchX;
       isPulling = true;
       isReady = false;
     };
@@ -2734,6 +2741,11 @@ const Index = () => {
       if (!isPulling) return;
       const currentY = event.touches[0]?.clientY ?? 0;
       const delta = currentY - startY;
+      const deltaX = Math.abs((event.touches[0]?.clientX ?? 0) - startX);
+      if (delta <= 0 || deltaX > Math.abs(delta)) {
+        setPullRefreshState({ visible: false, progress: 0, ready: false });
+        return;
+      }
       if (delta <= revealOffset) {
         setPullRefreshState({ visible: false, progress: 0, ready: false });
         return;
@@ -4958,6 +4970,23 @@ const Index = () => {
 
         {showStudioIntro && (
         <section id="studio" className={`mt-4 space-y-4 border-t border-border/50 pt-4 sm:space-y-5 lg:mt-0 lg:border-0 lg:pt-0 lg:space-y-8 ${isMobileV2 ? 'qrc-v2-section' : ''}`}>
+          <button
+            type="button"
+            onClick={() => setStageOverlayOpen(true)}
+            className="group w-full rounded-2xl border border-amber-300/50 bg-black/90 p-3 sm:p-4 text-left transition hover:border-amber-300"
+          >
+            <div className="flex items-center justify-between">
+              <span className={`text-xs uppercase tracking-[0.3em] ${adaptiveGradientText}`}>
+                Prod Stage
+              </span>
+              <span className="rounded-full border border-amber-300/50 px-2 py-1 text-[10px] uppercase tracking-[0.3em] text-amber-200">
+                Stage 1
+              </span>
+            </div>
+            <p className="mt-2 text-sm font-semibold text-white">
+              <span className={adaptiveGradientText}>FRIENDS &amp; FAMILY</span>
+            </p>
+          </button>
           <div className="flex items-center justify-between gap-4 sm:gap-5 lg:gap-6">
             <div>
               <p className="text-xs uppercase tracking-[0.4em] text-muted-foreground">Studio</p>
@@ -4974,13 +5003,6 @@ const Index = () => {
               </button>
             )}
           </div>
-          <button
-            type="button"
-            onClick={() => setStageOverlayOpen(true)}
-            className="w-full rounded-xl border border-amber-300/60 bg-amber-200/20 px-4 py-2 text-center text-[10px] uppercase tracking-[0.35em] text-amber-200/90 hover:border-amber-300/80 hover:bg-amber-200/30 transition"
-          >
-            Prod Stage: FRIENDS &amp; FAMILY
-          </button>
 
           <div className="grid lg:grid-cols-[1.1fr_0.9fr] gap-4 sm:gap-5 lg:gap-6">
             <div
