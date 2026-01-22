@@ -7,6 +7,7 @@ import { MapDots } from '@/components/MapDots';
 import { QRPreview, QRPreviewHandle } from '@/components/QRPreview';
 import { SizeSlider } from '@/components/SizeSlider';
 import { ThemeToggle } from '@/components/ThemeToggle';
+import { UserMenu } from '@/components/UserMenu';
 import {
   Accordion,
   AccordionContent,
@@ -4234,42 +4235,34 @@ const Index = () => {
               <ThemeToggle storageKey={isLoggedIn && user?.id ? `theme:${user.id}` : 'theme:guest'} />
             </div>
             <div className="relative group">
-              <button
-                type="button"
-                className="h-10 w-10 rounded-lg border border-border/60 bg-secondary/50 flex items-center justify-center transition hover:border-primary/50"
-                data-tour-id="profile-icon"
-                aria-label="My Account"
-                onClick={() => setShowAccountModal(true)}
-              >
-                {hasSavedAvatar && headerAvatarColor ? (
-                  <span
-                    className={`flex h-9 w-9 items-center justify-center rounded-md ${headerAvatarColor.bg} ${headerAvatarColor.text}`}
+              <UserMenu
+                trigger={
+                  <button
+                    type="button"
+                    className="h-10 w-10 rounded-lg border border-border/60 bg-secondary/50 flex items-center justify-center transition hover:border-primary/50"
+                    data-tour-id="profile-icon"
+                    aria-label="My Account"
                   >
-                    {headerAvatarType === 'letter' ? (
-                      <span className="text-xs font-semibold">{avatarLetter}</span>
-                    ) : headerAvatarType === 'cap' ? (
-                      <GraduationCap className="h-4 w-4" />
-                    ) : headerAvatarType === 'bun' ? (
-                      <UserRound className="h-4 w-4" />
+                    {hasSavedAvatar && headerAvatarColor ? (
+                      <span
+                        className={`flex h-9 w-9 items-center justify-center rounded-md ${headerAvatarColor.bg} ${headerAvatarColor.text}`}
+                      >
+                        {headerAvatarType === 'letter' ? (
+                          <span className="text-xs font-semibold">{avatarLetter}</span>
+                        ) : headerAvatarType === 'cap' ? (
+                          <GraduationCap className="h-4 w-4" />
+                        ) : headerAvatarType === 'bun' ? (
+                          <UserRound className="h-4 w-4" />
+                        ) : (
+                          <User className="h-4 w-4" />
+                        )}
+                      </span>
                     ) : (
-                      <User className="h-4 w-4" />
+                      <User className="h-4 w-4 text-muted-foreground group-hover:text-primary transition" />
                     )}
-                  </span>
-                ) : (
-                  <User className="h-4 w-4 text-muted-foreground group-hover:text-primary transition" />
-                )}
-                {isMobileV2 && hasSelectedMode && hasSelectedType && mobileStudioStep === 3 && (
-                  <div className="pt-2">
-                    <Button
-                      type="button"
-                      className="w-full gap-2 bg-gradient-primary hover:opacity-90 text-primary-foreground glow uppercase tracking-[0.2em] text-xs"
-                      onClick={() => setMobileStudioStep(4)}
-                    >
-                      Next · Customize
-                    </Button>
-                  </div>
-                )}
-              </button>
+                  </button>
+                }
+              />
               <div className="pointer-events-none absolute right-0 top-full mt-2 w-40 opacity-0 transition group-hover:opacity-100">
                 <div className="rounded-xl border border-border/60 bg-card/90 px-3 py-2 text-xs shadow-lg backdrop-blur">
                   <p className="font-semibold">My Account</p>
