@@ -4682,16 +4682,14 @@ const Index = () => {
               <h2 className="text-2xl sm:text-3xl font-semibold tracking-tight">Creative Workspace</h2>
             </div>
             {isMobileV2 && (
-              <Button
+              <button
                 type="button"
-                variant="outline"
-                size="sm"
-                className="ml-auto border-border text-xs uppercase tracking-[0.25em]"
+                className="ml-auto inline-flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground transition hover:text-foreground"
                 onClick={handleClearStudioCache}
+                aria-label="Refresh"
               >
-                <RefreshCcw className="mr-2 h-3.5 w-3.5" />
-                Refresh
-              </Button>
+                <RefreshCcw className="h-5 w-5" />
+              </button>
             )}
           </div>
 
