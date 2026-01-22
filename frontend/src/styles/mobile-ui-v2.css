@@ -109,21 +109,9 @@
   }
 
   html[data-mobile-ui="v2"] .qrc-letter-footer {
-    display: flex;
-    align-items: center;
-    gap: 12px;
     margin-top: 24px;
     padding-top: 16px;
     border-top: 1px solid rgba(0, 0, 0, 0.08);
-  }
-
-  html[data-mobile-ui="v2"] .qrc-letter-avatar {
-    width: 48px;
-    height: 48px;
-    border-radius: 50%;
-    object-fit: cover;
-    border: 2px solid rgba(0, 0, 0, 0.1);
-    flex-shrink: 0;
   }
 
   html[data-mobile-ui="v2"] .qrc-letter-signature {

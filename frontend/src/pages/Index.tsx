@@ -3352,11 +3352,6 @@ const Index = () => {
                         </div>
                       </div>
                       <div className="qrc-letter-footer">
-                        <img
-                          src="/assets/GDev.png"
-                          alt="Jose"
-                          className="qrc-letter-avatar"
-                        />
                         <p className="qrc-letter-signature">José & Erwin</p>
                       </div>
                     </div>
