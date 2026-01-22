@@ -57,6 +57,8 @@ import { QRPreview, QRPreviewHandle } from '@/components/QRPreview';
 type ViewMode = 'grid' | 'list';
 type SortMode = 'newest' | 'oldest' | 'alpha';
 const PAGE_SIZE = 10;
+const USER_FEED_KEY = 'qrc.feed.user';
+const MAX_USER_FEED = 5;
 
 const getDisplayName = (item: QRHistoryItem, list: QRHistoryItem[] = []) => {
   const name = item.name?.trim();
@@ -193,6 +195,7 @@ export function ArsenalPanel({
   const detailRef = useRef<HTMLDivElement>(null);
   const listScrollRef = useRef<HTMLDivElement | null>(null);
   const backButtonRef = useRef<HTMLButtonElement>(null);
+  const previousScanCountsRef = useRef<Record<string, number>>({});
   const [scanCounts, setScanCounts] = useState<Record<string, number>>({});
   const t = (en: string, es: string) => (language === 'es' ? es : en);
   const isMobile = !isDesktop;
@@ -233,6 +236,7 @@ export function ArsenalPanel({
     if (!list.length) {
       setScanCounts({});
       onScansChange?.(0);
+      previousScanCountsRef.current = {};
       return { counts: {} as Record<string, number>, today: 0 };
     }
     let todayTotal = 0;
@@ -266,6 +270,16 @@ export function ArsenalPanel({
       acc[id] = count;
       return acc;
     }, {});
+    const previousCounts = previousScanCountsRef.current;
+    results.forEach(({ id, count }) => {
+      const previous = previousCounts[id];
+      if (previous !== undefined && count > previous) {
+        const item = list.find((entry) => entry.id === id);
+        const label = item ? getDisplayName(item, list) : 'QRC';
+        pushScanNotification(label);
+      }
+    });
+    previousScanCountsRef.current = counts;
     return { counts, today: todayTotal };
   };
 
@@ -640,6 +654,25 @@ export function ArsenalPanel({
         <span className="truncate">{t('Scans', 'Escaneos')} {count}</span>
       </span>
     );
+  };
+
+  const pushScanNotification = (label: string) => {
+    if (typeof window === 'undefined') return;
+    try {
+      const raw = window.localStorage.getItem(USER_FEED_KEY);
+      const parsed = raw ? (JSON.parse(raw) as Array<{ id: string; message: string; createdAt: number }>) : [];
+      const next = Array.isArray(parsed) ? parsed : [];
+      next.unshift({
+        id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        message: `${label} just got scanned!`,
+        createdAt: Date.now(),
+      });
+      const trimmed = next.slice(0, MAX_USER_FEED);
+      window.localStorage.setItem(USER_FEED_KEY, JSON.stringify(trimmed));
+      window.dispatchEvent(new CustomEvent('qrc:feed-update'));
+    } catch {
+      // ignore feed errors
+    }
   };
 
   useEffect(() => {
