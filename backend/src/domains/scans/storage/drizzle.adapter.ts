@@ -129,12 +129,12 @@ export class DrizzleScansStorageAdapter implements ScansStorage {
     // Get both count and average in one query
     const rows = await db
       .select({
-        count: sql<number>`count(*)`,
+        count: sql<number>`cast(count(*) as integer)`,
         avg: sql<number | null>`avg(${scans.responseMs})`
       })
       .from(scans)
       .where(and(eq(scans.userId, userId), sql`${scans.responseMs} is not null`))
-    const count = rows[0]?.count ?? 0
+    const count = Number(rows[0]?.count ?? 0)
     const avg = rows[0]?.avg ?? null
     // Only return average if we have 2 or more scans
     if (count < 2 || avg === null) return null
@@ -145,7 +145,7 @@ export class DrizzleScansStorageAdapter implements ScansStorage {
     // Get both count and average in one query
     const rows = await db
       .select({
-        count: sql<number>`count(*)`,
+        count: sql<number>`cast(count(*) as integer)`,
         avg: sql<number | null>`avg(${scans.responseMs})`
       })
       .from(scans)
@@ -156,7 +156,7 @@ export class DrizzleScansStorageAdapter implements ScansStorage {
           sql`${scans.scannedAt} >= ${new Date(since)}`
         )
       )
-    const count = rows[0]?.count ?? 0
+    const count = Number(rows[0]?.count ?? 0)
     const avg = rows[0]?.avg ?? null
     // Only return average if we have 2 or more scans
     if (count < 2 || avg === null) return null

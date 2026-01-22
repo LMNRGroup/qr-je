@@ -6740,10 +6740,11 @@ const Index = () => {
               Current plan: <span className="text-foreground font-semibold">FREE FOREVER PLAN</span>
             </div>
 
-            <div className="grid gap-6 lg:grid-cols-3">
-              <div
-                className="glass-panel rounded-2xl p-6 space-y-5 border border-border/60 transition-transform duration-200 hover:scale-[1.02] hover:border-amber-300/60 hover:shadow-[0_0_25px_rgba(251,191,36,0.15)]"
-              >
+            <div className="relative blur-sm pointer-events-none select-none">
+              <div className="grid gap-6 lg:grid-cols-3">
+                <div
+                  className="glass-panel rounded-2xl p-6 space-y-5 border border-border/60 transition-transform duration-200 hover:scale-[1.02] hover:border-amber-300/60 hover:shadow-[0_0_25px_rgba(251,191,36,0.15)]"
+                >
                 <div className="space-y-2">
                   <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Free Forever</p>
                   <h3 className="text-2xl font-semibold">Free Forever</h3>
@@ -6858,6 +6859,44 @@ const Index = () => {
                 </ul>
                 <div className="text-xs uppercase tracking-[0.3em] text-amber-200">Compare</div>
               </div>
+              </div>
+
+            <div className="glass-panel rounded-2xl p-6 overflow-x-auto blur-sm pointer-events-none select-none">
+              <table className="w-full text-sm text-muted-foreground">
+                <thead>
+                  <tr className="text-left border-b border-border/60">
+                    <th className="py-3 pr-4 text-foreground">Feature</th>
+                    <th className="py-3 px-4 text-foreground">Free Forever</th>
+                    <th className="py-3 px-4 text-foreground">Pro</th>
+                    <th className="py-3 pl-4 text-foreground">Command</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {[
+                    ['Dynamic QR Codes', '1', '25', 'Unlimited'],
+                    ['Scans', 'Unlimited', 'Unlimited', 'Unlimited'],
+                    ['Intel', 'Basic', 'Full', 'Advanced'],
+                    ['Bulk Creation', '—', 'Included', 'High-volume'],
+                    ['Custom Colors & Logos', '—', 'Included', 'Included'],
+                    ['Preset Loadouts', '—', 'Included', 'Included'],
+                    ['Adaptive QRC™', '1 (Autodestroy 7 Days)', '1 Included', '5 Included'],
+                    ['Extra Adaptive QRC™', '—', '$3 / mo', '$2 / mo'],
+                    ['API Access', '—', '—', 'Included'],
+                    ['Team Users', '—', '—', 'Up to 5'],
+                    ['Shared Arsenal', '—', '—', 'Included'],
+                    ['Support', 'Community', 'Priority Updates', 'Priority Support'],
+                    ['Watermark', 'Enabled', 'No', 'No'],
+                  ].map(([feature, free, pro, command]) => (
+                    <tr key={feature} className="border-b border-border/40">
+                      <td className="py-3 pr-4 text-foreground">{feature}</td>
+                      <td className="py-3 px-4">{free}</td>
+                      <td className="py-3 px-4">{pro}</td>
+                      <td className="py-3 pl-4">{command}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
             </div>
 
             {selectedPlanComparison && (
@@ -6869,7 +6908,7 @@ const Index = () => {
                   initial={{ opacity: 0, scale: 0.9, rotateY: 12 }}
                   animate={{ opacity: 1, scale: 1, rotateY: 0 }}
                   transition={{ duration: 0.35, ease: 'easeOut' }}
-                  className="glass-panel rounded-3xl p-6 sm:p-8 w-full max-w-3xl space-y-5"
+                  className="glass-panel rounded-3xl p-6 sm:p-8 w-full max-w-3xl space-y-5 blur-sm pointer-events-none select-none"
                   onClick={(event) => event.stopPropagation()}
                 >
                   <div className="flex items-center justify-between">
@@ -6932,43 +6971,6 @@ const Index = () => {
                 </motion.div>
               </div>
             )}
-
-            <div className="glass-panel rounded-2xl p-6 overflow-x-auto">
-              <table className="w-full text-sm text-muted-foreground">
-                <thead>
-                  <tr className="text-left border-b border-border/60">
-                    <th className="py-3 pr-4 text-foreground">Feature</th>
-                    <th className="py-3 px-4 text-foreground">Free Forever</th>
-                    <th className="py-3 px-4 text-foreground">Pro</th>
-                    <th className="py-3 pl-4 text-foreground">Command</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {[
-                    ['Dynamic QR Codes', '1', '25', 'Unlimited'],
-                    ['Scans', 'Unlimited', 'Unlimited', 'Unlimited'],
-                    ['Intel', 'Basic', 'Full', 'Advanced'],
-                    ['Bulk Creation', '—', 'Included', 'High-volume'],
-                    ['Custom Colors & Logos', '—', 'Included', 'Included'],
-                    ['Preset Loadouts', '—', 'Included', 'Included'],
-                    ['Adaptive QRC™', '1 (Autodestroy 7 Days)', '1 Included', '5 Included'],
-                    ['Extra Adaptive QRC™', '—', '$3 / mo', '$2 / mo'],
-                    ['API Access', '—', '—', 'Included'],
-                    ['Team Users', '—', '—', 'Up to 5'],
-                    ['Shared Arsenal', '—', '—', 'Included'],
-                    ['Support', 'Community', 'Priority Updates', 'Priority Support'],
-                    ['Watermark', 'Enabled', 'No', 'No'],
-                  ].map(([feature, free, pro, command]) => (
-                    <tr key={feature} className="border-b border-border/40">
-                      <td className="py-3 pr-4 text-foreground">{feature}</td>
-                      <td className="py-3 px-4">{free}</td>
-                      <td className="py-3 px-4">{pro}</td>
-                      <td className="py-3 pl-4">{command}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
           </section>
         )}
 
