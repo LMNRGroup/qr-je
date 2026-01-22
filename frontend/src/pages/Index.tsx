@@ -56,6 +56,7 @@ import {
   Music2,
   Paintbrush,
   BarChart3,
+  Rocket,
   ArrowLeft,
   Info,
   Monitor,
@@ -350,6 +351,7 @@ const Index = () => {
   const modeSectionRef = useRef<HTMLDivElement>(null);
   const detailsSectionRef = useRef<HTMLDivElement>(null);
   const customizeSectionRef = useRef<HTMLDivElement>(null);
+  const quickActionsRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
 
   const normalizeUrl = (value: string) => {
@@ -1310,6 +1312,9 @@ const Index = () => {
     setPhoneTouched(false);
     setSelectedQuickAction('website');
     setPendingCreateScroll(true);
+    if (isMobileV2) {
+      setMobileStudioStep(2);
+    }
   };
 
   const handleStartVcard = () => {
@@ -1321,6 +1326,9 @@ const Index = () => {
     setPhoneTouched(false);
     setSelectedQuickAction('vcard');
     setPendingCreateScroll(true);
+    if (isMobileV2) {
+      setMobileStudioStep(2);
+    }
   };
 
   const handleStartEmail = () => {
@@ -1332,6 +1340,9 @@ const Index = () => {
     setPhoneTouched(false);
     setSelectedQuickAction('email');
     setPendingCreateScroll(true);
+    if (isMobileV2) {
+      setMobileStudioStep(2);
+    }
   };
 
   const handleStartPhone = () => {
@@ -1344,6 +1355,9 @@ const Index = () => {
     setFileTouched(false);
     setSelectedQuickAction('phone');
     setPendingCreateScroll(true);
+    if (isMobileV2) {
+      setMobileStudioStep(2);
+    }
   };
 
   const handleStartFile = () => {
@@ -1356,6 +1370,9 @@ const Index = () => {
     setFileTouched(false);
     setSelectedQuickAction('file');
     setPendingCreateScroll(true);
+    if (isMobileV2) {
+      setMobileStudioStep(2);
+    }
   };
 
   const handleStartMenu = () => {
@@ -1368,6 +1385,9 @@ const Index = () => {
     setFileTouched(false);
     setSelectedQuickAction('menu');
     setPendingCreateScroll(true);
+    if (isMobileV2) {
+      setMobileStudioStep(2);
+    }
   };
 
   const handleCopyUrl = async () => {
@@ -2550,19 +2570,44 @@ const Index = () => {
   const showStudioIntro = !isMobile || !showMobileCreateFlow;
   const showCreateSection = !isMobile || showMobileCreateFlow;
   const showMobileCustomize = !isMobile || mobileCustomizeStep || (isMobileV2 && mobileStudioStep === 4);
+  const getQrTypeIcon = () => {
+    switch (qrType) {
+      case 'website':
+        return LinkIcon;
+      case 'email':
+        return Mail;
+      case 'phone':
+        return Phone;
+      case 'file':
+        return File;
+      case 'menu':
+        return Utensils;
+      case 'vcard':
+        return User;
+      default:
+        return QrCode;
+    }
+  };
+  const getStepIcon = (step: 1 | 2 | 3 | 4) => {
+    if (step === 1) return QrCode;
+    if (step === 2) return qrMode === 'dynamic' ? Zap : QrCode;
+    if (step === 3) return getQrTypeIcon();
+    return Rocket;
+  };
 
   useEffect(() => {
     if (!isMobileV2) return;
     if (!hasSelectedMode) {
-      setMobileStudioStep(1);
+      if (mobileStudioStep > 1) {
+        setMobileStudioStep(1);
+      }
       return;
     }
     if (!hasSelectedType) {
-      setMobileStudioStep(2);
+      if (mobileStudioStep > 2) {
+        setMobileStudioStep(2);
+      }
       return;
-    }
-    if (mobileStudioStep < 3) {
-      setMobileStudioStep(3);
     }
   }, [hasSelectedMode, hasSelectedType, isMobileV2, mobileStudioStep]);
   const fgColorPresets = [
@@ -4224,6 +4269,17 @@ const Index = () => {
                 ) : (
                   <User className="h-4 w-4 text-muted-foreground group-hover:text-primary transition" />
                 )}
+                {isMobileV2 && hasSelectedMode && hasSelectedType && mobileStudioStep === 3 && (
+                  <div className="pt-2">
+                    <Button
+                      type="button"
+                      className="w-full gap-2 bg-gradient-primary hover:opacity-90 text-primary-foreground glow uppercase tracking-[0.2em] text-xs"
+                      onClick={() => setMobileStudioStep(4)}
+                    >
+                      Next · Customize
+                    </Button>
+                  </div>
+                )}
               </button>
               <div className="pointer-events-none absolute right-0 top-full mt-2 w-40 opacity-0 transition group-hover:opacity-100">
                 <div className="rounded-xl border border-border/60 bg-card/90 px-3 py-2 text-xs shadow-lg backdrop-blur">
@@ -4538,7 +4594,7 @@ const Index = () => {
       >
         {activeTab === 'studio' && (
           <>
-        {showStudioIntro && isMobile && (
+        {showStudioIntro && isMobile && !isMobileV2 && (
         <section className={`space-y-3 sm:space-y-4 ${isMobileV2 ? 'qrc-v2-section' : ''}`} data-tour-id="quick-actions">
           <div>
             <p className="text-xs uppercase tracking-[0.4em] text-muted-foreground">
@@ -4682,6 +4738,83 @@ const Index = () => {
               </div>
             </div>
 
+            {isMobileV2 && (
+              <div
+                ref={quickActionsRef}
+                className={`glass-panel rounded-2xl p-3 sm:p-6 space-y-3 sm:space-y-4 ${isMobileV2 ? 'qrc-v2-card' : ''}`}
+                data-tour-id="quick-actions"
+              >
+                <div>
+                  <p className="text-xs uppercase tracking-[0.4em] text-muted-foreground">Step 1 · Quick Actions</p>
+                  <h3 className="text-base sm:text-lg font-semibold">Jump into a new QR</h3>
+                </div>
+                <div className="flex w-full flex-nowrap items-center justify-between gap-2 sm:gap-6 sm:justify-center sm:flex-wrap">
+                  {[
+                    {
+                      id: 'website',
+                      label: 'Website',
+                      hint: 'Website',
+                      Icon: LinkIcon,
+                      onClick: handleStartStatic,
+                    },
+                    {
+                      id: 'phone',
+                      label: 'Phone',
+                      hint: 'Phone',
+                      Icon: Phone,
+                      onClick: handleStartPhone,
+                    },
+                    {
+                      id: 'email',
+                      label: 'Email',
+                      hint: 'Email',
+                      Icon: Mail,
+                      onClick: handleStartEmail,
+                    },
+                    {
+                      id: 'vcard',
+                      label: 'VCard',
+                      hint: 'VCard',
+                      Icon: User,
+                      onClick: handleStartVcard,
+                    },
+                    {
+                      id: 'file',
+                      label: 'File',
+                      hint: 'File',
+                      Icon: File,
+                      onClick: handleStartFile,
+                    },
+                    {
+                      id: 'menu',
+                      label: 'Menu',
+                      hint: 'Menu',
+                      Icon: Utensils,
+                      onClick: handleStartMenu,
+                    },
+                  ].map((action) => (
+                    <button
+                      key={action.id}
+                      type="button"
+                      onClick={() => {
+                        action.onClick();
+                        handleTourQuickAction();
+                      }}
+                      aria-pressed={selectedQuickAction === action.id}
+                      data-tour-quick-action="true"
+                      className={`group relative flex flex-col items-center justify-center rounded-full border h-12 w-12 transition hover:border-primary/60 hover:bg-secondary/40 ${
+                        selectedQuickAction === action.id
+                          ? 'border-primary/70 bg-secondary/50 ring-1 ring-primary/40 shadow-[0_0_16px_rgba(99,102,241,0.25)]'
+                          : 'border-border/60 bg-secondary/30'
+                      }`}
+                    >
+                      <action.Icon className="h-6 w-6 text-primary" />
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <div
               className={`glass-panel rounded-2xl p-3 sm:p-6 space-y-2 sm:space-y-4 ${
                 isMobileV2 ? 'qrc-v2-card' : ''
@@ -4691,9 +4824,20 @@ const Index = () => {
               <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Studio Guide</p>
               <h3 className="text-base sm:text-lg font-semibold">Your QR flow</h3>
               <div className="space-y-1.5 text-xs sm:text-sm text-muted-foreground">
-                <p>1. Choose a quick action.</p>
-                <p>2. Fill the details.</p>
-                <p>3. Customize, generate, and export.</p>
+                {isMobileV2 ? (
+                  <>
+                    <p>1. Quick action.</p>
+                    <p>2. Dynamic or static.</p>
+                    <p>3. Enter contents.</p>
+                    <p>4. Customize & generate.</p>
+                  </>
+                ) : (
+                  <>
+                    <p>1. Choose a quick action.</p>
+                    <p>2. Fill the details.</p>
+                    <p>3. Customize, generate, and export.</p>
+                  </>
+                )}
               </div>
             </div>
           </div>
@@ -4831,7 +4975,13 @@ const Index = () => {
                     mobileStudioStep === step ? 'border-primary/60 text-primary' : 'border-border/60'
                   }`}
                 >
-                  Step {step}
+                  <span className="flex items-center justify-center gap-1 text-[10px] uppercase tracking-[0.2em]">
+                    <span className="font-semibold">{step}</span>
+                    {(() => {
+                      const Icon = getStepIcon(step as 1 | 2 | 3 | 4);
+                      return <Icon className="h-3.5 w-3.5" />;
+                    })()}
+                  </span>
                 </button>
               ))}
             </div>
@@ -4840,11 +4990,27 @@ const Index = () => {
           <div className="grid lg:grid-cols-[1fr_400px] gap-8">
             {/* Left Panel - Input & Preview */}
             <div className="space-y-6">
+              {isMobileV2 && (
+                <div data-mobile-step="1" className="glass-panel rounded-2xl p-6 space-y-3">
+                  <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Step 1 · Quick Actions</p>
+                  <p className="text-sm text-muted-foreground">
+                    Choose a quick action above to set your QR type.
+                  </p>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="border-border uppercase tracking-[0.2em] text-xs"
+                    onClick={() => scrollToRef(quickActionsRef, 'start')}
+                  >
+                    Open Quick Actions
+                  </Button>
+                </div>
+              )}
               <motion.div
                 ref={modeSectionRef}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                data-mobile-step="1"
+                data-mobile-step={isMobileV2 ? '2' : '1'}
                 className={`glass-panel rounded-2xl p-6 space-y-6 ${
                   qrMode === 'dynamic'
                     ? 'border-cyan-400/40 bg-cyan-500/5 shadow-[0_0_25px_rgba(34,211,238,0.12)]'
@@ -4876,7 +5042,7 @@ const Index = () => {
                         setEmailTouched(false);
                         setPhoneTouched(false);
                         if (isMobileV2) {
-                          setMobileStudioStep(2);
+                          setMobileStudioStep(3);
                         }
                       }}
                     >
@@ -4897,7 +5063,7 @@ const Index = () => {
                         setEmailTouched(false);
                         setPhoneTouched(false);
                         if (isMobileV2) {
-                          setMobileStudioStep(2);
+                          setMobileStudioStep(3);
                         }
                       }}
                     >
@@ -4910,7 +5076,7 @@ const Index = () => {
 
                 <div ref={detailsSectionRef} className="space-y-6">
                   {hasSelectedMode && !selectedQuickAction ? (
-                    <div className="space-y-4" data-mobile-step="2">
+                    <div className="space-y-4" data-mobile-step={isMobileV2 ? '1' : '2'}>
                       <div className="flex items-center justify-between">
                         <h3 className="font-semibold">
                           {isMobileV2 ? 'Choose QR Type' : 'Step 2 · QR Type'}
@@ -5037,7 +5203,9 @@ const Index = () => {
                     </div>
                   ) : (
                     <div className="rounded-2xl border border-dashed border-border/70 bg-secondary/20 p-4 text-sm text-muted-foreground">
-                      Choose Static or Dynamic to continue.
+                      {isMobileV2
+                        ? 'Pick a quick action or QR type to continue.'
+                        : 'Choose Static or Dynamic to continue.'}
                     </div>
                   )}
 
@@ -5533,7 +5701,7 @@ const Index = () => {
               transition={{ delay: 0.15 }}
               className="space-y-6"
             >
-              {hasSelectedMode && hasSelectedType && (!isMobile || mobileCustomizeStep) ? (
+              {hasSelectedMode && hasSelectedType && (!isMobile || mobileCustomizeStep || (isMobileV2 && mobileStudioStep === 4)) ? (
                 <div className="glass-panel rounded-2xl p-4">
                   <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground px-4 pt-2">
                     Step 4 · Customize
@@ -5606,7 +5774,9 @@ const Index = () => {
                 </div>
               ) : (
                 <div className="glass-panel rounded-2xl p-6 text-sm text-muted-foreground">
-                  {isMobile
+                  {isMobileV2
+                    ? 'Complete steps 2–3 to unlock customization.'
+                    : isMobile
                     ? 'Choose Customize to edit colors, style, and logo.'
                     : 'Customize colors, style, and logo once you pick a mode and QR type.'}
                 </div>
