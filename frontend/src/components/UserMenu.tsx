@@ -215,12 +215,16 @@ export function UserMenu({ trigger }: { trigger?: React.ReactNode }) {
                   className="text-sm text-foreground text-left w-full"
                   onClick={() => setExpandedId((prev) => (prev === note.id ? null : note.id))}
                 >
-                  <span className="block truncate">{displayMessage}</span>
+                  <span
+                    className={`block ${isExpanded ? 'whitespace-pre-wrap' : 'truncate'}`}
+                  >
+                    {displayMessage}
+                  </span>
                 </button>
                 {isLong && (
                   <button
                     type="button"
-                    className="flex items-center justify-between text-[10px] uppercase tracking-[0.3em] text-muted-foreground hover:text-foreground"
+                    className="flex w-full items-center justify-between text-[10px] uppercase tracking-[0.3em] text-muted-foreground hover:text-foreground"
                     onClick={() => setExpandedId((prev) => (prev === note.id ? null : note.id))}
                   >
                     <span>{isExpanded ? 'Less' : 'More'}</span>
@@ -254,12 +258,16 @@ export function UserMenu({ trigger }: { trigger?: React.ReactNode }) {
                   className="text-sm text-foreground text-left w-full"
                   onClick={() => setExpandedId((prev) => (prev === note.id ? null : note.id))}
                 >
-                  <span className="block truncate">{displayMessage}</span>
+                  <span
+                    className={`block ${isExpanded ? 'whitespace-pre-wrap' : 'truncate'}`}
+                  >
+                    {displayMessage}
+                  </span>
                 </button>
                 {isLong && (
                   <button
                     type="button"
-                    className="flex items-center justify-between text-[10px] uppercase tracking-[0.3em] text-muted-foreground hover:text-foreground"
+                    className="flex w-full items-center justify-between text-[10px] uppercase tracking-[0.3em] text-muted-foreground hover:text-foreground"
                     onClick={() => setExpandedId((prev) => (prev === note.id ? null : note.id))}
                   >
                     <span>{isExpanded ? 'Less' : 'More'}</span>
@@ -299,12 +307,12 @@ export function UserMenu({ trigger }: { trigger?: React.ReactNode }) {
           </Button>
         </div>
         <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={handlePreferences} className="cursor-pointer">
+        <DropdownMenuItem onClick={handlePreferences} className="cursor-pointer h-11 px-3">
           <Settings className="mr-2 h-4 w-4" />
           Preferences
         </DropdownMenuItem>
         {isMobileV2 && (
-          <DropdownMenuItem onClick={handleClearCache} className="cursor-pointer">
+          <DropdownMenuItem onClick={handleClearCache} className="cursor-pointer h-11 px-3">
             <RefreshCcw className="mr-2 h-4 w-4" />
             Clear cache
           </DropdownMenuItem>

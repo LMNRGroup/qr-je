@@ -259,7 +259,7 @@ const Index = () => {
       },
       {
         id: 'stage2' as const,
-        label: 'Stage 2 · MVP (Word of Mouth)',
+        label: 'Stage 2 · MVP · Word of Mouth',
         title: 'MVP · Word of Mouth',
         description:
           'Okay… now things start getting interesting.\n\n' +
@@ -282,7 +282,8 @@ const Index = () => {
           'What started small is now moving fast, reaching creators, businesses, and teams everywhere.\n\n' +
           'Built with love, pressure, and long nights.\n\n' +
           'DE PUERTO RICO PA’L MUNDO.\n\n' +
-          'Let’s go. 🚀',
+          'Let’s go. 🚀\n\n' +
+          'Puerto Rico.',
       },
     ],
     []
@@ -1610,7 +1611,7 @@ const Index = () => {
       setAvatarDirty(false);
       setUsernameStatus('idle');
       setUsernameError('');
-      toast.success('Preferences saved.');
+      toast.success('Preferences saved!');
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to update preferences.';
       toast.error(message);
@@ -3028,7 +3029,7 @@ const Index = () => {
   );
 
   return (
-    <div className="min-h-screen bg-background" data-build={BUILD_STAMP}>
+    <div className="bg-background sm:min-h-screen" data-build={BUILD_STAMP}>
       <style>{`
         @keyframes radarSweep {
           0% { transform: rotate(0deg); opacity: 0.15; }
@@ -4566,11 +4567,13 @@ const Index = () => {
               onClick={() => setIsDialOpen(false)}
             >
               <div className="absolute inset-0">
-                <div className={`absolute ${isLeftie ? 'right-6' : 'left-6'} top-1/2 z-10 w-[45%] -translate-y-1/2 space-y-2`}>
+                <div
+                  className={`absolute ${isLeftie ? 'right-6 text-right' : 'left-6 text-left'} top-1/2 z-10 w-[45%] -translate-y-1/2 space-y-2`}
+                >
                   <p className="text-xs uppercase tracking-[0.4em] text-muted-foreground">Navigation</p>
                   <button
                     type="button"
-                    className="w-full text-left"
+                    className={`w-full ${isLeftie ? 'text-right' : 'text-left'}`}
                     onClick={() => {
                       playDialSelect();
                       setActiveTab(dialActive.id as typeof activeTab);
@@ -4582,7 +4585,7 @@ const Index = () => {
                     >
                       {dialActive?.label}
                     </span>
-                    <span className="block text-xs uppercase tracking-[0.28em] text-muted-foreground">
+                  <span className="block text-xs uppercase tracking-[0.28em] text-muted-foreground">
                       {dialDescriptions[dialActive?.id ?? 'studio']}
                     </span>
                   </button>
@@ -4640,7 +4643,8 @@ const Index = () => {
                   onPointerMove={(event) => {
                     if (!dialDragging) return;
                     const deltaY = event.clientY - dialStartRef.current.y;
-                    const nextAngle = dialStartRef.current.angle - deltaY * dialDragSensitivity;
+                    const direction = isLeftie ? 1 : -1;
+                    const nextAngle = dialStartRef.current.angle + deltaY * dialDragSensitivity * direction;
                     const now = window.performance.now();
                     const dt = now - dialMomentumLastTimeRef.current;
                     if (dt > 0) {

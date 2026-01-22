@@ -139,10 +139,10 @@ const typeStyles: Record<string, { label: string; icon: typeof Link; card: strin
 
 const modeStyles: Record<'dynamic' | 'static', { card: string; badge: string }> = {
   dynamic: {
-    card: 'border-violet-500/70 bg-gradient-to-br from-violet-500/15 via-transparent to-amber-400/15 dark:border-violet-400/60 dark:from-violet-500/10 dark:to-amber-400/10',
+    card: 'border-violet-500/70 bg-violet-500/10 dark:border-violet-400/60 dark:bg-violet-500/10',
     badge:
-      'border-violet-600/70 text-white bg-gradient-to-r from-violet-700/80 to-amber-600/80 ' +
-      'dark:border-violet-400/60 dark:text-violet-200 dark:from-violet-500/20 dark:to-amber-400/20',
+      'border-violet-600/70 text-white bg-violet-600/80 ' +
+      'dark:border-violet-400/60 dark:text-violet-200 dark:bg-violet-500/25',
   },
   static: {
     card: 'border-border/60 bg-secondary/20',
@@ -1235,9 +1235,9 @@ export function ArsenalPanel({
                       }}
                       className={`group w-full rounded-2xl border text-left transition overflow-hidden min-w-0 max-w-full ${
                         isSelectMode && isChecked
-                          ? 'border-primary/60 bg-primary/10 shadow-[0_0_18px_rgba(59,130,246,0.18)]'
+                          ? 'border-amber-400/80 bg-amber-300/10 shadow-[0_0_18px_rgba(251,191,36,0.3)]'
                           : isSelected
-                          ? 'border-border/60 bg-secondary/20 shadow-none'
+                          ? 'border-amber-300/70 bg-amber-200/10 shadow-[0_0_18px_rgba(251,191,36,0.2)]'
                           : `${modeMeta.card} hover:border-primary/40 hover:bg-secondary/40`
                       } ${isMobile ? 'p-2.5' : 'p-4'} ${
                         viewMode === 'grid'
