@@ -365,10 +365,13 @@ const Index = () => {
     frontColor: '#111827',
     frontGradient: '#2563eb',
     frontUseGradient: true,
+    frontFontColor: '#F8FAFC',
     backColor: '#0f172a',
     backGradient: '#4f46e5',
     backUseGradient: true,
-    logoDataUrl: '',
+    backFontColor: '#F8FAFC',
+    frontLogoDataUrl: '',
+    backLogoDataUrl: '',
     profilePhotoDataUrl: '',
     photoZoom: 110,
     photoX: 50,
@@ -1307,10 +1310,13 @@ const Index = () => {
       frontColor: '#111827',
       frontGradient: '#2563eb',
       frontUseGradient: true,
+      frontFontColor: '#F8FAFC',
       backColor: '#0f172a',
       backGradient: '#4f46e5',
       backUseGradient: true,
-      logoDataUrl: '',
+      backFontColor: '#F8FAFC',
+      frontLogoDataUrl: '',
+      backLogoDataUrl: '',
       profilePhotoDataUrl: '',
       photoZoom: 110,
       photoX: 50,
@@ -1637,19 +1643,6 @@ const Index = () => {
     }
   };
 
-  const vcardColorPresets = [
-    '#111827',
-    '#0f172a',
-    '#1e293b',
-    '#0b132a',
-    '#1f2937',
-    '#2563eb',
-    '#4f46e5',
-    '#0891b2',
-    '#0f766e',
-    '#a855f7',
-  ];
-
   const vcardFontOptions = [
     { label: 'Arial', value: 'Arial, sans-serif' },
     { label: 'Helvetica', value: 'Helvetica, Arial, sans-serif' },
@@ -1815,24 +1808,6 @@ const Index = () => {
     const { data } = supabase.storage.from(QR_ASSETS_BUCKET).getPublicUrl(filePath);
     return data.publicUrl;
   };
-  const handleVcardLogoChange = async (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-    event.target.value = '';
-    if (!file.type.startsWith('image/')) {
-      toast.error('Please upload an image file.');
-      return;
-    }
-    const dataUrl = await compressImageFile(file, { maxDimension: 1200, quality: 0.9 });
-    const blob = dataUrlToBlob(dataUrl);
-    const maxSizeMb = (MAX_VCARD_PHOTO_BYTES / (1024 * 1024)).toFixed(1);
-    if (blob.size > MAX_VCARD_PHOTO_BYTES) {
-      toast.error(`Logo is too large. Please use an image under ${maxSizeMb} MB.`);
-      return;
-    }
-    setVcardStyle((prev) => ({ ...prev, logoDataUrl: dataUrl }));
-  };
-
   const handleVcardPhotoChange = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -3691,11 +3666,11 @@ const Index = () => {
                     >
                       <div className="flex items-center justify-between">
                         <div className="space-y-1">
-                          <p className="text-xs uppercase tracking-[0.3em] text-white/70">VCard</p>
-                          <h3 className="text-2xl font-semibold">
+                          <p className="text-xs uppercase tracking-[0.3em]" style={{ color: vcardStyle.frontFontColor, opacity: 0.7 }}>VCard</p>
+                          <h3 className="text-2xl font-semibold" style={{ color: vcardStyle.frontFontColor }}>
                             {vcard.name || 'Your Name'}
                           </h3>
-                          <p className="text-sm text-white/80">
+                          <p className="text-sm" style={{ color: vcardStyle.frontFontColor, opacity: 0.85 }}>
                             {vcard.company || 'Your Company'}
                           </p>
                         </div>
@@ -3711,12 +3686,21 @@ const Index = () => {
                           }}
                         />
                       </div>
-                      <div className="space-y-2 text-sm text-white/90">
+                      <div className="space-y-2 text-sm" style={{ color: vcardStyle.frontFontColor, opacity: 0.9 }}>
                         <p>{vcard.phone || '+1 (555) 123-4567'}</p>
                         <p>{vcard.email || 'you@example.com'}</p>
                         <p>{vcard.website || 'qrcodestudio.app'}</p>
                       </div>
-                      <p className="text-[11px] uppercase tracking-[0.4em] text-white/70">
+                      {vcardStyle.frontLogoDataUrl && (
+                        <div className="flex justify-end">
+                          <img
+                            src={vcardStyle.frontLogoDataUrl}
+                            alt="Front logo"
+                            className="h-10 w-10 rounded-lg object-cover border border-white/20"
+                          />
+                        </div>
+                      )}
+                      <p className="text-[11px] uppercase tracking-[0.4em]" style={{ color: vcardStyle.frontFontColor, opacity: 0.7 }}>
                         Tap to flip
                       </p>
                     </div>
@@ -3729,9 +3713,9 @@ const Index = () => {
                         backfaceVisibility: 'hidden',
                       }}
                     >
-                      {vcardStyle.logoDataUrl ? (
+                      {vcardStyle.backLogoDataUrl ? (
                         <img
-                          src={vcardStyle.logoDataUrl}
+                          src={vcardStyle.backLogoDataUrl}
                           alt="VCard logo"
                           className="h-20 w-20 rounded-xl object-cover border border-white/20"
                         />
@@ -3740,7 +3724,7 @@ const Index = () => {
                           Logo
                         </div>
                       )}
-                      <p className="text-xs uppercase tracking-[0.4em] text-white/70">
+                      <p className="text-xs uppercase tracking-[0.4em]" style={{ color: vcardStyle.backFontColor, opacity: 0.7 }}>
                         Tap to flip
                       </p>
                     </div>
@@ -3769,19 +3753,28 @@ const Index = () => {
                   <div className="flex items-center gap-4">
                     <div
                       ref={photoDragRef}
-                      className="h-20 w-20 rounded-full border border-border bg-secondary/40 cursor-grab active:cursor-grabbing"
+                      className="relative h-40 w-40 rounded-2xl border border-border bg-secondary/40 cursor-grab active:cursor-grabbing overflow-hidden"
                       onPointerDown={handlePhotoPointerDown}
                       onPointerMove={handlePhotoPointerMove}
                       onPointerUp={handlePhotoPointerUp}
                       style={{
-                        backgroundImage: vcardStyle.profilePhotoDataUrl
-                          ? `url(${vcardStyle.profilePhotoDataUrl})`
-                          : undefined,
-                        backgroundSize: `${vcardStyle.photoZoom}%`,
-                        backgroundPosition: `${vcardStyle.photoX}% ${vcardStyle.photoY}%`,
-                        backgroundRepeat: 'no-repeat',
+                        backgroundImage:
+                          'linear-gradient(rgba(148,163,184,0.15) 1px, transparent 1px), linear-gradient(90deg, rgba(148,163,184,0.15) 1px, transparent 1px)',
+                        backgroundSize: '16px 16px',
                       }}
-                    />
+                    >
+                      <div
+                        className="absolute inset-4 rounded-full border-2 border-primary/60 shadow-[0_0_16px_rgba(99,102,241,0.35)]"
+                        style={{
+                          backgroundImage: vcardStyle.profilePhotoDataUrl
+                            ? `url(${vcardStyle.profilePhotoDataUrl})`
+                            : undefined,
+                          backgroundSize: `${vcardStyle.photoZoom}%`,
+                          backgroundPosition: `${vcardStyle.photoX}% ${vcardStyle.photoY}%`,
+                          backgroundRepeat: 'no-repeat',
+                        }}
+                      />
+                    </div>
                     <div className="flex-1 space-y-3">
                       <div className="space-y-1">
                         <p className="text-[11px] uppercase tracking-[0.3em] text-muted-foreground">
@@ -3870,29 +3863,17 @@ const Index = () => {
                     <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">
                       Front Style
                     </p>
-                    <div className="flex flex-wrap gap-2">
-                      {vcardColorPresets.map((color) => (
-                        <button
-                          key={`front-${color}`}
-                          type="button"
-                          aria-label={`Front color ${color}`}
-                          className={`h-8 w-8 rounded-full border ${
-                            vcardStyle.frontColor === color ? 'border-primary' : 'border-border'
-                          }`}
-                          style={{ backgroundColor: color }}
-                          onClick={() =>
-                            setVcardStyle((prev) => ({ ...prev, frontColor: color }))
-                          }
-                        />
-                      ))}
-                    </div>
-                    <Input
+                    <ColorPicker
+                      label="Front Background"
                       value={vcardStyle.frontColor}
-                      onChange={(event) =>
-                        setVcardStyle((prev) => ({ ...prev, frontColor: event.target.value }))
-                      }
-                      placeholder="#111827"
-                      className="bg-secondary/40 border-border text-xs"
+                      onChange={(value) => setVcardStyle((prev) => ({ ...prev, frontColor: value }))}
+                      presets={bgColorPresets}
+                    />
+                    <ColorPicker
+                      label="Front Font Color"
+                      value={vcardStyle.frontFontColor}
+                      onChange={(value) => setVcardStyle((prev) => ({ ...prev, frontFontColor: value }))}
+                      presets={fgColorPresets}
                     />
                     <div className="flex items-center gap-2">
                       <input
@@ -3911,16 +3892,16 @@ const Index = () => {
                       </label>
                     </div>
                     {vcardStyle.frontUseGradient && (
-                      <Input
+                      <ColorPicker
+                        label="Front Gradient"
                         value={vcardStyle.frontGradient}
-                        onChange={(event) =>
+                        onChange={(value) =>
                           setVcardStyle((prev) => ({
                             ...prev,
-                            frontGradient: event.target.value,
+                            frontGradient: value,
                           }))
                         }
-                        placeholder="#2563eb"
-                        className="bg-secondary/40 border-border text-xs"
+                        presets={fgColorPresets}
                       />
                     )}
                   </div>
@@ -3929,29 +3910,17 @@ const Index = () => {
                     <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">
                       Back Style
                     </p>
-                    <div className="flex flex-wrap gap-2">
-                      {vcardColorPresets.map((color) => (
-                        <button
-                          key={`back-${color}`}
-                          type="button"
-                          aria-label={`Back color ${color}`}
-                          className={`h-8 w-8 rounded-full border ${
-                            vcardStyle.backColor === color ? 'border-primary' : 'border-border'
-                          }`}
-                          style={{ backgroundColor: color }}
-                          onClick={() =>
-                            setVcardStyle((prev) => ({ ...prev, backColor: color }))
-                          }
-                        />
-                      ))}
-                    </div>
-                    <Input
+                    <ColorPicker
+                      label="Back Background"
                       value={vcardStyle.backColor}
-                      onChange={(event) =>
-                        setVcardStyle((prev) => ({ ...prev, backColor: event.target.value }))
-                      }
-                      placeholder="#0f172a"
-                      className="bg-secondary/40 border-border text-xs"
+                      onChange={(value) => setVcardStyle((prev) => ({ ...prev, backColor: value }))}
+                      presets={bgColorPresets}
+                    />
+                    <ColorPicker
+                      label="Back Font Color"
+                      value={vcardStyle.backFontColor}
+                      onChange={(value) => setVcardStyle((prev) => ({ ...prev, backFontColor: value }))}
+                      presets={fgColorPresets}
                     />
                     <div className="flex items-center gap-2">
                       <input
@@ -3970,31 +3939,46 @@ const Index = () => {
                       </label>
                     </div>
                     {vcardStyle.backUseGradient && (
-                      <Input
+                      <ColorPicker
+                        label="Back Gradient"
                         value={vcardStyle.backGradient}
-                        onChange={(event) =>
+                        onChange={(value) =>
                           setVcardStyle((prev) => ({
                             ...prev,
-                            backGradient: event.target.value,
+                            backGradient: value,
                           }))
                         }
-                        placeholder="#4f46e5"
-                        className="bg-secondary/40 border-border text-xs"
+                        presets={fgColorPresets}
                       />
                     )}
                   </div>
                 </div>
 
-                <div className="space-y-3">
-                  <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">
-                    Back Logo
-                  </p>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleVcardLogoChange}
-                    className="text-xs text-muted-foreground"
-                  />
+                <div className="grid lg:grid-cols-2 gap-6">
+                  <div className="space-y-3">
+                    <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">
+                      Front Logo
+                    </p>
+                    <LogoUpload
+                      logo={vcardStyle.frontLogoDataUrl || undefined}
+                      maxLogoSize={180}
+                      onLogoChange={(value) =>
+                        setVcardStyle((prev) => ({ ...prev, frontLogoDataUrl: value }))
+                      }
+                    />
+                  </div>
+                  <div className="space-y-3">
+                    <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">
+                      Back Logo
+                    </p>
+                    <LogoUpload
+                      logo={vcardStyle.backLogoDataUrl || undefined}
+                      maxLogoSize={220}
+                      onLogoChange={(value) =>
+                        setVcardStyle((prev) => ({ ...prev, backLogoDataUrl: value }))
+                      }
+                    />
+                  </div>
                 </div>
 
                 <div className="flex flex-col sm:flex-row gap-3">
@@ -4076,12 +4060,21 @@ const Index = () => {
                       }}
                     />
                   </div>
-                  <div className="space-y-2 text-sm text-white/90">
+                  <div className="space-y-2 text-sm" style={{ color: vcardStyle.frontFontColor, opacity: 0.9 }}>
                     <p>{vcard.phone || '+1 (555) 123-4567'}</p>
                     <p>{vcard.email || 'you@example.com'}</p>
                     <p>{vcard.website || 'qrcodestudio.app'}</p>
                   </div>
-                  <p className="text-[11px] uppercase tracking-[0.4em] text-white/70">
+                  {vcardStyle.frontLogoDataUrl && (
+                    <div className="flex justify-end">
+                      <img
+                        src={vcardStyle.frontLogoDataUrl}
+                        alt="Front logo"
+                        className="h-10 w-10 rounded-lg object-cover border border-white/20"
+                      />
+                    </div>
+                  )}
+                  <p className="text-[11px] uppercase tracking-[0.4em]" style={{ color: vcardStyle.frontFontColor, opacity: 0.7 }}>
                     Tap to flip
                   </p>
                 </div>
@@ -4094,9 +4087,9 @@ const Index = () => {
                     backfaceVisibility: 'hidden',
                   }}
                 >
-                  {vcardStyle.logoDataUrl ? (
+                  {vcardStyle.backLogoDataUrl ? (
                     <img
-                      src={vcardStyle.logoDataUrl}
+                      src={vcardStyle.backLogoDataUrl}
                       alt="VCard logo"
                       className="h-20 w-20 rounded-xl object-cover border border-white/20"
                     />
@@ -4105,7 +4098,7 @@ const Index = () => {
                       Logo
                     </div>
                   )}
-                  <div className="space-y-2 text-sm text-white/90 text-center">
+                  <div className="space-y-2 text-sm text-center" style={{ color: vcardStyle.backFontColor, opacity: 0.9 }}>
                     <p>{vcard.about || 'A short brand statement goes here.'}</p>
                   </div>
                 </div>

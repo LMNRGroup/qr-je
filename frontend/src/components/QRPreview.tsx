@@ -112,13 +112,14 @@ export const QRPreview = forwardRef<QRPreviewHandle, QRPreviewProps>(
     useEffect(() => {
       const svg = svgRef.current;
       if (!svg) return;
-      const paths = svg.querySelectorAll('path');
-      const fgPath = paths.item(1) as SVGPathElement | null;
-      if (!fgPath) return;
+      const paths = Array.from(svg.querySelectorAll('path')) as SVGPathElement[];
+      if (!paths.length) return;
 
       const existingDefs = svg.querySelector('defs[data-dot-mask="true"]');
       if (options.cornerStyle !== 'dots') {
-        fgPath.removeAttribute('mask');
+        paths.forEach((path, index) => {
+          if (index > 0) path.removeAttribute('mask');
+        });
         existingDefs?.remove();
         return;
       }
@@ -167,7 +168,10 @@ export const QRPreview = forwardRef<QRPreviewHandle, QRPreviewProps>(
         svg.insertBefore(defs, svg.firstChild);
       }
 
-      fgPath.setAttribute('mask', `url(#${maskId})`);
+      paths.forEach((path, index) => {
+        if (index === 0) return;
+        path.setAttribute('mask', `url(#${maskId})`);
+      });
     }, [contentValue, dotMaskId, options.cornerStyle, options.size]);
 
     const qrInnerSize = Math.max(64, options.size - innerPadding * 2);
