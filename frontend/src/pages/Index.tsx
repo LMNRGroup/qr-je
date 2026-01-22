@@ -113,7 +113,7 @@ const Index = () => {
   const isMobileUiV2 =
     typeof document !== 'undefined' && document.documentElement.dataset.mobileUi === 'v2';
   const isMobileV2 = isMobile && isMobileUiV2;
-  const [mobileStudioStep, setMobileStudioStep] = useState<1 | 2 | 3>(1);
+  const [mobileStudioStep, setMobileStudioStep] = useState<1 | 2 | 3 | 4>(1);
   const [isDialOpen, setIsDialOpen] = useState(false);
   const [dialAngle, setDialAngle] = useState(0);
   const [dialDragging, setDialDragging] = useState(false);
@@ -2549,7 +2549,7 @@ const Index = () => {
   const showMobileCreateFlow = isMobile && Boolean(selectedQuickAction || qrType);
   const showStudioIntro = !isMobile || !showMobileCreateFlow;
   const showCreateSection = !isMobile || showMobileCreateFlow;
-  const showMobileCustomize = !isMobile || mobileCustomizeStep;
+  const showMobileCustomize = !isMobile || mobileCustomizeStep || (isMobileV2 && mobileStudioStep === 4);
 
   useEffect(() => {
     if (!isMobileV2) return;
@@ -2561,8 +2561,10 @@ const Index = () => {
       setMobileStudioStep(2);
       return;
     }
-    setMobileStudioStep(3);
-  }, [hasSelectedMode, hasSelectedType, isMobileV2]);
+    if (mobileStudioStep < 3) {
+      setMobileStudioStep(3);
+    }
+  }, [hasSelectedMode, hasSelectedType, isMobileV2, mobileStudioStep]);
   const fgColorPresets = [
     '#2B2B2B',
     '#D4AF37',
@@ -4539,7 +4541,9 @@ const Index = () => {
         {showStudioIntro && isMobile && (
         <section className={`space-y-3 sm:space-y-4 ${isMobileV2 ? 'qrc-v2-section' : ''}`} data-tour-id="quick-actions">
           <div>
-            <p className="text-xs uppercase tracking-[0.4em] text-muted-foreground">Quick Actions</p>
+            <p className="text-xs uppercase tracking-[0.4em] text-muted-foreground">
+              {isMobileV2 ? 'Step 1 · Quick Actions' : 'Quick Actions'}
+            </p>
             <h3 className="text-lg font-semibold">Jump into a new QR</h3>
           </div>
           <div className="flex w-full flex-nowrap items-center justify-between gap-2 sm:gap-6 sm:justify-center sm:flex-wrap">
@@ -4817,12 +4821,12 @@ const Index = () => {
             <span className="text-xs uppercase tracking-[0.3em] text-primary">Step-by-step</span>
           </div>
           {isMobileV2 && (
-            <div className="mb-4 grid grid-cols-3 gap-2 text-xs uppercase tracking-[0.3em] text-muted-foreground">
-              {[1, 2, 3].map((step) => (
+            <div className="mb-4 grid grid-cols-4 gap-2 text-xs uppercase tracking-[0.3em] text-muted-foreground">
+              {[1, 2, 3, 4].map((step) => (
                 <button
                   key={step}
                   type="button"
-                  onClick={() => setMobileStudioStep(step as 1 | 2 | 3)}
+                  onClick={() => setMobileStudioStep(step as 1 | 2 | 3 | 4)}
                   className={`rounded-xl border px-2 py-2 ${
                     mobileStudioStep === step ? 'border-primary/60 text-primary' : 'border-border/60'
                   }`}
@@ -4851,7 +4855,9 @@ const Index = () => {
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       <LinkIcon className="h-5 w-5 text-primary" />
-                      <h2 className="font-semibold">Step 1 · QR Mode</h2>
+                      <h2 className="font-semibold">
+                        {isMobileV2 ? 'Step 2 · Dynamic or Static' : 'Step 1 · QR Mode'}
+                      </h2>
                     </div>
                     <span className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Select</span>
                   </div>
@@ -4906,7 +4912,9 @@ const Index = () => {
                   {hasSelectedMode && !selectedQuickAction ? (
                     <div className="space-y-4" data-mobile-step="2">
                       <div className="flex items-center justify-between">
-                        <h3 className="font-semibold">Step 2 · QR Type</h3>
+                        <h3 className="font-semibold">
+                          {isMobileV2 ? 'Choose QR Type' : 'Step 2 · QR Type'}
+                        </h3>
                         <span className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Choose</span>
                       </div>
                       <div className="grid sm:grid-cols-2 gap-3">
@@ -5039,7 +5047,7 @@ const Index = () => {
                     <div className="space-y-3">
                       <div className="flex items-center gap-3">
                         <Sparkles className="h-4 w-4 text-primary" />
-                        <h3 className="font-semibold">Step 3 · Enter URL</h3>
+                        <h3 className="font-semibold">Step 3 · URL Contents</h3>
                       </div>
                       <Input
                         value={websiteUrl}
@@ -5062,7 +5070,7 @@ const Index = () => {
                     <div className="space-y-3">
                       <div className="flex items-center gap-3">
                         <Mail className="h-4 w-4 text-primary" />
-                        <h3 className="font-semibold">Step 3 · Enter Email</h3>
+                        <h3 className="font-semibold">Step 3 · Email Contents</h3>
                       </div>
                       <Input
                         value={emailAddress}
@@ -5085,7 +5093,7 @@ const Index = () => {
                     <div className="space-y-3">
                       <div className="flex items-center gap-3">
                         <Phone className="h-4 w-4 text-primary" />
-                        <h3 className="font-semibold">Step 3 · Enter Phone</h3>
+                        <h3 className="font-semibold">Step 3 · Phone Contents</h3>
                       </div>
                       <Input
                         value={phoneNumber}
@@ -5108,7 +5116,7 @@ const Index = () => {
                     <div className="space-y-3">
                       <div className="flex items-center gap-3">
                         <File className="h-4 w-4 text-primary" />
-                        <h3 className="font-semibold">Step 3 · Upload File</h3>
+                        <h3 className="font-semibold">Step 3 · File Contents</h3>
                       </div>
                       <Input
                         type="file"
@@ -5135,7 +5143,7 @@ const Index = () => {
                     <div className="space-y-4">
                       <div className="flex items-center gap-3">
                         <Utensils className="h-4 w-4 text-primary" />
-                        <h3 className="font-semibold">Step 3 · Build Menu Experience</h3>
+                        <h3 className="font-semibold">Step 3 · Menu Contents</h3>
                       </div>
                       <p className="text-sm text-muted-foreground">
                         Upload your menu pages, add a logo, and preview the swipe/flip experience.
@@ -5160,7 +5168,7 @@ const Index = () => {
                     <div className="space-y-4">
                       <div className="flex items-center gap-3">
                         <Sparkles className="h-4 w-4 text-primary" />
-                        <h3 className="font-semibold">Step 3 · Virtual Card Details</h3>
+                        <h3 className="font-semibold">Step 3 · VCard Contents</h3>
                       </div>
                       <div className="grid sm:grid-cols-2 gap-4">
                         <Input
@@ -5238,7 +5246,7 @@ const Index = () => {
                   </div>
                 )}
 
-                {isMobile && hasSelectedMode && hasSelectedType && !mobileCustomizeStep && (
+                {!isMobileV2 && isMobile && hasSelectedMode && hasSelectedType && !mobileCustomizeStep && (
                   <div className="glass-panel rounded-2xl border border-primary/30 bg-primary/5 p-5 space-y-4">
                     <div className="flex items-center justify-between">
                       <div>
@@ -5361,7 +5369,14 @@ const Index = () => {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.1 }}
                   className="flex flex-col items-center"
+                  data-mobile-step={isMobileV2 ? '4' : undefined}
                 >
+                  {isMobileV2 && (
+                    <div className="mb-4 w-full max-w-md text-left">
+                      <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Step 4 · Customization</p>
+                      <h3 className="text-lg font-semibold">Customize your QR</h3>
+                    </div>
+                  )}
                   {qrType === 'menu' && (
                     <div className="mb-4 w-full max-w-md rounded-2xl border border-border/60 bg-secondary/20 p-4">
                       <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Menu Preview</p>

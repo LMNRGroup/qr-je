@@ -66,7 +66,8 @@
 
   html[data-mobile-ui="v2"] [data-mobile-step-current="1"] [data-mobile-step="1"],
   html[data-mobile-ui="v2"] [data-mobile-step-current="2"] [data-mobile-step="2"],
-  html[data-mobile-ui="v2"] [data-mobile-step-current="3"] [data-mobile-step="3"] {
+  html[data-mobile-ui="v2"] [data-mobile-step-current="3"] [data-mobile-step="3"],
+  html[data-mobile-ui="v2"] [data-mobile-step-current="4"] [data-mobile-step="4"] {
     display: block;
   }
 }
