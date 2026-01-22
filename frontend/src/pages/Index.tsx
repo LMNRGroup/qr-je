@@ -286,8 +286,7 @@ const Index = () => {
           'Right now, this app is only being shared with a small circle — friends, family, and people we trust enough to be honest with us. You\'re seeing it early, while things are still growing, changing, and sometimes breaking… and that\'s exactly how it\'s supposed to be.\n\n' +
           'At this stage, you\'re not just using the app — you\'re helping shape it. Your feedback, your patience, and even your frustration matter more than you know. Every tap, every comment, every "hey, this feels weird" helps push it forward.\n\n' +
           'We truly couldn\'t start this without you.\n' +
-          'Thank you for believing in it early and for being part of the beginning 🤍\n\n' +
-          '— Jose',
+          'Thank you for believing in it early and for being part of the beginning 🤍',
       },
       {
         id: 'stage2' as const,
@@ -898,6 +897,20 @@ const Index = () => {
     return () => {
       media.removeEventListener('change', update);
       window.removeEventListener('resize', update);
+    };
+  }, []);
+
+  // Detect Android for banner header fix
+  useEffect(() => {
+    if (typeof window === 'undefined' || typeof navigator === 'undefined') return;
+    const isAndroid = /Android/i.test(navigator.userAgent);
+    if (isAndroid) {
+      document.body.classList.add('android');
+    } else {
+      document.body.classList.remove('android');
+    }
+    return () => {
+      document.body.classList.remove('android');
     };
   }, []);
 
@@ -3332,22 +3345,19 @@ const Index = () => {
                     </div>
                     {/* Mobile V2: Handwritten letter */}
                     <div className="sm:hidden qrc-letter-card">
-                      <div className="qrc-letter-header">
-                        <img
-                          src="/assets/Gdev.png"
-                          alt="Jose"
-                          className="qrc-letter-avatar"
-                        />
-                        <div className="qrc-letter-author">
-                          <p className="qrc-letter-name">Jose</p>
-                          <p className="qrc-letter-label">Developer</p>
-                        </div>
-                      </div>
                       <div className="qrc-letter-content">
                         <h3 className="qrc-letter-title">Friends & Family</h3>
                         <div className="qrc-letter-body">
                           {activeStage.description}
                         </div>
+                      </div>
+                      <div className="qrc-letter-footer">
+                        <img
+                          src="/assets/GDev.png"
+                          alt="Jose"
+                          className="qrc-letter-avatar"
+                        />
+                        <p className="qrc-letter-signature">José & Erwin</p>
                       </div>
                     </div>
                   </>
@@ -4583,7 +4593,7 @@ const Index = () => {
       <header
         className={`sticky top-0 z-30 glass-panel border-b border-border/50 transition ${
           showGuestWelcome || isBooting ? 'blur-md pointer-events-none select-none' : ''
-        }`}
+        } ${showEasterEggBanner ? 'qrc-header-with-banner' : ''}`}
       >
         <div className="container mx-auto px-4 py-3 sm:py-4 flex items-center justify-between">
           <button
