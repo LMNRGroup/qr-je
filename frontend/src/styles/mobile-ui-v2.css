@@ -32,6 +32,14 @@
     overflow-x: hidden;
   }
 
+  html[data-mobile-ui="v2"] .qrc-v2-drawer {
+    max-height: calc(100dvh - env(safe-area-inset-top) - 72px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
   html[data-mobile-ui="v2"] [data-mobile-step] {
     display: none;
   }

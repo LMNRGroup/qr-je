@@ -927,79 +927,160 @@ export function ArsenalPanel({
             {t('Your QR Arsenal', 'Tu Arsenal QR')}
           </h2>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <Button
-            variant={isSelectMode ? 'secondary' : 'outline'}
-            size="sm"
-            className="border-border text-xs uppercase tracking-[0.25em]"
-            onClick={() => {
-              if (isSelectMode) {
-                setSelectedIds(new Set());
-              }
-              setIsSelectMode((prev) => !prev);
-            }}
-          >
-            {isSelectMode ? t('Cancel Select', 'Cancelar seleccion') : t('Select Multiple', 'Seleccion multiple')}
-          </Button>
-          {isSelectMode && (
-            <Button
-              variant="outline"
-              size="icon"
-              className="group relative border-border"
-              onClick={() => setShowBulkDelete(true)}
-              disabled={selectedIds.size === 0}
-            >
-              <Trash2 className="h-3.5 w-3.5" />
-              <span className="pointer-events-none absolute -bottom-6 left-1/2 -translate-x-1/2 text-[10px] uppercase tracking-[0.35em] text-muted-foreground opacity-0 transition group-hover:opacity-100">
-                {t('Delete', 'Eliminar')}
-              </span>
-            </Button>
-          )}
-          <div className="inline-flex rounded-full border border-border/60 bg-secondary/30 p-1">
-            <button
-              type="button"
-              className={`h-9 w-9 rounded-full transition ${
-                viewMode === 'grid' ? 'bg-primary/15 text-primary' : 'text-muted-foreground hover:text-foreground'
-              }`}
-              onClick={() => setViewMode('grid')}
-              aria-label="Grid view"
-            >
-              <LayoutGrid className="mx-auto h-4 w-4" />
-            </button>
-            <button
-              type="button"
-              className={`h-9 w-9 rounded-full transition ${
-                viewMode === 'list' ? 'bg-primary/15 text-primary' : 'text-muted-foreground hover:text-foreground'
-              }`}
-              onClick={() => setViewMode('list')}
-              aria-label="List view"
-            >
-              <List className="mx-auto h-4 w-4" />
-            </button>
-          </div>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className="border-border text-xs uppercase tracking-[0.25em]">
-                <ArrowDownUp className="h-3.5 w-3.5" />
-                Sort
+        {isMobileV2 ? (
+          <div className="flex w-full flex-col gap-2">
+            <div className="flex items-center justify-between gap-2">
+              <Button
+                variant={isSelectMode ? 'secondary' : 'outline'}
+                size="sm"
+                className="border-border text-xs uppercase tracking-[0.25em]"
+                onClick={() => {
+                  if (isSelectMode) {
+                    setSelectedIds(new Set());
+                  }
+                  setIsSelectMode((prev) => !prev);
+                }}
+              >
+                {isSelectMode ? t('Cancel Select', 'Cancelar seleccion') : t('Select Multiple', 'Seleccion multiple')}
               </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="bg-card/95 border-border">
-              <DropdownMenuItem onClick={() => setSortMode('newest')}>
-                <ArrowDownAz className="mr-2 h-4 w-4" />
-                Newest
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setSortMode('oldest')}>
-                <ArrowUpAz className="mr-2 h-4 w-4" />
-                Oldest
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setSortMode('alpha')}>
-                <ArrowDownAz className="mr-2 h-4 w-4" />
-                Alphabetical
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
+              {isSelectMode && (
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="group relative border-border"
+                  onClick={() => setShowBulkDelete(true)}
+                  disabled={selectedIds.size === 0}
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                  <span className="pointer-events-none absolute -bottom-6 left-1/2 -translate-x-1/2 text-[10px] uppercase tracking-[0.35em] text-muted-foreground opacity-0 transition group-hover:opacity-100">
+                    {t('Delete', 'Eliminar')}
+                  </span>
+                </Button>
+              )}
+            </div>
+            {/* Mobile V2: keep view toggle + sort on one row */}
+            <div className="flex items-center justify-end gap-2">
+              <div className="inline-flex rounded-full border border-border/60 bg-secondary/30 p-1">
+                <button
+                  type="button"
+                  className={`h-9 w-9 rounded-full transition ${
+                    viewMode === 'grid' ? 'bg-primary/15 text-primary' : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                  onClick={() => setViewMode('grid')}
+                  aria-label="Grid view"
+                >
+                  <LayoutGrid className="mx-auto h-4 w-4" />
+                </button>
+                <button
+                  type="button"
+                  className={`h-9 w-9 rounded-full transition ${
+                    viewMode === 'list' ? 'bg-primary/15 text-primary' : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                  onClick={() => setViewMode('list')}
+                  aria-label="List view"
+                >
+                  <List className="mx-auto h-4 w-4" />
+                </button>
+              </div>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="border-border text-xs uppercase tracking-[0.25em]">
+                    <ArrowDownUp className="h-3.5 w-3.5" />
+                    Sort
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="bg-card/95 border-border">
+                  <DropdownMenuItem onClick={() => setSortMode('newest')}>
+                    <ArrowDownAz className="mr-2 h-4 w-4" />
+                    Newest
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setSortMode('oldest')}>
+                    <ArrowUpAz className="mr-2 h-4 w-4" />
+                    Oldest
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setSortMode('alpha')}>
+                    <ArrowDownAz className="mr-2 h-4 w-4" />
+                    Alphabetical
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          </div>
+        ) : (
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              variant={isSelectMode ? 'secondary' : 'outline'}
+              size="sm"
+              className="border-border text-xs uppercase tracking-[0.25em]"
+              onClick={() => {
+                if (isSelectMode) {
+                  setSelectedIds(new Set());
+                }
+                setIsSelectMode((prev) => !prev);
+              }}
+            >
+              {isSelectMode ? t('Cancel Select', 'Cancelar seleccion') : t('Select Multiple', 'Seleccion multiple')}
+            </Button>
+            {isSelectMode && (
+              <Button
+                variant="outline"
+                size="icon"
+                className="group relative border-border"
+                onClick={() => setShowBulkDelete(true)}
+                disabled={selectedIds.size === 0}
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+                <span className="pointer-events-none absolute -bottom-6 left-1/2 -translate-x-1/2 text-[10px] uppercase tracking-[0.35em] text-muted-foreground opacity-0 transition group-hover:opacity-100">
+                  {t('Delete', 'Eliminar')}
+                </span>
+              </Button>
+            )}
+            <div className="inline-flex rounded-full border border-border/60 bg-secondary/30 p-1">
+              <button
+                type="button"
+                className={`h-9 w-9 rounded-full transition ${
+                  viewMode === 'grid' ? 'bg-primary/15 text-primary' : 'text-muted-foreground hover:text-foreground'
+                }`}
+                onClick={() => setViewMode('grid')}
+                aria-label="Grid view"
+              >
+                <LayoutGrid className="mx-auto h-4 w-4" />
+              </button>
+              <button
+                type="button"
+                className={`h-9 w-9 rounded-full transition ${
+                  viewMode === 'list' ? 'bg-primary/15 text-primary' : 'text-muted-foreground hover:text-foreground'
+                }`}
+                onClick={() => setViewMode('list')}
+                aria-label="List view"
+              >
+                <List className="mx-auto h-4 w-4" />
+              </button>
+            </div>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="border-border text-xs uppercase tracking-[0.25em]">
+                  <ArrowDownUp className="h-3.5 w-3.5" />
+                  Sort
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="bg-card/95 border-border">
+                <DropdownMenuItem onClick={() => setSortMode('newest')}>
+                  <ArrowDownAz className="mr-2 h-4 w-4" />
+                  Newest
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setSortMode('oldest')}>
+                  <ArrowUpAz className="mr-2 h-4 w-4" />
+                  Oldest
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setSortMode('alpha')}>
+                  <ArrowDownAz className="mr-2 h-4 w-4" />
+                  Alphabetical
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        )}
       </div>
 
       {isLoading ? (
@@ -1045,7 +1126,7 @@ export function ArsenalPanel({
                   const isList = viewMode === 'list';
                   const isMobileList = isList && isMobile;
                   const displayName = getDisplayName(item, sortedItems);
-                  const previewSize = isDesktop ? 120 : 72;
+                  const previewSize = isDesktop ? 120 : isMobileV2 ? 84 : 72;
                   const cardOptions: QROptions = {
                     ...item.options,
                     size: previewSize,
@@ -1083,46 +1164,82 @@ export function ArsenalPanel({
                       } ${isMobileV2 ? 'max-w-full' : ''}`}
                     >
                       {isMobileList ? (
-                        <div
-                          className={`flex items-center justify-between gap-3 overflow-hidden ${
-                            isMobileV2 ? 'min-w-0 max-w-full' : ''
-                          }`}
-                        >
-                          <div className={`space-y-1 min-w-0 flex-1 overflow-hidden ${isMobileV2 ? 'pr-0' : 'pr-2'}`}>
-                            <p className="text-[13px] font-semibold truncate" title={displayName}>
-                              {displayName}
-                            </p>
-                            <p
-                              className={`text-[11px] text-muted-foreground truncate ${
-                                isMobileV2 ? 'max-w-full' : 'max-w-[140px]'
-                              }`}
-                            >
-                              {item.content}
-                            </p>
+                        isMobileV2 ? (
+                          <div className="flex items-center gap-3 overflow-hidden">
+                            <div className="min-w-0 flex-1 space-y-1">
+                              <p
+                                className="text-[13px] font-semibold leading-snug max-h-[2.6em] overflow-hidden"
+                                title={displayName}
+                              >
+                                {displayName}
+                              </p>
+                              <p className="text-[11px] text-muted-foreground truncate">{item.content}</p>
+                            </div>
+                            <div className="flex w-[96px] flex-col items-center justify-center gap-1 text-[9px] uppercase tracking-[0.3em] shrink-0">
+                              <span
+                                className={`inline-flex w-full items-center justify-center gap-1 rounded-full border px-2 py-0.5 ${modeMeta.badge}`}
+                              >
+                                {parsed.mode === 'dynamic' ? (
+                                  <Zap className="h-3 w-3" />
+                                ) : (
+                                  <QrCode className="h-3 w-3" />
+                                )}
+                                <span className="truncate">
+                                  {parsed.mode === 'dynamic' ? 'Dynamic' : 'Static'}
+                                </span>
+                              </span>
+                              <span
+                                className={`inline-flex w-full items-center justify-center gap-1 rounded-full border px-2 py-0.5 ${typeMeta.badge}`}
+                              >
+                                <span className="truncate">{typeMeta.label}</span>
+                              </span>
+                              <div className="w-full flex items-center justify-center">
+                                {renderScanCount(item)}
+                              </div>
+                            </div>
                           </div>
+                        ) : (
                           <div
-                            className={`flex items-center justify-end gap-2 text-[9px] uppercase tracking-[0.3em] shrink-0 ${
-                              isMobileV2 ? 'flex-wrap max-w-full min-w-0' : 'flex-nowrap max-w-[45%] overflow-hidden'
+                            className={`flex items-center justify-between gap-3 overflow-hidden ${
+                              isMobileV2 ? 'min-w-0 max-w-full' : ''
                             }`}
                           >
-                            <span
-                              className={`inline-flex min-w-0 items-center gap-2 rounded-full border px-2.5 py-0.5 ${modeMeta.badge}`}
+                            <div className={`space-y-1 min-w-0 flex-1 overflow-hidden ${isMobileV2 ? 'pr-0' : 'pr-2'}`}>
+                              <p className="text-[13px] font-semibold truncate" title={displayName}>
+                                {displayName}
+                              </p>
+                              <p
+                                className={`text-[11px] text-muted-foreground truncate ${
+                                  isMobileV2 ? 'max-w-full' : 'max-w-[140px]'
+                                }`}
+                              >
+                                {item.content}
+                              </p>
+                            </div>
+                            <div
+                              className={`flex items-center justify-end gap-2 text-[9px] uppercase tracking-[0.3em] shrink-0 ${
+                                isMobileV2 ? 'flex-wrap max-w-full min-w-0' : 'flex-nowrap max-w-[45%] overflow-hidden'
+                              }`}
                             >
-                              {parsed.mode === 'dynamic' ? (
-                                <Zap className="h-3 w-3" />
-                              ) : (
-                                <QrCode className="h-3 w-3" />
-                              )}
-                              <span className="sr-only">{parsed.mode === 'dynamic' ? 'Dynamic' : 'Static'}</span>
-                            </span>
-                            <span
-                              className={`inline-flex min-w-0 items-center gap-2 rounded-full border px-2.5 py-0.5 ${typeMeta.badge}`}
-                            >
-                              <span className="truncate">{typeMeta.label}</span>
-                            </span>
-                            {renderScanCount(item)}
+                              <span
+                                className={`inline-flex min-w-0 items-center gap-2 rounded-full border px-2.5 py-0.5 ${modeMeta.badge}`}
+                              >
+                                {parsed.mode === 'dynamic' ? (
+                                  <Zap className="h-3 w-3" />
+                                ) : (
+                                  <QrCode className="h-3 w-3" />
+                                )}
+                                <span className="sr-only">{parsed.mode === 'dynamic' ? 'Dynamic' : 'Static'}</span>
+                              </span>
+                              <span
+                                className={`inline-flex min-w-0 items-center gap-2 rounded-full border px-2.5 py-0.5 ${typeMeta.badge}`}
+                              >
+                                <span className="truncate">{typeMeta.label}</span>
+                              </span>
+                              {renderScanCount(item)}
+                            </div>
                           </div>
-                        </div>
+                        )
                       ) : isDesktop && viewMode === 'grid' ? (
                         <div className="flex flex-col gap-3">
                           <div className="space-y-1 min-w-0">
@@ -1137,44 +1254,88 @@ export function ArsenalPanel({
                           </div>
                         </div>
                       ) : isMobile && viewMode === 'grid' ? (
-                        <div className="flex items-stretch justify-between gap-3 h-full">
-                          <div className="flex min-w-0 flex-1 flex-col">
-                            <div className="space-y-1">
-                              <p className="text-[13px] font-semibold truncate" title={displayName}>
+                        isMobileV2 ? (
+                          <div className="flex items-start gap-3">
+                            <div className="min-w-0 flex-1 space-y-1">
+                              <p
+                                className="text-[13px] font-semibold leading-snug max-h-[2.6em] overflow-hidden"
+                                title={displayName}
+                              >
                                 {displayName}
                               </p>
                               <p className="text-[11px] text-muted-foreground truncate">{item.content}</p>
+                              <div className="mt-2 flex flex-col gap-1 text-[9px] uppercase tracking-[0.3em]">
+                                <span
+                                  className={`inline-flex w-full items-center justify-center gap-1 rounded-full border px-2 py-0.5 ${typeMeta.badge}`}
+                                >
+                                  <typeMeta.icon className="h-3 w-3" />
+                                  <span className="truncate">{typeMeta.label}</span>
+                                </span>
+                                <span
+                                  className={`inline-flex w-full items-center justify-center gap-1 rounded-full border px-2 py-0.5 ${modeMeta.badge}`}
+                                >
+                                  {parsed.mode === 'dynamic' ? (
+                                    <Zap className="h-3 w-3" />
+                                  ) : (
+                                    <QrCode className="h-3 w-3" />
+                                  )}
+                                  <span className="truncate">
+                                    {parsed.mode === 'dynamic' ? 'Dynamic' : 'Static'}
+                                  </span>
+                                </span>
+                                {renderScanCount(item)}
+                              </div>
                             </div>
-                            <div className="mt-auto flex items-center gap-2 flex-nowrap text-[9px] uppercase tracking-[0.3em]">
-                              <span
-                                className={`inline-flex min-w-0 items-center gap-2 rounded-full border px-2.5 py-0.5 ${modeMeta.badge}`}
-                              >
-                                {parsed.mode === 'dynamic' ? (
-                                  <Zap className="h-3 w-3" />
-                                ) : (
-                                  <QrCode className="h-3 w-3" />
-                                )}
-                                <span className="truncate">{parsed.mode === 'dynamic' ? 'Dynamic' : 'Static'}</span>
-                              </span>
-                              <span
-                                className={`inline-flex min-w-0 items-center gap-2 rounded-full border px-2.5 py-0.5 ${typeMeta.badge}`}
-                              >
-                                <typeMeta.icon className="h-3 w-3" />
-                                <span className="truncate">{typeMeta.label}</span>
-                              </span>
-                              {renderScanCount(item)}
+                            <div
+                              className={`shrink-0 border overflow-hidden rounded-lg p-0.5 ${modeMeta.card}`}
+                            >
+                              <QRPreview
+                                options={cardOptions}
+                                showCaption={false}
+                                innerPadding={4}
+                              />
                             </div>
                           </div>
-                          <div
-                            className={`shrink-0 border overflow-hidden rounded-lg p-0.5 ${modeMeta.card}`}
-                          >
-                            <QRPreview
-                              options={cardOptions}
-                              showCaption={false}
-                              innerPadding={4}
-                            />
+                        ) : (
+                          <div className="flex items-stretch justify-between gap-3 h-full">
+                            <div className="flex min-w-0 flex-1 flex-col">
+                              <div className="space-y-1">
+                                <p className="text-[13px] font-semibold truncate" title={displayName}>
+                                  {displayName}
+                                </p>
+                                <p className="text-[11px] text-muted-foreground truncate">{item.content}</p>
+                              </div>
+                              <div className="mt-auto flex items-center gap-2 flex-nowrap text-[9px] uppercase tracking-[0.3em]">
+                                <span
+                                  className={`inline-flex min-w-0 items-center gap-2 rounded-full border px-2.5 py-0.5 ${modeMeta.badge}`}
+                                >
+                                  {parsed.mode === 'dynamic' ? (
+                                    <Zap className="h-3 w-3" />
+                                  ) : (
+                                    <QrCode className="h-3 w-3" />
+                                  )}
+                                  <span className="truncate">{parsed.mode === 'dynamic' ? 'Dynamic' : 'Static'}</span>
+                                </span>
+                                <span
+                                  className={`inline-flex min-w-0 items-center gap-2 rounded-full border px-2.5 py-0.5 ${typeMeta.badge}`}
+                                >
+                                  <typeMeta.icon className="h-3 w-3" />
+                                  <span className="truncate">{typeMeta.label}</span>
+                                </span>
+                                {renderScanCount(item)}
+                              </div>
+                            </div>
+                            <div
+                              className={`shrink-0 border overflow-hidden rounded-lg p-0.5 ${modeMeta.card}`}
+                            >
+                              <QRPreview
+                                options={cardOptions}
+                                showCaption={false}
+                                innerPadding={4}
+                              />
+                            </div>
                           </div>
-                        </div>
+                        )
                       ) : (
                         <div className="flex items-center justify-between gap-3">
                           <div className="space-y-2 min-w-0 flex-1">
@@ -1443,7 +1604,7 @@ export function ArsenalPanel({
             clearSelection();
           }}
         >
-          <DrawerContent className="max-h-[90dvh] overflow-y-auto">
+          <DrawerContent className="max-h-[90dvh] overflow-y-auto qrc-v2-drawer">
             <DrawerHeader className="flex items-center justify-between">
               <DrawerTitle>
                 {selectedItem ? getDisplayName(selectedItem, sortedItems) : t('QR Details', 'Detalles del QR')}
