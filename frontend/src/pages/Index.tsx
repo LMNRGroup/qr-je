@@ -4955,20 +4955,76 @@ const Index = () => {
           <div className="grid lg:grid-cols-[1fr_400px] gap-8">
             {/* Left Panel - Input & Preview */}
             <div className="space-y-6">
-              {isMobileV2 && (
+              {isMobileV2 && mobileStudioStep === 1 && (
                 <div data-mobile-step="1" className="glass-panel rounded-2xl p-6 space-y-3">
                   <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Step 1 · Quick Actions</p>
                   <p className="text-sm text-muted-foreground">
-                    Choose a quick action above to set your QR type.
+                    Pick the QR type you want to create.
                   </p>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="border-border uppercase tracking-[0.2em] text-xs"
-                    onClick={() => scrollToRef(quickActionsRef, 'start')}
-                  >
-                    Open Quick Actions
-                  </Button>
+                  <div className="flex w-full flex-nowrap items-center justify-between gap-2 sm:gap-6 sm:justify-center sm:flex-wrap">
+                    {[
+                      {
+                        id: 'website',
+                        label: 'Website',
+                        hint: 'Website',
+                        Icon: LinkIcon,
+                        onClick: handleStartStatic,
+                      },
+                      {
+                        id: 'phone',
+                        label: 'Phone',
+                        hint: 'Phone',
+                        Icon: Phone,
+                        onClick: handleStartPhone,
+                      },
+                      {
+                        id: 'email',
+                        label: 'Email',
+                        hint: 'Email',
+                        Icon: Mail,
+                        onClick: handleStartEmail,
+                      },
+                      {
+                        id: 'vcard',
+                        label: 'VCard',
+                        hint: 'VCard',
+                        Icon: User,
+                        onClick: handleStartVcard,
+                      },
+                      {
+                        id: 'file',
+                        label: 'File',
+                        hint: 'File',
+                        Icon: File,
+                        onClick: handleStartFile,
+                      },
+                      {
+                        id: 'menu',
+                        label: 'Menu',
+                        hint: 'Menu',
+                        Icon: Utensils,
+                        onClick: handleStartMenu,
+                      },
+                    ].map((action) => (
+                      <button
+                        key={action.id}
+                        type="button"
+                        onClick={() => {
+                          action.onClick();
+                          handleTourQuickAction();
+                        }}
+                        aria-pressed={selectedQuickAction === action.id}
+                        data-tour-quick-action="true"
+                        className={`group relative flex flex-col items-center justify-center rounded-full border h-12 w-12 transition hover:border-primary/60 hover:bg-secondary/40 ${
+                          selectedQuickAction === action.id
+                            ? 'border-primary/70 bg-secondary/50 ring-1 ring-primary/40 shadow-[0_0_16px_rgba(99,102,241,0.25)]'
+                            : 'border-border/60 bg-secondary/30'
+                        }`}
+                      >
+                        <action.Icon className="h-6 w-6 text-primary" />
+                      </button>
+                    ))}
+                  </div>
                 </div>
               )}
               <motion.div
