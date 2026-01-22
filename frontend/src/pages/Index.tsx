@@ -4969,7 +4969,13 @@ const Index = () => {
                 <button
                   key={step}
                   type="button"
-                  onClick={() => setMobileStudioStep(step as 1 | 2 | 3 | 4)}
+                  onClick={() => {
+                    if (step === 1) {
+                      setSelectedQuickAction(null);
+                      setQrType(null);
+                    }
+                    setMobileStudioStep(step as 1 | 2 | 3 | 4);
+                  }}
                   className={`rounded-xl border px-2 py-2 ${
                     mobileStudioStep === step ? 'border-primary/60 text-primary' : 'border-border/60'
                   }`}
