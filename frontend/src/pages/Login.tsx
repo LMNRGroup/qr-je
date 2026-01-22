@@ -88,7 +88,7 @@ const Login = () => {
           >
             <QrCode className="h-8 w-8 text-primary-foreground" />
           </motion.div>
-          <h1 className="text-2xl font-bold gradient-text">QR Studio</h1>
+          <h1 className="text-2xl font-bold gradient-text">QRC Studio</h1>
           <p className="text-muted-foreground text-sm mt-1">
             {isSignUp ? 'Create your account' : 'Welcome back'}
           </p>

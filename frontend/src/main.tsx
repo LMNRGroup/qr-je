@@ -7,7 +7,13 @@ if (import.meta.env.VITE_MOBILE_UI_V2 === "true" && typeof document !== "undefin
   document.documentElement.dataset.mobileUi = "v2";
   const metaTheme = document.querySelector('meta[name="theme-color"]');
   if (metaTheme) {
-    metaTheme.setAttribute("content", "#111827");
+    const updateThemeColor = () => {
+      const isDark = document.documentElement.classList.contains("dark");
+      metaTheme.setAttribute("content", isDark ? "#111827" : "#ffffff");
+    };
+    updateThemeColor();
+    const observer = new MutationObserver(updateThemeColor);
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
   }
 }
 
