@@ -4321,30 +4321,6 @@ const Index = () => {
             </div>
 
             <div className="flex flex-col lg:flex-row gap-4">
-      {showMenuBuilder && (
-        <div
-          className="fixed inset-0 z-[70] flex items-center justify-center bg-background/70 backdrop-blur-md px-2 sm:px-4 py-4"
-          onClick={() => setShowMenuBuilder(false)}
-        >
-          <div
-            className="glass-panel rounded-3xl p-4 sm:p-6 w-full max-w-4xl space-y-4 relative max-h-[90dvh] overflow-y-auto"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <button
-              type="button"
-              className="absolute right-4 top-4 text-xs uppercase tracking-[0.3em] text-muted-foreground transition hover:text-foreground z-10"
-              onClick={() => setShowMenuBuilder(false)}
-            >
-              X
-            </button>
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-              <div>
-                <p className="text-xs uppercase tracking-[0.35em] text-muted-foreground">Menu</p>
-                <h2 className="text-2xl font-semibold">Dynamic Menu Builder</h2>
-              </div>
-            </div>
-
-            <div className="flex flex-col lg:flex-row gap-4">
               {/* Preview Section */}
               <div className="flex flex-col items-center gap-5 w-full lg:w-auto">
                 <div className="w-full rounded-2xl border border-border/60 bg-secondary/30 p-4 space-y-3">
