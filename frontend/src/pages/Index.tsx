@@ -1086,6 +1086,8 @@ const Index = () => {
     setGoodbyeSubline('We will keep your Arsenal ready for your return.');
     setShowGoodbyeIntro(true);
     setShowAccountModal(false);
+    // Wait 2 seconds for animation, then sign out
+    await new Promise((resolve) => setTimeout(resolve, 2000));
     await signOut();
     Object.keys(localStorage).forEach((key) => {
       if (key.startsWith('sb-') || key.startsWith('qrc.auth')) {
@@ -1093,10 +1095,8 @@ const Index = () => {
       }
     });
     setShowWelcomeIntro(false);
-    window.setTimeout(() => {
-      window.location.reload();
-    }, 2200);
-  }, [signOut, user]);
+    navigate('/login');
+  }, [signOut, user, navigate]);
 
   useEffect(() => {
     if (!isCreateOpen) return;
@@ -4840,6 +4840,7 @@ const Index = () => {
             </div>
             <div className="relative group overflow-visible">
               <UserMenu
+                onSignOut={handleSignOut}
                 trigger={
                   <button
                     type="button"

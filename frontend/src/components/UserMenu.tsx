@@ -9,10 +9,20 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 
-export function UserMenu({ trigger }: { trigger?: React.ReactNode }) {
+export function UserMenu({ trigger, onSignOut }: { trigger?: React.ReactNode; onSignOut?: () => Promise<void> }) {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const [isMobileV2, setIsMobileV2] = useState(false);
@@ -20,6 +30,7 @@ export function UserMenu({ trigger }: { trigger?: React.ReactNode }) {
   const [dismissedSystemIds, setDismissedSystemIds] = useState<Set<string>>(new Set());
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [lastSeenAt, setLastSeenAt] = useState(0);
+  const [showSignOutConfirm, setShowSignOutConfirm] = useState(false);
 
   const displayName = useMemo(() => {
     const metadata = user?.user_metadata as Record<string, string> | undefined;
@@ -46,9 +57,16 @@ export function UserMenu({ trigger }: { trigger?: React.ReactNode }) {
   );
 
   const handleSignOut = async () => {
-    await signOut();
-    toast.success('Signed out successfully');
-    navigate('/login');
+    setShowSignOutConfirm(false);
+    if (onSignOut) {
+      // Use the custom signout handler (with animation) if provided
+      await onSignOut();
+    } else {
+      // Fallback to default signout
+      await signOut();
+      toast.success('Signed out successfully');
+      navigate('/login');
+    }
   };
 
   useEffect(() => {
@@ -307,39 +325,61 @@ export function UserMenu({ trigger }: { trigger?: React.ReactNode }) {
           </Button>
         </div>
         <DropdownMenuSeparator />
-        <DropdownMenuItem
-          onClick={handlePreferences}
-          onSelect={(event) => {
-            event.preventDefault();
+        <button
+          type="button"
+          onClick={(e) => {
+            e.preventDefault();
             handlePreferences();
           }}
-          className="cursor-pointer h-11 px-3"
+          className="w-full flex items-center px-3 py-3 text-sm cursor-pointer hover:bg-secondary/50 transition-colors rounded-none border-0 bg-transparent"
         >
           <Settings className="mr-2 h-4 w-4" />
           Preferences
-        </DropdownMenuItem>
+        </button>
         {isMobileV2 && (
-          <DropdownMenuItem
-            onClick={handleClearCache}
-            onSelect={(event) => {
-              event.preventDefault();
+          <button
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
               handleClearCache();
             }}
-            className="cursor-pointer h-11 px-3"
+            className="w-full flex items-center px-3 py-3 text-sm cursor-pointer hover:bg-secondary/50 transition-colors rounded-none border-0 bg-transparent"
           >
             <RefreshCcw className="mr-2 h-4 w-4" />
             Clear cache
-          </DropdownMenuItem>
+          </button>
         )}
         <DropdownMenuSeparator />
-        <DropdownMenuItem
-          onClick={handleSignOut}
-          className="text-destructive focus:text-destructive cursor-pointer"
+        <button
+          type="button"
+          onClick={(e) => {
+            e.preventDefault();
+            setShowSignOutConfirm(true);
+          }}
+          className="w-full flex items-center px-3 py-3 text-sm text-destructive hover:bg-destructive/10 cursor-pointer transition-colors rounded-none border-0 bg-transparent"
         >
           <LogOut className="mr-2 h-4 w-4" />
           Sign out
-        </DropdownMenuItem>
+        </button>
       </DropdownMenuContent>
+
+      {/* Sign Out Confirmation Dialog */}
+      <AlertDialog open={showSignOutConfirm} onOpenChange={setShowSignOutConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Sign Out</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to sign out? Your session will be ended and you'll need to sign in again.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleSignOut} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Sign Out
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </DropdownMenu>
   );
 }
