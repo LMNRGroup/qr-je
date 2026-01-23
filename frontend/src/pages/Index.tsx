@@ -151,7 +151,6 @@ const Index = () => {
   const [showGuestWelcome, setShowGuestWelcome] = useState(false);
   const [guestIntroStep, setGuestIntroStep] = useState(0);
   const [guestCtaStep, setGuestCtaStep] = useState(0);
-  const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [showAnalyticsIntro, setShowAnalyticsIntro] = useState(false);
   const [analyticsSeen, setAnalyticsSeen] = useState(false);
   const [showWelcomeIntro, setShowWelcomeIntro] = useState(false);
@@ -161,18 +160,14 @@ const Index = () => {
   const [goodbyeHeadline, setGoodbyeHeadline] = useState('');
   const [goodbyeSubline, setGoodbyeSubline] = useState('');
   const welcomeShownRef = useRef<string | null>(null);
-  const [hoveredAction, setHoveredAction] = useState<string | null>(null);
-  const createOpenLockRef = useRef(false);
   const easterEggEmail = (import.meta.env.VITE_EASTER_EGG_EMAIL ?? '').toLowerCase().trim();
   const easterEggUserId = (import.meta.env.VITE_EASTER_EGG_USER_ID ?? '').trim();
   const showEasterEggBanner = Boolean(
     (easterEggEmail && user?.email && user.email.toLowerCase() === easterEggEmail) ||
     (easterEggUserId && user?.id === easterEggUserId)
   );
-  const [actionRingText, setActionRingText] = useState('');
   const [quickActionHover, setQuickActionHover] = useState<string | null>(null);
   const [selectedQuickAction, setSelectedQuickAction] = useState<string | null>(null);
-  const [actionRingOrigin, setActionRingOrigin] = useState({ x: 50, y: 50 });
   const [arsenalStats, setArsenalStats] = useState({ total: 0, dynamic: 0 });
   const [scanStats, setScanStats] = useState({ total: 0 });
   const [intelRange, setIntelRange] = useState<'all' | 'today' | '7d' | '30d'>('today');
@@ -354,19 +349,6 @@ const Index = () => {
     setUiErrorBadge({ code, message });
   }, [getUiErrorCode]);
 
-  const actionRingIcons = useMemo(
-    () => ({
-      static: LinkIcon,
-      dynamic: Sparkles,
-      vcard: User,
-      file: File,
-      phone: Phone,
-      email: Mail,
-      menu: Utensils,
-      adaptive: QrCode,
-    }),
-    []
-  );
 
   const timeZoneOptions = useMemo(
     () => [
@@ -1116,24 +1098,6 @@ const Index = () => {
     navigate('/login');
   }, [signOut, user, navigate]);
 
-  useEffect(() => {
-    if (!isCreateOpen) return;
-    if (!hoveredAction) {
-      setActionRingText('Create New QR Code');
-      return;
-    }
-    const activeText = {
-      static: 'Create New URL QR Code',
-      dynamic: 'Create Dynamic QR Code',
-      vcard: 'Create New VCard QR Code',
-      file: 'Upload a File QR Code',
-      phone: 'Create New Call QRC',
-      email: 'Create New Email QRC',
-      menu: 'Create Custom Menu QRC',
-      adaptive: 'Create Adaptive QRC™',
-    } as const;
-    setActionRingText(activeText[hoveredAction as keyof typeof activeText] ?? 'Create New QR Code');
-  }, [hoveredAction, isCreateOpen]);
 
   const lastQrTypeRef = useRef<string | null>(null);
   useEffect(() => {
@@ -1263,11 +1227,6 @@ const Index = () => {
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return;
-      if (isCreateOpen) {
-        setIsCreateOpen(false);
-        setActionRingText('');
-        return;
-      }
       if (showVcardCustomizer) {
         setShowVcardCustomizer(false);
         return;
@@ -1287,7 +1246,7 @@ const Index = () => {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isCreateOpen, selectedPlanComparison, showAccountModal, showGuestWelcome, showMenuBuilder, showVcardCustomizer]);
+  }, [selectedPlanComparison, showAccountModal, showGuestWelcome, showMenuBuilder, showVcardCustomizer]);
 
   useEffect(() => {
     if (!pendingCreateScroll) return;
@@ -2877,72 +2836,6 @@ const Index = () => {
     setPendingCreateScroll(false);
   };
 
-  const closeCreateMenu = useCallback(() => {
-    setIsCreateOpen(false);
-    setHoveredAction(null);
-    setActionRingText('');
-  }, []);
-
-  const CreateMenu = ({
-    align = 'center',
-    label = 'Create New',
-  }: {
-    align?: 'center' | 'right';
-    label?: string;
-  }) => {
-    const triggerRef = useRef<HTMLButtonElement>(null);
-    const openCreateMenu = () => {
-      resetCreateFlow();
-      if (triggerRef.current) {
-        const rect = triggerRef.current.getBoundingClientRect();
-        const originX = ((rect.left + rect.width / 2) / window.innerWidth) * 100;
-        const originY = ((rect.top + rect.height / 2) / window.innerHeight) * 100;
-        setActionRingOrigin({ x: originX, y: originY });
-      }
-      createOpenLockRef.current = true;
-      window.setTimeout(() => {
-        createOpenLockRef.current = false;
-      }, 200);
-      setIsCreateOpen(true);
-      setHoveredAction(null);
-      setActionRingText('Create New QR Code');
-    };
-
-    return (
-      <div
-        className={`relative z-[60] group flex items-center gap-3 ${
-          align === 'right' ? 'ml-auto' : ''
-        }`}
-      >
-        {label ? (
-          <span className="text-[11px] uppercase tracking-[0.35em] text-muted-foreground/80 transition group-hover:opacity-0">
-            {label}
-          </span>
-        ) : null}
-
-        <div className="relative">
-          <button
-            type="button"
-            aria-label="Create new QR code"
-            className={`relative z-10 flex h-12 w-12 items-center justify-center rounded-full border border-border/60 bg-card/80 text-primary shadow-sm transition hover:border-amber-300 hover:bg-amber-300/10 hover:text-amber-200 hover:shadow-lg ${isCreateOpen ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
-            onClick={() => {
-              openCreateMenu();
-            }}
-            ref={triggerRef}
-          >
-            <Plus className="h-5 w-5" />
-          </button>
-
-          {!isCreateOpen ? (
-            <span className="pointer-events-none absolute left-1/2 top-full mt-2 -translate-x-1/2 whitespace-nowrap text-[10px] uppercase tracking-[0.3em] text-muted-foreground opacity-0 transition group-hover:opacity-100">
-              Create New
-            </span>
-          ) : null}
-        </div>
-
-      </div>
-    );
-  };
 
   const navItems = [
     { id: 'studio', label: 'Studio' },
@@ -3794,183 +3687,6 @@ const Index = () => {
         </div>
       )}
 
-      {isCreateOpen && (
-        <div
-          className="fixed inset-0 z-[90] flex items-center justify-center bg-background/95"
-          onClick={() => {
-            if (createOpenLockRef.current) return;
-            closeCreateMenu();
-          }}
-        >
-          <motion.div
-            className="relative h-72 w-72 sm:h-80 sm:w-80"
-            onClick={(event) => event.stopPropagation()}
-            onPointerLeave={() => setHoveredAction(null)}
-            initial={{ scale: 0.2, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            exit={{ scale: 0.2, opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            style={{ transformOrigin: `${actionRingOrigin.x}% ${actionRingOrigin.y}%` }}
-          >
-            <div className="absolute inset-0 rounded-full border border-border/50 bg-card/60 shadow-[0_0_60px_rgba(15,23,42,0.2)] backdrop-blur-sm" />
-            <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 px-8 text-center">
-              <AnimatePresence mode="wait">
-                {hoveredAction ? (
-                  <motion.div
-                    key={`${hoveredAction}-icon`}
-                    initial={{ opacity: 0, filter: 'blur(8px)', scale: 0.8 }}
-                    animate={{ opacity: 1, filter: 'blur(0px)', scale: 1 }}
-                    exit={{ opacity: 0, filter: 'blur(10px)', scale: 0.75 }}
-                    transition={{ duration: 0.25 }}
-                    className="flex items-center justify-center"
-                  >
-                    {(() => {
-                      const Icon = actionRingIcons[hoveredAction as keyof typeof actionRingIcons];
-                      const iconClass =
-                        hoveredAction === 'adaptive'
-                          ? 'h-12 w-12 text-amber-300'
-                          : 'h-12 w-12 text-primary';
-                      return Icon ? <Icon className={iconClass} /> : null;
-                    })()}
-                  </motion.div>
-                ) : null}
-              </AnimatePresence>
-              <AnimatePresence mode="wait">
-                {actionRingText ? (
-                  <motion.span
-                    key={actionRingText}
-                    initial={{ opacity: 0, filter: 'blur(8px)', y: 12 }}
-                    animate={{ opacity: 1, filter: 'blur(0px)', y: 0 }}
-                    exit={{ opacity: 0, filter: 'blur(10px)', y: -8 }}
-                    transition={{ duration: 0.25 }}
-                    className={`text-xs uppercase tracking-[0.3em] text-center ${
-                      hoveredAction === 'adaptive' ? 'text-amber-300' : 'text-foreground'
-                    }`}
-                  >
-                    <DecodeText text={actionRingText} active />
-                  </motion.span>
-                ) : null}
-              </AnimatePresence>
-            </div>
-
-            <div className="absolute left-1/2 top-0 -translate-x-1/2 -translate-y-1/2">
-              <button
-                type="button"
-                onPointerEnter={() => setHoveredAction('static')}
-                onClick={() => {
-                  handleStartStatic();
-                  closeCreateMenu();
-                }}
-                className="pointer-events-auto flex h-12 w-12 items-center justify-center rounded-full border border-border/70 bg-card/90 text-primary shadow-lg transition hover:border-primary/60 hover:text-primary"
-              >
-                <LinkIcon className="h-5 w-5" />
-              </button>
-            </div>
-
-            <div className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2">
-              <button
-                type="button"
-                onPointerEnter={() => setHoveredAction('dynamic')}
-                onClick={() => {
-                  setSelectedQuickAction('dynamic');
-                  setQrMode('dynamic');
-                  setQrType('website');
-                  setPendingCreateScroll(true);
-                  closeCreateMenu();
-                }}
-                className="pointer-events-auto flex h-12 w-12 items-center justify-center rounded-full border border-border/70 bg-card/90 text-primary shadow-lg transition hover:border-primary/60 hover:text-primary"
-              >
-                <Sparkles className="h-5 w-5" />
-              </button>
-            </div>
-
-            <div className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1/2">
-              <button
-                type="button"
-                onPointerEnter={() => setHoveredAction('vcard')}
-                onClick={() => {
-                  handleStartVcard();
-                  closeCreateMenu();
-                }}
-                className="pointer-events-auto flex h-12 w-12 items-center justify-center rounded-full border border-border/70 bg-card/90 text-primary shadow-lg transition hover:border-primary/60 hover:text-primary"
-              >
-                <User className="h-5 w-5" />
-              </button>
-            </div>
-
-            <div className="absolute left-1/2 bottom-0 -translate-x-1/2 translate-y-1/2">
-              <button
-                type="button"
-                onPointerEnter={() => setHoveredAction('file')}
-                onClick={() => {
-                  handleStartFile();
-                  closeCreateMenu();
-                }}
-                className="pointer-events-auto flex h-12 w-12 items-center justify-center rounded-full border border-border/70 bg-card/90 text-primary shadow-lg transition hover:border-primary/60 hover:text-primary"
-              >
-                <File className="h-5 w-5" />
-              </button>
-            </div>
-
-            <div className="absolute right-6 top-6">
-              <button
-                type="button"
-                onPointerEnter={() => setHoveredAction('phone')}
-                onClick={() => {
-                  handleStartPhone();
-                  closeCreateMenu();
-                }}
-                className="pointer-events-auto flex h-11 w-11 items-center justify-center rounded-full border border-border/70 bg-card/90 text-primary shadow-lg transition hover:border-primary/60"
-              >
-                <Phone className="h-4 w-4" />
-              </button>
-            </div>
-
-            <div className="absolute right-6 bottom-6">
-              <button
-                type="button"
-                onPointerEnter={() => setHoveredAction('email')}
-                onClick={() => {
-                  handleStartEmail();
-                  closeCreateMenu();
-                }}
-                className="pointer-events-auto flex h-11 w-11 items-center justify-center rounded-full border border-border/70 bg-card/90 text-primary shadow-lg transition hover:border-primary/60"
-              >
-                <Mail className="h-4 w-4" />
-              </button>
-            </div>
-
-            <div className="absolute left-6 bottom-6">
-              <button
-                type="button"
-                onPointerEnter={() => setHoveredAction('menu')}
-                onClick={() => {
-                  openMenuBuilder();
-                  closeCreateMenu();
-                }}
-                className="pointer-events-auto flex h-11 w-11 items-center justify-center rounded-full border border-border/70 bg-card/90 text-primary shadow-lg transition hover:border-primary/60"
-              >
-                <Utensils className="h-4 w-4" />
-              </button>
-            </div>
-
-            <div className="absolute left-6 top-6">
-              <button
-                type="button"
-                onPointerEnter={() => setHoveredAction('adaptive')}
-                onClick={() => {
-                  setActiveTab('adaptive');
-                  setPendingCreateScroll(false);
-                  closeCreateMenu();
-                }}
-                className="pointer-events-auto flex h-11 w-11 items-center justify-center rounded-full border border-amber-300/60 bg-card/90 text-amber-300 shadow-lg transition hover:border-amber-300"
-              >
-                <QrCode className="h-4 w-4" />
-              </button>
-            </div>
-          </motion.div>
-        </div>
-      )}
 
       {showGoodbyeIntro && (
         <div className="fixed inset-0 z-[55] flex items-center justify-center bg-background/90 backdrop-blur-sm">
@@ -5285,9 +5001,6 @@ const Index = () => {
           </button>
           <div className="relative hidden lg:flex flex-col items-center">
           <nav className="hidden lg:flex items-end gap-6 text-xs uppercase tracking-[0.35em] text-muted-foreground">
-            <div className="pb-1">
-              <CreateMenu label="" />
-            </div>
             {navItems.map((item) => {
               const isActive = activeTab === item.id;
               const isAdaptive = item.id === 'adaptive';
