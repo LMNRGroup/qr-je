@@ -414,6 +414,9 @@ const Index = () => {
     photoX: 50,
     photoY: 50,
   });
+  const [vcardPhotoUploadProgress, setVcardPhotoUploadProgress] = useState<number>(0);
+  const [vcardPhotoUploading, setVcardPhotoUploading] = useState(false);
+  const [vcardPhotoUploadError, setVcardPhotoUploadError] = useState<string | null>(null);
   const [adaptiveSlotCount, setAdaptiveSlotCount] = useState(2);
   const [adaptiveSlots, setAdaptiveSlots] = useState([
     {
@@ -479,6 +482,9 @@ const Index = () => {
   const [menuUploadProgress, setMenuUploadProgress] = useState<number>(0);
   const [menuUploading, setMenuUploading] = useState(false);
   const [menuUploadError, setMenuUploadError] = useState<string | null>(null);
+  const [menuLogoUploadProgress, setMenuLogoUploadProgress] = useState<number>(0);
+  const [menuLogoUploading, setMenuLogoUploading] = useState(false);
+  const [menuLogoUploadError, setMenuLogoUploadError] = useState<string | null>(null);
   const menuFileInputRef = useRef<HTMLInputElement>(null);
   const menuLogoInputRef = useRef<HTMLInputElement>(null);
   const qrRef = useRef<QRPreviewHandle>(null);
