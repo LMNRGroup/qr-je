@@ -1520,6 +1520,11 @@ const Index = () => {
   };
 
   const handleStartVcard = () => {
+    if (!user) {
+      toast.error('Please sign in to create vCard QR codes');
+      navigate('/login');
+      return;
+    }
     setQrMode(null);
     setQrType('vcard');
     setActiveTab('studio');
@@ -1563,6 +1568,11 @@ const Index = () => {
   };
 
   const handleStartFile = () => {
+    if (!user) {
+      toast.error('Please sign in to create file QR codes');
+      navigate('/login');
+      return;
+    }
     setQrMode(null);
     setQrType('file');
     setActiveTab('studio');
@@ -1578,6 +1588,11 @@ const Index = () => {
   };
 
   const handleStartMenu = () => {
+    if (!user) {
+      toast.error('Please sign in to create menu QR codes');
+      navigate('/login');
+      return;
+    }
     setQrMode(null);
     setQrType('menu');
     setActiveTab('studio');
@@ -2502,6 +2517,11 @@ const Index = () => {
   };
 
   const openMenuBuilder = () => {
+    if (!user) {
+      toast.error('Please sign in to create menu QR codes');
+      navigate('/login');
+      return;
+    }
     setShowMenuBuilder(true);
     setQrMode('dynamic');
     setQrType('menu');

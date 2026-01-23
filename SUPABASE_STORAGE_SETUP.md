@@ -66,3 +66,16 @@ You need to create RLS policies in Supabase Dashboard > Storage > Policies for t
 - For production, you may want to add user-specific path restrictions (e.g., `qr-assets/menus/{userId}/...`)
 - The 403 error you're seeing is because these policies don't exist yet
 - **Storage Cleanup:** When a user deletes a QR code, all associated files (menu files, logos, file QRCs, vCard photos) are automatically deleted from Supabase storage to free up space
+
+## Folder Structure
+
+**IMPORTANT:** You do NOT need to manually create folders in Supabase Storage!
+
+The folders (`files/`, `menus/`, `logos/`) are created automatically when files are uploaded. Supabase Storage uses a flat file system where the folder structure is part of the file path.
+
+For example:
+- When you upload a file to `files/abc123.pdf`, the `files/` folder is automatically created
+- When you upload a menu to `menus/xyz789.jpg`, the `menus/` folder is automatically created
+- When you upload a logo to `logos/logo456.png`, the `logos/` folder is automatically created
+
+The storage policies check the folder name using `(storage.foldername(name))[1]`, which extracts the first folder from the path. As long as your uploads use the correct folder names (`files`, `menus`, or `logos`), everything will work correctly.
