@@ -74,6 +74,8 @@ const FileViewer = () => {
     if (isZoomed || !isPdf) return;
     // Don't capture swipe if it's a 2-page PDF (handled by tap)
     if (isTwoPagePdf) return;
+    event.preventDefault();
+    event.stopPropagation();
     event.currentTarget.setPointerCapture(event.pointerId);
     swipeRef.current = {
       dragging: true,
@@ -86,19 +88,23 @@ const FileViewer = () => {
 
   const handleSwipeMove = (event: PointerEvent<HTMLDivElement>) => {
     if (!swipeRef.current.dragging || isZoomed) return;
+    event.preventDefault();
     swipeRef.current.currentX = event.clientX;
     swipeRef.current.currentY = event.clientY;
   };
 
   const handleSwipeEnd = (event: PointerEvent<HTMLDivElement>) => {
     if (!swipeRef.current.dragging || isZoomed || !isPdf) return;
+    event.preventDefault();
+    event.stopPropagation();
     event.currentTarget.releasePointerCapture(event.pointerId);
     const deltaX = swipeRef.current.currentX - swipeRef.current.startX;
     const deltaY = swipeRef.current.currentY - swipeRef.current.startY;
     swipeRef.current.dragging = false;
 
-    // Only handle horizontal swipes
+    // Only handle horizontal swipes (more horizontal than vertical)
     if (Math.abs(deltaX) < Math.abs(deltaY)) return;
+    // Require minimum swipe distance
     if (Math.abs(deltaX) < 50) return;
 
     // For multi-page PDFs, navigate pages
@@ -155,9 +161,9 @@ const FileViewer = () => {
         onPointerMove={handleSwipeMove}
         onPointerUp={handleSwipeEnd}
         onPointerLeave={handleSwipeEnd}
-        style={{ width: '100%', height: '100%', maxWidth: '100vw', overflow: 'hidden' }}
+        style={{ width: '100%', height: '100%', maxWidth: '100vw', overflow: 'hidden', touchAction: 'pan-y pinch-zoom' }}
       >
-        <AnimatePresence mode="wait">
+        <AnimatePresence mode="wait" initial={false}>
           {isPdf && pdfUrl ? (
             isTwoPagePdf ? (
               <motion.div
@@ -227,10 +233,13 @@ const FileViewer = () => {
             ) : (
               <motion.div
                 key={`pdf-${currentPage}`}
-                initial={{ opacity: 0, x: 20 }}
+                initial={{ opacity: 0, x: currentPage > 0 ? -50 : 50 }}
                 animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-                transition={{ duration: 0.3 }}
+                exit={{ opacity: 0, x: currentPage > 0 ? 50 : -50 }}
+                transition={{ 
+                  duration: 0.4,
+                  ease: [0.4, 0, 0.2, 1]
+                }}
                 className="w-full h-full flex items-center justify-center"
                 style={{ maxWidth: '100%', overflow: 'hidden' }}
               >
@@ -257,24 +266,31 @@ const FileViewer = () => {
               className="w-full h-full flex items-center justify-center"
               style={{ maxWidth: '100%', overflow: 'hidden' }}
             >
-              <img
+              <motion.img
                 src={fileUrl || fileDataUrl}
                 alt={fileName}
-                className={`max-w-full max-h-full object-contain ${isZoomed ? 'scale-150 cursor-zoom-out' : 'cursor-zoom-in'} transition-transform duration-300`}
-                onDoubleClick={() => setIsZoomed((prev) => !prev)}
+                className="max-w-full max-h-full object-contain cursor-zoom-in"
                 style={{ maxWidth: '100%', height: 'auto' }}
+                animate={{
+                  scale: isZoomed ? 2 : 1,
+                }}
+                transition={{
+                  duration: 0.3,
+                  ease: [0.4, 0, 0.2, 1],
+                }}
+                onDoubleClick={() => setIsZoomed((prev) => !prev)}
               />
             </motion.div>
           )}
         </AnimatePresence>
       </div>
 
-      {/* Luminar Apps Watermark - bottom center, clickable */}
+      {/* Luminar Apps Watermark - higher on screen, clickable */}
       <a
         href="https://qrcode.luminarapps.com"
         target="_blank"
         rel="noopener noreferrer"
-        className="absolute bottom-4 left-1/2 -translate-x-1/2 z-30 flex items-center gap-2 px-3 py-1.5 bg-black/30 backdrop-blur-sm rounded-full border border-white/10 hover:bg-black/40 transition-colors"
+        className="absolute bottom-20 left-1/2 -translate-x-1/2 z-30 flex items-center gap-2 px-3 py-1.5 bg-black/30 backdrop-blur-sm rounded-full border border-white/10 hover:bg-black/40 transition-colors"
         style={{ textDecoration: 'none' }}
       >
         <img

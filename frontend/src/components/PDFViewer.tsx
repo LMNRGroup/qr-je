@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import * as pdfjsLib from 'pdfjs-dist';
+import { motion } from 'framer-motion';
 
 // Set up PDF.js worker - use the worker from public folder
 if (typeof window !== 'undefined') {
@@ -272,16 +273,33 @@ export const PDFViewer = ({
       onTouchEnd={handleTouchEnd}
       style={{ touchAction: isZoomed ? 'pan-x pan-y pinch-zoom' : 'pan-x pan-y pinch-zoom' }}
     >
-      <canvas
-        ref={canvasRef}
-        className="max-w-full max-h-full object-contain"
-        style={{
-          maxWidth: '100%',
-          maxHeight: '100%',
-          width: 'auto',
-          height: 'auto',
+      <motion.div
+        animate={{
+          scale: isZoomed ? 2 : 1,
         }}
-      />
+        transition={{
+          duration: 0.3,
+          ease: [0.4, 0, 0.2, 1], // Custom easing for smooth zoom
+        }}
+        style={{
+          width: '100%',
+          height: '100%',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <canvas
+          ref={canvasRef}
+          className="max-w-full max-h-full object-contain"
+          style={{
+            maxWidth: '100%',
+            maxHeight: '100%',
+            width: 'auto',
+            height: 'auto',
+          }}
+        />
+      </motion.div>
     </div>
   );
 };
