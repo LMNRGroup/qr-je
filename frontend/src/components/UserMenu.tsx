@@ -1,4 +1,4 @@
-import { Bell, ChevronDown, ChevronUp, LogIn, LogOut, RefreshCcw, Settings, Trash2, User, UserPlus } from 'lucide-react';
+import { Bell, ChevronDown, ChevronUp, LogIn, LogOut, Trash2, User, UserPlus } from 'lucide-react';
 import { cloneElement, isValidElement, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -144,31 +144,6 @@ export function UserMenu({ trigger, onSignOut }: { trigger?: React.ReactNode; on
     toast.success('Feed cleared');
   };
 
-  const handleClearCache = async () => {
-    if (typeof window === 'undefined') return;
-    try {
-      if ('caches' in window) {
-        const keys = await caches.keys();
-        await Promise.all(keys.map((key) => caches.delete(key)));
-      }
-      if ('serviceWorker' in navigator) {
-        const regs = await navigator.serviceWorker.getRegistrations();
-        await Promise.all(regs.map((reg) => reg.unregister()));
-      }
-      toast.success('Cache cleared. Reloading…');
-      window.location.reload();
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to clear cache';
-      toast.error(message);
-    }
-  };
-
-  const handlePreferences = () => {
-    if (typeof window !== 'undefined') {
-      window.localStorage.setItem('qrc.activeTab', 'settings');
-    }
-    navigate('/');
-  };
 
   const notificationBadge = userNotificationCount > 0
     ? (
@@ -329,32 +304,12 @@ export function UserMenu({ trigger, onSignOut }: { trigger?: React.ReactNode; on
               </Button>
             </div>
             <DropdownMenuSeparator />
-            <div className="px-3 pb-3 space-y-2">
+            <div className="px-3 pb-3">
               <Button
                 type="button"
                 variant="outline"
                 size="sm"
-                className="w-full border-border hover:bg-secondary/50 text-xs uppercase tracking-[0.25em] justify-start"
-                onClick={handlePreferences}
-              >
-                <Settings className="mr-2 h-3.5 w-3.5" />
-                Preferences
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="w-full border-border hover:bg-secondary/50 text-xs uppercase tracking-[0.25em] justify-start"
-                onClick={handleClearCache}
-              >
-                <RefreshCcw className="mr-2 h-3.5 w-3.5" />
-                Clear Cache
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="w-full border-border text-destructive hover:bg-destructive/10 hover:text-destructive text-xs uppercase tracking-[0.25em] justify-start"
+                className="w-full border-border text-destructive hover:bg-destructive/10 hover:text-destructive text-xs uppercase tracking-[0.25em] justify-center"
                 onClick={() => setShowSignOutConfirm(true)}
               >
                 <LogOut className="mr-2 h-3.5 w-3.5" />
