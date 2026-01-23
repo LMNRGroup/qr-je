@@ -3558,7 +3558,8 @@ const Index = () => {
   );
 
   return (
-    <div className="bg-background sm:min-h-screen" data-build={BUILD_STAMP}>
+    // Desktop: Allow natural height and scrolling. Mobile V2: Height handled by mobile-ui-v2.css
+    <div className="bg-background sm:min-h-screen lg:min-h-0" data-build={BUILD_STAMP}>
       <style>{`
         @keyframes radarSweep {
           0% { transform: rotate(0deg); opacity: 0.15; }

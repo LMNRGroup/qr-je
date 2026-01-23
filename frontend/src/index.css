@@ -97,6 +97,24 @@
     max-width: 100vw;
     width: 100%;
   }
+
+  /* Desktop: Ensure body scrolling works (>= 1024px to avoid mobile V2) */
+  @media (min-width: 1024px) {
+    html {
+      overflow-y: auto;
+      height: auto;
+    }
+    body {
+      overflow-y: auto;
+      height: auto;
+      min-height: 100vh;
+    }
+    /* Ensure main content areas can grow and scroll on desktop */
+    main {
+      min-height: 0;
+      overflow: visible;
+    }
+  }
 }
 
 @layer utilities {

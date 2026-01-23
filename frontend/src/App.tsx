@@ -19,8 +19,9 @@ const App = () => (
       <AuthProvider>
         <DebugOverlay />
         <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-          <div className="flex flex-col h-[100dvh]">
-            <div className="flex-1 min-h-0 overflow-hidden">
+          {/* Desktop (>= 1024px): Allow body scrolling. Mobile V2 (< 768px): Height-locked container (handled by mobile-ui-v2.css) */}
+          <div className="flex flex-col h-[100dvh] lg:h-auto lg:min-h-screen">
+            <div className="flex-1 min-h-0 overflow-hidden lg:overflow-visible">
               <Routes>
                 <Route path="/" element={<Index />} />
                 <Route path="/login" element={<Login />} />
