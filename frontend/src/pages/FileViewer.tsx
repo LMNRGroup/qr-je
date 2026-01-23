@@ -22,6 +22,7 @@ const FileViewer = () => {
   const [currentPage, setCurrentPage] = useState(0);
   const [isZoomed, setIsZoomed] = useState(false);
   const [pdfTotalPages, setPdfTotalPages] = useState(1);
+  const [showSwipeHint, setShowSwipeHint] = useState(false);
   const swipeRef = useRef({ dragging: false, startX: 0, startY: 0, currentX: 0, currentY: 0 });
   const pdfRef = useRef<HTMLIFrameElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -110,6 +111,13 @@ const FileViewer = () => {
     setIsZoomed((prev) => !prev);
   };
 
+  const handleTap = () => {
+    if (isPdf && pdfTotalPages > 1 && !isZoomed) {
+      setShowSwipeHint(true);
+      setTimeout(() => setShowSwipeHint(false), 1000);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="fixed inset-0 flex items-center justify-center bg-background z-50">
@@ -138,6 +146,7 @@ const FileViewer = () => {
         onPointerUp={handleSwipeEnd}
         onPointerLeave={handleSwipeEnd}
         onDoubleClick={handleDoubleClick}
+        onClick={handleTap}
       >
         <AnimatePresence mode="wait">
           {isPdf ? (
@@ -158,7 +167,7 @@ const FileViewer = () => {
             >
               <iframe
                 ref={pdfRef}
-                src={`${fileUrl || fileDataUrl}#page=${currentPage + 1}&zoom=auto&view=FitH`}
+                src={`${fileUrl || fileDataUrl}#page=${currentPage + 1}&zoom=page-fit`}
                 className="border-0"
                 style={{ 
                   width: 'calc(100vw - 2rem)', 
@@ -189,7 +198,7 @@ const FileViewer = () => {
       </div>
 
       {/* Watermark - bottom center */}
-      <div className="absolute bottom-20 left-1/2 -translate-x-1/2 z-30 flex items-center gap-3 px-4 py-2 bg-black/40 backdrop-blur-sm rounded-full border border-white/10">
+      <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-30 flex items-center gap-3 px-4 py-2 bg-black/40 backdrop-blur-sm rounded-full border border-white/10">
         <p className="text-[9px] uppercase tracking-[0.3em] text-white/60 mb-1 absolute -top-6 left-1/2 -translate-x-1/2 whitespace-nowrap">
           This page was created with:
         </p>
@@ -225,9 +234,9 @@ const FileViewer = () => {
         </div>
       )}
 
-      {/* Swipe hint for PDF */}
-      {isPdf && pdfTotalPages > 1 && !isZoomed && (
-        <div className="absolute bottom-32 left-1/2 -translate-x-1/2 z-30 px-4 py-2 bg-black/40 backdrop-blur-sm rounded-full border border-white/10 animate-pulse">
+      {/* Swipe hint for PDF - only shows on tap for 1 second */}
+      {isPdf && pdfTotalPages > 1 && !isZoomed && showSwipeHint && (
+        <div className="absolute bottom-32 left-1/2 -translate-x-1/2 z-30 px-4 py-2 bg-black/40 backdrop-blur-sm rounded-full border border-white/10">
           <span className="text-[10px] text-white/60 uppercase tracking-[0.3em]">
             Swipe for next
           </span>
