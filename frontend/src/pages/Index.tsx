@@ -7051,11 +7051,12 @@ const Index = () => {
               className="space-y-6"
             >
               {hasSelectedMode && hasSelectedType && (!isMobile || mobileCustomizeStep || (isMobileV2 && effectiveMobileStudioStep === 4)) ? (
-                <div className="glass-panel rounded-2xl p-4">
-                  <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground px-4 pt-2">
+                <div className={`glass-panel rounded-2xl p-4 ${isMobileV2 ? 'qrc-v2-customize-panel flex flex-col max-h-[calc(100dvh-240px)] min-h-0' : ''}`}>
+                  <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground px-4 pt-2 flex-shrink-0">
                     Step 4 · Customize
                   </p>
-                  <Accordion type="multiple" defaultValue={['colors', 'style', 'logo']} className="space-y-2">
+                  <div className={`${isMobileV2 ? 'flex-1 min-h-0 overflow-y-auto overscroll-contain -mx-4 px-4' : ''}`}>
+                    <Accordion type="multiple" defaultValue={['colors', 'style', 'logo']} className="space-y-2">
                     <AccordionItem value="colors" className="border-none">
                       <AccordionTrigger
                         className="py-3 px-4 rounded-lg hover:bg-secondary/50 hover:no-underline"
@@ -7141,7 +7142,8 @@ const Index = () => {
                       </AccordionContent>
                     </AccordionItem>
                   </Accordion>
-                  <div className="px-4 pb-4 pt-2 space-y-3">
+                  </div>
+                  <div className="px-4 pb-4 pt-2 space-y-3 flex-shrink-0">
                     <Button
                       size="lg"
                       className="w-full gap-2 bg-gradient-primary hover:opacity-90 text-primary-foreground glow uppercase tracking-[0.2em] text-xs"

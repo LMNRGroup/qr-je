@@ -129,6 +129,15 @@
     -webkit-overflow-scrolling: touch;
   }
 
+  /* Step 4 QR Customization - make content scrollable, not the panel itself */
+  html[data-mobile-ui="v2"] .qrc-v2-customize-panel {
+    overflow: hidden;
+  }
+
+  html[data-mobile-ui="v2"] .qrc-v2-customize-panel > div.flex-1 {
+    -webkit-overflow-scrolling: touch;
+  }
+
   /* Only apply sticky background to drawer headers, not all glass-panel first children */
   html[data-mobile-ui="v2"] .qrc-v2-drawer .glass-panel > div:first-child {
     position: sticky;
