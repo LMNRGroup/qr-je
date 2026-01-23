@@ -7041,11 +7041,11 @@ const Index = () => {
               </div>
             ) : (
               <div className={`glass-panel rounded-2xl p-6 text-sm text-muted-foreground space-y-6 ${isMobileV2 ? 'qrc-config-panel' : ''}`}>
-                <div className="space-y-2">
-                  <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Theme</p>
-                  <ThemeToggle storageKey={`theme:${user?.id ?? 'default'}`} />
-                </div>
                 <div className={`space-y-4 ${isMobileV2 ? 'qrc-config-content' : ''}`}>
+                  <div className="space-y-2">
+                    <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Theme</p>
+                    <ThemeToggle storageKey={`theme:${user?.id ?? 'default'}`} />
+                  </div>
                   <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">
                     {t('Profile', 'Perfil')}
                   </p>
@@ -7293,8 +7293,9 @@ const Index = () => {
                       className="bg-secondary/40 border-border"
                     />
                   </div>
-                  {(() => {
-                    if (!initialProfileForm) return null;
+                  {/* Spacer for floating save button */}
+                  {isMobileV2 && (() => {
+                    if (!initialProfileForm) return <div className="h-20" />;
                     const hasChanges =
                       profileForm.fullName !== initialProfileForm.fullName ||
                       profileForm.username !== initialProfileForm.username ||
@@ -7307,19 +7308,66 @@ const Index = () => {
                       profileForm.newPassword !== '' ||
                       profileForm.confirmPassword !== '' ||
                       avatarDirty;
-                    if (!hasChanges) return null;
-                    return (
+                    if (!hasChanges) return <div className="h-4" />;
+                    return <div className="h-20" />;
+                  })()}
+                </div>
+                {/* Floating Save Button Overlay */}
+                {isMobileV2 && (() => {
+                  if (!initialProfileForm) return null;
+                  const hasChanges =
+                    profileForm.fullName !== initialProfileForm.fullName ||
+                    profileForm.username !== initialProfileForm.username ||
+                    profileForm.timezone !== initialProfileForm.timezone ||
+                    profileForm.language !== initialProfileForm.language ||
+                    profileForm.leftie !== initialProfileForm.leftie ||
+                    profileForm.avatarType !== initialProfileForm.avatarType ||
+                    profileForm.avatarColor !== initialProfileForm.avatarColor ||
+                    profileForm.currentPassword !== '' ||
+                    profileForm.newPassword !== '' ||
+                    profileForm.confirmPassword !== '' ||
+                    avatarDirty;
+                  if (!hasChanges) return null;
+                  return (
+                    <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20 pointer-events-none">
                       <Button
                         type="button"
-                        className="bg-gradient-primary text-primary-foreground uppercase tracking-[0.2em] text-xs"
+                        className="bg-gradient-primary text-primary-foreground uppercase tracking-[0.2em] text-xs shadow-lg pointer-events-auto"
                         onClick={handleProfileSave}
                         disabled={profileSaving}
                       >
                         {profileSaving ? t('Saving...', 'Guardando...') : t('Save Preferences', 'Guardar preferencias')}
                       </Button>
-                    );
-                  })()}
-                </div>
+                    </div>
+                  );
+                })()}
+                {/* Desktop Save Button */}
+                {!isMobileV2 && (() => {
+                  if (!initialProfileForm) return null;
+                  const hasChanges =
+                    profileForm.fullName !== initialProfileForm.fullName ||
+                    profileForm.username !== initialProfileForm.username ||
+                    profileForm.timezone !== initialProfileForm.timezone ||
+                    profileForm.language !== initialProfileForm.language ||
+                    profileForm.leftie !== initialProfileForm.leftie ||
+                    profileForm.avatarType !== initialProfileForm.avatarType ||
+                    profileForm.avatarColor !== initialProfileForm.avatarColor ||
+                    profileForm.currentPassword !== '' ||
+                    profileForm.newPassword !== '' ||
+                    profileForm.confirmPassword !== '' ||
+                    avatarDirty;
+                  if (!hasChanges) return null;
+                  return (
+                    <Button
+                      type="button"
+                      className="bg-gradient-primary text-primary-foreground uppercase tracking-[0.2em] text-xs"
+                      onClick={handleProfileSave}
+                      disabled={profileSaving}
+                    >
+                      {profileSaving ? t('Saving...', 'Guardando...') : t('Save Preferences', 'Guardar preferencias')}
+                    </Button>
+                  );
+                })()}
               </div>
             )}
           </section>

@@ -159,13 +159,7 @@
     flex-direction: column;
     overflow: hidden;
     max-height: 100%;
-  }
-
-  html[data-mobile-ui="v2"] .qrc-config-panel > .space-y-2:first-child {
-    flex-shrink: 0;
     position: relative;
-    z-index: 1;
-    /* Remove sticky positioning */
   }
 
   html[data-mobile-ui="v2"] .qrc-config-content {
@@ -176,6 +170,7 @@
     overscroll-behavior: contain;
     padding-right: 4px;
     margin-right: -4px;
+    padding-bottom: 80px; /* Space for floating save button */
   }
 
   html[data-mobile-ui="v2"] .qrc-config-content::-webkit-scrollbar {
