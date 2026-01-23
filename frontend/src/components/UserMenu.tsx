@@ -207,11 +207,13 @@ export function UserMenu({ trigger, onSignOut }: { trigger?: React.ReactNode; on
         {triggerNode}
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-80 glass-panel">
-        <div className="px-3 pt-3">
-          <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Feed</p>
-          <p className="text-lg font-semibold">{headerName}&apos;s Feed</p>
-        </div>
-        <div className="px-3 pt-2 pb-3 max-h-64 overflow-y-auto space-y-2">
+        {user && (
+          <>
+            <div className="px-3 pt-3">
+              <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Feed</p>
+              <p className="text-lg font-semibold">{headerName}&apos;s Feed</p>
+            </div>
+            <div className="px-3 pt-2 pb-3 max-h-64 overflow-y-auto space-y-2">
           {visibleUser.map((note) => {
             const isExpanded = expandedId === note.id;
             const isLong = note.message.length > 120;
@@ -312,34 +314,29 @@ export function UserMenu({ trigger, onSignOut }: { trigger?: React.ReactNode; on
               No notifications yet.
             </div>
           )}
-        </div>
-        <div className="px-3 pb-3">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="w-full border-border text-xs uppercase tracking-[0.25em]"
-            onClick={handleClearFeed}
-          >
-            <Trash2 className="mr-2 h-3.5 w-3.5" />
-            Clear Feed
-          </Button>
-        </div>
-        <DropdownMenuSeparator />
+            </div>
+            <div className="px-3 pb-3">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="w-full border-border text-xs uppercase tracking-[0.25em]"
+                onClick={handleClearFeed}
+              >
+                <Trash2 className="mr-2 h-3.5 w-3.5" />
+                Clear Feed
+              </Button>
+            </div>
+            <DropdownMenuSeparator />
+          </>
+        )}
         <div className={`px-3 pb-3 space-y-2 ${isMobileV2 ? 'flex flex-col items-center' : ''}`}>
           <Button
             type="button"
             variant="outline"
             size="sm"
-            className={`${isMobileV2 ? 'w-full max-w-[200px] bg-black text-white border-black hover:bg-black/80 hover:text-white' : 'w-full border-border'} text-xs uppercase tracking-[0.25em] relative z-10`}
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              handlePreferences();
-            }}
-            onPointerDown={(e) => {
-              e.stopPropagation();
-            }}
+            className={`${isMobileV2 ? 'w-full max-w-[200px] bg-black text-white border-black hover:bg-black/80 hover:text-white' : 'w-full border-border'} text-xs uppercase tracking-[0.25em]`}
+            onClick={handlePreferences}
           >
             <Settings className="mr-2 h-3.5 w-3.5" />
             Preferences
@@ -350,15 +347,8 @@ export function UserMenu({ trigger, onSignOut }: { trigger?: React.ReactNode; on
                 type="button"
                 variant="outline"
                 size="sm"
-                className="w-full max-w-[200px] bg-black text-white border-black hover:bg-black/80 hover:text-white text-xs uppercase tracking-[0.25em] relative z-10"
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  handleClearCache();
-                }}
-                onPointerDown={(e) => {
-                  e.stopPropagation();
-                }}
+                className="w-full max-w-[200px] bg-black text-white border-black hover:bg-black/80 hover:text-white text-xs uppercase tracking-[0.25em]"
+                onClick={handleClearCache}
               >
                 <RefreshCcw className="mr-2 h-3.5 w-3.5" />
                 Clear cache
@@ -399,15 +389,8 @@ export function UserMenu({ trigger, onSignOut }: { trigger?: React.ReactNode; on
             type="button"
             variant="outline"
             size="sm"
-            className={`${isMobileV2 ? 'w-full max-w-[200px] bg-black text-white border-black hover:bg-black/80 hover:text-white' : 'w-full border-border text-destructive hover:bg-destructive/10'} text-xs uppercase tracking-[0.25em] relative z-10`}
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              setShowSignOutConfirm(true);
-            }}
-            onPointerDown={(e) => {
-              e.stopPropagation();
-            }}
+            className={`${isMobileV2 ? 'w-full max-w-[200px] bg-black text-white border-black hover:bg-black/80 hover:text-white' : 'w-full border-border text-destructive hover:bg-destructive/10'} text-xs uppercase tracking-[0.25em]`}
+            onClick={() => setShowSignOutConfirm(true)}
           >
             <LogOut className="mr-2 h-3.5 w-3.5" />
             Sign out

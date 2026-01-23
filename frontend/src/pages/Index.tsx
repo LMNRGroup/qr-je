@@ -2416,10 +2416,16 @@ const Index = () => {
       setMenuUploadProgress(100);
       await new Promise((resolve) => setTimeout(resolve, 300)); // Brief delay to show 100%
 
+      // Update state first
       setMenuFiles(uploads);
       setMenuFlip(false);
       setMenuCarouselIndex(0);
-      setMenuBuilderStep('logo'); // Advance to logo step after menu upload
+      
+      // Advance to logo step - use setTimeout to ensure state updates are processed
+      setTimeout(() => {
+        setMenuBuilderStep('logo'); // Advance to logo step after menu upload
+      }, 100);
+      
       toast.success(`Successfully uploaded ${uploads.length} file${uploads.length === 1 ? '' : 's'}`);
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to process menu files.';
@@ -4680,7 +4686,13 @@ const Index = () => {
       {showMenuBuilder && (
         <div
           className="fixed inset-0 z-[70] flex items-center justify-center bg-background/70 backdrop-blur-md px-2 sm:px-4 py-4"
-          onClick={() => setShowMenuBuilder(false)}
+          onClick={(e) => {
+            // Only close if clicking the backdrop itself, not child elements
+            if (e.target === e.currentTarget) {
+              setShowMenuBuilder(false);
+              setMenuBuilderStep('menu'); // Reset step when closing
+            }
+          }}
         >
           <div
             className="glass-panel rounded-3xl p-4 sm:p-6 w-full max-w-4xl space-y-4 relative max-h-[90dvh] overflow-y-auto"
@@ -5091,6 +5103,14 @@ const Index = () => {
                         </div>
                       </div>
                     )}
+                  </div>
+                )}
+
+                {/* Fallback: If step is invalid, show menu step */}
+                {!['menu', 'logo', 'socials'].includes(menuBuilderStep) && (
+                  <div className="glass-panel rounded-2xl p-4 space-y-4">
+                    <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Menu Builder</p>
+                    <p className="text-sm text-muted-foreground">Loading...</p>
                   </div>
                 )}
 

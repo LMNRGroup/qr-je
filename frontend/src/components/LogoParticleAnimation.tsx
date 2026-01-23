@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from 'react';
-import { motion } from 'framer-motion';
 
 interface Particle {
   id: number;
@@ -208,25 +207,18 @@ export function LogoParticleAnimation({
           }
 
           return (
-            <motion.div
+            <div
               key={particle.id}
-              className="absolute rounded-sm"
-              animate={{
+              className="absolute rounded-sm transition-all duration-100 ease-out"
+              style={{
                 left: `${currentX}%`,
                 top: `${currentY}%`,
-                opacity,
-              }}
-              style={{
                 width: `${particle.size}px`,
                 height: `${particle.size}px`,
                 backgroundColor: particle.color,
+                opacity,
                 transform: 'translate(-50%, -50%)',
                 boxShadow: `0 0 ${particle.size}px ${particle.color}`,
-              }}
-              transition={{
-                type: 'tween',
-                ease: 'easeOut',
-                duration: 0.1,
               }}
             />
           );
