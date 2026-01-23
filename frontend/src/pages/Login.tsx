@@ -7,7 +7,6 @@ import { ArrowRight, Loader2, Lock, Mail } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
-import { LogoParticleAnimation } from '@/components/LogoParticleAnimation';
 
 const Login = () => {
   const [email, setEmail] = useState('');
@@ -66,21 +65,28 @@ const Login = () => {
 
   return (
     <div className="min-h-screen bg-[#0b0f14] text-foreground flex items-center justify-center p-4 relative overflow-hidden">
-      {/* Particle Logo Animation Background */}
+      {/* Lightweight animated background - CSS only, no JS */}
       <div className="fixed inset-0 -z-10 overflow-hidden">
-        <LogoParticleAnimation
-          logoPath="/assets/QRC App Icon.png"
-          particleSize={6}
-          gridSize={35}
-          className="w-full h-full opacity-30"
+        {/* Base gradient */}
+        <div className="absolute inset-0 bg-gradient-to-br from-[#0b0f14] via-[#1a1f2e] to-[#0b0f14]" />
+        
+        {/* Animated gradient orbs */}
+        <div 
+          className="absolute top-1/4 left-1/4 w-96 h-96 bg-primary/15 rounded-full blur-3xl animate-pulse"
+          style={{ animationDuration: '4s' }}
         />
-      </div>
-
-      {/* Background gradient overlay */}
-      <div className="fixed inset-0 -z-10 overflow-hidden">
-        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-primary/10 rounded-full blur-3xl animate-pulse" />
-        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-cyan-500/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-white/3 rounded-full blur-3xl" />
+        <div 
+          className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-cyan-500/15 rounded-full blur-3xl animate-pulse"
+          style={{ animationDuration: '4s', animationDelay: '2s' }}
+        />
+        
+        {/* Subtle floating QR code shapes - lightweight CSS animation */}
+        <div className="absolute inset-0 opacity-[0.03]">
+          <div className="absolute top-1/4 left-1/3 w-40 h-40 border-2 border-primary/50 rounded-lg rotate-12 animate-float-slow" />
+          <div className="absolute bottom-1/3 right-1/4 w-32 h-32 border-2 border-cyan-400/50 rounded-lg -rotate-12 animate-float-slow" style={{ animationDelay: '1.5s' }} />
+          <div className="absolute top-1/2 right-1/3 w-28 h-28 border-2 border-amber-400/50 rounded-lg rotate-45 animate-float-slow" style={{ animationDelay: '3s' }} />
+          <div className="absolute top-2/3 left-1/4 w-36 h-36 border-2 border-primary/50 rounded-lg -rotate-45 animate-float-slow" style={{ animationDelay: '4.5s' }} />
+        </div>
       </div>
 
       <motion.div
