@@ -147,12 +147,13 @@ const FileViewer = () => {
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -20 }}
               transition={{ duration: 0.3 }}
-              className={`w-full h-full ${isZoomed ? 'cursor-zoom-out' : 'cursor-zoom-in'}`}
+              className="w-full h-full flex items-center justify-center"
             >
               <iframe
                 ref={pdfRef}
-                src={`${fileUrl || fileDataUrl}#page=${currentPage + 1}&zoom=page-fit`}
+                src={`${fileUrl || fileDataUrl}#page=${currentPage + 1}&zoom=page-fit&view=FitH`}
                 className="w-full h-full border-0"
+                style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }}
                 title={fileName}
               />
             </motion.div>
