@@ -330,10 +330,14 @@ export function UserMenu({ trigger, onSignOut }: { trigger?: React.ReactNode; on
             type="button"
             variant="outline"
             size="sm"
-            className={`${isMobileV2 ? 'w-full max-w-[200px] bg-black text-white border-black hover:bg-black/80 hover:text-white' : 'w-full border-border'} text-xs uppercase tracking-[0.25em]`}
+            className={`${isMobileV2 ? 'w-full max-w-[200px] bg-black text-white border-black hover:bg-black/80 hover:text-white' : 'w-full border-border'} text-xs uppercase tracking-[0.25em] relative z-10`}
             onClick={(e) => {
               e.preventDefault();
+              e.stopPropagation();
               handlePreferences();
+            }}
+            onPointerDown={(e) => {
+              e.stopPropagation();
             }}
           >
             <Settings className="mr-2 h-3.5 w-3.5" />
@@ -344,10 +348,14 @@ export function UserMenu({ trigger, onSignOut }: { trigger?: React.ReactNode; on
               type="button"
               variant="outline"
               size="sm"
-              className="w-full max-w-[200px] bg-black text-white border-black hover:bg-black/80 hover:text-white text-xs uppercase tracking-[0.25em]"
+              className="w-full max-w-[200px] bg-black text-white border-black hover:bg-black/80 hover:text-white text-xs uppercase tracking-[0.25em] relative z-10"
               onClick={(e) => {
                 e.preventDefault();
+                e.stopPropagation();
                 handleClearCache();
+              }}
+              onPointerDown={(e) => {
+                e.stopPropagation();
               }}
             >
               <RefreshCcw className="mr-2 h-3.5 w-3.5" />
@@ -358,10 +366,14 @@ export function UserMenu({ trigger, onSignOut }: { trigger?: React.ReactNode; on
             type="button"
             variant="outline"
             size="sm"
-            className={`${isMobileV2 ? 'w-full max-w-[200px] bg-black text-white border-black hover:bg-black/80 hover:text-white' : 'w-full border-border text-destructive hover:bg-destructive/10'} text-xs uppercase tracking-[0.25em]`}
+            className={`${isMobileV2 ? 'w-full max-w-[200px] bg-black text-white border-black hover:bg-black/80 hover:text-white' : 'w-full border-border text-destructive hover:bg-destructive/10'} text-xs uppercase tracking-[0.25em] relative z-10`}
             onClick={(e) => {
               e.preventDefault();
+              e.stopPropagation();
               setShowSignOutConfirm(true);
+            }}
+            onPointerDown={(e) => {
+              e.stopPropagation();
             }}
           >
             <LogOut className="mr-2 h-3.5 w-3.5" />
@@ -372,16 +384,21 @@ export function UserMenu({ trigger, onSignOut }: { trigger?: React.ReactNode; on
 
       {/* Sign Out Confirmation Dialog */}
       <AlertDialog open={showSignOutConfirm} onOpenChange={setShowSignOutConfirm}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Sign Out</AlertDialogTitle>
-            <AlertDialogDescription>
+        <AlertDialogContent className={`glass-panel rounded-3xl border-border/60 ${isMobileV2 ? 'max-w-[85vw] px-4 py-6' : 'max-w-lg'}`}>
+          <AlertDialogHeader className="text-left">
+            <AlertDialogTitle className="text-lg font-semibold tracking-tight">Sign Out</AlertDialogTitle>
+            <AlertDialogDescription className="text-sm text-muted-foreground mt-2">
               Are you sure you want to sign out? Your session will be ended and you'll need to sign in again.
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleSignOut} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+          <AlertDialogFooter className="flex flex-row gap-3 sm:justify-end mt-6">
+            <AlertDialogCancel className="flex-1 sm:flex-initial border-border uppercase tracking-[0.2em] text-xs">
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleSignOut} 
+              className="flex-1 sm:flex-initial bg-destructive text-destructive-foreground hover:bg-destructive/90 uppercase tracking-[0.2em] text-xs"
+            >
               Sign Out
             </AlertDialogAction>
           </AlertDialogFooter>

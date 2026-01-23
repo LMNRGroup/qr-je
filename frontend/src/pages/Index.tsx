@@ -3832,8 +3832,8 @@ const Index = () => {
 
       {showGoodbyeIntro && (
         <div className="fixed inset-0 z-[55] flex items-center justify-center bg-background/90 backdrop-blur-sm">
-          <div className="flex flex-col items-center gap-6">
-            <div className="grid grid-cols-7 gap-1">
+          <div className={`flex flex-col items-center gap-6 ${isMobileV2 ? 'px-4 max-w-[85vw]' : ''}`}>
+            <div className={`grid grid-cols-7 gap-1 ${isMobileV2 ? 'scale-90' : ''}`}>
               {Array.from({ length: 49 }).map((_, index) => {
                 const row = Math.floor(index / 7);
                 const col = index % 7;
@@ -3849,8 +3849,8 @@ const Index = () => {
                 );
               })}
             </div>
-            <div className="text-center space-y-3">
-              <div className="text-2xl font-semibold tracking-tight whitespace-pre-line">
+            <div className={`text-center space-y-3 ${isMobileV2 ? 'w-full' : ''}`}>
+              <div className={`font-semibold tracking-tight whitespace-pre-line ${isMobileV2 ? 'text-xl' : 'text-2xl'}`}>
                 <span className="relative inline-block">
                   <span className="text-muted-foreground/70">{goodbyeHeadline}</span>
                   <span className="absolute inset-0 logo-fill">{goodbyeHeadline}</span>
