@@ -435,6 +435,70 @@ export const updateUrlHandler = (service: UrlsService) => {
   }
 }
 
+// Helper to extract file paths from URL options and delete from Supabase storage
+const deleteStorageFiles = async (options: Record<string, unknown> | null | undefined) => {
+  if (!options) return
+
+  const SUPABASE_PROJECT_URL = process.env.SUPABASE_PROJECT_URL
+  const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY
+
+  if (!SUPABASE_PROJECT_URL || !SUPABASE_SERVICE_ROLE_KEY) {
+    console.warn('[storage] Supabase not configured, skipping file cleanup')
+    return
+  }
+
+  const filesToDelete: string[] = []
+
+  // Extract file URLs from different QR types
+  if (options.menuFiles && Array.isArray(options.menuFiles)) {
+    // Menu files: array of { url: string, type: string }
+    for (const file of options.menuFiles) {
+      if (file && typeof file === 'object' && 'url' in file && typeof file.url === 'string') {
+        filesToDelete.push(file.url)
+      }
+    }
+  }
+
+  if (options.menuLogo && typeof options.menuLogo === 'string') {
+    filesToDelete.push(options.menuLogo)
+  }
+
+  if (options.fileUrl && typeof options.fileUrl === 'string') {
+    filesToDelete.push(options.fileUrl)
+  }
+
+  if (options.photo && typeof options.photo === 'string') {
+    filesToDelete.push(options.photo)
+  }
+
+  // Delete files from Supabase storage
+  for (const fileUrl of filesToDelete) {
+    try {
+      // Extract path from Supabase public URL
+      // Format: https://{project}.supabase.co/storage/v1/object/public/qr-assets/{path}
+      const urlMatch = fileUrl.match(/\/storage\/v1\/object\/public\/qr-assets\/(.+)$/)
+      if (!urlMatch) continue
+
+      const filePath = urlMatch[1]
+      const storageUrl = `${SUPABASE_PROJECT_URL}/storage/v1/object/qr-assets/${filePath}`
+
+      const response = await fetch(storageUrl, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+          'apikey': SUPABASE_SERVICE_ROLE_KEY
+        }
+      })
+
+      if (!response.ok && response.status !== 404) {
+        console.error(`[storage] Failed to delete file ${filePath}:`, response.status, response.statusText)
+      }
+    } catch (error) {
+      console.error(`[storage] Error deleting file ${fileUrl}:`, error)
+    }
+  }
+}
+
 export const deleteUrlHandler = (service: UrlsService, scansService?: ScansService) => {
   return async (c: Context<AppBindings>) => {
     const userId = c.get('userId')
@@ -448,6 +512,18 @@ export const deleteUrlHandler = (service: UrlsService, scansService?: ScansServi
       return c.json({ message: 'id is required' }, 400)
     }
 
+    // Get URL record first to extract file paths
+    const url = await service.getById(id)
+    if (!url) {
+      return c.json({ message: 'URL not found' }, 404)
+    }
+
+    // Check ownership
+    if (url.userId !== userId) {
+      return c.json({ message: 'Forbidden' }, 403)
+    }
+
+    // Delete associated scans
     if (scansService) {
       try {
         await scansService.deleteByUrlId(id)
@@ -455,6 +531,16 @@ export const deleteUrlHandler = (service: UrlsService, scansService?: ScansServi
         console.error('[scan] failed to delete scans', error)
       }
     }
+
+    // Delete storage files (menu files, logos, file QRCs, vCard photos)
+    try {
+      await deleteStorageFiles(url.options)
+    } catch (error) {
+      console.error('[storage] failed to delete storage files', error)
+      // Continue with URL deletion even if storage cleanup fails
+    }
+
+    // Delete URL record
     await service.deleteUrl(id)
     return c.json({ success: true })
   }

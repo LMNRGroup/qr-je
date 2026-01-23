@@ -83,7 +83,7 @@ import { toast } from 'sonner';
 const BUILD_STAMP = '2026-01-20T16:52:00Z';
 const GUEST_WELCOME_KEY = `qr.guest.welcome.${BUILD_STAMP}`;
 const TOUR_GUEST_KEY = `qr.tour.guest.${BUILD_STAMP}`;
-const QR_ASSETS_BUCKET = 'qr-uploads';
+const QR_ASSETS_BUCKET = 'qr-assets';
 const MAX_MENU_FILE_BYTES = 10 * 1024 * 1024; // 10MB for images (before compression)
 const MAX_MENU_PDF_BYTES = 10 * 1024 * 1024; // 10MB for PDFs (before compression)
 const MAX_MENU_TOTAL_BYTES = 10 * 1024 * 1024; // 10MB total for menu (before compression)
@@ -2015,7 +2015,7 @@ const Index = () => {
     try {
       const extension = file.name.split('.').pop() || (file.type.includes('pdf') ? 'pdf' : 'png');
       const fileName = `${crypto.randomUUID()}.${extension}`;
-      const filePath = `qr-assets/${folder}/${fileName}`;
+      const filePath = `${folder}/${fileName}`;
       
       // Use compressed dataUrl if provided, otherwise use original file
       let payload: Blob | File;

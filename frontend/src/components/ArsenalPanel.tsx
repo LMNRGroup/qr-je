@@ -74,6 +74,48 @@ const getDisplayName = (item: QRHistoryItem, list: QRHistoryItem[] = []) => {
   return `Untitled QRC`;
 };
 
+// Calculate total storage used by a QR code's files
+const calculateQRStorageSize = (item: QRHistoryItem): number => {
+  let total = 0;
+  const opts = item.options;
+  
+  // Menu files
+  if (opts.menuFiles && Array.isArray(opts.menuFiles)) {
+    for (const file of opts.menuFiles) {
+      if (file && typeof file === 'object' && 'size' in file && typeof file.size === 'number') {
+        total += file.size;
+      }
+    }
+  }
+  
+  // Menu logo
+  if (opts.menuLogoSize && typeof opts.menuLogoSize === 'number') {
+    total += opts.menuLogoSize;
+  }
+  
+  // File QRC
+  if (opts.fileSize && typeof opts.fileSize === 'number') {
+    total += opts.fileSize;
+  }
+  
+  // vCard photo (stored as dataUrl, but we track size)
+  // Note: vCard photos are stored in options.photo as dataUrl, but we don't have size stored
+  // For now, we'll skip vCard photos in deletion cleanup (they're small anyway)
+  
+  return total;
+};
+
+// Free storage when QR is deleted
+const freeQRStorage = (item: QRHistoryItem) => {
+  const size = calculateQRStorageSize(item);
+  if (size > 0 && typeof window !== 'undefined') {
+    const current = Number(window.localStorage.getItem('qrc.storage.usage') || '0');
+    const updated = Math.max(0, current - size);
+    window.localStorage.setItem('qrc.storage.usage', String(updated));
+    window.dispatchEvent(new CustomEvent('qrc:storage-update', { detail: updated }));
+  }
+};
+
 const isWebUrl = (value: string) => /^https?:\/\//i.test(value);
 
 const parseKind = (kind?: string | null) => {
@@ -609,6 +651,8 @@ export function ArsenalPanel({
   const handleDelete = async (item: QRHistoryItem) => {
     try {
       await deleteQRFromHistory(item.id);
+      // Free up storage used by this QR's files
+      freeQRStorage(item);
       setItems((prev) => prev.filter((entry) => entry.id !== item.id));
       if (selectedId === item.id) {
         setSelectedId(null);
@@ -627,7 +671,14 @@ export function ArsenalPanel({
     const ids = Array.from(selectedIds);
     if (!ids.length) return;
     try {
+      // Get items before deletion to free storage
+      const itemsToDelete = items.filter((item) => selectedIds.has(item.id));
+      
       await Promise.all(ids.map((id) => deleteQRFromHistory(id)));
+      
+      // Free up storage for all deleted QRs
+      itemsToDelete.forEach((item) => freeQRStorage(item));
+      
       setItems((prev) => prev.filter((entry) => !selectedIds.has(entry.id)));
       setSelectedIds(new Set());
       setIsSelectMode(false);

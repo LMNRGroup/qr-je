@@ -12,9 +12,11 @@ export interface QROptions {
   logoAspect?: number;
   fileName?: string;
   fileUrl?: string;
-  menuFiles?: { url: string; type: 'image' | 'pdf' }[];
+  fileSize?: number; // Compressed file size in bytes
+  menuFiles?: { url: string; type: 'image' | 'pdf'; size: number }[]; // size is compressed file size in bytes
   menuType?: 'restaurant' | 'service';
   menuLogoDataUrl?: string;
+  menuLogoSize?: number; // Compressed logo size in bytes
   menuSocials?: {
     instagram?: string;
     facebook?: string;

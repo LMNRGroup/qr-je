@@ -10,6 +10,7 @@ const MAX_GENERATION_ATTEMPTS = 10
 export type UrlsService = {
   createUrl: (input: CreateUrlInput) => Promise<Url>
   resolveUrl: (input: ResolveUrlInput) => Promise<Url>
+  getById: (id: string) => Promise<Url | null>
   getUrlsForUser: (userId: string) => Promise<Url[]>
   getAllUrls: () => Promise<Url[]>
   updateUrl: (id: string, userId: string, updates: UpdateUrlPayload) => Promise<Url>
@@ -56,6 +57,10 @@ export const createUrlsService = (storage: UrlsStorage): UrlsService => {
     return url
   }
 
+  const getById = async (id: string) => {
+    return storage.getById(id)
+  }
+
   const getUrlsForUser = async (userId: string) => {
     return storage.getByUserId(userId)
   }
@@ -81,6 +86,7 @@ export const createUrlsService = (storage: UrlsStorage): UrlsService => {
   return {
     createUrl,
     resolveUrl,
+    getById,
     getUrlsForUser,
     getAllUrls,
     updateUrl,
