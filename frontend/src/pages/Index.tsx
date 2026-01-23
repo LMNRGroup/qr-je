@@ -226,6 +226,7 @@ const Index = () => {
   const [pendingCreateScroll, setPendingCreateScroll] = useState(false);
   const [accountLoading, setAccountLoading] = useState(false);
   const [profileSaving, setProfileSaving] = useState(false);
+  const [initialProfileForm, setInitialProfileForm] = useState<typeof profileForm | null>(null);
   const [uiErrorBadge, setUiErrorBadge] = useState<{ code: string; message: string } | null>(null);
   const [pullRefreshState, setPullRefreshState] = useState({ visible: false, progress: 0, ready: false });
   const [stageOverlayOpen, setStageOverlayOpen] = useState(false);
@@ -1048,16 +1049,20 @@ const Index = () => {
       .then((profile) => {
         if (!isActive) return;
         setUserProfile(profile);
-        setProfileForm((prev) => ({
-          ...prev,
-          fullName: profile.name ?? prev.fullName,
-          username: profile.username ?? prev.username,
-          timezone: profile.timezone ?? prev.timezone,
-          language: profile.language ?? prev.language ?? 'en',
-          leftie: profile.leftie ?? prev.leftie,
-          avatarType: profile.avatarType ?? prev.avatarType ?? 'letter',
-          avatarColor: profile.avatarColor ?? prev.avatarColor ?? 'purple',
-        }));
+        const updatedForm = {
+          fullName: profile.name ?? '',
+          username: profile.username ?? '',
+          timezone: profile.timezone ?? '',
+          language: profile.language ?? 'en',
+          leftie: profile.leftie ?? false,
+          avatarType: profile.avatarType ?? 'letter',
+          avatarColor: profile.avatarColor ?? 'purple',
+          currentPassword: '',
+          newPassword: '',
+          confirmPassword: '',
+        };
+        setProfileForm(updatedForm);
+        setInitialProfileForm(updatedForm);
         setAvatarDirty(false);
         if (!profile.timezone) {
           const autoZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -1745,18 +1750,20 @@ const Index = () => {
           : {}),
       });
       setUserProfile(updated);
-      setProfileForm((prev) => ({
-        ...prev,
-        username: updated.username ?? prev.username,
-        timezone: updated.timezone ?? prev.timezone,
-        language: updated.language ?? prev.language,
-        leftie: updated.leftie ?? prev.leftie,
-        avatarType: updated.avatarType ?? prev.avatarType,
-        avatarColor: updated.avatarColor ?? prev.avatarColor,
+      const savedForm = {
+        fullName: updated.name ?? '',
+        username: updated.username ?? '',
+        timezone: updated.timezone ?? '',
+        language: updated.language ?? 'en',
+        leftie: updated.leftie ?? false,
+        avatarType: updated.avatarType ?? 'letter',
+        avatarColor: updated.avatarColor ?? 'purple',
         currentPassword: '',
         newPassword: '',
         confirmPassword: '',
-      }));
+      };
+      setProfileForm(savedForm);
+      setInitialProfileForm(savedForm);
       setAvatarDirty(false);
       setUsernameStatus('idle');
       setUsernameError('');
