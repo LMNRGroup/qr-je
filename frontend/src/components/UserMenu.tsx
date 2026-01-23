@@ -325,42 +325,49 @@ export function UserMenu({ trigger, onSignOut }: { trigger?: React.ReactNode; on
           </Button>
         </div>
         <DropdownMenuSeparator />
-        <button
-          type="button"
-          onClick={(e) => {
-            e.preventDefault();
-            handlePreferences();
-          }}
-          className="w-full flex items-center px-3 py-3 text-sm cursor-pointer hover:bg-secondary/50 transition-colors rounded-none border-0 bg-transparent"
-        >
-          <Settings className="mr-2 h-4 w-4" />
-          Preferences
-        </button>
-        {isMobileV2 && (
-          <button
+        <div className={`px-3 pb-3 space-y-2 ${isMobileV2 ? 'flex flex-col items-center' : ''}`}>
+          <Button
             type="button"
+            variant="outline"
+            size="sm"
+            className={`${isMobileV2 ? 'w-full max-w-[200px] bg-black text-white border-black hover:bg-black/80 hover:text-white' : 'w-full border-border'} text-xs uppercase tracking-[0.25em]`}
             onClick={(e) => {
               e.preventDefault();
-              handleClearCache();
+              handlePreferences();
             }}
-            className="w-full flex items-center px-3 py-3 text-sm cursor-pointer hover:bg-secondary/50 transition-colors rounded-none border-0 bg-transparent"
           >
-            <RefreshCcw className="mr-2 h-4 w-4" />
-            Clear cache
-          </button>
-        )}
-        <DropdownMenuSeparator />
-        <button
-          type="button"
-          onClick={(e) => {
-            e.preventDefault();
-            setShowSignOutConfirm(true);
-          }}
-          className="w-full flex items-center px-3 py-3 text-sm text-destructive hover:bg-destructive/10 cursor-pointer transition-colors rounded-none border-0 bg-transparent"
-        >
-          <LogOut className="mr-2 h-4 w-4" />
-          Sign out
-        </button>
+            <Settings className="mr-2 h-3.5 w-3.5" />
+            Preferences
+          </Button>
+          {isMobileV2 && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="w-full max-w-[200px] bg-black text-white border-black hover:bg-black/80 hover:text-white text-xs uppercase tracking-[0.25em]"
+              onClick={(e) => {
+                e.preventDefault();
+                handleClearCache();
+              }}
+            >
+              <RefreshCcw className="mr-2 h-3.5 w-3.5" />
+              Clear cache
+            </Button>
+          )}
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className={`${isMobileV2 ? 'w-full max-w-[200px] bg-black text-white border-black hover:bg-black/80 hover:text-white' : 'w-full border-border text-destructive hover:bg-destructive/10'} text-xs uppercase tracking-[0.25em]`}
+            onClick={(e) => {
+              e.preventDefault();
+              setShowSignOutConfirm(true);
+            }}
+          >
+            <LogOut className="mr-2 h-3.5 w-3.5" />
+            Sign out
+          </Button>
+        </div>
       </DropdownMenuContent>
 
       {/* Sign Out Confirmation Dialog */}
