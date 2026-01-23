@@ -3590,17 +3590,24 @@ const Index = () => {
               </span>
             </div>
             <div className="pt-4 space-y-4">
-              <Button
-                className={`w-full sm:w-64 mx-auto bg-gradient-primary text-primary-foreground uppercase tracking-[0.2em] text-xs transition-all duration-500 ${
+              <div className="space-y-2">
+                <Button
+                  className={`w-full sm:w-64 mx-auto bg-gradient-primary text-primary-foreground uppercase tracking-[0.2em] text-xs transition-all duration-500 ${
+                    guestCtaStep >= 1 ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4 pointer-events-none'
+                  }`}
+                  onClick={() => {
+                    setShowGuestWelcome(false);
+                    navigate('/login?mode=signup');
+                  }}
+                >
+                  Sign Up For Free
+                </Button>
+                <p className={`text-center text-xs text-muted-foreground/70 transition-all duration-500 ${
                   guestCtaStep >= 1 ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4 pointer-events-none'
-                }`}
-                onClick={() => {
-                  setShowGuestWelcome(false);
-                  navigate('/login?mode=signup');
-                }}
-              >
-                Sign Up
-              </Button>
+                }`}>
+                  NO CREDIT CARD REQUIRED
+                </p>
+              </div>
               <button
                 type="button"
                 className={`w-full sm:w-64 mx-auto text-xs uppercase tracking-[0.3em] text-foreground transition-all duration-500 ${
@@ -3620,7 +3627,7 @@ const Index = () => {
                 }`}
                 onClick={() => setShowGuestWelcome(false)}
               >
-                Continue for free
+                Continue without account
               </button>
             </div>
           </div>
