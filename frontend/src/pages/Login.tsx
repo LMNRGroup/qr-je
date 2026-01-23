@@ -7,6 +7,7 @@ import { ArrowRight, Loader2, Lock, Mail } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
+import { FloatingParticles } from '@/components/FloatingParticles';
 
 const Login = () => {
   const [email, setEmail] = useState('');
@@ -68,9 +69,16 @@ const Login = () => {
 
   return (
     <div className="min-h-screen bg-[#0b0f14] text-foreground flex items-center justify-center p-4 relative overflow-hidden">
-      {/* Static background - no animations */}
-      <div className="fixed inset-0 -z-10 overflow-hidden">
-        {/* Base gradient */}
+      {/* Floating Particles Background - ONLY on Login page */}
+      <FloatingParticles 
+        count={40}
+        speed={0.6}
+        sizeRange={[2, 6]}
+        opacityRange={[0.08, 0.22]}
+      />
+      
+      {/* Static background - base gradient */}
+      <div className="fixed inset-0 -z-20 overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-[#0b0f14] via-[#1a1f2e] to-[#0b0f14]" />
       </div>
 
