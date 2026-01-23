@@ -402,13 +402,13 @@ export function UserMenu({ trigger, onSignOut }: { trigger?: React.ReactNode; on
               Are you sure you want to sign out? Your session will be ended and you'll need to sign in again.
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter className="flex flex-row gap-3 mt-6 sm:justify-end">
-            <AlertDialogCancel className="flex-1 sm:flex-initial border-border uppercase tracking-[0.2em] text-xs">
+          <AlertDialogFooter className="flex flex-col gap-3 mt-6 sm:flex-row sm:justify-end">
+            <AlertDialogCancel className="w-full sm:w-auto border-border uppercase tracking-[0.2em] text-xs">
               Cancel
             </AlertDialogCancel>
             <AlertDialogAction 
               onClick={handleSignOut} 
-              className="flex-1 sm:flex-initial bg-destructive text-destructive-foreground hover:bg-destructive/90 uppercase tracking-[0.2em] text-xs"
+              className="w-full sm:w-auto bg-destructive text-destructive-foreground hover:bg-destructive/90 uppercase tracking-[0.2em] text-xs"
             >
               Sign Out
             </AlertDialogAction>
