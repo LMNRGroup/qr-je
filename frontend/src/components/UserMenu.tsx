@@ -100,18 +100,32 @@ export function UserMenu({ trigger, onSignOut }: { trigger?: React.ReactNode; on
         setUserFeed([]);
       }
     };
+    const loadStorageUsage = () => {
+      try {
+        const stored = window.localStorage.getItem('qrc.storage.usage');
+        setStorageUsage(stored ? Number(stored) : 0);
+      } catch {
+        setStorageUsage(0);
+      }
+    };
     loadFeed();
+    loadStorageUsage();
     const handleStorage = (event: StorageEvent) => {
       if (event.key === 'qrc.feed.user') {
         loadFeed();
+      } else if (event.key === 'qrc.storage.usage') {
+        loadStorageUsage();
       }
     };
     const handleCustom = () => loadFeed();
+    const handleStorageUpdate = () => loadStorageUsage();
     window.addEventListener('storage', handleStorage);
     window.addEventListener('qrc:feed-update', handleCustom as EventListener);
+    window.addEventListener('qrc:storage-update', handleStorageUpdate as EventListener);
     return () => {
       window.removeEventListener('storage', handleStorage);
       window.removeEventListener('qrc:feed-update', handleCustom as EventListener);
+      window.removeEventListener('qrc:storage-update', handleStorageUpdate as EventListener);
     };
   }, []);
 
@@ -302,6 +316,39 @@ export function UserMenu({ trigger, onSignOut }: { trigger?: React.ReactNode; on
                 <Trash2 className="mr-2 h-3.5 w-3.5" />
                 Clear Feed
               </Button>
+            </div>
+            <DropdownMenuSeparator />
+            {/* Storage Usage Display */}
+            <div className="px-3 py-3 space-y-2">
+              {(() => {
+                const MAX_STORAGE_BYTES = 25 * 1024 * 1024; // 25MB
+                const usedMB = (storageUsage / (1024 * 1024)).toFixed(1);
+                const totalMB = (MAX_STORAGE_BYTES / (1024 * 1024)).toFixed(0);
+                const percentage = Math.min(100, (storageUsage / MAX_STORAGE_BYTES) * 100);
+                const isNearLimit = percentage >= 80;
+                return (
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between text-[10px] uppercase tracking-[0.2em] text-muted-foreground px-1">
+                      <span>Storage</span>
+                      <span className={isNearLimit ? 'text-destructive' : ''}>
+                        {usedMB}MB / {totalMB}MB
+                      </span>
+                    </div>
+                    <div className="relative h-1.5 w-full overflow-hidden rounded-full bg-secondary/30">
+                      <div
+                        className={`h-full rounded-full transition-all duration-300 ${
+                          isNearLimit
+                            ? 'bg-destructive'
+                            : percentage >= 60
+                              ? 'bg-amber-400'
+                              : 'bg-primary'
+                        }`}
+                        style={{ width: `${percentage}%` }}
+                      />
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
             <DropdownMenuSeparator />
             <div className="px-3 pb-3">
