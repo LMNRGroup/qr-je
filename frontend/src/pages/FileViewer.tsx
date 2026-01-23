@@ -170,10 +170,10 @@ const FileViewer = () => {
                 src={`${fileUrl || fileDataUrl}#page=${currentPage + 1}&zoom=page-fit`}
                 className="border-0"
                 style={{ 
-                  width: 'calc(100vw - 2rem)', 
-                  height: 'calc(100vh - 2rem)',
-                  maxWidth: 'calc(100vw - 2rem)',
-                  maxHeight: 'calc(100vh - 2rem)'
+                  width: '90vw', 
+                  height: '90vh',
+                  maxWidth: '90vw',
+                  maxHeight: '90vh'
                 }}
                 title={fileName}
               />
