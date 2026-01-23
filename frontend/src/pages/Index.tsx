@@ -2683,7 +2683,6 @@ const Index = () => {
         setFileUrl(objectUrl);
       }
       setFileName(file.name);
-      toast.success('File ready! It will be uploaded when you generate the QR code.');
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to process file upload.';
       setFileUploadError(message);
