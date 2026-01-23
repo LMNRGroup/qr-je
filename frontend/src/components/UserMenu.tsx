@@ -329,70 +329,36 @@ export function UserMenu({ trigger, onSignOut }: { trigger?: React.ReactNode; on
               </Button>
             </div>
             <DropdownMenuSeparator />
-            <div className={`px-3 pb-3 space-y-2 ${isMobileV2 ? 'flex flex-col items-center' : ''}`}>
+            <div className="px-3 pb-3 space-y-2">
               <Button
                 type="button"
                 variant="outline"
                 size="sm"
-                className={`${isMobileV2 ? 'w-full max-w-[200px] bg-black text-white border-black hover:bg-black/80 hover:text-white' : 'w-full border-border'} text-xs uppercase tracking-[0.25em]`}
+                className="w-full border-border hover:bg-secondary/50 text-xs uppercase tracking-[0.25em] justify-start"
                 onClick={handlePreferences}
               >
                 <Settings className="mr-2 h-3.5 w-3.5" />
                 Preferences
               </Button>
-              {isMobileV2 && (
-                <>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="w-full max-w-[200px] bg-black text-white border-black hover:bg-black/80 hover:text-white text-xs uppercase tracking-[0.25em]"
-                    onClick={handleClearCache}
-                  >
-                    <RefreshCcw className="mr-2 h-3.5 w-3.5" />
-                    Clear cache
-                  </Button>
-                  {/* Storage Usage Display */}
-                  {(() => {
-                    const MAX_STORAGE_BYTES = 25 * 1024 * 1024; // 25MB
-                    const usedMB = (storageUsage / (1024 * 1024)).toFixed(1);
-                    const totalMB = (MAX_STORAGE_BYTES / (1024 * 1024)).toFixed(0);
-                    const percentage = Math.min(100, (storageUsage / MAX_STORAGE_BYTES) * 100);
-                    const isNearLimit = percentage >= 80;
-                    return (
-                      <div className="w-full max-w-[200px] space-y-2">
-                        <div className="flex items-center justify-between text-[10px] uppercase tracking-[0.2em] text-muted-foreground px-1">
-                          <span>Storage</span>
-                          <span className={isNearLimit ? 'text-destructive' : ''}>
-                            {usedMB}MB / {totalMB}MB
-                          </span>
-                        </div>
-                        <div className="relative h-1.5 w-full overflow-hidden rounded-full bg-secondary/30">
-                          <div
-                            className={`h-full rounded-full transition-all duration-300 ${
-                              isNearLimit
-                                ? 'bg-destructive'
-                                : percentage >= 60
-                                  ? 'bg-amber-400'
-                                  : 'bg-primary'
-                            }`}
-                            style={{ width: `${percentage}%` }}
-                          />
-                        </div>
-                      </div>
-                    );
-                  })()}
-                </>
-              )}
               <Button
                 type="button"
                 variant="outline"
                 size="sm"
-                className={`${isMobileV2 ? 'w-full max-w-[200px] bg-black text-white border-black hover:bg-black/80 hover:text-white' : 'w-full border-border text-destructive hover:bg-destructive/10'} text-xs uppercase tracking-[0.25em]`}
+                className="w-full border-border hover:bg-secondary/50 text-xs uppercase tracking-[0.25em] justify-start"
+                onClick={handleClearCache}
+              >
+                <RefreshCcw className="mr-2 h-3.5 w-3.5" />
+                Clear Cache
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="w-full border-border text-destructive hover:bg-destructive/10 hover:text-destructive text-xs uppercase tracking-[0.25em] justify-start"
                 onClick={() => setShowSignOutConfirm(true)}
               >
                 <LogOut className="mr-2 h-3.5 w-3.5" />
-                Sign out
+                Sign Out
               </Button>
             </div>
           </>
@@ -404,8 +370,8 @@ export function UserMenu({ trigger, onSignOut }: { trigger?: React.ReactNode; on
                 type="button"
                 variant="outline"
                 size="sm"
-                className={`${isMobileV2 ? 'w-full max-w-[200px] bg-black text-white border-black hover:bg-black/80 hover:text-white' : 'w-full border-border'} text-xs uppercase tracking-[0.25em]`}
-                onClick={() => navigate('/login?signup=true')}
+                className="w-full border-border hover:bg-secondary/50 text-xs uppercase tracking-[0.25em] justify-start"
+                onClick={() => navigate('/login?mode=signup')}
               >
                 <UserPlus className="mr-2 h-3.5 w-3.5" />
                 Sign Up
@@ -414,11 +380,11 @@ export function UserMenu({ trigger, onSignOut }: { trigger?: React.ReactNode; on
                 type="button"
                 variant="outline"
                 size="sm"
-                className={`${isMobileV2 ? 'w-full max-w-[200px] bg-black text-white border-black hover:bg-black/80 hover:text-white' : 'w-full border-border'} text-xs uppercase tracking-[0.25em]`}
+                className="w-full border-border hover:bg-secondary/50 text-xs uppercase tracking-[0.25em] justify-start"
                 onClick={() => navigate('/login')}
               >
                 <LogIn className="mr-2 h-3.5 w-3.5" />
-                Login
+                Sign In
               </Button>
             </div>
           </>
@@ -427,20 +393,20 @@ export function UserMenu({ trigger, onSignOut }: { trigger?: React.ReactNode; on
 
       {/* Sign Out Confirmation Dialog */}
       <AlertDialog open={showSignOutConfirm} onOpenChange={setShowSignOutConfirm}>
-        <AlertDialogContent className={`rounded-3xl border border-border/60 bg-card/95 backdrop-blur-xl shadow-xl ${isMobileV2 ? 'max-w-[85vw] px-4 py-6' : 'max-w-lg'}`}>
+        <AlertDialogContent className="rounded-3xl border border-border/60 bg-card/95 backdrop-blur-xl shadow-xl max-w-lg">
           <AlertDialogHeader className="text-left">
             <AlertDialogTitle className="text-lg font-semibold tracking-tight">Sign Out</AlertDialogTitle>
             <AlertDialogDescription className="text-sm text-muted-foreground mt-2">
               Are you sure you want to sign out? Your session will be ended and you'll need to sign in again.
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter className={`flex flex-row gap-3 mt-6 ${isMobileV2 ? 'justify-center items-center' : 'sm:justify-end'}`}>
-            <AlertDialogCancel className={`${isMobileV2 ? 'flex-1 max-w-[140px]' : 'flex-1 sm:flex-initial'} border-border uppercase tracking-[0.2em] text-xs`}>
+          <AlertDialogFooter className="flex flex-row gap-3 mt-6 sm:justify-end">
+            <AlertDialogCancel className="flex-1 sm:flex-initial border-border uppercase tracking-[0.2em] text-xs">
               Cancel
             </AlertDialogCancel>
             <AlertDialogAction 
               onClick={handleSignOut} 
-              className={`${isMobileV2 ? 'flex-1 max-w-[140px]' : 'flex-1 sm:flex-initial'} bg-destructive text-destructive-foreground hover:bg-destructive/90 uppercase tracking-[0.2em] text-xs`}
+              className="flex-1 sm:flex-initial bg-destructive text-destructive-foreground hover:bg-destructive/90 uppercase tracking-[0.2em] text-xs"
             >
               Sign Out
             </AlertDialogAction>
