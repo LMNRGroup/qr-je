@@ -129,7 +129,8 @@
     -webkit-overflow-scrolling: touch;
   }
 
-  html[data-mobile-ui="v2"] .glass-panel > div:first-child {
+  /* Only apply sticky background to drawer headers, not all glass-panel first children */
+  html[data-mobile-ui="v2"] .qrc-v2-drawer .glass-panel > div:first-child {
     position: sticky;
     top: 0;
     background: hsl(var(--card) / 0.95);

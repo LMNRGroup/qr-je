@@ -7,6 +7,7 @@ import { ArrowRight, Loader2, Lock, Mail } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
+import { LogoParticleAnimation } from '@/components/LogoParticleAnimation';
 
 const Login = () => {
   const [email, setEmail] = useState('');
@@ -64,12 +65,22 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#0b0f14] text-foreground flex items-center justify-center p-4">
-      {/* Background gradient */}
+    <div className="min-h-screen bg-[#0b0f14] text-foreground flex items-center justify-center p-4 relative overflow-hidden">
+      {/* Particle Logo Animation Background */}
       <div className="fixed inset-0 -z-10 overflow-hidden">
-        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-primary/15 rounded-full blur-3xl animate-pulse" />
-        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-cyan-500/15 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-white/5 rounded-full blur-3xl" />
+        <LogoParticleAnimation
+          logoPath="/assets/QRC App Icon.png"
+          particleSize={6}
+          gridSize={35}
+          className="w-full h-full opacity-30"
+        />
+      </div>
+
+      {/* Background gradient overlay */}
+      <div className="fixed inset-0 -z-10 overflow-hidden">
+        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-primary/10 rounded-full blur-3xl animate-pulse" />
+        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-cyan-500/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-white/3 rounded-full blur-3xl" />
       </div>
 
       <motion.div

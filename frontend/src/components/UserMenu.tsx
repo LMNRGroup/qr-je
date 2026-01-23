@@ -417,14 +417,14 @@ export function UserMenu({ trigger, onSignOut }: { trigger?: React.ReactNode; on
 
       {/* Sign Out Confirmation Dialog */}
       <AlertDialog open={showSignOutConfirm} onOpenChange={setShowSignOutConfirm}>
-        <AlertDialogContent className={`glass-panel rounded-3xl border-border/60 ${isMobileV2 ? 'max-w-[85vw] px-4 py-6' : 'max-w-lg'}`}>
+        <AlertDialogContent className={`rounded-3xl border border-border/60 bg-card/95 backdrop-blur-xl shadow-xl ${isMobileV2 ? 'max-w-[85vw] px-4 py-6' : 'max-w-lg'}`}>
           <AlertDialogHeader className="text-left">
             <AlertDialogTitle className="text-lg font-semibold tracking-tight">Sign Out</AlertDialogTitle>
             <AlertDialogDescription className="text-sm text-muted-foreground mt-2">
               Are you sure you want to sign out? Your session will be ended and you'll need to sign in again.
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter className={`flex flex-row gap-3 mt-6 ${isMobileV2 ? 'justify-center' : 'sm:justify-end'}`}>
+          <AlertDialogFooter className={`flex flex-row gap-3 mt-6 ${isMobileV2 ? 'justify-center items-center' : 'sm:justify-end'}`}>
             <AlertDialogCancel className={`${isMobileV2 ? 'flex-1 max-w-[140px]' : 'flex-1 sm:flex-initial'} border-border uppercase tracking-[0.2em] text-xs`}>
               Cancel
             </AlertDialogCancel>
