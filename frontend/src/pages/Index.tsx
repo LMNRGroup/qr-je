@@ -257,9 +257,11 @@ const Index = () => {
       month: '2-digit',
       day: '2-digit',
     });
-    const labelFormatter = new Intl.DateTimeFormat('en-US', {
+    // Show actual dates (MM/DD) instead of just weekdays
+    const dateFormatter = new Intl.DateTimeFormat('en-US', {
       timeZone: trendTimeZone,
-      weekday: 'short',
+      month: 'short',
+      day: 'numeric',
     });
     const map = new Map<string, number>();
     intelTrends.forEach((point) => {
@@ -267,18 +269,32 @@ const Index = () => {
       const key = keyFormatter.format(new Date(point.date));
       map.set(key, point.count ?? 0);
     });
+    
+    // Determine number of days based on intelRange
+    let days = 7; // default
+    if (intelRange === 'today') {
+      days = 1;
+    } else if (intelRange === '7d') {
+      days = 7;
+    } else if (intelRange === '30d') {
+      days = 30;
+    } else if (intelRange === 'all') {
+      // For "all", show last 30 days as a reasonable default
+      days = 30;
+    }
+    
     const today = new Date();
-    return Array.from({ length: 7 }, (_, index) => {
+    return Array.from({ length: days }, (_, index) => {
       const date = new Date(today);
-      date.setDate(today.getDate() - (6 - index));
+      date.setDate(today.getDate() - (days - 1 - index));
       const key = keyFormatter.format(date);
       return {
         date,
         count: map.get(key) ?? 0,
-        label: labelFormatter.format(date),
+        label: dateFormatter.format(date), // Show actual date like "Jan 15"
       };
     });
-  }, [intelTrends, trendTimeZone]);
+  }, [intelTrends, trendTimeZone, intelRange]);
   const productionStages = useMemo(
     () => [
       {
@@ -781,7 +797,21 @@ const Index = () => {
       userProfile?.timezone ||
       profileForm.timezone ||
       Intl.DateTimeFormat().resolvedOptions().timeZone;
-    getScanTrends(7, timeZone)
+    
+    // Determine number of days based on intelRange
+    let days = 7; // default
+    if (intelRange === 'today') {
+      days = 1;
+    } else if (intelRange === '7d') {
+      days = 7;
+    } else if (intelRange === '30d') {
+      days = 30;
+    } else if (intelRange === 'all') {
+      // For "all", show last 30 days as a reasonable default
+      days = 30;
+    }
+    
+    getScanTrends(days, timeZone)
       .then((points) => {
         if (cancelled) return;
         setIntelTrends(points);
@@ -794,7 +824,7 @@ const Index = () => {
     return () => {
       cancelled = true;
     };
-  }, [activeTab, isSessionReady, profileForm.timezone, userProfile?.timezone]);
+  }, [activeTab, intelRange, isSessionReady, profileForm.timezone, userProfile?.timezone]);
 
   useEffect(() => {
     if (!isSessionReady) return;
@@ -3446,9 +3476,9 @@ const Index = () => {
           <p className="text-lg sm:text-2xl font-semibold mt-2">
             {intelLoading
               ? '...'
-              : Number.isFinite(intelSummary.avgResponseMs)
-                ? `${(intelSummary.avgResponseMs! / 1000).toFixed(2)}s`
-                : '0'}
+              : Number.isFinite(intelSummary.avgResponseMs) && intelSummary.avgResponseMs !== null
+                ? `${(intelSummary.avgResponseMs / 1000).toFixed(2)}s`
+                : 'N/A'}
           </p>
         </div>
       </div>
@@ -3456,24 +3486,32 @@ const Index = () => {
       <div className="grid sm:grid-cols-2 gap-4">
         <div className="rounded-xl border border-border/60 bg-secondary/30 p-4 sm:col-span-2 lg:col-span-2">
           <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Signal Trends</p>
-          <div className="mt-4 h-24 flex items-end gap-2">
-            {trendPoints.map((point, index, arr) => {
-              const max = Math.max(1, ...arr.map((item) => item.count ?? 0));
-              const height = Math.max(12, Math.round(((point.count ?? 0) / max) * 100));
-              return (
-                <div key={`${point.label}-${index}`} className="flex h-full flex-1 flex-col items-center">
-                  <div className="flex w-full flex-1 items-end">
-                    <div
-                      className="w-full rounded-md bg-gradient-to-t from-amber-300/20 to-amber-300/80"
-                      style={{ height: `${height}%` }}
-                    />
+          <div className="mt-4 h-24 sm:h-32 overflow-x-auto">
+            <div className="h-full flex items-end gap-1 sm:gap-2 min-w-full">
+              {trendPoints.map((point, index, arr) => {
+                const max = Math.max(1, ...arr.map((item) => item.count ?? 0));
+                const height = Math.max(12, Math.round(((point.count ?? 0) / max) * 100));
+                // For 30 days, show every 3rd label to avoid crowding
+                const showLabel = intelRange === '30d' || intelRange === 'all' 
+                  ? index % 3 === 0 || index === arr.length - 1
+                  : true;
+                return (
+                  <div key={`${point.label}-${index}`} className="flex h-full flex-1 flex-col items-center min-w-0">
+                    <div className="flex w-full flex-1 items-end">
+                      <div
+                        className="w-full rounded-md bg-gradient-to-t from-amber-300/20 to-amber-300/80"
+                        style={{ height: `${height}%` }}
+                      />
+                    </div>
+                    {showLabel && (
+                      <span className="mt-2 text-[9px] sm:text-[10px] uppercase tracking-[0.2em] text-muted-foreground whitespace-nowrap">
+                        {point.label}
+                      </span>
+                    )}
                   </div>
-                  <span className="mt-2 text-[10px] uppercase tracking-[0.3em] text-muted-foreground">
-                    {point.label}
-                  </span>
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
           </div>
         </div>
       </div>
@@ -6890,11 +6928,11 @@ const Index = () => {
               <ArsenalPanel
                 refreshKey={arsenalRefreshKey}
                 onStatsChange={setArsenalStats}
-                onScansChange={(total) =>
-                  setScanStats((prev) => ({
-                    total: total > 0 ? Math.max(prev.total, total) : prev.total,
-                  }))
-                }
+                onScansChange={() => {
+                  // Don't update scanStats here - refreshArsenalStats handles it correctly
+                  // via getScanSummary('all') which is the authoritative source
+                  // This callback is kept for ArsenalPanel compatibility but doesn't affect scanStats
+                }}
                 onRefreshRequest={() => setArsenalRefreshKey((prev) => prev + 1)}
                 language={(userProfile?.language ?? profileForm.language) as 'en' | 'es'}
                 timeZone={userProfile?.timezone || profileForm.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone}

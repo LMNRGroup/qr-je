@@ -31,6 +31,23 @@ const Login = () => {
     }
   }, [searchParams]);
 
+  // Prevent body scrolling on login page (PWA/mobile)
+  // Force dark mode on login page to ensure consistent styling
+  useEffect(() => {
+    document.body.style.overflow = 'hidden';
+    document.documentElement.style.overflow = 'hidden';
+    
+    // Force dark mode on login page
+    document.documentElement.classList.add('dark');
+    
+    return () => {
+      document.body.style.overflow = '';
+      document.documentElement.style.overflow = '';
+      // Note: We don't remove 'dark' class on unmount to avoid flicker
+      // The theme system will handle it if user navigates away
+    };
+  }, []);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -68,7 +85,7 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#0b0f14] text-foreground flex items-center justify-center p-4 relative overflow-hidden">
+    <div className="h-full bg-[#0b0f14] text-foreground flex items-center justify-center p-4 relative overflow-hidden">
       {/* Static background - base gradient */}
       <div className="fixed inset-0 -z-20 overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-[#0b0f14] via-[#1a1f2e] to-[#0b0f14]" />
@@ -86,10 +103,10 @@ const Login = () => {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
-        className="w-full max-w-md relative z-10"
+        className="w-full max-w-md relative z-10 max-h-full overflow-y-auto py-4"
       >
         {/* Logo */}
-        <div className="flex flex-col items-center mb-8">
+        <div className="flex flex-col items-center mb-6 sm:mb-8">
           <motion.img
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
@@ -109,14 +126,14 @@ const Login = () => {
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ delay: 0.1 }}
-          className="glass-panel rounded-2xl p-8 bg-[#121621]/80 border border-white/5"
+          className="rounded-2xl p-6 sm:p-8 bg-[#121621]/90 backdrop-blur-2xl border border-white/10 shadow-xl"
         >
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.3 }}
           >
-                <form onSubmit={handleSubmit} className="space-y-6">
+                <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
                   {isSignUp && (
                     <>
                       <div className="space-y-2">

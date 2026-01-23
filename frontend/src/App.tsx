@@ -19,8 +19,8 @@ const App = () => (
       <AuthProvider>
         <DebugOverlay />
         <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-          <div className="flex flex-col sm:min-h-[100dvh]">
-            <div className="sm:flex-1">
+          <div className="flex flex-col h-[100dvh]">
+            <div className="flex-1 min-h-0 overflow-hidden">
               <Routes>
                 <Route path="/" element={<Index />} />
                 <Route path="/login" element={<Login />} />
@@ -32,7 +32,7 @@ const App = () => (
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </div>
-            <footer className="px-4 py-2 sm:pb-6 sm:pt-8 text-center text-xs text-muted-foreground">
+            <footer className="flex-shrink-0 px-4 py-2 sm:pb-6 sm:pt-8 text-center text-xs text-muted-foreground">
               <a
                 href="/terms"
                 className="text-muted-foreground/70 hover:text-muted-foreground transition"
