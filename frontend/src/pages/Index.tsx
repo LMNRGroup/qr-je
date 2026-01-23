@@ -1269,8 +1269,8 @@ const Index = () => {
     }
     // Require authentication for dynamic QR codes
     if (qrMode === 'dynamic' && !user) {
-      toast.error('Please sign in to create dynamic QR codes');
-      navigate('/login');
+      toast.info('Create a free account to access these features no credit card required!');
+      navigate('/login?mode=signup');
       return;
     }
     if (!canGenerate) {
@@ -1527,8 +1527,8 @@ const Index = () => {
 
   const handleStartVcard = () => {
     if (!user) {
-      toast.error('Please sign in to create vCard QR codes');
-      navigate('/login');
+      toast.info('Create a free account to access these features no credit card required!');
+      navigate('/login?mode=signup');
       return;
     }
     setQrMode(null);
@@ -1575,8 +1575,8 @@ const Index = () => {
 
   const handleStartFile = () => {
     if (!user) {
-      toast.error('Please sign in to create file QR codes');
-      navigate('/login');
+      toast.info('Create a free account to access these features no credit card required!');
+      navigate('/login?mode=signup');
       return;
     }
     setQrMode(null);
@@ -1595,8 +1595,8 @@ const Index = () => {
 
   const handleStartMenu = () => {
     if (!user) {
-      toast.error('Please sign in to create menu QR codes');
-      navigate('/login');
+      toast.info('Create a free account to access these features no credit card required!');
+      navigate('/login?mode=signup');
       return;
     }
     setQrMode(null);
@@ -2524,8 +2524,8 @@ const Index = () => {
 
   const openMenuBuilder = () => {
     if (!user) {
-      toast.error('Please sign in to create menu QR codes');
-      navigate('/login');
+      toast.info('Create a free account to access these features no credit card required!');
+      navigate('/login?mode=signup');
       return;
     }
     setShowMenuBuilder(true);
@@ -6018,8 +6018,8 @@ const Index = () => {
                         : 'bg-secondary/40 border border-border/60 text-muted-foreground rounded-xl uppercase tracking-[0.2em] text-xs hover:text-primary'}
                       onClick={() => {
                         if (!user) {
-                          toast.error('Please sign in to create dynamic QR codes');
-                          navigate('/login');
+                          toast.info('Create a free account to access these features no credit card required!');
+                          navigate('/login?mode=signup');
                           return;
                         }
                         setQrMode('dynamic');
