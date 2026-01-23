@@ -2,7 +2,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/contexts/AuthContext';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowRight, Loader2, Lock, Mail } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
@@ -102,172 +102,215 @@ const Login = () => {
           transition={{ delay: 0.1 }}
           className="glass-panel rounded-2xl p-8 bg-[#121621]/80 border border-white/5"
         >
-          {!showForm ? (
-            /* First visit - show options */
-            <div className="space-y-4">
-              <Button
-                type="button"
-                onClick={() => {
-                  setIsSignUp(true);
-                  setShowForm(true);
-                }}
-                className="w-full h-12 bg-gradient-to-r from-primary to-cyan-400 hover:opacity-90 text-primary-foreground font-medium glow"
+          <AnimatePresence mode="wait">
+            {!showForm ? (
+              /* First visit - sequential animation */
+              <motion.div
+                key="options"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="space-y-4"
               >
-                Sign Up For Free
-              </Button>
-              <p className="text-center text-xs text-muted-foreground/70">
-                NO CREDIT CARD REQUIRED
-              </p>
-              <Button
-                type="button"
-                onClick={() => {
-                  setIsSignUp(false);
-                  setShowForm(true);
-                }}
-                variant="outline"
-                className="w-full h-12 border-border hover:bg-secondary/50"
+                {/* Sign Up For Free - appears first */}
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.8, duration: 0.5 }}
+                >
+                  <Button
+                    type="button"
+                    onClick={() => {
+                      setIsSignUp(true);
+                      setShowForm(true);
+                    }}
+                    className="w-full h-12 bg-gradient-to-r from-primary to-cyan-400 hover:opacity-90 text-primary-foreground font-medium glow"
+                  >
+                    Sign Up For Free
+                  </Button>
+                </motion.div>
+
+                {/* NO CREDIT CARD REQUIRED - appears with sign up button */}
+                <motion.p
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 0.8, duration: 0.5 }}
+                  className="text-center text-xs text-muted-foreground/70"
+                >
+                  NO CREDIT CARD REQUIRED
+                </motion.p>
+
+                {/* Login - appears after delay */}
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 2.0, duration: 0.5 }}
+                >
+                  <Button
+                    type="button"
+                    onClick={() => {
+                      setIsSignUp(false);
+                      setShowForm(true);
+                    }}
+                    variant="outline"
+                    className="w-full h-12 border-border hover:bg-secondary/50"
+                  >
+                    Login
+                  </Button>
+                </motion.div>
+
+                {/* Continue without account - appears last */}
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 3.2, duration: 0.5 }}
+                  className="pt-2"
+                >
+                  <button
+                    type="button"
+                    onClick={() => navigate('/')}
+                    className="w-full text-xs text-muted-foreground/40 hover:text-muted-foreground/60 transition-colors"
+                  >
+                    Continue without account
+                  </button>
+                </motion.div>
+              </motion.div>
+            ) : (
+              /* Show form when user clicks an option */
+              <motion.div
+                key="form"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                transition={{ duration: 0.3 }}
               >
-                Login
-              </Button>
-              <div className="pt-2">
-                <button
-                  type="button"
-                  onClick={() => navigate('/')}
-                  className="w-full text-xs text-muted-foreground/40 hover:text-muted-foreground/60 transition-colors"
-                >
-                  Continue without account
-                </button>
-              </div>
-            </div>
-          ) : (
-            /* Show form when user clicks an option */
-            <>
-              <form onSubmit={handleSubmit} className="space-y-6">
-                {isSignUp && (
-                  <>
-                    <div className="space-y-2">
-                      <Label htmlFor="fullName" className="text-sm font-medium">
-                        Full Name
-                      </Label>
-                      <Input
-                        id="fullName"
-                        placeholder="Jane Doe"
-                        value={fullName}
-                        onChange={(e) => setFullName(e.target.value)}
-                        className="h-12 bg-secondary/50 border-border focus:border-primary input-glow"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="username" className="text-sm font-medium">
-                        Username
-                      </Label>
-                      <Input
-                        id="username"
-                        placeholder="username"
-                        value={username}
-                        onChange={(e) => setUsername(e.target.value.slice(0, 18))}
-                        className="h-12 bg-secondary/50 border-border focus:border-primary input-glow"
-                      />
-                    </div>
-                  </>
-                )}
-                <div className="space-y-2">
-                  <Label htmlFor="email" className="text-sm font-medium">
-                    Email
-                  </Label>
-                  <div className="relative">
-                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      id="email"
-                      type="email"
-                      placeholder="you@example.com"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      className="pl-10 h-12 bg-secondary/50 border-border focus:border-primary input-glow"
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="password" className="text-sm font-medium">
-                    Password
-                  </Label>
-                  <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      id="password"
-                      type="password"
-                      placeholder="••••••••"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      className="pl-10 h-12 bg-secondary/50 border-border focus:border-primary input-glow"
-                    />
-                  </div>
-                </div>
-
-                {isSignUp && (
-                  <label className="flex items-start gap-3 text-xs text-muted-foreground">
-                    <input
-                      type="checkbox"
-                      checked={acceptedTerms}
-                      onChange={(e) => setAcceptedTerms(e.target.checked)}
-                      className="mt-0.5 accent-primary"
-                    />
-                    <span>
-                      I agree to the Terms & Conditions and subscribe for free updates.
-                    </span>
-                  </label>
-                )}
-
-                <Button
-                  type="submit"
-                  disabled={loading}
-                  className="w-full h-12 bg-gradient-to-r from-primary to-cyan-400 hover:opacity-90 text-primary-foreground font-medium glow"
-                >
-                  {loading ? (
-                    <Loader2 className="h-5 w-5 animate-spin" />
-                  ) : (
+                <form onSubmit={handleSubmit} className="space-y-6">
+                  {isSignUp && (
                     <>
-                      {isSignUp ? 'Create Account' : 'Sign In'}
-                      <ArrowRight className="ml-2 h-4 w-4" />
+                      <div className="space-y-2">
+                        <Label htmlFor="fullName" className="text-sm font-medium">
+                          Full Name
+                        </Label>
+                        <Input
+                          id="fullName"
+                          placeholder="Jane Doe"
+                          value={fullName}
+                          onChange={(e) => setFullName(e.target.value)}
+                          className="h-12 bg-secondary/50 border-border focus:border-primary input-glow"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="username" className="text-sm font-medium">
+                          Username
+                        </Label>
+                        <Input
+                          id="username"
+                          placeholder="username"
+                          value={username}
+                          onChange={(e) => setUsername(e.target.value.slice(0, 18))}
+                          className="h-12 bg-secondary/50 border-border focus:border-primary input-glow"
+                        />
+                      </div>
                     </>
                   )}
-                </Button>
-              </form>
-
-              <div className="mt-6 text-center space-y-3">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsSignUp(!isSignUp);
-                    setEmail('');
-                    setPassword('');
-                    setFullName('');
-                    setUsername('');
-                    setAcceptedTerms(false);
-                  }}
-                  className="text-sm text-muted-foreground hover:text-primary transition-colors"
-                >
-                  {isSignUp ? (
-                    <>Already have an account? <span className="text-primary font-medium">Sign in</span></>
-                  ) : (
-                    <>Don't have an account? <span className="text-primary font-medium">Sign up</span></>
-                  )}
-                </button>
-                {!isSignUp && (
-                  <div>
-                    <button
-                      type="button"
-                      onClick={() => navigate('/')}
-                      className="text-xs text-muted-foreground/40 hover:text-muted-foreground/60 transition-colors"
-                    >
-                      Continue without account
-                    </button>
+                  <div className="space-y-2">
+                    <Label htmlFor="email" className="text-sm font-medium">
+                      Email
+                    </Label>
+                    <div className="relative">
+                      <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        id="email"
+                        type="email"
+                        placeholder="you@example.com"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        className="pl-10 h-12 bg-secondary/50 border-border focus:border-primary input-glow"
+                      />
+                    </div>
                   </div>
-                )}
-              </div>
-            </>
-          )}
+
+                  <div className="space-y-2">
+                    <Label htmlFor="password" className="text-sm font-medium">
+                      Password
+                    </Label>
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        id="password"
+                        type="password"
+                        placeholder="••••••••"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        className="pl-10 h-12 bg-secondary/50 border-border focus:border-primary input-glow"
+                      />
+                    </div>
+                  </div>
+
+                  {isSignUp && (
+                    <label className="flex items-start gap-3 text-xs text-muted-foreground">
+                      <input
+                        type="checkbox"
+                        checked={acceptedTerms}
+                        onChange={(e) => setAcceptedTerms(e.target.checked)}
+                        className="mt-0.5 accent-primary"
+                      />
+                      <span>
+                        I agree to the Terms & Conditions and subscribe for free updates.
+                      </span>
+                    </label>
+                  )}
+
+                  <Button
+                    type="submit"
+                    disabled={loading}
+                    className="w-full h-12 bg-gradient-to-r from-primary to-cyan-400 hover:opacity-90 text-primary-foreground font-medium glow"
+                  >
+                    {loading ? (
+                      <Loader2 className="h-5 w-5 animate-spin" />
+                    ) : (
+                      <>
+                        {isSignUp ? 'Create Account' : 'Sign In'}
+                        <ArrowRight className="ml-2 h-4 w-4" />
+                      </>
+                    )}
+                  </Button>
+                </form>
+
+                <div className="mt-6 text-center space-y-3">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsSignUp(!isSignUp);
+                      setEmail('');
+                      setPassword('');
+                      setFullName('');
+                      setUsername('');
+                      setAcceptedTerms(false);
+                    }}
+                    className="text-sm text-muted-foreground hover:text-primary transition-colors"
+                  >
+                    {isSignUp ? (
+                      <>Already have an account? <span className="text-primary font-medium">Sign in</span></>
+                    ) : (
+                      <>Don't have an account? <span className="text-primary font-medium">Sign up</span></>
+                    )}
+                  </button>
+                  {!isSignUp && (
+                    <div>
+                      <button
+                        type="button"
+                        onClick={() => navigate('/')}
+                        className="text-xs text-muted-foreground/40 hover:text-muted-foreground/60 transition-colors"
+                      >
+                        Continue without account
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </motion.div>
 
       </motion.div>
