@@ -84,7 +84,6 @@ const BUILD_STAMP = '2026-01-20T16:52:00Z';
 const GUEST_WELCOME_KEY = `qr.guest.welcome.${BUILD_STAMP}`;
 const TOUR_GUEST_KEY = `qr.tour.guest.${BUILD_STAMP}`;
 const QR_ASSETS_BUCKET = 'qr-uploads';
-const MAX_FILE_BYTES = 5 * 1024 * 1024;
 const MAX_MENU_FILE_BYTES = 10 * 1024 * 1024; // 10MB for images (before compression)
 const MAX_MENU_PDF_BYTES = 10 * 1024 * 1024; // 10MB for PDFs (before compression)
 const MAX_MENU_TOTAL_BYTES = 10 * 1024 * 1024; // 10MB total for menu (before compression)
@@ -143,6 +142,7 @@ const Index = () => {
   const [phoneNumber, setPhoneNumber] = useState('');
   const [phoneTouched, setPhoneTouched] = useState(false);
   const [fileUrl, setFileUrl] = useState('');
+  const [fileSize, setFileSize] = useState<number>(0); // Compressed file size in bytes
   const [fileName, setFileName] = useState('');
   const [fileTouched, setFileTouched] = useState(false);
   const [isBooting, setIsBooting] = useState(true);
@@ -463,7 +463,7 @@ const Index = () => {
   const photoDragState = useRef({ dragging: false, startX: 0, startY: 0, startPhotoX: 50, startPhotoY: 50 });
   const [showMenuBuilder, setShowMenuBuilder] = useState(false);
   const [menuType, setMenuType] = useState<'restaurant' | 'service'>('restaurant');
-  const [menuFiles, setMenuFiles] = useState<{ url: string; type: 'image' | 'pdf' }[]>([]);
+  const [menuFiles, setMenuFiles] = useState<{ url: string; type: 'image' | 'pdf'; size: number }[]>([]);
   const [menuFlip, setMenuFlip] = useState(false);
   const [menuCarouselIndex, setMenuCarouselIndex] = useState(0);
   const menuSwipeRef = useRef({ dragging: false, startX: 0, currentX: 0 });
@@ -1343,6 +1343,7 @@ const Index = () => {
               ...optionsSnapshot,
               fileName: fileName || 'File QR',
               fileUrl,
+              fileSize,
             }
             : qrType === 'menu'
               ? {
@@ -1377,6 +1378,7 @@ const Index = () => {
                     ...options,
                     fileName: fileName || 'File QR',
                     fileUrl,
+                    fileSize,
                   }
                   : {
                     ...options,
@@ -2396,13 +2398,13 @@ const Index = () => {
               const compressedPdf = await compressPdf(file);
               const result = await uploadQrAsset(file, 'menus', undefined);
               if (!result?.url) throw new Error('Failed to upload menu PDF.');
-              return { url: result.url, type: 'pdf' as const };
+              return { url: result.url, type: 'pdf' as const, size: result.size };
             }
             // Images: compress aggressively (max 2000px, 75% quality for menus)
             const compressed = await compressImageFile(file, { maxDimension: 2000, quality: 0.75 });
             const result = await uploadQrAsset(file, 'menus', compressed);
             if (!result?.url) throw new Error('Failed to upload menu image.');
-            return { url: result.url, type: 'image' as const };
+            return { url: result.url, type: 'image' as const, size: result.size };
           } catch (error) {
             const message = error instanceof Error ? error.message : 'Failed to upload file.';
             throw new Error(`Failed to upload "${file.name}": ${message}`);
@@ -2479,6 +2481,7 @@ const Index = () => {
         throw new Error('Upload returned no URL.');
       }
       setFileUrl(result.url);
+      setFileSize(result.size);
       setFileName(file.name);
       toast.success('File compressed and uploaded successfully!');
     } catch (error) {
