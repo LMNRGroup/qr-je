@@ -349,7 +349,7 @@ const FileViewer = () => {
           <button
             onClick={() => setCurrentPage((prev) => Math.max(0, prev - 1))}
             disabled={currentPage === 0}
-            className="absolute left-4 top-1/2 -translate-y-1/2 z-30 text-white/80 text-2xl font-light disabled:opacity-30 disabled:cursor-not-allowed hover:text-white transition-opacity"
+            className="absolute left-4 top-1/2 -translate-y-1/2 z-30 text-gray-400 text-2xl font-light disabled:opacity-30 disabled:cursor-not-allowed hover:text-gray-300 transition-colors"
             aria-label="Previous page"
           >
             &lt;
@@ -357,7 +357,7 @@ const FileViewer = () => {
           <button
             onClick={() => setCurrentPage((prev) => Math.min(pdfTotalPages - 1, prev + 1))}
             disabled={currentPage === pdfTotalPages - 1}
-            className="absolute right-4 top-1/2 -translate-y-1/2 z-30 text-white/80 text-2xl font-light disabled:opacity-30 disabled:cursor-not-allowed hover:text-white transition-opacity"
+            className="absolute right-4 top-1/2 -translate-y-1/2 z-30 text-gray-400 text-2xl font-light disabled:opacity-30 disabled:cursor-not-allowed hover:text-gray-300 transition-colors"
             aria-label="Next page"
           >
             &gt;
@@ -365,10 +365,10 @@ const FileViewer = () => {
         </>
       )}
 
-      {/* Page indicator - bottom right, subtle, format: 4/6 */}
+      {/* Page indicator - below PDF, centered, format: 4/6 */}
       {isPdf && isMultiPagePdf && (
-        <div className="absolute bottom-20 right-4 z-30">
-          <span className="text-xs text-white/60 font-light">
+        <div className="absolute bottom-24 left-1/2 -translate-x-1/2 z-30">
+          <span className="text-xs text-gray-400 font-light">
             {currentPage + 1}/{pdfTotalPages}
           </span>
         </div>
