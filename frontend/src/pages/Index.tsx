@@ -7293,14 +7293,32 @@ const Index = () => {
                       className="bg-secondary/40 border-border"
                     />
                   </div>
-                  <Button
-                    type="button"
-                    className="bg-gradient-primary text-primary-foreground uppercase tracking-[0.2em] text-xs"
-                    onClick={handleProfileSave}
-                    disabled={profileSaving}
-                  >
-                    {profileSaving ? t('Saving...', 'Guardando...') : t('Save Preferences', 'Guardar preferencias')}
-                  </Button>
+                  {(() => {
+                    if (!initialProfileForm) return null;
+                    const hasChanges =
+                      profileForm.fullName !== initialProfileForm.fullName ||
+                      profileForm.username !== initialProfileForm.username ||
+                      profileForm.timezone !== initialProfileForm.timezone ||
+                      profileForm.language !== initialProfileForm.language ||
+                      profileForm.leftie !== initialProfileForm.leftie ||
+                      profileForm.avatarType !== initialProfileForm.avatarType ||
+                      profileForm.avatarColor !== initialProfileForm.avatarColor ||
+                      profileForm.currentPassword !== '' ||
+                      profileForm.newPassword !== '' ||
+                      profileForm.confirmPassword !== '' ||
+                      avatarDirty;
+                    if (!hasChanges) return null;
+                    return (
+                      <Button
+                        type="button"
+                        className="bg-gradient-primary text-primary-foreground uppercase tracking-[0.2em] text-xs"
+                        onClick={handleProfileSave}
+                        disabled={profileSaving}
+                      >
+                        {profileSaving ? t('Saving...', 'Guardando...') : t('Save Preferences', 'Guardar preferencias')}
+                      </Button>
+                    );
+                  })()}
                 </div>
               </div>
             )}
