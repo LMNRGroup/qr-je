@@ -36,10 +36,10 @@ export const FloatingParticles = ({
     y: Math.random() * 100,
     size: sizeRange[0] + Math.random() * (sizeRange[1] - sizeRange[0]),
     opacity: opacityRange[0] + Math.random() * (opacityRange[1] - opacityRange[0]),
-    duration: 20 + Math.random() * 30, // 20-50 seconds
-    delay: Math.random() * 5,
-    xOffset: (Math.random() - 0.5) * 20, // -10 to 10
-    yOffset: (Math.random() - 0.5) * 20, // -10 to 10
+    duration: (15 + Math.random() * 20) * speed, // Adjusted by speed multiplier
+    delay: Math.random() * 2,
+    xOffset: (Math.random() - 0.5) * 100, // -50 to 50 pixels
+    yOffset: (Math.random() - 0.5) * 100, // -50 to 50 pixels
   }));
 
   if (reducedMotion) {
@@ -83,14 +83,14 @@ export const FloatingParticles = ({
           animate={{
             opacity: [
               particle.opacity,
-              particle.opacity * 0.5,
+              particle.opacity * 0.3,
               particle.opacity,
             ],
             x: [0, particle.xOffset, 0],
             y: [0, particle.yOffset, 0],
           }}
           transition={{
-            duration: particle.duration * speed,
+            duration: particle.duration,
             repeat: Infinity,
             ease: 'easeInOut',
             delay: particle.delay,
