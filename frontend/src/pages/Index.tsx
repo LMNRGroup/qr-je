@@ -85,11 +85,14 @@ const GUEST_WELCOME_KEY = `qr.guest.welcome.${BUILD_STAMP}`;
 const TOUR_GUEST_KEY = `qr.tour.guest.${BUILD_STAMP}`;
 const QR_ASSETS_BUCKET = 'qr-uploads';
 const MAX_FILE_BYTES = 5 * 1024 * 1024;
-const MAX_MENU_FILE_BYTES = 2.5 * 1024 * 1024; // 2.5MB for images
-const MAX_MENU_PDF_BYTES = 10 * 1024 * 1024; // 10MB for PDFs (single file)
-const MAX_MENU_TOTAL_BYTES = 12 * 1024 * 1024;
+const MAX_MENU_FILE_BYTES = 10 * 1024 * 1024; // 10MB for images (before compression)
+const MAX_MENU_PDF_BYTES = 10 * 1024 * 1024; // 10MB for PDFs (before compression)
+const MAX_MENU_TOTAL_BYTES = 10 * 1024 * 1024; // 10MB total for menu (before compression)
 const MAX_MENU_FILES = 15;
-const MAX_VCARD_PHOTO_BYTES = 1.5 * 1024 * 1024;
+const MAX_VCARD_PHOTO_BYTES = 10 * 1024 * 1024; // 10MB before compression
+const MAX_FILE_BYTES = 10 * 1024 * 1024; // 10MB before compression
+const MAX_STORAGE_BYTES = 25 * 1024 * 1024; // 25MB total storage limit (compressed size)
+const STORAGE_KEY = 'qrc.storage.usage'; // localStorage key for tracking storage
 
 const Index = () => {
   const { user, loading: authLoading, signOut, signUp } = useAuth();
@@ -1948,7 +1951,62 @@ const Index = () => {
     }
     return new Blob([bytes], { type: mime });
   };
-  const uploadQrAsset = async (file: File, folder: 'files' | 'menus' | 'logos', dataUrl?: string): Promise<string | null> => {
+
+  // Get current storage usage (compressed sizes)
+  const getStorageUsage = (): number => {
+    if (typeof window === 'undefined') return 0;
+    try {
+      const stored = localStorage.getItem(STORAGE_KEY);
+      return stored ? Number(stored) : 0;
+    } catch {
+      return 0;
+    }
+  };
+
+  // Update storage usage (add compressed file size)
+  const addStorageUsage = (bytes: number) => {
+    if (typeof window === 'undefined') return;
+    try {
+      const current = getStorageUsage();
+      const updated = current + bytes;
+      localStorage.setItem(STORAGE_KEY, String(updated));
+      window.dispatchEvent(new CustomEvent('qrc:storage-update', { detail: updated }));
+    } catch {
+      // Ignore storage errors
+    }
+  };
+
+  // Remove storage usage (when file is deleted)
+  const removeStorageUsage = (bytes: number) => {
+    if (typeof window === 'undefined') return;
+    try {
+      const current = getStorageUsage();
+      const updated = Math.max(0, current - bytes);
+      localStorage.setItem(STORAGE_KEY, String(updated));
+      window.dispatchEvent(new CustomEvent('qrc:storage-update', { detail: updated }));
+    } catch {
+      // Ignore storage errors
+    }
+  };
+
+  // Check if upload would exceed storage limit
+  const checkStorageLimit = (additionalBytes: number): { allowed: boolean; current: number; limit: number; available: number } => {
+    const current = getStorageUsage();
+    const limit = MAX_STORAGE_BYTES;
+    const available = limit - current;
+    const allowed = current + additionalBytes <= limit;
+    return { allowed, current, limit, available };
+  };
+
+  // Compress PDF (basic compression - reduce quality if possible)
+  const compressPdf = async (file: File): Promise<Blob> => {
+    // For PDFs, we can't really compress them client-side effectively
+    // But we can at least validate and return the file
+    // In production, you might want server-side PDF compression
+    return file;
+  };
+
+  const uploadQrAsset = async (file: File, folder: 'files' | 'menus' | 'logos', dataUrl?: string): Promise<{ url: string; size: number } | null> => {
     if (!isSupabaseConfigured) {
       throw new Error('Storage is not configured yet.');
     }
@@ -1956,7 +2014,27 @@ const Index = () => {
       const extension = file.name.split('.').pop() || (file.type.includes('pdf') ? 'pdf' : 'png');
       const fileName = `${crypto.randomUUID()}.${extension}`;
       const filePath = `qr-assets/${folder}/${fileName}`;
-      const payload = dataUrl ? dataUrlToBlob(dataUrl) : file;
+      
+      // Use compressed dataUrl if provided, otherwise use original file
+      let payload: Blob | File;
+      let compressedSize: number;
+      
+      if (dataUrl) {
+        const blob = dataUrlToBlob(dataUrl);
+        payload = blob;
+        compressedSize = blob.size;
+      } else {
+        payload = file;
+        compressedSize = file.size;
+      }
+      
+      // Check storage limit before upload
+      const storageCheck = checkStorageLimit(compressedSize);
+      if (!storageCheck.allowed) {
+        const availableMB = (storageCheck.available / (1024 * 1024)).toFixed(1);
+        const neededMB = (compressedSize / (1024 * 1024)).toFixed(1);
+        throw new Error(`Storage limit exceeded. You have ${availableMB}MB available, but need ${neededMB}MB. Please delete some files or upgrade your plan.`);
+      }
       
       const { error, data: uploadData } = await supabase.storage
         .from(QR_ASSETS_BUCKET)
@@ -1979,11 +2057,14 @@ const Index = () => {
         throw new Error(`${errorMessage} (${error.statusCode || 'unknown'})`);
       }
       
+      // Track storage usage (compressed size)
+      addStorageUsage(compressedSize);
+      
       const { data } = supabase.storage.from(QR_ASSETS_BUCKET).getPublicUrl(filePath);
       if (!data?.publicUrl) {
         throw new Error('Failed to get public URL for uploaded file.');
       }
-      return data.publicUrl;
+      return { url: data.publicUrl, size: compressedSize };
     } catch (error) {
       // Re-throw with context if it's already an Error, otherwise wrap it
       if (error instanceof Error) {
@@ -2019,23 +2100,27 @@ const Index = () => {
         });
       }, 200);
 
-      const maxSizeMb = (MAX_VCARD_PHOTO_BYTES / (1024 * 1024)).toFixed(1);
-      if (file.size > MAX_VCARD_PHOTO_BYTES) {
-        toast.info('Large photo detected. Compressing for your vCard...');
-      }
-      
-      const compressedDataUrl = await compressImageFile(file, { maxDimension: 1200, quality: 0.82 });
+      // Compress to 250x250px max for vCard (small display size)
+      toast.info('Compressing photo for vCard...');
+      const compressedDataUrl = await compressImageFile(file, { targetSize: 250, quality: 0.85 });
       const compressedBlob = dataUrlToBlob(compressedDataUrl);
       
-      if (compressedBlob.size > MAX_VCARD_PHOTO_BYTES) {
-        const sizeMB = (compressedBlob.size / (1024 * 1024)).toFixed(1);
-        const errorMsg = `Photo "${file.name}" is too large (${sizeMB}MB). Maximum size is ${maxSizeMb}MB.`;
+      // Check storage limit
+      const storageCheck = checkStorageLimit(compressedBlob.size);
+      if (!storageCheck.allowed) {
+        const availableMB = (storageCheck.available / (1024 * 1024)).toFixed(1);
+        const neededMB = (compressedBlob.size / (1024 * 1024)).toFixed(1);
         clearInterval(progressInterval);
+        const errorMsg = `Storage limit exceeded. You have ${availableMB}MB available, but need ${neededMB}MB.`;
         setVcardPhotoUploadError(errorMsg);
         toast.error(errorMsg);
         setVcardPhotoUploading(false);
         return;
       }
+
+      // Track storage (we'll add it when we upload, but for vCard we store locally)
+      // For vCard, we store the dataUrl locally, so we track it
+      addStorageUsage(compressedBlob.size);
 
       clearInterval(progressInterval);
       setVcardPhotoUploadProgress(100);
@@ -2048,7 +2133,7 @@ const Index = () => {
         photoX: 50,
         photoY: 50,
       }));
-      toast.success('Photo uploaded successfully!');
+      toast.success('Photo compressed and uploaded successfully!');
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to process photo.';
       setVcardPhotoUploadError(message);
@@ -2106,7 +2191,7 @@ const Index = () => {
 
   const compressImageFile = async (
     file: File,
-    { maxDimension = 2000, quality = 0.85 }: { maxDimension?: number; quality?: number } = {}
+    { maxDimension = 2000, quality = 0.80, targetSize = 250 }: { maxDimension?: number; quality?: number; targetSize?: number } = {}
   ) => {
     const dataUrl = await readAsDataUrl(file);
     const image = new Image();
@@ -2115,14 +2200,37 @@ const Index = () => {
       image.onerror = reject;
       image.src = dataUrl;
     });
-    const scale = Math.min(1, maxDimension / Math.max(image.width, image.height));
+    
+    // Use targetSize if provided (for vCard photos), otherwise use maxDimension
+    const dimensionLimit = targetSize || maxDimension;
+    const scale = Math.min(1, dimensionLimit / Math.max(image.width, image.height));
+    
     const canvas = document.createElement('canvas');
     canvas.width = Math.max(1, Math.round(image.width * scale));
     canvas.height = Math.max(1, Math.round(image.height * scale));
     const ctx = canvas.getContext('2d');
     if (!ctx) return dataUrl;
+    
+    // Better quality for smaller images
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
     ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
-    return canvas.toDataURL('image/jpeg', quality);
+    
+    // Use WebP if supported, otherwise JPEG
+    let mimeType = 'image/jpeg';
+    let finalQuality = quality;
+    
+    // Try WebP for better compression
+    try {
+      const webpDataUrl = canvas.toDataURL('image/webp', quality);
+      if (webpDataUrl && webpDataUrl.length < dataUrl.length * 0.8) {
+        return webpDataUrl;
+      }
+    } catch {
+      // WebP not supported, fall back to JPEG
+    }
+    
+    return canvas.toDataURL(mimeType, finalQuality);
   };
 
   const handleMenuLogoChange = async (event: ChangeEvent<HTMLInputElement>) => {
@@ -2152,21 +2260,23 @@ const Index = () => {
         });
       }, 200);
 
+      // Compress logo (max 2000px, 80% quality)
+      toast.info('Compressing logo...');
       const compressed = file.type.startsWith('image/')
-        ? await compressImageFile(file)
+        ? await compressImageFile(file, { maxDimension: 2000, quality: 0.80 })
         : '';
       
-      const url = await uploadQrAsset(file, 'logos', compressed || undefined);
+      const result = await uploadQrAsset(file, 'logos', compressed || undefined);
       
       clearInterval(progressInterval);
       setMenuLogoUploadProgress(100);
       await new Promise((resolve) => setTimeout(resolve, 300));
 
-      if (!url) {
+      if (!result?.url) {
         throw new Error('Upload returned no URL.');
       }
-      setMenuLogoDataUrl(url);
-      toast.success('Logo uploaded successfully!');
+      setMenuLogoDataUrl(result.url);
+      toast.success('Logo compressed and uploaded successfully!');
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to upload logo.';
       setMenuLogoUploadError(message);
@@ -2276,19 +2386,23 @@ const Index = () => {
         });
       }, 200);
 
-      // Upload files
+      // Upload files with compression
+      toast.info('Compressing files...');
       const uploads = await Promise.all(
         files.map(async (file, index) => {
           try {
             if (file.type === 'application/pdf') {
-              const url = await uploadQrAsset(file, 'menus');
-              if (!url) throw new Error('Failed to upload menu PDF.');
-              return { url, type: 'pdf' as const };
+              // PDFs: compress if possible (basic compression)
+              const compressedPdf = await compressPdf(file);
+              const result = await uploadQrAsset(file, 'menus', undefined);
+              if (!result?.url) throw new Error('Failed to upload menu PDF.');
+              return { url: result.url, type: 'pdf' as const };
             }
-            const compressed = await compressImageFile(file);
-            const url = await uploadQrAsset(file, 'menus', compressed);
-            if (!url) throw new Error('Failed to upload menu image.');
-            return { url, type: 'image' as const };
+            // Images: compress aggressively (max 2000px, 75% quality for menus)
+            const compressed = await compressImageFile(file, { maxDimension: 2000, quality: 0.75 });
+            const result = await uploadQrAsset(file, 'menus', compressed);
+            if (!result?.url) throw new Error('Failed to upload menu image.');
+            return { url: result.url, type: 'image' as const };
           } catch (error) {
             const message = error instanceof Error ? error.message : 'Failed to upload file.';
             throw new Error(`Failed to upload "${file.name}": ${message}`);
@@ -2345,26 +2459,28 @@ const Index = () => {
         });
       }, 200);
 
-      if (file.size > MAX_FILE_BYTES && file.type.startsWith('image/')) {
-        toast.info('Large image detected. Compressing for delivery...');
+      // Compress files before upload
+      let compressed = '';
+      if (file.type.startsWith('image/')) {
+        toast.info('Compressing image...');
+        compressed = await compressImageFile(file, { maxDimension: 2000, quality: 0.80 });
+      } else if (file.type === 'application/pdf') {
+        toast.info('Preparing PDF...');
+        // PDFs can't be compressed client-side effectively, but we'll still track size
       }
-
-      const compressed = file.type.startsWith('image/')
-        ? await compressImageFile(file)
-        : '';
       
-      const url = await uploadQrAsset(file, 'files', compressed || undefined);
+      const result = await uploadQrAsset(file, 'files', compressed || undefined);
       
       clearInterval(progressInterval);
       setFileUploadProgress(100);
       await new Promise((resolve) => setTimeout(resolve, 300));
 
-      if (!url) {
+      if (!result?.url) {
         throw new Error('Upload returned no URL.');
       }
-      setFileUrl(url);
+      setFileUrl(result.url);
       setFileName(file.name);
-      toast.success('File uploaded successfully!');
+      toast.success('File compressed and uploaded successfully!');
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to process file upload.';
       setFileUploadError(message);

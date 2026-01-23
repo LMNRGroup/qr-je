@@ -31,6 +31,7 @@ export function UserMenu({ trigger, onSignOut }: { trigger?: React.ReactNode; on
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [lastSeenAt, setLastSeenAt] = useState(0);
   const [showSignOutConfirm, setShowSignOutConfirm] = useState(false);
+  const [storageUsage, setStorageUsage] = useState(0);
 
   const displayName = useMemo(() => {
     const metadata = user?.user_metadata as Record<string, string> | undefined;
@@ -344,23 +345,55 @@ export function UserMenu({ trigger, onSignOut }: { trigger?: React.ReactNode; on
             Preferences
           </Button>
           {isMobileV2 && (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="w-full max-w-[200px] bg-black text-white border-black hover:bg-black/80 hover:text-white text-xs uppercase tracking-[0.25em] relative z-10"
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                handleClearCache();
-              }}
-              onPointerDown={(e) => {
-                e.stopPropagation();
-              }}
-            >
-              <RefreshCcw className="mr-2 h-3.5 w-3.5" />
-              Clear cache
-            </Button>
+            <>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="w-full max-w-[200px] bg-black text-white border-black hover:bg-black/80 hover:text-white text-xs uppercase tracking-[0.25em] relative z-10"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  handleClearCache();
+                }}
+                onPointerDown={(e) => {
+                  e.stopPropagation();
+                }}
+              >
+                <RefreshCcw className="mr-2 h-3.5 w-3.5" />
+                Clear cache
+              </Button>
+              {/* Storage Usage Display */}
+              {(() => {
+                const MAX_STORAGE_BYTES = 25 * 1024 * 1024; // 25MB
+                const usedMB = (storageUsage / (1024 * 1024)).toFixed(1);
+                const totalMB = (MAX_STORAGE_BYTES / (1024 * 1024)).toFixed(0);
+                const percentage = Math.min(100, (storageUsage / MAX_STORAGE_BYTES) * 100);
+                const isNearLimit = percentage >= 80;
+                return (
+                  <div className="w-full max-w-[200px] space-y-2">
+                    <div className="flex items-center justify-between text-[10px] uppercase tracking-[0.2em] text-muted-foreground px-1">
+                      <span>Storage</span>
+                      <span className={isNearLimit ? 'text-destructive' : ''}>
+                        {usedMB}MB / {totalMB}MB
+                      </span>
+                    </div>
+                    <div className="relative h-1.5 w-full overflow-hidden rounded-full bg-secondary/30">
+                      <div
+                        className={`h-full rounded-full transition-all duration-300 ${
+                          isNearLimit
+                            ? 'bg-destructive'
+                            : percentage >= 60
+                              ? 'bg-amber-400'
+                              : 'bg-primary'
+                        }`}
+                        style={{ width: `${percentage}%` }}
+                      />
+                    </div>
+                  </div>
+                );
+              })()}
+            </>
           )}
           <Button
             type="button"
