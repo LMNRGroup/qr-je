@@ -223,7 +223,9 @@ const Index = () => {
   const [qrName, setQrName] = useState('QRC Untitled 1');
   const [showVcardCustomizer, setShowVcardCustomizer] = useState(false);
   const [showQrCustomizer, setShowQrCustomizer] = useState(false);
+  const [showVcardContents, setShowVcardContents] = useState(false);
   const [showVcardPreview, setShowVcardPreview] = useState(false);
+  const [vcardFromContents, setVcardFromContents] = useState(false);
   const [vcardPreviewSide, setVcardPreviewSide] = useState<'front' | 'back'>('front');
   const [showStudioBoot, setShowStudioBoot] = useState(false);
   const [showAccountModal, setShowAccountModal] = useState(false);
@@ -1281,6 +1283,10 @@ const Index = () => {
         setShowQrCustomizer(false);
         return;
       }
+      if (showVcardContents) {
+        setShowVcardContents(false);
+        return;
+      }
       if (showAccountModal) {
         setShowAccountModal(false);
         return;
@@ -1291,7 +1297,7 @@ const Index = () => {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedPlanComparison, showAccountModal, showGuestWelcome, showMenuBuilder, showVcardCustomizer, showQrCustomizer]);
+  }, [selectedPlanComparison, showAccountModal, showGuestWelcome, showMenuBuilder, showVcardCustomizer, showQrCustomizer, showVcardContents]);
 
   useEffect(() => {
     if (!pendingCreateScroll) return;
@@ -3206,6 +3212,16 @@ const Index = () => {
   }, [showQrCustomizer]);
 
   useEffect(() => {
+    if (typeof document === 'undefined') return;
+    if (!showVcardContents) return;
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = originalOverflow;
+    };
+  }, [showVcardContents]);
+
+  useEffect(() => {
     if (!showVcardCustomizer) {
       setShowVcardPreview(false);
     }
@@ -4548,6 +4564,11 @@ const Index = () => {
                     onClick={() => {
                       setVcardPreviewSide('front');
                       setShowVcardCustomizer(false);
+                      // If we came from vCard contents overlay, open QR customizer
+                      if (vcardFromContents) {
+                        setVcardFromContents(false);
+                        setShowQrCustomizer(true);
+                      }
                     }}
                   >
                     Done
@@ -5210,6 +5231,123 @@ const Index = () => {
         </div>
       )}
 
+      {/* VCard Contents Overlay - Step 3 */}
+      {showVcardContents && (
+        <div
+          className="fixed inset-0 z-[70] flex items-center justify-center bg-background/70 backdrop-blur-md px-2 sm:px-4 py-4"
+          onClick={() => setShowVcardContents(false)}
+        >
+          <div
+            className="glass-panel rounded-3xl p-4 sm:p-6 w-full max-w-4xl space-y-4 relative max-h-[90dvh] overflow-y-auto overscroll-contain"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <button
+              type="button"
+              className="absolute right-4 top-4 text-xs uppercase tracking-[0.3em] text-muted-foreground transition hover:text-foreground z-10"
+              onClick={() => setShowVcardContents(false)}
+            >
+              X
+            </button>
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <div>
+                <p className="text-xs uppercase tracking-[0.35em] text-muted-foreground">VCard</p>
+                <h2 className="text-2xl font-semibold">Enter your contact information</h2>
+                <p className="text-sm text-muted-foreground">
+                  Fill in your details to create your virtual business card.
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-6">
+              <div className="grid sm:grid-cols-2 gap-4">
+                <Input
+                  value={vcard.name}
+                  onChange={(e) => setVcard((prev) => ({ ...prev, name: e.target.value }))}
+                  placeholder="Full Name"
+                  className="bg-secondary/50 border-border"
+                />
+                <Input
+                  value={vcard.company}
+                  onChange={(e) => setVcard((prev) => ({ ...prev, company: e.target.value }))}
+                  placeholder="Company"
+                  className="bg-secondary/50 border-border"
+                />
+                <Input
+                  value={vcard.phone}
+                  onChange={(e) => setVcard((prev) => ({ ...prev, phone: e.target.value }))}
+                  placeholder="Phone"
+                  className="bg-secondary/50 border-border"
+                />
+                <Input
+                  value={vcard.email}
+                  onChange={(e) => setVcard((prev) => ({ ...prev, email: e.target.value }))}
+                  placeholder="Email"
+                  type="email"
+                  className="bg-secondary/50 border-border"
+                />
+                <Input
+                  value={vcard.website}
+                  onChange={(e) => setVcard((prev) => ({ ...prev, website: e.target.value }))}
+                  placeholder="Website"
+                  className="bg-secondary/50 border-border"
+                />
+                <Input
+                  value={vcard.slug}
+                  onChange={(e) => setVcard((prev) => ({ ...prev, slug: e.target.value }))}
+                  placeholder="Profile Slug (optional)"
+                  className="bg-secondary/50 border-border"
+                />
+              </div>
+              <div className="space-y-2">
+                <Textarea
+                  value={vcard.about}
+                  onChange={(e) => setVcard((prev) => ({ ...prev, about: e.target.value }))}
+                  placeholder="About Me (max 250 characters)"
+                  maxLength={250}
+                  className="bg-secondary/50 border-border"
+                />
+                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                  <span>Virtual card hosted at QR Code Studio</span>
+                  <span>{vcard.about.length}/250</span>
+                </div>
+                <Input
+                  value={vcardUrl || 'https://qrcode.luminarapps.com/your-handle'}
+                  readOnly
+                  className="bg-secondary/40 border-border text-xs text-muted-foreground"
+                />
+              </div>
+              <div className="flex flex-col sm:flex-row gap-3">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="flex-1 border border-amber-400/80 bg-amber-200/60 text-amber-900 shadow-[0_0_18px_rgba(251,191,36,0.15)] hover:border-amber-400 hover:bg-amber-200/70 uppercase tracking-[0.2em] text-xs dark:border-amber-300/70 dark:bg-amber-300/15 dark:text-amber-200 dark:hover:border-amber-300 dark:hover:bg-amber-300/25"
+                  onClick={() => {
+                    setShowVcardContents(false);
+                    setVcardFromContents(true);
+                    setShowVcardCustomizer(true);
+                    setVcardPreviewSide('front');
+                  }}
+                >
+                  Customize VCard
+                </Button>
+                <Button
+                  type="button"
+                  size="lg"
+                  className="flex-1 gap-2 bg-gradient-primary hover:opacity-90 text-primary-foreground glow uppercase tracking-[0.2em] text-xs"
+                  disabled={!vcard.name}
+                  onClick={() => {
+                    setShowVcardContents(false);
+                    setShowQrCustomizer(true);
+                  }}
+                >
+                  Continue
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* QR Customization Overlay - Mobile V2 and Desktop */}
       {showQrCustomizer && (
         <div
@@ -5238,6 +5376,20 @@ const Index = () => {
             </div>
 
             <div className="space-y-6">
+              {/* QR Preview */}
+              <div className="flex flex-col items-center gap-3">
+                <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">QR Preview</p>
+                <div className="flex justify-center">
+                  <QRPreview
+                    ref={qrRef}
+                    options={previewOptions}
+                    isGenerating={isGenerating}
+                    contentOverride={previewContent}
+                    showCaption={hasGenerated}
+                  />
+                </div>
+              </div>
+
               <Accordion type="multiple" defaultValue={['colors', 'style', 'logo']} className="space-y-2">
                 <AccordionItem value="colors" className="border-none">
                   <AccordionTrigger
@@ -6734,6 +6886,16 @@ const Index = () => {
                           Please enter a valid website URL.
                         </p>
                       )}
+                      {isWebsiteValid && (
+                        <Button
+                          type="button"
+                          size="lg"
+                          className="w-full gap-2 bg-gradient-primary hover:opacity-90 text-primary-foreground glow uppercase tracking-[0.2em] text-xs"
+                          onClick={() => setShowQrCustomizer(true)}
+                        >
+                          Continue
+                        </Button>
+                      )}
                     </div>
                   ) : qrType === 'email' ? (
                     <div className="space-y-3">
@@ -6757,6 +6919,16 @@ const Index = () => {
                           Please enter a valid email address.
                         </p>
                       )}
+                      {isEmailValid && (
+                        <Button
+                          type="button"
+                          size="lg"
+                          className="w-full gap-2 bg-gradient-primary hover:opacity-90 text-primary-foreground glow uppercase tracking-[0.2em] text-xs"
+                          onClick={() => setShowQrCustomizer(true)}
+                        >
+                          Continue
+                        </Button>
+                      )}
                     </div>
                   ) : qrType === 'phone' ? (
                     <div className="space-y-3">
@@ -6779,6 +6951,16 @@ const Index = () => {
                         <p className="text-xs text-destructive">
                           Please enter a valid phone number.
                         </p>
+                      )}
+                      {isPhoneValid && (
+                        <Button
+                          type="button"
+                          size="lg"
+                          className="w-full gap-2 bg-gradient-primary hover:opacity-90 text-primary-foreground glow uppercase tracking-[0.2em] text-xs"
+                          onClick={() => setShowQrCustomizer(true)}
+                        >
+                          Continue
+                        </Button>
                       )}
                     </div>
                   ) : qrType === 'file' ? (
@@ -6879,73 +7061,13 @@ const Index = () => {
                         <Sparkles className="h-4 w-4 text-primary" />
                         <h3 className="font-semibold">Step 3 · VCard Contents</h3>
                       </div>
-                      <div className="grid sm:grid-cols-2 gap-4">
-                        <Input
-                          value={vcard.name}
-                          onChange={(e) => setVcard((prev) => ({ ...prev, name: e.target.value }))}
-                          placeholder="Full Name"
-                          className="bg-secondary/50 border-border"
-                        />
-                        <Input
-                          value={vcard.company}
-                          onChange={(e) => setVcard((prev) => ({ ...prev, company: e.target.value }))}
-                          placeholder="Company"
-                          className="bg-secondary/50 border-border"
-                        />
-                        <Input
-                          value={vcard.phone}
-                          onChange={(e) => setVcard((prev) => ({ ...prev, phone: e.target.value }))}
-                          placeholder="Phone"
-                          className="bg-secondary/50 border-border"
-                        />
-                        <Input
-                          value={vcard.email}
-                          onChange={(e) => setVcard((prev) => ({ ...prev, email: e.target.value }))}
-                          placeholder="Email"
-                          type="email"
-                          className="bg-secondary/50 border-border"
-                        />
-                        <Input
-                          value={vcard.website}
-                          onChange={(e) => setVcard((prev) => ({ ...prev, website: e.target.value }))}
-                          placeholder="Website"
-                          className="bg-secondary/50 border-border"
-                        />
-                        <Input
-                          value={vcard.slug}
-                          onChange={(e) => setVcard((prev) => ({ ...prev, slug: e.target.value }))}
-                          placeholder="Profile Slug (optional)"
-                          className="bg-secondary/50 border-border"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Textarea
-                          value={vcard.about}
-                          onChange={(e) => setVcard((prev) => ({ ...prev, about: e.target.value }))}
-                          placeholder="About Me (max 250 characters)"
-                          maxLength={250}
-                          className="bg-secondary/50 border-border"
-                        />
-                        <div className="flex items-center justify-between text-xs text-muted-foreground">
-                          <span>Virtual card hosted at QR Code Studio</span>
-                          <span>{vcard.about.length}/250</span>
-                        </div>
-                        <Input
-                          value={vcardUrl || 'https://qrcode.luminarapps.com/your-handle'}
-                          readOnly
-                          className="bg-secondary/40 border-border text-xs text-muted-foreground"
-                        />
-                      </div>
                       <Button
                         type="button"
-                        variant="outline"
-                        className="mt-2 w-full max-w-xs border border-amber-400/80 bg-amber-200/60 text-amber-900 shadow-[0_0_18px_rgba(251,191,36,0.15)] hover:border-amber-400 hover:bg-amber-200/70 uppercase tracking-[0.2em] text-xs dark:border-amber-300/70 dark:bg-amber-300/15 dark:text-amber-200 dark:hover:border-amber-300 dark:hover:bg-amber-300/25 sm:w-auto sm:max-w-none sm:bg-transparent sm:text-foreground sm:shadow-none"
-                        onClick={() => {
-                          setShowVcardCustomizer(true);
-                          setVcardPreviewSide('front');
-                        }}
+                        size="lg"
+                        className="w-full gap-2 bg-gradient-primary hover:opacity-90 text-primary-foreground glow uppercase tracking-[0.2em] text-xs"
+                        onClick={() => setShowVcardContents(true)}
                       >
-                        Customize VCard
+                        Continue
                       </Button>
                     </div>
                   )
