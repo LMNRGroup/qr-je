@@ -4699,7 +4699,8 @@ const Index = () => {
           className="fixed inset-0 z-[70] flex items-center justify-center bg-background/70 backdrop-blur-md px-2 sm:px-4 py-4"
           onClick={(e) => {
             // Only close if clicking the backdrop itself, not child elements
-            if (e.target === e.currentTarget) {
+            // Don't close if we're uploading or have files uploaded
+            if (e.target === e.currentTarget && !menuUploading && menuFiles.length === 0) {
               setShowMenuBuilder(false);
               setMenuBuilderStep('menu'); // Reset step when closing
             }
