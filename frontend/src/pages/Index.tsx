@@ -145,6 +145,9 @@ const Index = () => {
   const [fileSize, setFileSize] = useState<number>(0); // Compressed file size in bytes
   const [fileName, setFileName] = useState('');
   const [fileTouched, setFileTouched] = useState(false);
+  const [fileUploadProgress, setFileUploadProgress] = useState<number>(0);
+  const [fileUploading, setFileUploading] = useState(false);
+  const [fileUploadError, setFileUploadError] = useState<string | null>(null);
   const [isBooting, setIsBooting] = useState(true);
   const [showIntroAd, setShowIntroAd] = useState(false);
   const [introStep, setIntroStep] = useState(0);
@@ -1977,6 +1980,13 @@ const Index = () => {
     if (!isSupabaseConfigured) {
       throw new Error('Storage is not configured yet.');
     }
+    
+    // Check if user is authenticated
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      throw new Error('You must be signed in to upload files. Please sign in and try again.');
+    }
+    
     try {
       const extension = file.name.split('.').pop() || (file.type.includes('pdf') ? 'pdf' : 'png');
       const fileName = `${crypto.randomUUID()}.${extension}`;
@@ -2017,7 +2027,7 @@ const Index = () => {
         } else if (error.statusCode === '400') {
           errorMessage = 'Invalid file type or format.';
         } else if (error.statusCode === '403') {
-          errorMessage = 'Permission denied. Please check your storage configuration.';
+          errorMessage = 'Permission denied. This usually means:\n1. Your storage policies are not set up correctly\n2. The folder path does not match the policy (must be "files", "menus", or "logos")\n3. You need to be authenticated. Please sign in and try again.\n\nCheck SUPABASE_STORAGE_SETUP.md for policy setup instructions.';
         } else if (error.statusCode === '500' || error.statusCode === '503') {
           errorMessage = 'Storage service is temporarily unavailable. Please try again.';
         }
