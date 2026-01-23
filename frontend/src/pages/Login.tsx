@@ -26,7 +26,12 @@ const Login = () => {
     if (mode === 'signup') {
       setIsSignUp(true);
       setShowForm(true);
+    } else if (mode === 'login' || window.location.pathname === '/login') {
+      // If user navigates to /login directly or with ?mode=login, show login form immediately
+      setIsSignUp(false);
+      setShowForm(true);
     }
+    // Otherwise, show first-visit menu (only on true first visit with no parameters)
   }, [searchParams]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -121,6 +126,7 @@ const Login = () => {
                   <Button
                     type="button"
                     onClick={() => {
+                      localStorage.setItem('qrc.hasSeenFirstVisit', 'true');
                       setIsSignUp(true);
                       setShowForm(true);
                     }}
@@ -149,6 +155,7 @@ const Login = () => {
                   <Button
                     type="button"
                     onClick={() => {
+                      localStorage.setItem('qrc.hasSeenFirstVisit', 'true');
                       setIsSignUp(false);
                       setShowForm(true);
                     }}
@@ -168,7 +175,10 @@ const Login = () => {
                 >
                   <button
                     type="button"
-                    onClick={() => navigate('/')}
+                    onClick={() => {
+                      localStorage.setItem('qrc.hasSeenFirstVisit', 'true');
+                      navigate('/');
+                    }}
                     className="w-full text-xs text-muted-foreground/40 hover:text-muted-foreground/60 transition-colors"
                   >
                     Continue without account
