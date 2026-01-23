@@ -171,6 +171,7 @@
     padding-right: 4px;
     margin-right: -4px;
     padding-bottom: 80px; /* Space for floating save button */
+    background-color: transparent !important; /* Match container color - invisible */
   }
 
   html[data-mobile-ui="v2"] .qrc-config-content::-webkit-scrollbar {

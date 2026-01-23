@@ -7041,7 +7041,7 @@ const Index = () => {
               </div>
             ) : (
               <div className={`glass-panel rounded-2xl p-6 text-sm text-muted-foreground space-y-6 ${isMobileV2 ? 'qrc-config-panel' : ''}`}>
-                <div className={`space-y-4 ${isMobileV2 ? 'qrc-config-content' : ''}`}>
+                <div className={`space-y-4 ${isMobileV2 ? 'qrc-config-content' : ''}`} style={isMobileV2 ? { backgroundColor: 'transparent' } : undefined}>
                   <div className="space-y-2">
                     <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Theme</p>
                     <ThemeToggle storageKey={`theme:${user?.id ?? 'default'}`} />
@@ -7329,7 +7329,7 @@ const Index = () => {
                     avatarDirty;
                   if (!hasChanges) return null;
                   return (
-                    <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20 pointer-events-none">
+                    <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-[100] pointer-events-none">
                       <Button
                         type="button"
                         className="bg-gradient-primary text-primary-foreground uppercase tracking-[0.2em] text-xs shadow-lg pointer-events-auto"
