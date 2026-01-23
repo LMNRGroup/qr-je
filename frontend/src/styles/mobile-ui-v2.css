@@ -143,4 +143,50 @@
   html[data-mobile-ui="v2"] body.android .qrc-header-with-banner {
     padding-top: 48px;
   }
+
+  /* Config page - single page with scrollable content */
+  html[data-mobile-ui="v2"] .qrc-config-section {
+    display: flex;
+    flex-direction: column;
+    height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 120px);
+    max-height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 120px);
+    overflow: hidden;
+  }
+
+  html[data-mobile-ui="v2"] .qrc-config-panel {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    max-height: 100%;
+  }
+
+  html[data-mobile-ui="v2"] .qrc-config-panel > .space-y-2:first-child {
+    flex-shrink: 0;
+    position: relative;
+    z-index: 1;
+  }
+
+  html[data-mobile-ui="v2"] .qrc-config-content {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+    padding-right: 4px;
+    margin-right: -4px;
+  }
+
+  html[data-mobile-ui="v2"] .qrc-config-content::-webkit-scrollbar {
+    width: 4px;
+  }
+
+  html[data-mobile-ui="v2"] .qrc-config-content::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  html[data-mobile-ui="v2"] .qrc-config-content::-webkit-scrollbar-thumb {
+    background: hsl(var(--border));
+    border-radius: 2px;
+  }
 }

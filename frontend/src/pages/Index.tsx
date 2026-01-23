@@ -6726,7 +6726,7 @@ const Index = () => {
         )}
 
         {activeTab === 'settings' && (
-          <section id="config" className="space-y-6">
+          <section id="config" className={`space-y-6 ${isMobileV2 ? 'qrc-v2-section qrc-config-section' : ''}`}>
             <div>
               <p className="text-xs uppercase tracking-[0.4em] text-muted-foreground">Config</p>
               <h2 
@@ -6758,12 +6758,12 @@ const Index = () => {
                 </div>
               </div>
             ) : (
-              <div className="glass-panel rounded-2xl p-6 text-sm text-muted-foreground space-y-6">
+              <div className={`glass-panel rounded-2xl p-6 text-sm text-muted-foreground space-y-6 ${isMobileV2 ? 'qrc-config-panel' : ''}`}>
                 <div className="space-y-2">
                   <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Theme</p>
                   <ThemeToggle storageKey={`theme:${user?.id ?? 'default'}`} />
                 </div>
-                <div className="space-y-4">
+                <div className={`space-y-4 ${isMobileV2 ? 'qrc-config-content' : ''}`}>
                   <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">
                     {t('Profile', 'Perfil')}
                   </p>
