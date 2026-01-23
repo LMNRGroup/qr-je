@@ -1941,52 +1941,115 @@ const Index = () => {
     }
     return new Blob([bytes], { type: mime });
   };
-  const uploadQrAsset = async (file: File, folder: 'files' | 'menus' | 'logos', dataUrl?: string) => {
+  const uploadQrAsset = async (file: File, folder: 'files' | 'menus' | 'logos', dataUrl?: string): Promise<string | null> => {
     if (!isSupabaseConfigured) {
-      toast.error('Storage is not configured yet.');
-      return null;
+      throw new Error('Storage is not configured yet.');
     }
-    const extension = file.name.split('.').pop() || (file.type.includes('pdf') ? 'pdf' : 'png');
-    const fileName = `${crypto.randomUUID()}.${extension}`;
-    const filePath = `qr-assets/${folder}/${fileName}`;
-    const payload = dataUrl ? dataUrlToBlob(dataUrl) : file;
-    const { error } = await supabase.storage
-      .from(QR_ASSETS_BUCKET)
-      .upload(filePath, payload, { upsert: true, contentType: file.type });
-    if (error) {
-      toast.error('Failed to upload file.');
-      return null;
+    try {
+      const extension = file.name.split('.').pop() || (file.type.includes('pdf') ? 'pdf' : 'png');
+      const fileName = `${crypto.randomUUID()}.${extension}`;
+      const filePath = `qr-assets/${folder}/${fileName}`;
+      const payload = dataUrl ? dataUrlToBlob(dataUrl) : file;
+      
+      const { error, data: uploadData } = await supabase.storage
+        .from(QR_ASSETS_BUCKET)
+        .upload(filePath, payload, { upsert: true, contentType: file.type });
+      
+      if (error) {
+        // Provide detailed error messages
+        let errorMessage = 'Failed to upload file.';
+        if (error.message) {
+          errorMessage = error.message;
+        } else if (error.statusCode === '413') {
+          errorMessage = 'File is too large for upload.';
+        } else if (error.statusCode === '400') {
+          errorMessage = 'Invalid file type or format.';
+        } else if (error.statusCode === '403') {
+          errorMessage = 'Permission denied. Please check your storage configuration.';
+        } else if (error.statusCode === '500' || error.statusCode === '503') {
+          errorMessage = 'Storage service is temporarily unavailable. Please try again.';
+        }
+        throw new Error(`${errorMessage} (${error.statusCode || 'unknown'})`);
+      }
+      
+      const { data } = supabase.storage.from(QR_ASSETS_BUCKET).getPublicUrl(filePath);
+      if (!data?.publicUrl) {
+        throw new Error('Failed to get public URL for uploaded file.');
+      }
+      return data.publicUrl;
+    } catch (error) {
+      // Re-throw with context if it's already an Error, otherwise wrap it
+      if (error instanceof Error) {
+        throw error;
+      }
+      throw new Error(`Upload failed: ${String(error)}`);
     }
-    const { data } = supabase.storage.from(QR_ASSETS_BUCKET).getPublicUrl(filePath);
-    return data.publicUrl;
   };
   const handleVcardPhotoChange = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
     event.target.value = '';
-    if (!file.type.startsWith('image/')) {
-      toast.error('Please upload an image file.');
-      return;
-    }
 
-    const maxSizeMb = (MAX_VCARD_PHOTO_BYTES / (1024 * 1024)).toFixed(1);
-    let compressedDataUrl = '';
-    if (file.size > MAX_VCARD_PHOTO_BYTES) {
-      toast.info('Large photo detected. Compressing for your vCard...');
+    // Reset states
+    setVcardPhotoUploadError(null);
+    setVcardPhotoUploadProgress(0);
+    setVcardPhotoUploading(true);
+
+    try {
+      if (!file.type.startsWith('image/')) {
+        const errorMsg = `"${file.name}" is not an image file. Please upload an image (JPG, PNG, etc.).`;
+        setVcardPhotoUploadError(errorMsg);
+        toast.error(errorMsg);
+        setVcardPhotoUploading(false);
+        return;
+      }
+
+      // Simulate progress
+      const progressInterval = setInterval(() => {
+        setVcardPhotoUploadProgress((prev) => {
+          if (prev >= 90) return prev;
+          return prev + Math.random() * 10;
+        });
+      }, 200);
+
+      const maxSizeMb = (MAX_VCARD_PHOTO_BYTES / (1024 * 1024)).toFixed(1);
+      if (file.size > MAX_VCARD_PHOTO_BYTES) {
+        toast.info('Large photo detected. Compressing for your vCard...');
+      }
+      
+      const compressedDataUrl = await compressImageFile(file, { maxDimension: 1200, quality: 0.82 });
+      const compressedBlob = dataUrlToBlob(compressedDataUrl);
+      
+      if (compressedBlob.size > MAX_VCARD_PHOTO_BYTES) {
+        const sizeMB = (compressedBlob.size / (1024 * 1024)).toFixed(1);
+        const errorMsg = `Photo "${file.name}" is too large (${sizeMB}MB). Maximum size is ${maxSizeMb}MB.`;
+        clearInterval(progressInterval);
+        setVcardPhotoUploadError(errorMsg);
+        toast.error(errorMsg);
+        setVcardPhotoUploading(false);
+        return;
+      }
+
+      clearInterval(progressInterval);
+      setVcardPhotoUploadProgress(100);
+      await new Promise((resolve) => setTimeout(resolve, 300));
+
+      setVcardStyle((prev) => ({
+        ...prev,
+        profilePhotoDataUrl: compressedDataUrl,
+        photoZoom: 110,
+        photoX: 50,
+        photoY: 50,
+      }));
+      toast.success('Photo uploaded successfully!');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to process photo.';
+      setVcardPhotoUploadError(message);
+      toast.error(`Upload failed: ${message}`);
+    } finally {
+      setVcardPhotoUploading(false);
+      setVcardPhotoUploadProgress(0);
     }
-    compressedDataUrl = await compressImageFile(file, { maxDimension: 1200, quality: 0.82 });
-    const compressedBlob = dataUrlToBlob(compressedDataUrl);
-    if (compressedBlob.size > MAX_VCARD_PHOTO_BYTES) {
-      toast.error(`Photo is too large. Please use an image under ${maxSizeMb} MB.`);
-      return;
-    }
-    setVcardStyle((prev) => ({
-      ...prev,
-      profilePhotoDataUrl: compressedDataUrl,
-      photoZoom: 110,
-      photoX: 50,
-      photoY: 50,
-    }));
   };
 
   const handlePhotoPointerDown = (event: PointerEvent<HTMLDivElement>) => {
@@ -2059,12 +2122,52 @@ const Index = () => {
     const file = event.target.files?.[0];
     if (!file) return;
     event.target.value = '';
-    const compressed = file.type.startsWith('image/')
-      ? await compressImageFile(file)
-      : '';
-    const url = await uploadQrAsset(file, 'logos', compressed || undefined);
-    if (!url) return;
-    setMenuLogoDataUrl(url);
+
+    // Reset states
+    setMenuLogoUploadError(null);
+    setMenuLogoUploadProgress(0);
+    setMenuLogoUploading(true);
+
+    try {
+      if (!file.type.startsWith('image/')) {
+        const errorMsg = `"${file.name}" is not an image file. Please upload an image (JPG, PNG, etc.).`;
+        setMenuLogoUploadError(errorMsg);
+        toast.error(errorMsg);
+        setMenuLogoUploading(false);
+        return;
+      }
+
+      // Simulate progress
+      const progressInterval = setInterval(() => {
+        setMenuLogoUploadProgress((prev) => {
+          if (prev >= 90) return prev;
+          return prev + Math.random() * 10;
+        });
+      }, 200);
+
+      const compressed = file.type.startsWith('image/')
+        ? await compressImageFile(file)
+        : '';
+      
+      const url = await uploadQrAsset(file, 'logos', compressed || undefined);
+      
+      clearInterval(progressInterval);
+      setMenuLogoUploadProgress(100);
+      await new Promise((resolve) => setTimeout(resolve, 300));
+
+      if (!url) {
+        throw new Error('Upload returned no URL.');
+      }
+      setMenuLogoDataUrl(url);
+      toast.success('Logo uploaded successfully!');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to upload logo.';
+      setMenuLogoUploadError(message);
+      toast.error(`Upload failed: ${message}`);
+    } finally {
+      setMenuLogoUploading(false);
+      setMenuLogoUploadProgress(0);
+    }
   };
 
   const handleMenuContinue = () => {
@@ -2209,24 +2312,59 @@ const Index = () => {
     const file = event.target.files?.[0];
     event.target.value = '';
     if (!file) return;
-    const isPdf = file.type === 'application/pdf';
-    if (file.size > MAX_FILE_BYTES && isPdf) {
-      toast.error('PDF is too large. Please upload a smaller file.');
-      return;
-    }
-    if (file.size > MAX_FILE_BYTES && file.type.startsWith('image/')) {
-      toast.info('Large image detected. Compressing for delivery...');
-    }
+
+    // Reset states
+    setFileUploadError(null);
+    setFileUploadProgress(0);
+    setFileUploading(true);
+
     try {
+      const isPdf = file.type === 'application/pdf';
+      if (file.size > MAX_FILE_BYTES && isPdf) {
+        const sizeMB = (file.size / (1024 * 1024)).toFixed(1);
+        const maxMB = (MAX_FILE_BYTES / (1024 * 1024)).toFixed(0);
+        const errorMsg = `PDF file "${file.name}" is too large (${sizeMB}MB). Maximum size is ${maxMB}MB.`;
+        setFileUploadError(errorMsg);
+        toast.error(errorMsg);
+        setFileUploading(false);
+        return;
+      }
+
+      // Simulate progress
+      const progressInterval = setInterval(() => {
+        setFileUploadProgress((prev) => {
+          if (prev >= 90) return prev;
+          return prev + Math.random() * 10;
+        });
+      }, 200);
+
+      if (file.size > MAX_FILE_BYTES && file.type.startsWith('image/')) {
+        toast.info('Large image detected. Compressing for delivery...');
+      }
+
       const compressed = file.type.startsWith('image/')
         ? await compressImageFile(file)
         : '';
+      
       const url = await uploadQrAsset(file, 'files', compressed || undefined);
-      if (!url) return;
+      
+      clearInterval(progressInterval);
+      setFileUploadProgress(100);
+      await new Promise((resolve) => setTimeout(resolve, 300));
+
+      if (!url) {
+        throw new Error('Upload returned no URL.');
+      }
       setFileUrl(url);
       setFileName(file.name);
-    } catch {
-      toast.error('Failed to process file upload.');
+      toast.success('File uploaded successfully!');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to process file upload.';
+      setFileUploadError(message);
+      toast.error(`Upload failed: ${message}`);
+    } finally {
+      setFileUploading(false);
+      setFileUploadProgress(0);
     }
   };
 
@@ -4010,12 +4148,51 @@ const Index = () => {
                   <p className="text-xs text-muted-foreground">
                     Use a professional selfie for services/freelancers or your business logo for a company card.
                   </p>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleVcardPhotoChange}
-                    className="text-xs text-muted-foreground"
-                  />
+                  {vcardPhotoUploading ? (
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-muted-foreground">Uploading photo...</span>
+                        <span className="font-semibold text-foreground">{Math.round(vcardPhotoUploadProgress)}%</span>
+                      </div>
+                      <div className="relative h-2 w-full overflow-hidden rounded-full bg-secondary/30">
+                        <div
+                          className="h-full rounded-full bg-gradient-to-r from-primary via-amber-400 to-amber-300 transition-all duration-300 ease-out relative overflow-hidden"
+                          style={{ width: `${vcardPhotoUploadProgress}%` }}
+                        >
+                          {vcardPhotoUploadProgress > 0 && vcardPhotoUploadProgress < 100 && (
+                            <div
+                              className="absolute inset-0"
+                              style={{
+                                background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent)',
+                                backgroundSize: '200% 100%',
+                                animation: 'shimmer 2s linear infinite',
+                              }}
+                            />
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ) : vcardPhotoUploadError ? (
+                    <div className="space-y-2">
+                      <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-3">
+                        <p className="text-sm text-destructive font-semibold">Upload Failed</p>
+                        <p className="text-xs text-destructive/80 mt-1">{vcardPhotoUploadError}</p>
+                      </div>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleVcardPhotoChange}
+                        className="text-xs text-muted-foreground"
+                      />
+                    </div>
+                  ) : (
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleVcardPhotoChange}
+                      className="text-xs text-muted-foreground"
+                    />
+                  )}
                   <div className="flex items-center gap-4">
                     <div
                       ref={photoDragRef}
@@ -4680,7 +4857,58 @@ const Index = () => {
                 {menuBuilderStep === 'logo' && (
                   <div className="glass-panel rounded-2xl p-4 space-y-4">
                     <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Branding</p>
-                    {!menuLogoDataUrl ? (
+                    {menuLogoUploading ? (
+                      <div className="space-y-3">
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between text-sm">
+                            <span className="text-muted-foreground">Uploading logo...</span>
+                            <span className="font-semibold text-foreground">{Math.round(menuLogoUploadProgress)}%</span>
+                          </div>
+                          <div className="relative h-2 w-full overflow-hidden rounded-full bg-secondary/30">
+                            <div
+                              className="h-full rounded-full bg-gradient-to-r from-primary via-amber-400 to-amber-300 transition-all duration-300 ease-out relative overflow-hidden"
+                              style={{ width: `${menuLogoUploadProgress}%` }}
+                            >
+                              {menuLogoUploadProgress > 0 && menuLogoUploadProgress < 100 && (
+                                <div
+                                  className="absolute inset-0"
+                                  style={{
+                                    background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent)',
+                                    backgroundSize: '200% 100%',
+                                    animation: 'shimmer 2s linear infinite',
+                                  }}
+                                />
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          Please wait while your logo is being uploaded...
+                        </p>
+                      </div>
+                    ) : menuLogoUploadError ? (
+                      <div className="space-y-3">
+                        <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-3">
+                          <p className="text-sm text-destructive font-semibold">Upload Failed</p>
+                          <p className="text-xs text-destructive/80 mt-1">{menuLogoUploadError}</p>
+                        </div>
+                        <input
+                          ref={menuLogoInputRef}
+                          type="file"
+                          accept="image/*"
+                          onChange={handleMenuLogoChange}
+                          className="hidden"
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => menuLogoInputRef.current?.click()}
+                          className="w-full"
+                        >
+                          Try Again
+                        </Button>
+                      </div>
+                    ) : !menuLogoDataUrl ? (
                       <div className="space-y-3">
                         <p className="text-sm text-muted-foreground">Upload your logo (optional)</p>
                         <input
@@ -4710,6 +4938,13 @@ const Index = () => {
                       <div className="space-y-3">
                         <p className="text-sm text-muted-foreground">Logo uploaded</p>
                         <div className="flex gap-2">
+                          <input
+                            ref={menuLogoInputRef}
+                            type="file"
+                            accept="image/*"
+                            onChange={handleMenuLogoChange}
+                            className="hidden"
+                          />
                           <Button
                             type="button"
                             variant="outline"
@@ -6098,26 +6333,66 @@ const Index = () => {
                         <File className="h-4 w-4 text-primary" />
                         <h3 className="font-semibold">Step 3 · File Contents</h3>
                       </div>
-                      <Input
-                        type="file"
-                        accept="image/*,application/pdf"
-                        onChange={handleFileUpload}
-                        onBlur={() => setFileTouched(true)}
-                        className="h-14 text-lg border-border bg-secondary/50 focus:border-primary input-glow"
-                      />
+                      {fileUploading ? (
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between text-sm">
+                            <span className="text-muted-foreground">Uploading...</span>
+                            <span className="font-semibold text-foreground">{Math.round(fileUploadProgress)}%</span>
+                          </div>
+                          <div className="relative h-2 w-full overflow-hidden rounded-full bg-secondary/30">
+                            <div
+                              className="h-full rounded-full bg-gradient-to-r from-primary via-amber-400 to-amber-300 transition-all duration-300 ease-out relative overflow-hidden"
+                              style={{ width: `${fileUploadProgress}%` }}
+                            >
+                              {fileUploadProgress > 0 && fileUploadProgress < 100 && (
+                                <div
+                                  className="absolute inset-0"
+                                  style={{
+                                    background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent)',
+                                    backgroundSize: '200% 100%',
+                                    animation: 'shimmer 2s linear infinite',
+                                  }}
+                                />
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      ) : fileUploadError ? (
+                        <div className="space-y-2">
+                          <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-3">
+                            <p className="text-sm text-destructive font-semibold">Upload Failed</p>
+                            <p className="text-xs text-destructive/80 mt-1">{fileUploadError}</p>
+                          </div>
+                          <Input
+                            type="file"
+                            accept="image/*,application/pdf"
+                            onChange={handleFileUpload}
+                            onBlur={() => setFileTouched(true)}
+                            className="h-14 text-lg border-border bg-secondary/50 focus:border-primary input-glow"
+                          />
+                        </div>
+                      ) : (
+                        <Input
+                          type="file"
+                          accept="image/*,application/pdf"
+                          onChange={handleFileUpload}
+                          onBlur={() => setFileTouched(true)}
+                          className="h-14 text-lg border-border bg-secondary/50 focus:border-primary input-glow"
+                        />
+                      )}
                       <p className="text-xs text-muted-foreground">
                         Upload a file to embed directly into your QR code.
                       </p>
-                      {fileTouched && !fileUrl && (
+                      {fileTouched && !fileUrl && !fileUploading && (
                         <p className="text-xs text-destructive">
                           Please upload a file to continue.
                         </p>
                       )}
-                      {fileName ? (
+                      {fileName && !fileUploading ? (
                         <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">
                           Selected: {fileName}
                         </p>
-                ) : null}
+                      ) : null}
                     </div>
                   ) : qrType === 'menu' ? (
                     <div className="space-y-4">
