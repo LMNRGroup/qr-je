@@ -8,6 +8,7 @@ import { QRPreview, QRPreviewHandle } from '@/components/QRPreview';
 import { SizeSlider } from '@/components/SizeSlider';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { UserMenu } from '@/components/UserMenu';
+import { DesktopStudioWizard } from '@/components/DesktopStudioWizard';
 import {
   Accordion,
   AccordionContent,
@@ -490,6 +491,7 @@ const Index = () => {
   const [menuLogoUploadError, setMenuLogoUploadError] = useState<string | null>(null);
   const menuFileInputRef = useRef<HTMLInputElement>(null);
   const menuLogoInputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const qrRef = useRef<QRPreviewHandle>(null);
   const optionsRef = useRef(options);
   const createSectionRef = useRef<HTMLDivElement>(null);
@@ -2697,7 +2699,35 @@ const Index = () => {
   const vcardPreviewBase = isMobile
     ? { width: 260, height: 420 }
     : { width: 280, height: 460 };
-  const vcardPreviewScale = 0.65;
+  
+  // Make vCard preview responsive - larger on bigger screens
+  // Calculate scale based on viewport height, reactive to window resize
+  const [vcardPreviewScale, setVcardPreviewScale] = useState(() => {
+    if (isMobile) return 0.65;
+    if (typeof window === 'undefined') return 0.8;
+    const vh = window.innerHeight;
+    const baseScale = 0.8;
+    const maxScale = 1.2;
+    // Scale from 0.8 at 600px height to 1.2 at 1200px+ height
+    const scale = Math.min(maxScale, baseScale + ((vh - 600) / 600) * 0.4);
+    return Math.max(0.8, scale);
+  });
+
+  useEffect(() => {
+    if (isMobile) return;
+    const updateScale = () => {
+      if (typeof window === 'undefined') return;
+      const vh = window.innerHeight;
+      const baseScale = 0.8;
+      const maxScale = 1.2;
+      const scale = Math.min(maxScale, baseScale + ((vh - 600) / 600) * 0.4);
+      setVcardPreviewScale(Math.max(0.8, scale));
+    };
+    updateScale();
+    window.addEventListener('resize', updateScale);
+    return () => window.removeEventListener('resize', updateScale);
+  }, [isMobile]);
+
   const vcardPreviewScaled = {
     width: vcardPreviewBase.width * vcardPreviewScale,
     height: vcardPreviewBase.height * vcardPreviewScale,
@@ -5631,6 +5661,194 @@ const Index = () => {
       >
         {activeTab === 'studio' && (
           <>
+        {/* Desktop Wizard - Only show on desktop when Quick Action is selected */}
+        {!isMobile && selectedQuickAction && (
+          <DesktopStudioWizard
+            qrMode={qrMode}
+            qrType={qrType}
+            options={options}
+            websiteUrl={websiteUrl}
+            emailAddress={emailAddress}
+            phoneNumber={phoneNumber}
+            fileUrl={fileUrl}
+            fileName={fileName}
+            vcardName={vcard.name}
+            vcardSlug={vcardSlug}
+            vcardPhone={vcard.phone}
+            vcardEmail={vcard.email}
+            vcardWebsite={vcard.website}
+            vcardCompany={vcard.company}
+            vcardAbout={vcard.about}
+            menuFilesCount={menuFiles.length}
+            websiteTouched={websiteTouched}
+            emailTouched={emailTouched}
+            phoneTouched={phoneTouched}
+            fileTouched={fileTouched}
+            selectedQuickAction={selectedQuickAction}
+            previewContent={previewContent}
+            user={user}
+            onModeChange={setQrMode}
+            onTypeChange={setQrType}
+            onQuickActionSelect={setSelectedQuickAction}
+            onWebsiteUrlChange={setWebsiteUrl}
+            onEmailChange={setEmailAddress}
+            onPhoneChange={setPhoneNumber}
+            onFileChange={(url, name) => {
+              setFileUrl(url);
+              setFileName(name);
+            }}
+            onVcardChange={(name, slug, phone, email, website, company, about) => {
+              setVcard((prev) => ({
+                ...prev,
+                name: name || prev.name,
+                slug: slug || prev.slug,
+                phone: phone !== undefined ? phone : prev.phone,
+                email: email !== undefined ? email : prev.email,
+                website: website !== undefined ? website : prev.website,
+                company: company !== undefined ? company : prev.company,
+                about: about !== undefined ? about : prev.about,
+              }));
+            }}
+            onOptionChange={(key, value) => {
+              setOptions((prev) => ({ ...prev, [key]: value }));
+            }}
+            onDone={() => {
+              const defaultName = qrType === 'file' ? fileName || 'File QR' : 'QRC Untitled 1';
+              setQrName(defaultName);
+              setShowNameOverlay(true);
+            }}
+            onWebsiteTouched={setWebsiteTouched}
+            onEmailTouched={setEmailTouched}
+            onPhoneTouched={setPhoneTouched}
+            onFileTouched={setFileTouched}
+            fileUploading={fileUploading}
+            fileUploadProgress={fileUploadProgress}
+            fileUploadError={fileUploadError}
+            navigate={navigate}
+            toast={toast}
+            onShowVcardCustomizer={() => setShowVcardCustomizer(true)}
+            onShowMenuBuilder={() => setShowMenuBuilder(true)}
+            onShowFileUpload={() => fileInputRef.current?.click()}
+          />
+        )}
+        
+        {/* Hidden file input for desktop wizard */}
+        {!isMobile && (
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*,application/pdf"
+            onChange={handleFileUpload}
+            className="hidden"
+          />
+        )}
+        
+        {/* Desktop Studio Dashboard - Show when no Quick Action is selected */}
+        {!isMobile && !selectedQuickAction && (
+          <section id="studio" className="space-y-6">
+            {/* PROD STAGE Banner */}
+            <button
+              type="button"
+              onClick={() => setStageOverlayOpen(true)}
+              className="group w-full rounded-2xl border border-amber-300/50 bg-black/90 px-4 py-2 text-left transition hover:border-amber-300"
+            >
+              <p className="text-xs uppercase tracking-[0.3em] text-white">
+                Prod Stage: <span className={adaptiveGradientText}>FRIENDS &amp; FAMILY</span>
+              </p>
+            </button>
+
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs uppercase tracking-[0.4em] text-muted-foreground">Studio</p>
+                <h2 className="text-2xl sm:text-3xl font-semibold tracking-tight">Creative Workspace</h2>
+              </div>
+            </div>
+
+            <div className="grid lg:grid-cols-[1.1fr_0.9fr] gap-6">
+              {/* Overview Dashboard Card */}
+              <div
+                role="button"
+                tabIndex={0}
+                onClick={() => setActiveTab('codes')}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    setActiveTab('analytics');
+                  }
+                }}
+                className="glass-panel rounded-2xl p-6 space-y-5 text-left transition hover:border-primary/60 hover:shadow-lg hover:-translate-y-1 cursor-pointer"
+              >
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Overview</p>
+                    <h3 className="text-lg font-semibold">Your QR Arsenal</h3>
+                  </div>
+                </div>
+                <div className="grid grid-cols-3 gap-4">
+                  {[
+                    { label: 'Total Codes', value: `${arsenalStats.total}`, tab: 'codes' },
+                    { label: 'Total Scans', value: `${scanStats.total}`, tab: 'analytics' },
+                    { label: 'Dynamic Live', value: `${arsenalStats.dynamic}`, tab: 'codes' },
+                  ].map((item) => (
+                    <button
+                      key={item.label}
+                      type="button"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        setActiveTab(item.tab as typeof activeTab);
+                      }}
+                      className="rounded-xl border border-border/60 bg-secondary/40 p-4 text-left transition hover:border-primary/60 hover:bg-secondary/50"
+                    >
+                      <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">{item.label}</p>
+                      <p className="text-2xl font-semibold mt-1.5">{item.value}</p>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Quick Actions Card */}
+              <div className="glass-panel rounded-2xl p-6 space-y-4">
+                <div>
+                  <p className="text-xs uppercase tracking-[0.4em] text-muted-foreground">Quick Actions</p>
+                  <h3 className="text-lg font-semibold">Jump into a new QR</h3>
+                </div>
+                <div className="grid grid-cols-3 gap-3">
+                  {[
+                    { id: 'website', label: 'Website', Icon: LinkIcon, onClick: handleStartStatic },
+                    { id: 'phone', label: 'Phone', Icon: Phone, onClick: handleStartPhone },
+                    { id: 'email', label: 'Email', Icon: Mail, onClick: handleStartEmail },
+                    { id: 'vcard', label: 'VCard', Icon: User, onClick: handleStartVcard },
+                    { id: 'file', label: 'File', Icon: File, onClick: handleStartFile },
+                    { id: 'menu', label: 'Menu', Icon: Utensils, onClick: handleStartMenu },
+                  ].map((action) => (
+                    <button
+                      key={action.id}
+                      type="button"
+                      onClick={action.onClick}
+                      className="flex flex-col items-center justify-center gap-2 p-4 rounded-xl border border-border/60 bg-secondary/30 hover:border-primary/60 hover:bg-secondary/50 transition"
+                    >
+                      <action.Icon className="h-6 w-6 text-primary" />
+                      <span className="text-xs font-medium">{action.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Studio Guide */}
+            <div className="glass-panel rounded-2xl p-6 space-y-4">
+              <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Studio Guide</p>
+              <h3 className="text-lg font-semibold">Your QR flow</h3>
+              <div className="space-y-1.5 text-sm text-muted-foreground">
+                <p>1. Choose a quick action.</p>
+                <p>2. Fill the details.</p>
+                <p>3. Customize, generate, and export.</p>
+              </div>
+            </div>
+          </section>
+        )}
+        
+        {/* Mobile V2 and legacy desktop - keep intact for mobile only */}
         {showStudioIntro && isMobile && !isMobileV2 && (
         <section className={`space-y-3 sm:space-y-4 ${isMobileV2 ? 'qrc-v2-section' : ''}`} data-tour-id="quick-actions">
           <div>
@@ -5722,7 +5940,8 @@ const Index = () => {
         </section>
         )}
 
-        {showStudioIntro && (
+        {/* Old desktop Studio section - hidden when wizard is active (desktop) */}
+        {showStudioIntro && isMobile && (
         <section id="studio" className={`mt-4 space-y-4 sm:space-y-5 lg:mt-0 lg:pt-0 lg:space-y-8 ${isMobileV2 ? 'qrc-v2-section' : ''}`}>
           <button
             type="button"
@@ -5905,7 +6124,8 @@ const Index = () => {
         </section>
         )}
 
-        {showStudioIntro && !isMobile && (
+        {/* Old desktop Studio guide - hidden when wizard is active */}
+        {false && showStudioIntro && !isMobile && (
         <section className="mt-6 lg:mt-10 space-y-4" data-tour-id="quick-actions">
           <div>
             <p className="text-xs uppercase tracking-[0.4em] text-muted-foreground">Quick Actions</p>
@@ -5994,7 +6214,8 @@ const Index = () => {
         </section>
         )}
 
-        {showCreateSection && (
+        {/* Mobile V2 create section - only show on mobile */}
+        {showCreateSection && isMobile && (
         <section
           ref={createSectionRef}
           id="create"
