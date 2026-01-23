@@ -222,6 +222,7 @@ const Index = () => {
   const [showNameOverlay, setShowNameOverlay] = useState(false);
   const [qrName, setQrName] = useState('QRC Untitled 1');
   const [showVcardCustomizer, setShowVcardCustomizer] = useState(false);
+  const [showQrCustomizer, setShowQrCustomizer] = useState(false);
   const [showVcardPreview, setShowVcardPreview] = useState(false);
   const [vcardPreviewSide, setVcardPreviewSide] = useState<'front' | 'back'>('front');
   const [showStudioBoot, setShowStudioBoot] = useState(false);
@@ -1276,6 +1277,10 @@ const Index = () => {
     setMenuBuilderStep('menu'); // Reset step when closing
         return;
       }
+      if (showQrCustomizer) {
+        setShowQrCustomizer(false);
+        return;
+      }
       if (showAccountModal) {
         setShowAccountModal(false);
         return;
@@ -1286,7 +1291,7 @@ const Index = () => {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedPlanComparison, showAccountModal, showGuestWelcome, showMenuBuilder, showVcardCustomizer]);
+  }, [selectedPlanComparison, showAccountModal, showGuestWelcome, showMenuBuilder, showVcardCustomizer, showQrCustomizer]);
 
   useEffect(() => {
     if (!pendingCreateScroll) return;
@@ -3189,6 +3194,16 @@ const Index = () => {
       document.body.style.overflow = originalOverflow;
     };
   }, [showVcardCustomizer]);
+
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+    if (!showQrCustomizer) return;
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = originalOverflow;
+    };
+  }, [showQrCustomizer]);
 
   useEffect(() => {
     if (!showVcardCustomizer) {
@@ -5195,6 +5210,141 @@ const Index = () => {
         </div>
       )}
 
+      {/* QR Customization Overlay - Mobile V2 and Desktop */}
+      {showQrCustomizer && (
+        <div
+          className="fixed inset-0 z-[70] flex items-center justify-center bg-background/70 backdrop-blur-md px-2 sm:px-4 py-4"
+          onClick={() => setShowQrCustomizer(false)}
+        >
+          <div
+            className="glass-panel rounded-3xl p-4 sm:p-6 w-full max-w-4xl space-y-4 relative max-h-[90dvh] overflow-y-auto overscroll-contain"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <button
+              type="button"
+              className="absolute right-4 top-4 text-xs uppercase tracking-[0.3em] text-muted-foreground transition hover:text-foreground z-10"
+              onClick={() => setShowQrCustomizer(false)}
+            >
+              X
+            </button>
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <div>
+                <p className="text-xs uppercase tracking-[0.35em] text-muted-foreground">QR Code</p>
+                <h2 className="text-2xl font-semibold">Customize your QR</h2>
+                <p className="text-sm text-muted-foreground">
+                  Adjust colors, style, and logo to match your brand.
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-6">
+              <Accordion type="multiple" defaultValue={['colors', 'style', 'logo']} className="space-y-2">
+                <AccordionItem value="colors" className="border-none">
+                  <AccordionTrigger
+                    className="py-3 px-4 rounded-lg hover:bg-secondary/50 hover:no-underline"
+                    onClick={() => {
+                      window.setTimeout(() => scrollToRef(colorsSectionRef, 'start'), 30);
+                    }}
+                  >
+                    <span className="text-sm font-medium">Colors</span>
+                  </AccordionTrigger>
+                  <AccordionContent className="px-4 pb-4 pt-2">
+                    <div ref={colorsSectionRef} className="space-y-5">
+                      <ColorPicker
+                        label="Foreground Color"
+                        value={options.fgColor}
+                        onChange={(v) => updateOption('fgColor', v)}
+                        presets={fgColorPresets}
+                      />
+                      <ColorPicker
+                        label="Background Color"
+                        value={options.bgColor}
+                        onChange={(v) => updateOption('bgColor', v)}
+                        presets={bgColorPresets}
+                      />
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
+
+                <AccordionItem value="style" className="border-none">
+                  <AccordionTrigger
+                    className="py-3 px-4 rounded-lg hover:bg-secondary/50 hover:no-underline"
+                    onClick={() => {
+                      window.setTimeout(() => scrollToRef(styleSectionRef, 'start'), 30);
+                    }}
+                  >
+                    <span className="text-sm font-medium">Style</span>
+                  </AccordionTrigger>
+                  <AccordionContent className="px-4 pb-4 pt-2">
+                    <div ref={styleSectionRef} className="space-y-5">
+                      <CornerStylePicker
+                        value={options.cornerStyle}
+                        onChange={(v) => updateOption('cornerStyle', v)}
+                      />
+                      <ErrorCorrectionSelector
+                        value={options.errorCorrectionLevel}
+                        onChange={(v) => updateOption('errorCorrectionLevel', v)}
+                      />
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
+
+                <AccordionItem value="logo" className="border-none">
+                  <AccordionTrigger
+                    className="py-3 px-4 rounded-lg hover:bg-secondary/50 hover:no-underline"
+                    onClick={() => {
+                      window.setTimeout(() => scrollToRef(logoSectionRef, 'start'), 30);
+                    }}
+                  >
+                    <span className="text-sm font-medium">Logo</span>
+                  </AccordionTrigger>
+                  <AccordionContent className="px-4 pb-4 pt-2">
+                    <div ref={logoSectionRef} className="space-y-4">
+                      <LogoUpload
+                        logo={options.logo}
+                        maxLogoSize={Math.round((options.size - 32) * 0.22)}
+                        onLogoChange={(v, meta) => {
+                          updateOption('logo', v);
+                          updateOption('logoAspect', meta?.aspect);
+                          updateOption('logoWidth', meta?.width);
+                          updateOption('logoHeight', meta?.height);
+                        }}
+                      />
+                      {options.logo && (
+                        <div>
+                          <SizeSlider
+                            value={options.logoSize || 50}
+                            onChange={(v) => updateOption('logoSize', v)}
+                            min={20}
+                            max={100}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
+              </Accordion>
+              <div className="px-4 pb-4 pt-2 space-y-3">
+                <Button
+                  size="lg"
+                  className="w-full gap-2 bg-gradient-primary hover:opacity-90 text-primary-foreground glow uppercase tracking-[0.2em] text-xs"
+                  disabled={!canGenerate}
+                  onClick={() => {
+                    setShowQrCustomizer(false);
+                    // Reset name to default if needed
+                    const defaultName = qrType === 'file' ? fileName || 'File QR' : 'QRC Untitled 1';
+                    setQrName(defaultName);
+                    setShowNameOverlay(true);
+                  }}
+                >
+                  Done
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Background gradient */}
       <div className="fixed inset-0 -z-10 overflow-hidden">
         <div className="absolute -top-24 left-8 h-[24rem] w-[24rem] rounded-full bg-[radial-gradient(circle_at_center,rgba(99,102,241,0.28),transparent_60%)] blur-3xl float-slow" />
@@ -7050,13 +7200,12 @@ const Index = () => {
               transition={{ delay: 0.15 }}
               className="space-y-6"
             >
-              {hasSelectedMode && hasSelectedType && (!isMobile || mobileCustomizeStep || (isMobileV2 && effectiveMobileStudioStep === 4)) ? (
-                <div className={`glass-panel rounded-2xl p-4 ${isMobileV2 ? 'qrc-v2-customize-panel flex flex-col max-h-[calc(100dvh-240px)] min-h-0' : ''}`}>
-                  <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground px-4 pt-2 flex-shrink-0">
+              {hasSelectedMode && hasSelectedType && (!isMobileV2 && (!isMobile || mobileCustomizeStep)) ? (
+                <div className="glass-panel rounded-2xl p-4">
+                  <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground px-4 pt-2">
                     Step 4 · Customize
                   </p>
-                  <div className={`${isMobileV2 ? 'flex-1 min-h-0 overflow-y-auto overscroll-contain -mx-4 px-4' : ''}`}>
-                    <Accordion type="multiple" defaultValue={['colors', 'style', 'logo']} className="space-y-2">
+                  <Accordion type="multiple" defaultValue={['colors', 'style', 'logo']} className="space-y-2">
                     <AccordionItem value="colors" className="border-none">
                       <AccordionTrigger
                         className="py-3 px-4 rounded-lg hover:bg-secondary/50 hover:no-underline"
@@ -7142,8 +7291,7 @@ const Index = () => {
                       </AccordionContent>
                     </AccordionItem>
                   </Accordion>
-                  </div>
-                  <div className="px-4 pb-4 pt-2 space-y-3 flex-shrink-0">
+                  <div className="px-4 pb-4 pt-2 space-y-3">
                     <Button
                       size="lg"
                       className="w-full gap-2 bg-gradient-primary hover:opacity-90 text-primary-foreground glow uppercase tracking-[0.2em] text-xs"
@@ -7167,14 +7315,14 @@ const Index = () => {
                         type="button"
                         variant="outline"
                         className="border-border text-xs uppercase tracking-[0.3em]"
-                        onClick={() => setMobileStudioStep(4)}
+                        onClick={() => setShowQrCustomizer(true)}
                       >
                         Continue to Step 4
                       </Button>
                     ) : (
                       'Complete steps 2–3 to unlock customization.'
                     )
-                  ) : isMobile ? (
+                  ) : isMobileV2 ? null : isMobile ? (
                     'Choose Customize to edit colors, style, and logo.'
                   ) : (
                     'Customize colors, style, and logo once you pick a mode and QR type.'
