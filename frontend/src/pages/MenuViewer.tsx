@@ -510,8 +510,8 @@ const MenuViewer = () => {
 
       {/* Page indicator - below PDF, centered, format: 4/6 */}
       {isMultiPage && !isTwoPageFlip && !isTwoPagePdf && (
-        <div className="absolute bottom-24 left-1/2 -translate-x-1/2 z-30">
-          <span className="text-xs text-gray-400 font-light">
+        <div className="absolute bottom-12 left-1/2 -translate-x-1/2 z-30">
+          <span className="text-sm text-gray-400 font-light">
             {isPdf ? `${currentPage + 1}/${pdfTotalPages}` : `${currentPage + 1}/${menuFiles.length}`}
           </span>
         </div>
