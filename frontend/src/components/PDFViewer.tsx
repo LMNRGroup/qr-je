@@ -42,6 +42,8 @@ export const PDFViewer = ({
   const [isPinching, setIsPinching] = useState(false);
   const pinchRef = useRef<{ distance: number; initialScale: number } | null>(null);
   const lastTapRef = useRef<number>(0);
+  const [panPosition, setPanPosition] = useState({ x: 0, y: 0 });
+  const panRef = useRef<{ startX: number; startY: number; isPanning: boolean } | null>(null);
 
   // Load PDF document
   useEffect(() => {
@@ -160,6 +162,11 @@ export const PDFViewer = ({
     [pdfDoc, calculateFitScale, renderScale]
   );
 
+  // Reset pan position when zoom changes or page changes
+  useEffect(() => {
+    setPanPosition({ x: 0, y: 0 });
+  }, [isZoomed, currentPage, isFlipped]);
+
   // Render current page when page changes or zoom changes
   useEffect(() => {
     if (pdfDoc && !isLoading) {
@@ -171,7 +178,109 @@ export const PDFViewer = ({
   // Handle double tap for zoom
   const handleDoubleTap = useCallback(() => {
     onZoomChange(!isZoomed);
+    // Reset pan position when zooming
+    setPanPosition({ x: 0, y: 0 });
   }, [isZoomed, onZoomChange]);
+
+  // Handle pan/drag when zoomed
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    if (!isZoomed) return;
+    e.preventDefault();
+    panRef.current = {
+      startX: e.clientX - panPosition.x,
+      startY: e.clientY - panPosition.y,
+      isPanning: true,
+    };
+  }, [isZoomed, panPosition]);
+
+  const handleMouseMove = useCallback((e: React.MouseEvent) => {
+    if (!panRef.current?.isPanning || !isZoomed) return;
+    e.preventDefault();
+    const newX = e.clientX - panRef.current.startX;
+    const newY = e.clientY - panRef.current.startY;
+    
+    // Limit pan to canvas bounds (when zoomed 2x, canvas is 2x larger)
+    if (canvasRef.current && containerRef.current) {
+      const canvas = canvasRef.current;
+      const container = containerRef.current;
+      const canvasWidth = parseFloat(canvas.style.width) || canvas.width;
+      const canvasHeight = parseFloat(canvas.style.height) || canvas.height;
+      const containerWidth = container.clientWidth;
+      const containerHeight = container.clientHeight;
+      
+      // When zoomed 2x, we can pan up to half the difference
+      const maxX = Math.max(0, (canvasWidth * 2 - containerWidth) / 2);
+      const maxY = Math.max(0, (canvasHeight * 2 - containerHeight) / 2);
+      
+      setPanPosition({
+        x: Math.max(-maxX, Math.min(maxX, newX)),
+        y: Math.max(-maxY, Math.min(maxY, newY)),
+      });
+    } else {
+      // Fallback: allow panning with reasonable limits
+      setPanPosition({
+        x: Math.max(-200, Math.min(200, newX)),
+        y: Math.max(-200, Math.min(200, newY)),
+      });
+    }
+  }, [isZoomed]);
+
+  const handleMouseUp = useCallback(() => {
+    if (panRef.current) {
+      panRef.current.isPanning = false;
+    }
+  }, []);
+
+  // Touch handlers for panning
+  const handlePanStart = useCallback((e: React.TouchEvent) => {
+    if (!isZoomed || e.touches.length !== 1) return;
+    e.preventDefault();
+    const touch = e.touches[0];
+    panRef.current = {
+      startX: touch.clientX - panPosition.x,
+      startY: touch.clientY - panPosition.y,
+      isPanning: true,
+    };
+  }, [isZoomed, panPosition]);
+
+  const handlePanMove = useCallback((e: React.TouchEvent) => {
+    if (!panRef.current?.isPanning || !isZoomed || e.touches.length !== 1) return;
+    e.preventDefault();
+    const touch = e.touches[0];
+    const newX = touch.clientX - panRef.current.startX;
+    const newY = touch.clientY - panRef.current.startY;
+    
+    // Limit pan to canvas bounds (when zoomed 2x, canvas is 2x larger)
+    if (canvasRef.current && containerRef.current) {
+      const canvas = canvasRef.current;
+      const container = containerRef.current;
+      const canvasWidth = parseFloat(canvas.style.width) || canvas.width;
+      const canvasHeight = parseFloat(canvas.style.height) || canvas.height;
+      const containerWidth = container.clientWidth;
+      const containerHeight = container.clientHeight;
+      
+      // When zoomed 2x, we can pan up to half the difference
+      const maxX = Math.max(0, (canvasWidth * 2 - containerWidth) / 2);
+      const maxY = Math.max(0, (canvasHeight * 2 - containerHeight) / 2);
+      
+      setPanPosition({
+        x: Math.max(-maxX, Math.min(maxX, newX)),
+        y: Math.max(-maxY, Math.min(maxY, newY)),
+      });
+    } else {
+      // Fallback: allow panning with reasonable limits
+      setPanPosition({
+        x: Math.max(-200, Math.min(200, newX)),
+        y: Math.max(-200, Math.min(200, newY)),
+      });
+    }
+  }, [isZoomed]);
+
+  const handlePanEnd = useCallback(() => {
+    if (panRef.current) {
+      panRef.current.isPanning = false;
+    }
+  }, []);
 
   // Handle single tap for 2-page flip
   const handleTap = useCallback((e: React.MouseEvent) => {
@@ -268,18 +377,44 @@ export const PDFViewer = ({
       className={`w-full h-full flex items-center justify-center overflow-hidden ${className}`}
       onDoubleClick={handleDoubleTap}
       onClick={handleTap}
-      onTouchStart={handleTouchStart}
-      onTouchMove={handleTouchMove}
-      onTouchEnd={handleTouchEnd}
-      style={{ touchAction: isZoomed ? 'pan-x pan-y pinch-zoom' : 'pan-x pan-y pinch-zoom' }}
+      onMouseDown={handleMouseDown}
+      onMouseMove={handleMouseMove}
+      onMouseUp={handleMouseUp}
+      onMouseLeave={handleMouseUp}
+      onTouchStart={(e) => {
+        if (isZoomed && e.touches.length === 1) {
+          handlePanStart(e);
+        } else {
+          handleTouchStart(e);
+        }
+      }}
+      onTouchMove={(e) => {
+        if (isZoomed && e.touches.length === 1 && panRef.current?.isPanning) {
+          handlePanMove(e);
+        } else {
+          handleTouchMove(e);
+        }
+      }}
+      onTouchEnd={(e) => {
+        if (isZoomed) {
+          handlePanEnd();
+        }
+        handleTouchEnd();
+      }}
+      style={{ 
+        touchAction: isZoomed ? 'pan-x pan-y' : 'pan-x pan-y pinch-zoom',
+        cursor: isZoomed ? 'grab' : 'default',
+      }}
     >
       <motion.div
         animate={{
           scale: isZoomed ? 2 : 1,
+          x: isZoomed ? panPosition.x : 0,
+          y: isZoomed ? panPosition.y : 0,
         }}
         transition={{
-          duration: 0.3,
-          ease: [0.4, 0, 0.2, 1], // Custom easing for smooth zoom
+          duration: isZoomed && panRef.current?.isPanning ? 0 : 0.3,
+          ease: [0.4, 0, 0.2, 1],
         }}
         style={{
           width: '100%',
@@ -287,6 +422,7 @@ export const PDFViewer = ({
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
+          cursor: isZoomed && panRef.current?.isPanning ? 'grabbing' : (isZoomed ? 'grab' : 'default'),
         }}
       >
         <canvas
@@ -297,6 +433,7 @@ export const PDFViewer = ({
             maxHeight: '100%',
             width: 'auto',
             height: 'auto',
+            pointerEvents: 'none',
           }}
         />
       </motion.div>

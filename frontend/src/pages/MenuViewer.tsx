@@ -90,6 +90,20 @@ const MenuViewer = () => {
     if (isZoomed) return;
     // Don't capture swipe if it's a 2-page PDF (handled by tap)
     if (isTwoPagePdf) return;
+    
+    // On mobile, avoid edge gestures (first 20px and last 20px)
+    const isMobile = window.innerWidth < 768;
+    if (isMobile) {
+      const startX = event.clientX;
+      const screenWidth = window.innerWidth;
+      const edgeThreshold = 20;
+      
+      // Prevent swipe if starting too close to edges (browser gesture zones)
+      if (startX < edgeThreshold || startX > screenWidth - edgeThreshold) {
+        return;
+      }
+    }
+    
     event.preventDefault();
     event.stopPropagation();
     event.currentTarget.setPointerCapture(event.pointerId);
@@ -120,8 +134,8 @@ const MenuViewer = () => {
 
     // Only handle horizontal swipes (more horizontal than vertical)
     if (Math.abs(deltaX) < Math.abs(deltaY)) return;
-    // Require minimum swipe distance
-    if (Math.abs(deltaX) < 50) return;
+    // Require minimum swipe distance (reduced for easier swiping)
+    if (Math.abs(deltaX) < 30) return;
 
     if (isTwoPageFlip && !isPdf) {
       // For 2-page image flip, toggle flip state
@@ -202,7 +216,16 @@ const MenuViewer = () => {
         onPointerMove={handleSwipeMove}
         onPointerUp={handleSwipeEnd}
         onPointerLeave={handleSwipeEnd}
-        style={{ width: '100%', height: '100%', maxWidth: '100vw', overflow: 'hidden', touchAction: 'pan-y pinch-zoom' }}
+        onPointerCancel={handleSwipeEnd}
+        style={{ 
+          width: '100%', 
+          height: '100%', 
+          maxWidth: '100vw', 
+          overflow: 'hidden',
+          touchAction: isZoomed ? 'pan-x pan-y' : 'pan-x pan-y pinch-zoom',
+          // Prevent browser gestures on mobile
+          WebkitOverflowScrolling: 'touch',
+        }}
       >
         <AnimatePresence mode="wait" initial={false}>
           {isPdf && pdfUrl ? (
@@ -448,9 +471,9 @@ const MenuViewer = () => {
         </div>
       )}
 
-      {/* Page indicator for multi-page */}
+      {/* Page indicator for multi-page - at the top */}
       {isMultiPage && !isTwoPageFlip && !isTwoPagePdf && (
-        <div className="absolute top-24 left-1/2 -translate-x-1/2 z-30 px-4 py-2 bg-black/60 backdrop-blur-sm rounded-full border border-white/20">
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-30 px-4 py-2 bg-black/60 backdrop-blur-sm rounded-full border border-white/20">
           <span className="text-xs text-white/80 uppercase tracking-[0.2em]">
             {isPdf ? `Page ${currentPage + 1} / ${pdfTotalPages}` : `${currentPage + 1} / ${menuFiles.length}`}
           </span>
