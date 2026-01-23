@@ -193,7 +193,7 @@ const Login = () => {
             </Button>
           </form>
 
-          <div className="mt-6 text-center">
+          <div className="mt-6 text-center space-y-3">
             <button
               type="button"
               onClick={() => setIsSignUp(!isSignUp)}
@@ -205,6 +205,17 @@ const Login = () => {
                 <>Don't have an account? <span className="text-primary font-medium">Sign up</span></>
               )}
             </button>
+            {!isSignUp && (
+              <div>
+                <button
+                  type="button"
+                  onClick={() => navigate('/')}
+                  className="text-xs text-muted-foreground/40 hover:text-muted-foreground/60 transition-colors"
+                >
+                  Continue without account
+                </button>
+              </div>
+            )}
           </div>
         </motion.div>
 
