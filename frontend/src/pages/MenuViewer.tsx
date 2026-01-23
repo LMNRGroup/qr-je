@@ -40,8 +40,10 @@ const MenuViewer = () => {
   const [isFlipped, setIsFlipped] = useState(false);
   const [isZoomed, setIsZoomed] = useState(false);
   const [pdfTotalPages, setPdfTotalPages] = useState(1);
+  const [direction, setDirection] = useState<'left' | 'right'>(0);
   const swipeRef = useRef({ dragging: false, startX: 0, startY: 0, currentX: 0, currentY: 0 });
   const containerRef = useRef<HTMLDivElement>(null);
+  const prevPageRef = useRef(0);
 
   useEffect(() => {
     if (!id || !random) {
@@ -146,14 +148,25 @@ const MenuViewer = () => {
       // For multi-page, navigate pages
       if (deltaX < 0) {
         // Swipe left - next page
+        setDirection('left');
         if (isPdf) {
-          setCurrentPage((prev) => Math.min(pdfTotalPages - 1, prev + 1));
+          setCurrentPage((prev) => {
+            prevPageRef.current = prev;
+            return Math.min(pdfTotalPages - 1, prev + 1);
+          });
         } else {
-          setCurrentPage((prev) => Math.min(menuFiles.length - 1, prev + 1));
+          setCurrentPage((prev) => {
+            prevPageRef.current = prev;
+            return Math.min(menuFiles.length - 1, prev + 1);
+          });
         }
       } else {
         // Swipe right - previous page
-        setCurrentPage((prev) => Math.max(0, prev - 1));
+        setDirection('right');
+        setCurrentPage((prev) => {
+          prevPageRef.current = prev;
+          return Math.max(0, prev - 1);
+        });
       }
     }
   };
@@ -299,9 +312,9 @@ const MenuViewer = () => {
             ) : (
               <motion.div
                 key={`pdf-${currentPage}`}
-                initial={{ opacity: 0, x: currentPage > 0 ? -50 : 50 }}
+                initial={{ opacity: 0, x: direction === 'left' ? 50 : -50 }}
                 animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: currentPage > 0 ? 50 : -50 }}
+                exit={{ opacity: 0, x: direction === 'left' ? -50 : 50 }}
                 transition={{ 
                   duration: 0.4,
                   ease: [0.4, 0, 0.2, 1]
@@ -378,10 +391,13 @@ const MenuViewer = () => {
           ) : (
             <motion.div
               key={`image-${currentPage}`}
-              initial={{ opacity: 0, x: 20 }}
+              initial={{ opacity: 0, x: direction === 'left' ? 50 : -50 }}
               animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
-              transition={{ duration: 0.3 }}
+              exit={{ opacity: 0, x: direction === 'left' ? -50 : 50 }}
+              transition={{ 
+                duration: 0.4,
+                ease: [0.4, 0, 0.2, 1]
+              }}
               className="w-full h-full flex items-center justify-center"
               style={{ maxWidth: '100%', overflow: 'hidden' }}
             >
@@ -484,7 +500,13 @@ const MenuViewer = () => {
       {isMultiPage && !isTwoPageFlip && !isTwoPagePdf && (
         <>
           <button
-            onClick={() => setCurrentPage((prev) => Math.max(0, prev - 1))}
+            onClick={() => {
+              setDirection('right');
+              setCurrentPage((prev) => {
+                prevPageRef.current = prev;
+                return Math.max(0, prev - 1);
+              });
+            }}
             disabled={currentPage === 0}
             className="absolute left-4 top-1/2 -translate-y-1/2 z-30 text-gray-400 text-2xl font-light disabled:opacity-30 disabled:cursor-not-allowed hover:text-gray-300 transition-colors"
             aria-label="Previous page"
@@ -493,10 +515,17 @@ const MenuViewer = () => {
           </button>
           <button
             onClick={() => {
+              setDirection('left');
               if (isPdf) {
-                setCurrentPage((prev) => Math.min(pdfTotalPages - 1, prev + 1));
+                setCurrentPage((prev) => {
+                  prevPageRef.current = prev;
+                  return Math.min(pdfTotalPages - 1, prev + 1);
+                });
               } else {
-                setCurrentPage((prev) => Math.min(menuFiles.length - 1, prev + 1));
+                setCurrentPage((prev) => {
+                  prevPageRef.current = prev;
+                  return Math.min(menuFiles.length - 1, prev + 1);
+                });
               }
             }}
             disabled={isPdf ? currentPage === pdfTotalPages - 1 : currentPage === menuFiles.length - 1}
