@@ -2466,6 +2466,36 @@ const Index = () => {
         return;
       }
 
+      // Compress files before upload and check storage with compressed size
+      let compressed = '';
+      let estimatedSize = file.size; // Default to original size for PDFs
+      
+      if (file.type.startsWith('image/')) {
+        toast.info('Compressing image...');
+        compressed = await compressImageFile(file, { maxDimension: 2000, quality: 0.80 });
+        // Get compressed size for storage check
+        if (compressed) {
+          const compressedBlob = dataUrlToBlob(compressed);
+          estimatedSize = compressedBlob.size;
+        }
+      } else if (file.type === 'application/pdf') {
+        toast.info('Preparing PDF...');
+        // PDFs can't be compressed client-side effectively, use original size
+        estimatedSize = file.size;
+      }
+      
+      // Check storage limit with estimated (compressed) size BEFORE upload
+      const storageCheck = checkStorageLimit(estimatedSize);
+      if (!storageCheck.allowed) {
+        const availableMB = (storageCheck.available / (1024 * 1024)).toFixed(1);
+        const neededMB = (estimatedSize / (1024 * 1024)).toFixed(1);
+        const errorMsg = `Storage limit exceeded. You have ${availableMB}MB available, but need ${neededMB}MB. Please delete some files or upgrade your plan.`;
+        setFileUploadError(errorMsg);
+        toast.error(errorMsg);
+        setFileUploading(false);
+        return;
+      }
+
       // Simulate progress
       const progressInterval = setInterval(() => {
         setFileUploadProgress((prev) => {
@@ -2473,16 +2503,6 @@ const Index = () => {
           return prev + Math.random() * 10;
         });
       }, 200);
-
-      // Compress files before upload
-      let compressed = '';
-      if (file.type.startsWith('image/')) {
-        toast.info('Compressing image...');
-        compressed = await compressImageFile(file, { maxDimension: 2000, quality: 0.80 });
-      } else if (file.type === 'application/pdf') {
-        toast.info('Preparing PDF...');
-        // PDFs can't be compressed client-side effectively, but we'll still track size
-      }
       
       const result = await uploadQrAsset(file, 'files', compressed || undefined);
       
