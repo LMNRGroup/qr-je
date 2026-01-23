@@ -145,6 +145,8 @@ const Index = () => {
   const [fileUrl, setFileUrl] = useState('');
   const [fileSize, setFileSize] = useState<number>(0); // Compressed file size in bytes
   const [fileName, setFileName] = useState('');
+  const [fileDataUrl, setFileDataUrl] = useState<string>(''); // Cached file data (not uploaded to DB yet)
+  const [fileBlob, setFileBlob] = useState<Blob | null>(null); // Cached file blob for PDFs
   const [fileTouched, setFileTouched] = useState(false);
   const [fileUploadProgress, setFileUploadProgress] = useState<number>(0);
   const [fileUploading, setFileUploading] = useState(false);
@@ -604,7 +606,7 @@ const Index = () => {
         : qrType === 'phone'
           ? isPhoneValid
           : qrType === 'file'
-            ? fileUrl.length > 0
+            ? (fileDataUrl || fileBlob || fileUrl.length > 0)
           : qrType === 'menu'
             ? menuFiles.length > 0
             : false);
@@ -722,6 +724,45 @@ const Index = () => {
     };
   }, [activeTab, isLoggedIn, isMobile, pushScanNotification, user?.id]);
 
+  // Recalculate storage from actual QR codes in DB
+  const recalculateStorageFromDB = useCallback(async () => {
+    if (!isSessionReady || typeof window === 'undefined') return;
+    try {
+      const response = await getQRHistory();
+      if (!response.success || !response.data) return;
+      
+      let totalStorage = 0;
+      for (const item of response.data) {
+        const opts = item.options;
+        
+        // File QR
+        if (opts.fileSize && typeof opts.fileSize === 'number') {
+          totalStorage += opts.fileSize;
+        }
+        
+        // Menu files
+        if (opts.menuFiles && Array.isArray(opts.menuFiles)) {
+          for (const file of opts.menuFiles) {
+            if (file && typeof file === 'object' && 'size' in file && typeof file.size === 'number') {
+              totalStorage += file.size;
+            }
+          }
+        }
+        
+        // Menu logo
+        if (opts.menuLogoSize && typeof opts.menuLogoSize === 'number') {
+          totalStorage += opts.menuLogoSize;
+        }
+      }
+      
+      // Update localStorage with actual DB storage
+      window.localStorage.setItem(STORAGE_KEY, String(totalStorage));
+      window.dispatchEvent(new CustomEvent('qrc:storage-update', { detail: totalStorage }));
+    } catch (error) {
+      console.warn('[Index] Failed to recalculate storage from DB:', error);
+    }
+  }, [isSessionReady]);
+
   const refreshArsenalStats = useCallback(async () => {
     if (!isSessionReady) {
       setArsenalStats({ total: 0, dynamic: 0 });
@@ -735,6 +776,9 @@ const Index = () => {
           (item) => parseKind(item.kind ?? null).mode === 'dynamic'
         ).length;
         setArsenalStats({ total: response.data.length, dynamic: dynamicCount });
+        
+        // Recalculate storage from actual DB files
+        await recalculateStorageFromDB();
       }
       if (Number.isFinite(summary.total)) {
         setScanStats({ total: summary.total });
@@ -742,7 +786,7 @@ const Index = () => {
     } catch {
       // ignore stats errors
     }
-  }, [isSessionReady, parseKind]);
+  }, [isSessionReady, parseKind, recalculateStorageFromDB]);
 
   useEffect(() => {
     refreshArsenalStats();
@@ -1356,17 +1400,48 @@ const Index = () => {
             content: vcardUrl,
           },
         })
-        : await generateQR(
-          qrType === 'file' || qrType === 'menu'
-            ? `${appBaseUrl}/pending/${crypto.randomUUID()}`
-            : longFormContent,
-          qrType === 'file'
-            ? {
-              ...optionsSnapshot,
-              fileName: fileName || 'File QR',
-              fileUrl,
-              fileSize,
+        : await (async () => {
+          // For file QR, upload file to DB now (only when generating)
+          let finalFileUrl = fileUrl;
+          let finalFileSize = fileSize;
+          
+          if (qrType === 'file' && (fileDataUrl || fileBlob)) {
+            try {
+              // Create a File object from cached data for upload
+              let fileToUpload: File;
+              if (fileBlob) {
+                fileToUpload = new File([fileBlob], fileName || 'file', { type: fileBlob.type || 'application/pdf' });
+              } else if (fileDataUrl) {
+                const blob = dataUrlToBlob(fileDataUrl);
+                fileToUpload = new File([blob], fileName || 'file', { type: blob.type || 'image/png' });
+              } else {
+                throw new Error('No file data available');
+              }
+              
+              const result = await uploadQrAsset(fileToUpload, 'files', fileDataUrl || undefined);
+              if (!result?.url) {
+                throw new Error('Upload returned no URL.');
+              }
+              finalFileUrl = result.url;
+              finalFileSize = result.size;
+            } catch (error) {
+              const message = error instanceof Error ? error.message : 'Failed to upload file';
+              toast.error(`File upload failed: ${message}`);
+              throw error;
             }
+          }
+          
+          return generateQR(
+            qrType === 'file' || qrType === 'menu'
+              ? `${appBaseUrl}/pending/${crypto.randomUUID()}`
+              : longFormContent,
+            qrType === 'file'
+              ? {
+                ...optionsSnapshot,
+                fileName: fileName || 'File QR',
+                fileUrl: finalFileUrl,
+                fileSize: finalFileSize,
+              }
             : qrType === 'menu'
               ? {
                 ...optionsSnapshot,
@@ -1466,6 +1541,9 @@ const Index = () => {
     setPhoneTouched(false);
     setFileUrl('');
     setFileName('');
+    setFileSize(0);
+    setFileDataUrl('');
+    setFileBlob(null);
     setFileTouched(false);
     setMenuFiles([]);
     setMenuType('restaurant');
@@ -2560,7 +2638,7 @@ const Index = () => {
         estimatedSize = file.size;
       }
       
-      // Check storage limit with estimated (compressed) size BEFORE upload
+      // Check storage limit with estimated (compressed) size BEFORE caching
       const storageCheck = checkStorageLimit(estimatedSize);
       if (!storageCheck.allowed) {
         const availableMB = (storageCheck.available / (1024 * 1024)).toFixed(1);
@@ -2580,19 +2658,32 @@ const Index = () => {
         });
       }, 200);
       
-      const result = await uploadQrAsset(file, 'files', compressed || undefined);
+      // Cache file locally (dataUrl for images, blob for PDFs) - don't upload to DB yet
+      if (compressed) {
+        setFileDataUrl(compressed);
+        const compressedBlob = dataUrlToBlob(compressed);
+        setFileBlob(compressedBlob);
+        setFileSize(compressedBlob.size);
+      } else if (file.type === 'application/pdf') {
+        // For PDFs, store the file as blob
+        setFileBlob(file);
+        setFileSize(file.size);
+      }
       
       clearInterval(progressInterval);
       setFileUploadProgress(100);
       await new Promise((resolve) => setTimeout(resolve, 300));
 
-      if (!result?.url) {
-        throw new Error('Upload returned no URL.');
+      // Create a local preview URL for display (not uploaded to DB)
+      if (compressed) {
+        setFileUrl(compressed); // Use dataUrl as preview
+      } else if (file.type === 'application/pdf') {
+        // For PDFs, create object URL for preview
+        const objectUrl = URL.createObjectURL(file);
+        setFileUrl(objectUrl);
       }
-      setFileUrl(result.url);
-      setFileSize(result.size);
       setFileName(file.name);
-      toast.success('File compressed and uploaded successfully!');
+      toast.success('File ready! It will be uploaded when you generate the QR code.');
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to process file upload.';
       setFileUploadError(message);
@@ -7433,14 +7524,6 @@ const Index = () => {
                 <div className="glass-panel rounded-2xl p-6 text-sm text-muted-foreground">
                   {isMobileV2 ? (
                     canGenerate ? (
-                      <Button
-                        type="button"
-                        variant="outline"
-                        className="border-border text-xs uppercase tracking-[0.3em]"
-                        onClick={() => setShowQrCustomizer(true)}
-                      >
-                        Continue to Step 4
-                      </Button>
                     ) : (
                       'Complete steps 2–3 to unlock customization.'
                     )

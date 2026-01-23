@@ -105,9 +105,70 @@ const calculateQRStorageSize = (item: QRHistoryItem): number => {
   return total;
 };
 
+// Delete file from Supabase storage
+const deleteFileFromStorage = async (fileUrl: string) => {
+  if (!fileUrl || (!fileUrl.includes('/storage/v1/object/public/') && !fileUrl.includes('/storage/v1/object/sign/'))) return;
+  
+  try {
+    // Extract file path from public URL
+    // URL format: https://[project].supabase.co/storage/v1/object/public/qr-assets/files/[filename]
+    // Or signed URL format: https://[project].supabase.co/storage/v1/object/sign/qr-assets/files/[filename]?...
+    let urlParts: string[];
+    if (fileUrl.includes('/storage/v1/object/public/')) {
+      urlParts = fileUrl.split('/storage/v1/object/public/');
+    } else {
+      urlParts = fileUrl.split('/storage/v1/object/sign/');
+    }
+    
+    if (urlParts.length < 2) return;
+    
+    // Remove query params if present
+    const pathWithQuery = urlParts[1];
+    const pathOnly = pathWithQuery.split('?')[0];
+    const pathParts = pathOnly.split('/');
+    if (pathParts.length < 3) return; // Should be: bucket/folder/filename
+    
+    const bucket = pathParts[0];
+    const folder = pathParts[1];
+    const filename = pathParts.slice(2).join('/');
+    const filePath = `${folder}/${filename}`;
+    
+    const supabase = (await import('@/lib/supabase')).default;
+    const { error } = await supabase.storage.from(bucket).remove([filePath]);
+    
+    if (error) {
+      console.warn('[ArsenalPanel] Failed to delete file from storage:', error);
+    }
+  } catch (error) {
+    console.warn('[ArsenalPanel] Error deleting file from storage:', error);
+  }
+};
+
 // Free storage when QR is deleted
-const freeQRStorage = (item: QRHistoryItem) => {
+const freeQRStorage = async (item: QRHistoryItem) => {
   const size = calculateQRStorageSize(item);
+  const opts = item.options;
+  
+  // Delete files from Supabase storage
+  if (opts.fileUrl && typeof opts.fileUrl === 'string') {
+    await deleteFileFromStorage(opts.fileUrl);
+  }
+  
+  // Delete menu files
+  if (opts.menuFiles && Array.isArray(opts.menuFiles)) {
+    for (const file of opts.menuFiles) {
+      if (file && typeof file === 'object' && 'url' in file && typeof file.url === 'string') {
+        await deleteFileFromStorage(file.url);
+      }
+    }
+  }
+  
+  // Delete menu logo
+  if (opts.menuLogoDataUrl && typeof opts.menuLogoDataUrl === 'string' && opts.menuLogoDataUrl.includes('/storage/')) {
+    await deleteFileFromStorage(opts.menuLogoDataUrl);
+  }
+  
+  // Update localStorage storage usage
   if (size > 0 && typeof window !== 'undefined') {
     const current = Number(window.localStorage.getItem('qrc.storage.usage') || '0');
     const updated = Math.max(0, current - size);
@@ -651,8 +712,8 @@ export function ArsenalPanel({
   const handleDelete = async (item: QRHistoryItem) => {
     try {
       await deleteQRFromHistory(item.id);
-      // Free up storage used by this QR's files
-      freeQRStorage(item);
+      // Free up storage used by this QR's files (delete files from storage)
+      await freeQRStorage(item);
       setItems((prev) => prev.filter((entry) => entry.id !== item.id));
       if (selectedId === item.id) {
         setSelectedId(null);
@@ -676,8 +737,8 @@ export function ArsenalPanel({
       
       await Promise.all(ids.map((id) => deleteQRFromHistory(id)));
       
-      // Free up storage for all deleted QRs
-      itemsToDelete.forEach((item) => freeQRStorage(item));
+      // Free up storage for all deleted QRs (delete files from storage)
+      await Promise.all(itemsToDelete.map((item) => freeQRStorage(item)));
       
       setItems((prev) => prev.filter((entry) => !selectedIds.has(entry.id)));
       setSelectedIds(new Set());
