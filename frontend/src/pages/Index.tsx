@@ -218,6 +218,8 @@ const Index = () => {
   const [generatedShortUrl, setGeneratedShortUrl] = useState('');
   const [generatedLongUrl, setGeneratedLongUrl] = useState('');
   const [showGenerateSuccess, setShowGenerateSuccess] = useState(false);
+  const [showNameOverlay, setShowNameOverlay] = useState(false);
+  const [qrName, setQrName] = useState('QRC Untitled 1');
   const [showVcardCustomizer, setShowVcardCustomizer] = useState(false);
   const [showVcardPreview, setShowVcardPreview] = useState(false);
   const [vcardPreviewSide, setVcardPreviewSide] = useState<'front' | 'back'>('front');
@@ -1138,9 +1140,12 @@ const Index = () => {
     if (previousType && previousType !== qrType) {
       setGeneratedShortUrl('');
       setGeneratedLongUrl('');
+      // Reset QR name to default when type changes
+      const defaultName = qrType === 'file' ? fileName || 'File QR' : 'QRC Untitled 1';
+      setQrName(defaultName);
     }
     lastQrTypeRef.current = qrType;
-  }, [qrType]);
+  }, [qrType, fileName]);
 
   useEffect(() => {
     if (qrType !== 'vcard') return;
@@ -1292,7 +1297,7 @@ const Index = () => {
     return () => window.clearTimeout(timer);
   }, [activeTab, pendingCreateScroll]);
 
-  const handleGenerate = async () => {
+  const handleGenerate = async (name?: string | null) => {
     if (!hasSelectedMode) {
       toast.error('Choose Static or Dynamic to continue');
       return;
@@ -1359,10 +1364,18 @@ const Index = () => {
               }
               : optionsSnapshot,
           `${qrMode ?? 'static'}:${qrType === 'website' ? 'url' : qrType ?? 'url'}`,
-          qrType === 'file' ? fileName || 'File QR' : null
+          name || (qrType === 'file' ? fileName || 'File QR' : null)
         );
       if (response.success) {
         if ('url' in response && response.url) {
+          // For vCard, update the URL with the name if provided
+          if (qrType === 'vcard' && name && response.url.id) {
+            try {
+              await updateQR(response.url.id, { name });
+            } catch (error) {
+              console.warn('Failed to update vCard name:', error);
+            }
+          }
           setGeneratedShortUrl(response.url.shortUrl);
           setGeneratedLongUrl(response.url.targetUrl);
           setLastGeneratedContent(response.url.shortUrl);
@@ -1377,6 +1390,7 @@ const Index = () => {
                 : `${appBaseUrl}/menu/${id}/${random}`;
               const updateResponse = await updateQR(id, {
                 targetUrl,
+                name: name || (qrType === 'file' ? fileName || 'File QR' : null),
                 options: qrType === 'file'
                   ? {
                     ...options,
@@ -1406,6 +1420,7 @@ const Index = () => {
         setHasGenerated(true);
         setArsenalRefreshKey((prev) => prev + 1);
         setShowGenerateSuccess(true);
+        setShowNameOverlay(false);
         resetCreateFlow();
         setMobileCustomizeStep(false);
         if (isMobileV2) {
@@ -3683,6 +3698,72 @@ const Index = () => {
               </span>
             </div>
             <p className="text-xs uppercase tracking-[0.4em] text-muted-foreground">Generating your QR</p>
+          </div>
+        </div>
+      )}
+
+      {showNameOverlay && (
+        <div
+          className="fixed inset-0 z-[70] flex items-center justify-center bg-background/80 backdrop-blur-md px-4"
+          onClick={() => setShowNameOverlay(false)}
+        >
+          <div
+            className="glass-panel rounded-2xl p-6 w-full max-w-md space-y-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between">
+              <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Name Your QR Code</p>
+              <button
+                type="button"
+                className="text-xs uppercase tracking-[0.3em] text-muted-foreground hover:text-foreground transition"
+                onClick={() => setShowNameOverlay(false)}
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="space-y-3">
+              <div>
+                <label className="text-xs uppercase tracking-[0.3em] text-muted-foreground mb-2 block">
+                  QR Code Name
+                </label>
+                <Input
+                  value={qrName}
+                  onChange={(e) => {
+                    const value = e.target.value.slice(0, 25);
+                    setQrName(value);
+                  }}
+                  placeholder="QRC Untitled 1"
+                  className="bg-secondary/40 border-border"
+                  autoFocus
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && qrName.trim() && canGenerate) {
+                      handleGenerate(qrName.trim() || null);
+                    }
+                  }}
+                />
+                <p className="text-[10px] text-muted-foreground mt-1">
+                  {qrName.length}/25 characters
+                </p>
+              </div>
+              <Button
+                size="lg"
+                className="w-full gap-2 bg-gradient-primary hover:opacity-90 text-primary-foreground glow uppercase tracking-[0.2em] text-xs"
+                disabled={!canGenerate || isGenerating || !qrName.trim()}
+                onClick={() => handleGenerate(qrName.trim() || null)}
+              >
+                {isGenerating ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Generating
+                  </>
+                ) : (
+                  <>
+                    <Rocket className="h-4 w-4" />
+                    Generate
+                  </>
+                )}
+              </Button>
+            </div>
           </div>
         </div>
       )}
@@ -6529,22 +6610,17 @@ const Index = () => {
                         className="min-w-[170px] gap-2 bg-gradient-primary hover:opacity-90 text-primary-foreground glow uppercase tracking-[0.2em] text-xs"
                         onClick={() => {
                           setMobileCustomizeStep(true);
-                          handleGenerate();
+                          const defaultName = qrType === 'file' ? fileName || 'File QR' : 'QRC Untitled 1';
+                          setQrName(defaultName);
+                          setShowNameOverlay(true);
                         }}
-                        disabled={!canGenerate || isGenerating}
+                        disabled={!canGenerate}
                       >
-                        {isGenerating ? (
-                          <>
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                            Generating
-                          </>
-                        ) : (
-                          <>Skip & Generate</>
-                        )}
+                        Skip & Done
                       </Button>
                     </div>
                     <p className="text-xs text-muted-foreground text-center">
-                      Your QR will use the default studio style unless you customize it.
+                      Your QR will use the default studio style unless you customize it. Click Done to name and generate.
                     </p>
                   </div>
                 )}
@@ -6848,17 +6924,15 @@ const Index = () => {
                     <Button
                       size="lg"
                       className="w-full gap-2 bg-gradient-primary hover:opacity-90 text-primary-foreground glow uppercase tracking-[0.2em] text-xs"
-                      disabled={!canGenerate || isGenerating}
-                      onClick={handleGenerate}
+                      disabled={!canGenerate}
+                      onClick={() => {
+                        // Reset name to default if needed
+                        const defaultName = qrType === 'file' ? fileName || 'File QR' : 'QRC Untitled 1';
+                        setQrName(defaultName);
+                        setShowNameOverlay(true);
+                      }}
                     >
-                      {isGenerating ? (
-                        <>
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                          Generating
-                        </>
-                      ) : (
-                        <>Generate My QR Code</>
-                      )}
+                      Done
                     </Button>
                   </div>
                 </div>
