@@ -1267,6 +1267,12 @@ const Index = () => {
       toast.error('Choose Static or Dynamic to continue');
       return;
     }
+    // Require authentication for dynamic QR codes
+    if (qrMode === 'dynamic' && !user) {
+      toast.error('Please sign in to create dynamic QR codes');
+      navigate('/login');
+      return;
+    }
     if (!canGenerate) {
       const message = qrType === 'website'
         ? 'Please enter a valid website URL'
@@ -6011,6 +6017,11 @@ const Index = () => {
                         ? 'bg-card/80 text-foreground border border-primary/50 rounded-xl uppercase tracking-[0.2em] text-xs shadow-[0_0_14px_rgba(99,102,241,0.18)]'
                         : 'bg-secondary/40 border border-border/60 text-muted-foreground rounded-xl uppercase tracking-[0.2em] text-xs hover:text-primary'}
                       onClick={() => {
+                        if (!user) {
+                          toast.error('Please sign in to create dynamic QR codes');
+                          navigate('/login');
+                          return;
+                        }
                         setQrMode('dynamic');
                         if (!selectedQuickAction) {
                           setQrType(null);
