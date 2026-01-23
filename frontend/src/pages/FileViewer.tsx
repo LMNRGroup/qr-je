@@ -147,19 +147,24 @@ const FileViewer = () => {
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -20 }}
               transition={{ duration: 0.3 }}
-              className="w-full h-full flex items-center justify-center p-4"
-              style={{ maxWidth: '100vw', maxHeight: '100vh' }}
+              className="w-full h-full flex items-center justify-center"
+              style={{ 
+                width: '100vw', 
+                height: '100vh',
+                maxWidth: '100vw',
+                maxHeight: '100vh',
+                padding: '1rem'
+              }}
             >
               <iframe
                 ref={pdfRef}
-                src={`${fileUrl || fileDataUrl}#page=${currentPage + 1}&zoom=page-fit`}
+                src={`${fileUrl || fileDataUrl}#page=${currentPage + 1}&zoom=auto&view=FitH`}
                 className="border-0"
                 style={{ 
-                  width: '100%', 
-                  height: '100%', 
-                  maxWidth: '100%', 
-                  maxHeight: '100%',
-                  objectFit: 'contain'
+                  width: 'calc(100vw - 2rem)', 
+                  height: 'calc(100vh - 2rem)',
+                  maxWidth: 'calc(100vw - 2rem)',
+                  maxHeight: 'calc(100vh - 2rem)'
                 }}
                 title={fileName}
               />
