@@ -85,7 +85,8 @@ const GUEST_WELCOME_KEY = `qr.guest.welcome.${BUILD_STAMP}`;
 const TOUR_GUEST_KEY = `qr.tour.guest.${BUILD_STAMP}`;
 const QR_ASSETS_BUCKET = 'qr-uploads';
 const MAX_FILE_BYTES = 5 * 1024 * 1024;
-const MAX_MENU_FILE_BYTES = 2.5 * 1024 * 1024;
+const MAX_MENU_FILE_BYTES = 2.5 * 1024 * 1024; // 2.5MB for images
+const MAX_MENU_PDF_BYTES = 10 * 1024 * 1024; // 10MB for PDFs (single file)
 const MAX_MENU_TOTAL_BYTES = 12 * 1024 * 1024;
 const MAX_MENU_FILES = 15;
 const MAX_VCARD_PHOTO_BYTES = 1.5 * 1024 * 1024;
@@ -471,6 +472,9 @@ const Index = () => {
   });
   const [menuBuilderStep, setMenuBuilderStep] = useState<'menu' | 'logo' | 'socials'>('menu');
   const [showMenuOrganize, setShowMenuOrganize] = useState(false);
+  const [menuUploadProgress, setMenuUploadProgress] = useState<number>(0);
+  const [menuUploading, setMenuUploading] = useState(false);
+  const [menuUploadError, setMenuUploadError] = useState<string | null>(null);
   const menuFileInputRef = useRef<HTMLInputElement>(null);
   const menuLogoInputRef = useRef<HTMLInputElement>(null);
   const qrRef = useRef<QRPreviewHandle>(null);
@@ -2081,50 +2085,123 @@ const Index = () => {
     const files = Array.from(event.target.files ?? []);
     event.target.value = '';
     if (files.length === 0) return;
-    if (files.length > MAX_MENU_FILES) {
-      toast.error(`You can upload up to ${MAX_MENU_FILES} files.`);
-      return;
-    }
 
-    const hasPdf = files.some((file) => file.type === 'application/pdf');
-    if (hasPdf && files.length > 1) {
-      toast.error('Upload a single PDF or up to 15 images.');
-      return;
-    }
-
-    const totalBytes = files.reduce((sum, file) => sum + file.size, 0);
-    if (totalBytes > MAX_MENU_TOTAL_BYTES) {
-      toast.error('Menu files are too large. Please reduce file sizes.');
-      return;
-    }
+    // Reset states
+    setMenuUploadError(null);
+    setMenuUploadProgress(0);
+    setMenuUploading(true);
 
     try {
-      const uploads = await Promise.all(
-        files.map(async (file) => {
-          if (file.type === 'application/pdf') {
-            if (file.size > MAX_MENU_FILE_BYTES) {
-              throw new Error('PDF menu file is too large.');
-            }
-            const url = await uploadQrAsset(file, 'menus');
-            if (!url) throw new Error('Failed to upload menu PDF.');
-            return { url, type: 'pdf' as const };
+      // Validate file count
+      if (files.length > MAX_MENU_FILES) {
+        const errorMsg = `You can upload up to ${MAX_MENU_FILES} files. You selected ${files.length}.`;
+        setMenuUploadError(errorMsg);
+        toast.error(errorMsg);
+        setMenuUploading(false);
+        return;
+      }
+
+      // Validate file types
+      const invalidFiles = files.filter(
+        (file) => !file.type.startsWith('image/') && file.type !== 'application/pdf'
+      );
+      if (invalidFiles.length > 0) {
+        const errorMsg = `Unsupported file type. Please upload images (JPG, PNG) or PDF files only.`;
+        setMenuUploadError(errorMsg);
+        toast.error(errorMsg);
+        setMenuUploading(false);
+        return;
+      }
+
+      const hasPdf = files.some((file) => file.type === 'application/pdf');
+      if (hasPdf && files.length > 1) {
+        const errorMsg = 'Upload a single PDF or up to 15 images. You cannot mix PDFs with images.';
+        setMenuUploadError(errorMsg);
+        toast.error(errorMsg);
+        setMenuUploading(false);
+        return;
+      }
+
+      // Validate file sizes
+      for (const file of files) {
+        if (file.type === 'application/pdf') {
+          if (file.size > MAX_MENU_PDF_BYTES) {
+            const sizeMB = (file.size / (1024 * 1024)).toFixed(1);
+            const maxMB = (MAX_MENU_PDF_BYTES / (1024 * 1024)).toFixed(0);
+            const errorMsg = `PDF file "${file.name}" is too large (${sizeMB}MB). Maximum size is ${maxMB}MB.`;
+            setMenuUploadError(errorMsg);
+            toast.error(errorMsg);
+            setMenuUploading(false);
+            return;
           }
+        } else if (file.type.startsWith('image/')) {
           if (file.size > MAX_MENU_FILE_BYTES) {
-            throw new Error('Menu image file is too large.');
+            const sizeMB = (file.size / (1024 * 1024)).toFixed(1);
+            const maxMB = (MAX_MENU_FILE_BYTES / (1024 * 1024)).toFixed(1);
+            const errorMsg = `Image file "${file.name}" is too large (${sizeMB}MB). Maximum size is ${maxMB}MB.`;
+            setMenuUploadError(errorMsg);
+            toast.error(errorMsg);
+            setMenuUploading(false);
+            return;
           }
-          const compressed = await compressImageFile(file);
-          const url = await uploadQrAsset(file, 'menus', compressed);
-          if (!url) throw new Error('Failed to upload menu image.');
-          return { url, type: 'image' as const };
+        }
+      }
+
+      const totalBytes = files.reduce((sum, file) => sum + file.size, 0);
+      if (totalBytes > MAX_MENU_TOTAL_BYTES) {
+        const totalMB = (totalBytes / (1024 * 1024)).toFixed(1);
+        const maxMB = (MAX_MENU_TOTAL_BYTES / (1024 * 1024)).toFixed(0);
+        const errorMsg = `Total file size (${totalMB}MB) exceeds the limit of ${maxMB}MB. Please reduce file sizes or upload fewer files.`;
+        setMenuUploadError(errorMsg);
+        toast.error(errorMsg);
+        setMenuUploading(false);
+        return;
+      }
+
+      // Simulate progress for better UX (Supabase doesn't provide progress callbacks)
+      const progressInterval = setInterval(() => {
+        setMenuUploadProgress((prev) => {
+          if (prev >= 90) return prev; // Don't go to 100% until upload completes
+          return prev + Math.random() * 10;
+        });
+      }, 200);
+
+      // Upload files
+      const uploads = await Promise.all(
+        files.map(async (file, index) => {
+          try {
+            if (file.type === 'application/pdf') {
+              const url = await uploadQrAsset(file, 'menus');
+              if (!url) throw new Error('Failed to upload menu PDF.');
+              return { url, type: 'pdf' as const };
+            }
+            const compressed = await compressImageFile(file);
+            const url = await uploadQrAsset(file, 'menus', compressed);
+            if (!url) throw new Error('Failed to upload menu image.');
+            return { url, type: 'image' as const };
+          } catch (error) {
+            const message = error instanceof Error ? error.message : 'Failed to upload file.';
+            throw new Error(`Failed to upload "${file.name}": ${message}`);
+          }
         })
       );
+
+      clearInterval(progressInterval);
+      setMenuUploadProgress(100);
+      await new Promise((resolve) => setTimeout(resolve, 300)); // Brief delay to show 100%
+
       setMenuFiles(uploads);
       setMenuFlip(false);
       setMenuCarouselIndex(0);
       setMenuBuilderStep('logo'); // Advance to logo step after menu upload
+      toast.success(`Successfully uploaded ${uploads.length} file${uploads.length === 1 ? '' : 's'}`);
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to process menu files.';
+      setMenuUploadError(message);
       toast.error(message);
+    } finally {
+      setMenuUploading(false);
+      setMenuUploadProgress(0);
     }
   };
 
@@ -4506,10 +4583,58 @@ const Index = () => {
                 {menuBuilderStep === 'menu' && (
                   <div className="glass-panel rounded-2xl p-4 space-y-4">
                     <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Menu Pages</p>
-                    {!menuHasFiles ? (
+                    {menuUploading ? (
+                      <div className="space-y-3">
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between text-sm">
+                            <span className="text-muted-foreground">Uploading...</span>
+                            <span className="font-semibold text-foreground">{Math.round(menuUploadProgress)}%</span>
+                          </div>
+                          <div className="relative h-2 w-full overflow-hidden rounded-full bg-secondary/30">
+                            <div
+                              className="h-full rounded-full bg-gradient-to-r from-primary via-amber-400 to-amber-300 transition-all duration-300 ease-out relative overflow-hidden"
+                              style={{
+                                width: `${menuUploadProgress}%`,
+                              }}
+                            >
+                              {menuUploadProgress > 0 && menuUploadProgress < 100 && (
+                                <div
+                                  className="absolute inset-0"
+                                  style={{
+                                    background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent)',
+                                    backgroundSize: '200% 100%',
+                                    animation: 'shimmer 2s linear infinite',
+                                  }}
+                                />
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          Please wait while your files are being uploaded...
+                        </p>
+                      </div>
+                    ) : menuUploadError ? (
+                      <div className="space-y-3">
+                        <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-3">
+                          <p className="text-sm text-destructive font-semibold">Upload Failed</p>
+                          <p className="text-xs text-destructive/80 mt-1">{menuUploadError}</p>
+                        </div>
+                        <Button
+                          type="button"
+                          onClick={() => {
+                            setMenuUploadError(null);
+                            menuFileInputRef.current?.click();
+                          }}
+                          className="w-full"
+                        >
+                          Try Again
+                        </Button>
+                      </div>
+                    ) : !menuHasFiles ? (
                       <div className="space-y-3">
                         <p className="text-sm text-muted-foreground">
-                          Upload up to 15 JPG/PNG pages or a single PDF file.
+                          Upload up to 15 JPG/PNG pages or a single PDF file (max 10MB for PDFs).
                         </p>
                         <Button
                           type="button"
