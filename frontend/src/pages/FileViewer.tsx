@@ -20,6 +20,7 @@ const FileViewer = () => {
   const [fileUrl, setFileUrl] = useState('');
   const [fileName, setFileName] = useState('');
   const [fileType, setFileType] = useState('');
+  const [qrName, setQrName] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(0);
   const [isZoomed, setIsZoomed] = useState(false);
   const [pdfTotalPages, setPdfTotalPages] = useState(1);
@@ -48,6 +49,7 @@ const FileViewer = () => {
         setFileUrl(url);
         setFileName(options.fileName ?? 'File');
         setFileType(type);
+        setQrName(data.name ?? null);
       })
       .catch((err) => {
         const message = err instanceof Error ? err.message : 'Failed to load file.';
@@ -334,11 +336,40 @@ const FileViewer = () => {
         </div>
       )}
 
-      {/* Page indicator for multi-page PDF - at the top */}
+      {/* QR Code Name - at the top */}
+      {qrName && (
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-30 px-4 py-2">
+          <span className="text-sm text-white/90 font-medium">{qrName}</span>
+        </div>
+      )}
+
+      {/* Navigation Arrows - minimal, just < > */}
       {isPdf && isMultiPagePdf && (
-        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-30 px-4 py-2 bg-black/60 backdrop-blur-sm rounded-full border border-white/20">
-          <span className="text-xs text-white/80 uppercase tracking-[0.2em]">
-            Page {currentPage + 1} / {pdfTotalPages}
+        <>
+          <button
+            onClick={() => setCurrentPage((prev) => Math.max(0, prev - 1))}
+            disabled={currentPage === 0}
+            className="absolute left-4 top-1/2 -translate-y-1/2 z-30 text-white/80 text-2xl font-light disabled:opacity-30 disabled:cursor-not-allowed hover:text-white transition-opacity"
+            aria-label="Previous page"
+          >
+            &lt;
+          </button>
+          <button
+            onClick={() => setCurrentPage((prev) => Math.min(pdfTotalPages - 1, prev + 1))}
+            disabled={currentPage === pdfTotalPages - 1}
+            className="absolute right-4 top-1/2 -translate-y-1/2 z-30 text-white/80 text-2xl font-light disabled:opacity-30 disabled:cursor-not-allowed hover:text-white transition-opacity"
+            aria-label="Next page"
+          >
+            &gt;
+          </button>
+        </>
+      )}
+
+      {/* Page indicator - bottom right, subtle, format: 4/6 */}
+      {isPdf && isMultiPagePdf && (
+        <div className="absolute bottom-20 right-4 z-30">
+          <span className="text-xs text-white/60 font-light">
+            {currentPage + 1}/{pdfTotalPages}
           </span>
         </div>
       )}
