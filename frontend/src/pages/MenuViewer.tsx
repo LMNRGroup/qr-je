@@ -218,7 +218,7 @@ const MenuViewer = () => {
             >
               <iframe
                 ref={pdfRef}
-                src={`${menuFiles[0]?.url}#page=${currentPage + 1}&zoom=page-fit`}
+                src={`${menuFiles[0]?.url}#page=${currentPage + 1}&zoom=page-fit&view=Fit`}
                 className="border-0"
                 style={{ 
                   width: '90vw', 

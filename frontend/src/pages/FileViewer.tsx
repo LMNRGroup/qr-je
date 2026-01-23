@@ -167,7 +167,7 @@ const FileViewer = () => {
             >
               <iframe
                 ref={pdfRef}
-                src={`${fileUrl || fileDataUrl}#page=${currentPage + 1}&zoom=page-fit`}
+                src={`${fileUrl || fileDataUrl}#page=${currentPage + 1}&zoom=page-fit&view=Fit`}
                 className="border-0"
                 style={{ 
                   width: '90vw', 
