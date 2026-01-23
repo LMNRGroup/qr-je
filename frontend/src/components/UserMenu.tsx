@@ -1,4 +1,4 @@
-import { Bell, ChevronDown, ChevronUp, LogOut, RefreshCcw, Settings, Trash2, User } from 'lucide-react';
+import { Bell, ChevronDown, ChevronUp, LogIn, LogOut, RefreshCcw, Settings, Trash2, User, UserPlus } from 'lucide-react';
 import { cloneElement, isValidElement, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -201,14 +201,15 @@ export function UserMenu({ trigger, onSignOut }: { trigger?: React.ReactNode; on
 
   return (
     <DropdownMenu onOpenChange={(open) => {
-      if (open) markFeedSeen();
+      if (open && user) markFeedSeen();
     }}>
       <DropdownMenuTrigger asChild>
         {triggerNode}
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-80 glass-panel">
-        {user && (
+        {user ? (
           <>
+            {/* Logged in: Show feed and preferences */}
             <div className="px-3 pt-3">
               <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Feed</p>
               <p className="text-lg font-semibold">{headerName}&apos;s Feed</p>
@@ -328,74 +329,100 @@ export function UserMenu({ trigger, onSignOut }: { trigger?: React.ReactNode; on
               </Button>
             </div>
             <DropdownMenuSeparator />
-          </>
-        )}
-        <div className={`px-3 pb-3 space-y-2 ${isMobileV2 ? 'flex flex-col items-center' : ''}`}>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className={`${isMobileV2 ? 'w-full max-w-[200px] bg-black text-white border-black hover:bg-black/80 hover:text-white' : 'w-full border-border'} text-xs uppercase tracking-[0.25em]`}
-            onClick={handlePreferences}
-          >
-            <Settings className="mr-2 h-3.5 w-3.5" />
-            Preferences
-          </Button>
-          {isMobileV2 && (
-            <>
+            <div className={`px-3 pb-3 space-y-2 ${isMobileV2 ? 'flex flex-col items-center' : ''}`}>
               <Button
                 type="button"
                 variant="outline"
                 size="sm"
-                className="w-full max-w-[200px] bg-black text-white border-black hover:bg-black/80 hover:text-white text-xs uppercase tracking-[0.25em]"
-                onClick={handleClearCache}
+                className={`${isMobileV2 ? 'w-full max-w-[200px] bg-black text-white border-black hover:bg-black/80 hover:text-white' : 'w-full border-border'} text-xs uppercase tracking-[0.25em]`}
+                onClick={handlePreferences}
               >
-                <RefreshCcw className="mr-2 h-3.5 w-3.5" />
-                Clear cache
+                <Settings className="mr-2 h-3.5 w-3.5" />
+                Preferences
               </Button>
-              {/* Storage Usage Display */}
-              {(() => {
-                const MAX_STORAGE_BYTES = 25 * 1024 * 1024; // 25MB
-                const usedMB = (storageUsage / (1024 * 1024)).toFixed(1);
-                const totalMB = (MAX_STORAGE_BYTES / (1024 * 1024)).toFixed(0);
-                const percentage = Math.min(100, (storageUsage / MAX_STORAGE_BYTES) * 100);
-                const isNearLimit = percentage >= 80;
-                return (
-                  <div className="w-full max-w-[200px] space-y-2">
-                    <div className="flex items-center justify-between text-[10px] uppercase tracking-[0.2em] text-muted-foreground px-1">
-                      <span>Storage</span>
-                      <span className={isNearLimit ? 'text-destructive' : ''}>
-                        {usedMB}MB / {totalMB}MB
-                      </span>
-                    </div>
-                    <div className="relative h-1.5 w-full overflow-hidden rounded-full bg-secondary/30">
-                      <div
-                        className={`h-full rounded-full transition-all duration-300 ${
-                          isNearLimit
-                            ? 'bg-destructive'
-                            : percentage >= 60
-                              ? 'bg-amber-400'
-                              : 'bg-primary'
-                        }`}
-                        style={{ width: `${percentage}%` }}
-                      />
-                    </div>
-                  </div>
-                );
-              })()}
-            </>
-          )}
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className={`${isMobileV2 ? 'w-full max-w-[200px] bg-black text-white border-black hover:bg-black/80 hover:text-white' : 'w-full border-border text-destructive hover:bg-destructive/10'} text-xs uppercase tracking-[0.25em]`}
-            onClick={() => setShowSignOutConfirm(true)}
-          >
-            <LogOut className="mr-2 h-3.5 w-3.5" />
-            Sign out
-          </Button>
-        </div>
+              {isMobileV2 && (
+                <>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="w-full max-w-[200px] bg-black text-white border-black hover:bg-black/80 hover:text-white text-xs uppercase tracking-[0.25em]"
+                    onClick={handleClearCache}
+                  >
+                    <RefreshCcw className="mr-2 h-3.5 w-3.5" />
+                    Clear cache
+                  </Button>
+                  {/* Storage Usage Display */}
+                  {(() => {
+                    const MAX_STORAGE_BYTES = 25 * 1024 * 1024; // 25MB
+                    const usedMB = (storageUsage / (1024 * 1024)).toFixed(1);
+                    const totalMB = (MAX_STORAGE_BYTES / (1024 * 1024)).toFixed(0);
+                    const percentage = Math.min(100, (storageUsage / MAX_STORAGE_BYTES) * 100);
+                    const isNearLimit = percentage >= 80;
+                    return (
+                      <div className="w-full max-w-[200px] space-y-2">
+                        <div className="flex items-center justify-between text-[10px] uppercase tracking-[0.2em] text-muted-foreground px-1">
+                          <span>Storage</span>
+                          <span className={isNearLimit ? 'text-destructive' : ''}>
+                            {usedMB}MB / {totalMB}MB
+                          </span>
+                        </div>
+                        <div className="relative h-1.5 w-full overflow-hidden rounded-full bg-secondary/30">
+                          <div
+                            className={`h-full rounded-full transition-all duration-300 ${
+                              isNearLimit
+                                ? 'bg-destructive'
+                                : percentage >= 60
+                                  ? 'bg-amber-400'
+                                  : 'bg-primary'
+                            }`}
+                            style={{ width: `${percentage}%` }}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </>
+              )}
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className={`${isMobileV2 ? 'w-full max-w-[200px] bg-black text-white border-black hover:bg-black/80 hover:text-white' : 'w-full border-border text-destructive hover:bg-destructive/10'} text-xs uppercase tracking-[0.25em]`}
+                onClick={() => setShowSignOutConfirm(true)}
+              >
+                <LogOut className="mr-2 h-3.5 w-3.5" />
+                Sign out
+              </Button>
+            </div>
+          </>
+        ) : (
+          <>
+            {/* Not logged in: Show only Sign Up and Login */}
+            <div className="px-3 pt-3 pb-3 space-y-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className={`${isMobileV2 ? 'w-full max-w-[200px] bg-black text-white border-black hover:bg-black/80 hover:text-white' : 'w-full border-border'} text-xs uppercase tracking-[0.25em]`}
+                onClick={() => navigate('/login?signup=true')}
+              >
+                <UserPlus className="mr-2 h-3.5 w-3.5" />
+                Sign Up
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className={`${isMobileV2 ? 'w-full max-w-[200px] bg-black text-white border-black hover:bg-black/80 hover:text-white' : 'w-full border-border'} text-xs uppercase tracking-[0.25em]`}
+                onClick={() => navigate('/login')}
+              >
+                <LogIn className="mr-2 h-3.5 w-3.5" />
+                Login
+              </Button>
+            </div>
+          </>
+        )}
       </DropdownMenuContent>
 
       {/* Sign Out Confirmation Dialog */}
