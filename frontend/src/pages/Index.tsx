@@ -2416,21 +2416,32 @@ const Index = () => {
       setMenuUploadProgress(100);
       await new Promise((resolve) => setTimeout(resolve, 300)); // Brief delay to show 100%
 
-      // Update state first
+      // Update state first - ensure modal stays open
       setMenuFiles(uploads);
       setMenuFlip(false);
       setMenuCarouselIndex(0);
+      setMenuUploadError(null); // Clear any previous errors
+      
+      // Ensure menu builder is open before advancing step
+      if (!showMenuBuilder) {
+        setShowMenuBuilder(true);
+      }
       
       // Advance to logo step - use setTimeout to ensure state updates are processed
+      // Use a longer delay to ensure React has processed all state updates
       setTimeout(() => {
         setMenuBuilderStep('logo'); // Advance to logo step after menu upload
-      }, 100);
+      }, 200);
       
       toast.success(`Successfully uploaded ${uploads.length} file${uploads.length === 1 ? '' : 's'}`);
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to process menu files.';
       setMenuUploadError(message);
       toast.error(message);
+      // Ensure modal stays open even on error so user can retry
+      if (!showMenuBuilder) {
+        setShowMenuBuilder(true);
+      }
     } finally {
       setMenuUploading(false);
       setMenuUploadProgress(0);
@@ -4714,7 +4725,7 @@ const Index = () => {
 
             <div className="flex flex-col lg:flex-row gap-4">
               {/* Preview Section */}
-              <div className="flex flex-col items-center gap-5 w-full lg:w-auto">
+              <div className="flex flex-col items-center gap-5 w-full lg:w-auto flex-shrink-0">
                 <div className="w-full rounded-2xl border border-border/60 bg-secondary/30 p-4 space-y-3">
                   <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground text-center">Preview</p>
                   <div className="flex items-center justify-center">
