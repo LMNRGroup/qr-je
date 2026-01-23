@@ -12,6 +12,7 @@ import {
   ZoomIn,
   ZoomOut,
 } from 'lucide-react';
+import { PDFViewer } from '@/components/PDFViewer';
 
 type MenuFile = { url: string; type: 'image' | 'pdf' };
 type MenuOptions = {
@@ -38,9 +39,7 @@ const MenuViewer = () => {
   const [isFlipped, setIsFlipped] = useState(false);
   const [isZoomed, setIsZoomed] = useState(false);
   const [pdfTotalPages, setPdfTotalPages] = useState(1);
-  const [showSwipeHint, setShowSwipeHint] = useState(false);
   const swipeRef = useRef({ dragging: false, startX: 0, startY: 0, currentX: 0, currentY: 0 });
-  const pdfRef = useRef<HTMLIFrameElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -70,15 +69,6 @@ const MenuViewer = () => {
       .finally(() => setIsLoading(false));
   }, [id, random]);
 
-  // Detect PDF total pages
-  useEffect(() => {
-    if (menuFiles.length === 1 && menuFiles[0]?.type === 'pdf' && pdfRef.current) {
-      // Try to get PDF page count (this is approximate, browsers handle PDFs differently)
-      // For now, we'll use a reasonable default and let users swipe
-      setPdfTotalPages(10); // Default, will be updated if we can detect it
-    }
-  }, [menuFiles]);
-
   const isPdf = useMemo(
     () => menuFiles.length === 1 && menuFiles[0]?.type === 'pdf',
     [menuFiles]
@@ -87,13 +77,19 @@ const MenuViewer = () => {
     () => menuFiles.length === 2,
     [menuFiles]
   );
+  const isTwoPagePdf = useMemo(
+    () => isPdf && pdfTotalPages === 2,
+    [isPdf, pdfTotalPages]
+  );
   const isMultiPage = useMemo(
-    () => menuFiles.length > 2 || (isPdf && pdfTotalPages > 1),
+    () => menuFiles.length > 2 || (isPdf && pdfTotalPages > 2),
     [menuFiles, isPdf, pdfTotalPages]
   );
 
   const handleSwipeStart = (event: PointerEvent<HTMLDivElement>) => {
-    if (isZoomed) return; // Don't swipe when zoomed
+    if (isZoomed) return;
+    // Don't capture swipe if it's a 2-page PDF (handled by tap)
+    if (isTwoPagePdf) return;
     event.currentTarget.setPointerCapture(event.pointerId);
     swipeRef.current = {
       dragging: true,
@@ -121,8 +117,8 @@ const MenuViewer = () => {
     if (Math.abs(deltaX) < Math.abs(deltaY)) return;
     if (Math.abs(deltaX) < 50) return;
 
-    if (isTwoPageFlip) {
-      // For 2-page flip, toggle flip state
+    if (isTwoPageFlip && !isPdf) {
+      // For 2-page image flip, toggle flip state
       setIsFlipped((prev) => !prev);
     } else if (isMultiPage) {
       // For multi-page, navigate pages
@@ -140,15 +136,8 @@ const MenuViewer = () => {
     }
   };
 
-  const handleDoubleClick = () => {
-    setIsZoomed((prev) => !prev);
-  };
-
-  const handleTap = () => {
-    if (isMultiPage && !isZoomed) {
-      setShowSwipeHint(true);
-      setTimeout(() => setShowSwipeHint(false), 1000);
-    }
+  const handleFlip = () => {
+    setIsFlipped((prev) => !prev);
   };
 
   const hasSocials = useMemo(
@@ -173,8 +162,10 @@ const MenuViewer = () => {
     );
   }
 
+  const pdfUrl = isPdf ? menuFiles[0]?.url : '';
+
   return (
-    <div className="fixed inset-0 bg-background overflow-hidden z-40">
+    <div className="fixed inset-0 bg-background overflow-hidden z-40" style={{ width: '100vw', height: '100vh', maxWidth: '100vw' }}>
       {/* Logo at top - centered */}
       {menuLogo && (
         <div className="absolute top-6 left-1/2 -translate-x-1/2 z-30">
@@ -191,49 +182,106 @@ const MenuViewer = () => {
       {/* Main content area - full screen */}
       <div
         ref={containerRef}
-        className="absolute inset-0 flex items-center justify-center"
+        className="absolute inset-0 flex items-center justify-center p-4"
         onPointerDown={handleSwipeStart}
         onPointerMove={handleSwipeMove}
         onPointerUp={handleSwipeEnd}
         onPointerLeave={handleSwipeEnd}
-        onDoubleClick={handleDoubleClick}
-        onClick={handleTap}
+        style={{ width: '100%', height: '100%', maxWidth: '100vw', overflow: 'hidden' }}
       >
         <AnimatePresence mode="wait">
           {isPdf ? (
-            <motion.div
-              key={`pdf-${currentPage}`}
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
-              transition={{ duration: 0.3 }}
-              className="w-full h-full flex items-center justify-center"
-              style={{ 
-                width: '100vw', 
-                height: '100vh',
-                maxWidth: '100vw',
-                maxHeight: '100vh',
-                padding: '1rem'
-              }}
-            >
-              <iframe
-                ref={pdfRef}
-                src={`${menuFiles[0]?.url}#page=${currentPage + 1}&zoom=page-fit&view=Fit`}
-                className="border-0"
-                style={{ 
-                  width: '90vw', 
-                  height: '90vh',
-                  maxWidth: '90vw',
-                  maxHeight: '90vh'
-                }}
-                title="Menu PDF"
-              />
-            </motion.div>
+            isTwoPagePdf ? (
+              <motion.div
+                key="pdf-flip-container"
+                className="relative w-full h-full max-w-full"
+                style={{ perspective: '1000px' }}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.3 }}
+              >
+                <motion.div
+                  className="relative w-full h-full"
+                  animate={{ rotateY: isFlipped ? 180 : 0 }}
+                  transition={{ duration: 0.6, ease: 'easeInOut' }}
+                  style={{ transformStyle: 'preserve-3d' }}
+                >
+                  {/* Front side - Page 1 */}
+                  <div
+                    className="absolute inset-0 w-full h-full"
+                    style={{
+                      backfaceVisibility: 'hidden',
+                      WebkitBackfaceVisibility: 'hidden',
+                    }}
+                  >
+                    <PDFViewer
+                      url={pdfUrl}
+                      currentPage={0}
+                      onPageChange={setCurrentPage}
+                      onTotalPagesChange={setPdfTotalPages}
+                      isZoomed={isZoomed}
+                      onZoomChange={setIsZoomed}
+                      enableTwoPageFlip={true}
+                      onFlip={handleFlip}
+                      isFlipped={false}
+                      className="w-full h-full"
+                    />
+                  </div>
+                  {/* Back side - Page 2 */}
+                  <div
+                    className="absolute inset-0 w-full h-full"
+                    style={{
+                      backfaceVisibility: 'hidden',
+                      WebkitBackfaceVisibility: 'hidden',
+                      transform: 'rotateY(180deg)',
+                    }}
+                  >
+                    <PDFViewer
+                      url={pdfUrl}
+                      currentPage={1}
+                      onPageChange={setCurrentPage}
+                      onTotalPagesChange={setPdfTotalPages}
+                      isZoomed={isZoomed}
+                      onZoomChange={setIsZoomed}
+                      enableTwoPageFlip={true}
+                      onFlip={handleFlip}
+                      isFlipped={true}
+                      className="w-full h-full"
+                    />
+                  </div>
+                </motion.div>
+              </motion.div>
+            ) : (
+              <motion.div
+                key={`pdf-${currentPage}`}
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                transition={{ duration: 0.3 }}
+                className="w-full h-full flex items-center justify-center"
+                style={{ maxWidth: '100%', overflow: 'hidden' }}
+              >
+                <PDFViewer
+                  url={pdfUrl}
+                  currentPage={currentPage}
+                  onPageChange={setCurrentPage}
+                  onTotalPagesChange={setPdfTotalPages}
+                  isZoomed={isZoomed}
+                  onZoomChange={setIsZoomed}
+                  className="w-full h-full"
+                />
+              </motion.div>
+            )
           ) : isTwoPageFlip ? (
             <motion.div
               key="flip-container"
-              className="relative w-full h-full max-w-4xl max-h-[90vh]"
+              className="relative w-full h-full max-w-full"
               style={{ perspective: '1000px' }}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.3 }}
             >
               <motion.div
                 className="relative w-full h-full"
@@ -248,22 +296,15 @@ const MenuViewer = () => {
                     backfaceVisibility: 'hidden',
                     WebkitBackfaceVisibility: 'hidden',
                   }}
-                  onClick={() => setIsFlipped((prev) => !prev)}
+                  onClick={handleFlip}
                 >
-                  {menuFiles[0]?.type === 'pdf' ? (
-                    <iframe
-                      src={`${menuFiles[0]?.url}#zoom=page-fit`}
-                      className="w-full h-full border-0"
-                      title="Menu front"
-                    />
-                  ) : (
-                    <img
-                      src={menuFiles[0]?.url}
-                      alt="Menu front"
-                      className={`w-full h-full object-contain ${isZoomed ? 'scale-150 cursor-zoom-out' : 'cursor-zoom-in'} transition-transform duration-300`}
-                      onDoubleClick={handleDoubleClick}
-                    />
-                  )}
+                  <img
+                    src={menuFiles[0]?.url}
+                    alt="Menu front"
+                    className={`w-full h-full object-contain ${isZoomed ? 'scale-150 cursor-zoom-out' : 'cursor-zoom-in'} transition-transform duration-300`}
+                    onDoubleClick={() => setIsZoomed((prev) => !prev)}
+                    style={{ maxWidth: '100%', height: 'auto' }}
+                  />
                 </div>
                 {/* Back side */}
                 <div
@@ -273,22 +314,15 @@ const MenuViewer = () => {
                     WebkitBackfaceVisibility: 'hidden',
                     transform: 'rotateY(180deg)',
                   }}
-                  onClick={() => setIsFlipped((prev) => !prev)}
+                  onClick={handleFlip}
                 >
-                  {menuFiles[1]?.type === 'pdf' ? (
-                    <iframe
-                      src={`${menuFiles[1]?.url}#zoom=page-fit`}
-                      className="w-full h-full border-0"
-                      title="Menu back"
-                    />
-                  ) : (
-                    <img
-                      src={menuFiles[1]?.url}
-                      alt="Menu back"
-                      className={`w-full h-full object-contain ${isZoomed ? 'scale-150 cursor-zoom-out' : 'cursor-zoom-in'} transition-transform duration-300`}
-                      onDoubleClick={handleDoubleClick}
-                    />
-                  )}
+                  <img
+                    src={menuFiles[1]?.url}
+                    alt="Menu back"
+                    className={`w-full h-full object-contain ${isZoomed ? 'scale-150 cursor-zoom-out' : 'cursor-zoom-in'} transition-transform duration-300`}
+                    onDoubleClick={() => setIsZoomed((prev) => !prev)}
+                    style={{ maxWidth: '100%', height: 'auto' }}
+                  />
                 </div>
               </motion.div>
             </motion.div>
@@ -300,34 +334,35 @@ const MenuViewer = () => {
               exit={{ opacity: 0, x: -20 }}
               transition={{ duration: 0.3 }}
               className="w-full h-full flex items-center justify-center"
+              style={{ maxWidth: '100%', overflow: 'hidden' }}
             >
               <img
                 src={menuFiles[currentPage]?.url}
                 alt={`Menu page ${currentPage + 1}`}
                 className={`max-w-full max-h-full object-contain ${isZoomed ? 'scale-150 cursor-zoom-out' : 'cursor-zoom-in'} transition-transform duration-300`}
+                onDoubleClick={() => setIsZoomed((prev) => !prev)}
+                style={{ maxWidth: '100%', height: 'auto' }}
               />
             </motion.div>
           )}
         </AnimatePresence>
       </div>
 
-      {/* Watermark - bottom center */}
-      <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-30 flex items-center gap-3 px-4 py-2 bg-black/40 backdrop-blur-sm rounded-full border border-white/10">
-        <p className="text-[9px] uppercase tracking-[0.3em] text-white/60 mb-1 absolute -top-6 left-1/2 -translate-x-1/2 whitespace-nowrap">
-          This page was created with:
-        </p>
+      {/* Luminar Apps Watermark - bottom center, clickable */}
+      <a
+        href="https://qrcode.luminarapps.com"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="absolute bottom-4 left-1/2 -translate-x-1/2 z-30 flex items-center gap-2 px-3 py-1.5 bg-black/30 backdrop-blur-sm rounded-full border border-white/10 hover:bg-black/40 transition-colors"
+        style={{ textDecoration: 'none' }}
+      >
         <img
           src="/assets/QRC App Icon.png"
-          alt="QR Code Studio"
-          className="h-6 w-6 rounded-full"
+          alt="Luminar Apps"
+          className="h-5 w-5 rounded-full"
         />
-        <div className="flex flex-col">
-          <span className="text-xs font-semibold bg-gradient-to-r from-primary to-cyan-400 bg-clip-text text-transparent">
-            QR Code Studio
-          </span>
-          <span className="text-[9px] text-white/50">by Luminar Apps</span>
-        </div>
-      </div>
+        <span className="text-[10px] text-white/70 font-medium">Luminar Apps</span>
+      </a>
 
       {/* Social Media Icons - bottom, only if user provided links */}
       {hasSocials && (
@@ -390,19 +425,10 @@ const MenuViewer = () => {
       )}
 
       {/* Page indicator for multi-page */}
-      {isMultiPage && !isTwoPageFlip && (
+      {isMultiPage && !isTwoPageFlip && !isTwoPagePdf && (
         <div className="absolute top-24 left-1/2 -translate-x-1/2 z-30 px-4 py-2 bg-black/60 backdrop-blur-sm rounded-full border border-white/20">
           <span className="text-xs text-white/80 uppercase tracking-[0.2em]">
-            {isPdf ? `Page ${currentPage + 1}` : `${currentPage + 1} / ${menuFiles.length}`}
-          </span>
-        </div>
-      )}
-
-      {/* Swipe hint - only shows on tap for 1 second */}
-      {isMultiPage && !isZoomed && showSwipeHint && (
-        <div className="absolute bottom-32 left-1/2 -translate-x-1/2 z-30 px-4 py-2 bg-black/40 backdrop-blur-sm rounded-full border border-white/10">
-          <span className="text-[10px] text-white/60 uppercase tracking-[0.3em]">
-            {isTwoPageFlip ? 'Tap to flip' : 'Swipe for next'}
+            {isPdf ? `Page ${currentPage + 1} / ${pdfTotalPages}` : `${currentPage + 1} / ${menuFiles.length}`}
           </span>
         </div>
       )}

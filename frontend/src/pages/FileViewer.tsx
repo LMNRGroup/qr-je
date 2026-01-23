@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getPublicUrlDetails } from '@/lib/api';
 import { Loader2, File, ZoomOut } from 'lucide-react';
+import { PDFViewer } from '@/components/PDFViewer';
 
 type FileOptions = {
   fileDataUrl?: string;
@@ -22,9 +23,8 @@ const FileViewer = () => {
   const [currentPage, setCurrentPage] = useState(0);
   const [isZoomed, setIsZoomed] = useState(false);
   const [pdfTotalPages, setPdfTotalPages] = useState(1);
-  const [showSwipeHint, setShowSwipeHint] = useState(false);
+  const [isFlipped, setIsFlipped] = useState(false);
   const swipeRef = useRef({ dragging: false, startX: 0, startY: 0, currentX: 0, currentY: 0 });
-  const pdfRef = useRef<HTMLIFrameElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -62,15 +62,18 @@ const FileViewer = () => {
     return fileType === 'application/pdf';
   }, [fileDataUrl, fileUrl, fileType]);
 
-  // Detect PDF total pages
-  useEffect(() => {
-    if (isPdf && pdfRef.current) {
-      setPdfTotalPages(10); // Default, will be updated if we can detect it
-    }
-  }, [isPdf]);
+  const isTwoPagePdf = useMemo(() => {
+    return isPdf && pdfTotalPages === 2;
+  }, [isPdf, pdfTotalPages]);
+
+  const isMultiPagePdf = useMemo(() => {
+    return isPdf && pdfTotalPages > 2;
+  }, [isPdf, pdfTotalPages]);
 
   const handleSwipeStart = (event: PointerEvent<HTMLDivElement>) => {
-    if (isZoomed || !isPdf) return; // Only allow swiping for PDFs when not zoomed
+    if (isZoomed || !isPdf) return;
+    // Don't capture swipe if it's a 2-page PDF (handled by tap)
+    if (isTwoPagePdf) return;
     event.currentTarget.setPointerCapture(event.pointerId);
     swipeRef.current = {
       dragging: true,
@@ -98,24 +101,20 @@ const FileViewer = () => {
     if (Math.abs(deltaX) < Math.abs(deltaY)) return;
     if (Math.abs(deltaX) < 50) return;
 
-    if (deltaX < 0) {
-      // Swipe left - next page
-      setCurrentPage((prev) => Math.min(pdfTotalPages - 1, prev + 1));
-    } else {
-      // Swipe right - previous page
-      setCurrentPage((prev) => Math.max(0, prev - 1));
+    // For multi-page PDFs, navigate pages
+    if (isMultiPagePdf) {
+      if (deltaX < 0) {
+        // Swipe left - next page
+        setCurrentPage((prev) => Math.min(pdfTotalPages - 1, prev + 1));
+      } else {
+        // Swipe right - previous page
+        setCurrentPage((prev) => Math.max(0, prev - 1));
+      }
     }
   };
 
-  const handleDoubleClick = () => {
-    setIsZoomed((prev) => !prev);
-  };
-
-  const handleTap = () => {
-    if (isPdf && pdfTotalPages > 1 && !isZoomed) {
-      setShowSwipeHint(true);
-      setTimeout(() => setShowSwipeHint(false), 1000);
-    }
+  const handleFlip = () => {
+    setIsFlipped((prev) => !prev);
   };
 
   if (isLoading) {
@@ -135,49 +134,104 @@ const FileViewer = () => {
     );
   }
 
+  const pdfUrl = fileUrl || fileDataUrl;
+
   return (
-    <div className="fixed inset-0 bg-background overflow-hidden z-40">
+    <div className="fixed inset-0 bg-background overflow-hidden z-40" style={{ width: '100vw', height: '100vh', maxWidth: '100vw' }}>
       {/* Main content area - full screen */}
       <div
         ref={containerRef}
-        className="absolute inset-0 flex items-center justify-center"
+        className="absolute inset-0 flex items-center justify-center p-4"
         onPointerDown={handleSwipeStart}
         onPointerMove={handleSwipeMove}
         onPointerUp={handleSwipeEnd}
         onPointerLeave={handleSwipeEnd}
-        onDoubleClick={handleDoubleClick}
-        onClick={handleTap}
+        style={{ width: '100%', height: '100%', maxWidth: '100vw', overflow: 'hidden' }}
       >
         <AnimatePresence mode="wait">
           {isPdf ? (
-            <motion.div
-              key={`pdf-${currentPage}`}
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
-              transition={{ duration: 0.3 }}
-              className="w-full h-full flex items-center justify-center"
-              style={{ 
-                width: '100vw', 
-                height: '100vh',
-                maxWidth: '100vw',
-                maxHeight: '100vh',
-                padding: '1rem'
-              }}
-            >
-              <iframe
-                ref={pdfRef}
-                src={`${fileUrl || fileDataUrl}#page=${currentPage + 1}&zoom=page-fit&view=Fit`}
-                className="border-0"
-                style={{ 
-                  width: '90vw', 
-                  height: '90vh',
-                  maxWidth: '90vw',
-                  maxHeight: '90vh'
-                }}
-                title={fileName}
-              />
-            </motion.div>
+            isTwoPagePdf ? (
+              <motion.div
+                key="pdf-flip-container"
+                className="relative w-full h-full max-w-full"
+                style={{ perspective: '1000px' }}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.3 }}
+              >
+                <motion.div
+                  className="relative w-full h-full"
+                  animate={{ rotateY: isFlipped ? 180 : 0 }}
+                  transition={{ duration: 0.6, ease: 'easeInOut' }}
+                  style={{ transformStyle: 'preserve-3d' }}
+                >
+                  {/* Front side - Page 1 */}
+                  <div
+                    className="absolute inset-0 w-full h-full"
+                    style={{
+                      backfaceVisibility: 'hidden',
+                      WebkitBackfaceVisibility: 'hidden',
+                    }}
+                  >
+                    <PDFViewer
+                      url={pdfUrl}
+                      currentPage={0}
+                      onPageChange={setCurrentPage}
+                      onTotalPagesChange={setPdfTotalPages}
+                      isZoomed={isZoomed}
+                      onZoomChange={setIsZoomed}
+                      enableTwoPageFlip={true}
+                      onFlip={handleFlip}
+                      isFlipped={false}
+                      className="w-full h-full"
+                    />
+                  </div>
+                  {/* Back side - Page 2 */}
+                  <div
+                    className="absolute inset-0 w-full h-full"
+                    style={{
+                      backfaceVisibility: 'hidden',
+                      WebkitBackfaceVisibility: 'hidden',
+                      transform: 'rotateY(180deg)',
+                    }}
+                  >
+                    <PDFViewer
+                      url={pdfUrl}
+                      currentPage={1}
+                      onPageChange={setCurrentPage}
+                      onTotalPagesChange={setPdfTotalPages}
+                      isZoomed={isZoomed}
+                      onZoomChange={setIsZoomed}
+                      enableTwoPageFlip={true}
+                      onFlip={handleFlip}
+                      isFlipped={true}
+                      className="w-full h-full"
+                    />
+                  </div>
+                </motion.div>
+              </motion.div>
+            ) : (
+              <motion.div
+                key={`pdf-${currentPage}`}
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                transition={{ duration: 0.3 }}
+                className="w-full h-full flex items-center justify-center"
+                style={{ maxWidth: '100%', overflow: 'hidden' }}
+              >
+                <PDFViewer
+                  url={pdfUrl}
+                  currentPage={currentPage}
+                  onPageChange={setCurrentPage}
+                  onTotalPagesChange={setPdfTotalPages}
+                  isZoomed={isZoomed}
+                  onZoomChange={setIsZoomed}
+                  className="w-full h-full"
+                />
+              </motion.div>
+            )
           ) : (
             <motion.div
               key="image"
@@ -186,34 +240,35 @@ const FileViewer = () => {
               exit={{ opacity: 0, scale: 0.95 }}
               transition={{ duration: 0.3 }}
               className="w-full h-full flex items-center justify-center"
+              style={{ maxWidth: '100%', overflow: 'hidden' }}
             >
               <img
                 src={fileUrl || fileDataUrl}
                 alt={fileName}
                 className={`max-w-full max-h-full object-contain ${isZoomed ? 'scale-150 cursor-zoom-out' : 'cursor-zoom-in'} transition-transform duration-300`}
+                onDoubleClick={() => setIsZoomed((prev) => !prev)}
+                style={{ maxWidth: '100%', height: 'auto' }}
               />
             </motion.div>
           )}
         </AnimatePresence>
       </div>
 
-      {/* Watermark - bottom center */}
-      <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-30 flex items-center gap-3 px-4 py-2 bg-black/40 backdrop-blur-sm rounded-full border border-white/10">
-        <p className="text-[9px] uppercase tracking-[0.3em] text-white/60 mb-1 absolute -top-6 left-1/2 -translate-x-1/2 whitespace-nowrap">
-          This page was created with:
-        </p>
+      {/* Luminar Apps Watermark - bottom center, clickable */}
+      <a
+        href="https://qrcode.luminarapps.com"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="absolute bottom-4 left-1/2 -translate-x-1/2 z-30 flex items-center gap-2 px-3 py-1.5 bg-black/30 backdrop-blur-sm rounded-full border border-white/10 hover:bg-black/40 transition-colors"
+        style={{ textDecoration: 'none' }}
+      >
         <img
           src="/assets/QRC App Icon.png"
-          alt="QR Code Studio"
-          className="h-6 w-6 rounded-full"
+          alt="Luminar Apps"
+          className="h-5 w-5 rounded-full"
         />
-        <div className="flex flex-col">
-          <span className="text-xs font-semibold bg-gradient-to-r from-primary to-cyan-400 bg-clip-text text-transparent">
-            QR Code Studio
-          </span>
-          <span className="text-[9px] text-white/50">by Luminar Apps</span>
-        </div>
-      </div>
+        <span className="text-[10px] text-white/70 font-medium">Luminar Apps</span>
+      </a>
 
       {/* Zoom indicator */}
       {isZoomed && (
@@ -225,20 +280,11 @@ const FileViewer = () => {
         </div>
       )}
 
-      {/* Page indicator for PDF */}
-      {isPdf && pdfTotalPages > 1 && (
+      {/* Page indicator for multi-page PDF */}
+      {isPdf && isMultiPagePdf && (
         <div className="absolute top-24 left-1/2 -translate-x-1/2 z-30 px-4 py-2 bg-black/60 backdrop-blur-sm rounded-full border border-white/20">
           <span className="text-xs text-white/80 uppercase tracking-[0.2em]">
-            Page {currentPage + 1}
-          </span>
-        </div>
-      )}
-
-      {/* Swipe hint for PDF - only shows on tap for 1 second */}
-      {isPdf && pdfTotalPages > 1 && !isZoomed && showSwipeHint && (
-        <div className="absolute bottom-32 left-1/2 -translate-x-1/2 z-30 px-4 py-2 bg-black/40 backdrop-blur-sm rounded-full border border-white/10">
-          <span className="text-[10px] text-white/60 uppercase tracking-[0.3em]">
-            Swipe for next
+            Page {currentPage + 1} / {pdfTotalPages}
           </span>
         </div>
       )}

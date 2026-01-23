@@ -15,7 +15,6 @@ const Login = () => {
   const [username, setUsername] = useState('');
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);
-  const [showForm, setShowForm] = useState(false);
   const [loading, setLoading] = useState(false);
   const { signIn, signUp } = useAuth();
   const navigate = useNavigate();
@@ -25,13 +24,10 @@ const Login = () => {
     const mode = searchParams.get('mode');
     if (mode === 'signup') {
       setIsSignUp(true);
-      setShowForm(true);
-    } else if (mode === 'login' || window.location.pathname === '/login') {
-      // If user navigates to /login directly or with ?mode=login, show login form immediately
+    } else {
+      // Default to login form (not signup)
       setIsSignUp(false);
-      setShowForm(true);
     }
-    // Otherwise, show first-visit menu (only on true first visit with no parameters)
   }, [searchParams]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -107,93 +103,11 @@ const Login = () => {
           transition={{ delay: 0.1 }}
           className="glass-panel rounded-2xl p-8 bg-[#121621]/80 border border-white/5"
         >
-          <AnimatePresence mode="wait">
-            {!showForm ? (
-              /* First visit - sequential animation */
-              <motion.div
-                key="options"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="space-y-4"
-              >
-                {/* Sign Up For Free - appears first */}
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.8, duration: 0.5 }}
-                >
-                  <Button
-                    type="button"
-                    onClick={() => {
-                      localStorage.setItem('qrc.hasSeenFirstVisit', 'true');
-                      setIsSignUp(true);
-                      setShowForm(true);
-                    }}
-                    className="w-full h-12 bg-gradient-to-r from-primary to-cyan-400 hover:opacity-90 text-primary-foreground font-medium glow"
-                  >
-                    Sign Up For Free
-                  </Button>
-                </motion.div>
-
-                {/* NO CREDIT CARD REQUIRED - appears with sign up button */}
-                <motion.p
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ delay: 0.8, duration: 0.5 }}
-                  className="text-center text-xs text-muted-foreground/70"
-                >
-                  NO CREDIT CARD REQUIRED
-                </motion.p>
-
-                {/* Login - appears after delay */}
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 2.0, duration: 0.5 }}
-                >
-                  <Button
-                    type="button"
-                    onClick={() => {
-                      localStorage.setItem('qrc.hasSeenFirstVisit', 'true');
-                      setIsSignUp(false);
-                      setShowForm(true);
-                    }}
-                    variant="outline"
-                    className="w-full h-12 border-border hover:bg-secondary/50"
-                  >
-                    Login
-                  </Button>
-                </motion.div>
-
-                {/* Continue without account - appears last */}
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 3.2, duration: 0.5 }}
-                  className="pt-2"
-                >
-                  <button
-                    type="button"
-                    onClick={() => {
-                      localStorage.setItem('qrc.hasSeenFirstVisit', 'true');
-                      navigate('/');
-                    }}
-                    className="w-full text-xs text-muted-foreground/40 hover:text-muted-foreground/60 transition-colors"
-                  >
-                    Continue without account
-                  </button>
-                </motion.div>
-              </motion.div>
-            ) : (
-              /* Show form when user clicks an option */
-              <motion.div
-                key="form"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -20 }}
-                transition={{ duration: 0.3 }}
-              >
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3 }}
+          >
                 <form onSubmit={handleSubmit} className="space-y-6">
                   {isSignUp && (
                     <>
@@ -318,9 +232,7 @@ const Login = () => {
                     </div>
                   )}
                 </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
+          </motion.div>
         </motion.div>
 
       </motion.div>
