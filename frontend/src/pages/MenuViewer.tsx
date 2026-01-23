@@ -1,15 +1,16 @@
 import { useEffect, useMemo, useRef, useState, type PointerEvent } from 'react';
 import { useParams } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 import { getPublicUrlDetails } from '@/lib/api';
 import {
-  ChevronLeft,
-  ChevronRight,
   Facebook,
   Globe,
   Instagram,
   Loader2,
   Music2,
   Utensils,
+  ZoomIn,
+  ZoomOut,
 } from 'lucide-react';
 
 type MenuFile = { url: string; type: 'image' | 'pdf' };
@@ -33,10 +34,13 @@ const MenuViewer = () => {
   const [menuType, setMenuType] = useState<'restaurant' | 'service'>('restaurant');
   const [menuLogo, setMenuLogo] = useState('');
   const [menuSocials, setMenuSocials] = useState<MenuOptions['menuSocials']>({});
-  const [page, setPage] = useState(1);
-  const [flip, setFlip] = useState(false);
-  const [index, setIndex] = useState(0);
-  const swipeRef = useRef({ dragging: false, startX: 0, currentX: 0 });
+  const [currentPage, setCurrentPage] = useState(0);
+  const [isFlipped, setIsFlipped] = useState(false);
+  const [isZoomed, setIsZoomed] = useState(false);
+  const [pdfTotalPages, setPdfTotalPages] = useState(1);
+  const swipeRef = useRef({ dragging: false, startX: 0, startY: 0, currentX: 0, currentY: 0 });
+  const pdfRef = useRef<HTMLIFrameElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!id || !random) {
@@ -65,221 +69,321 @@ const MenuViewer = () => {
       .finally(() => setIsLoading(false));
   }, [id, random]);
 
+  // Detect PDF total pages
+  useEffect(() => {
+    if (menuFiles.length === 1 && menuFiles[0]?.type === 'pdf' && pdfRef.current) {
+      // Try to get PDF page count (this is approximate, browsers handle PDFs differently)
+      // For now, we'll use a reasonable default and let users swipe
+      setPdfTotalPages(10); // Default, will be updated if we can detect it
+    }
+  }, [menuFiles]);
+
   const isPdf = useMemo(
     () => menuFiles.length === 1 && menuFiles[0]?.type === 'pdf',
     [menuFiles]
   );
-  const isFlip = useMemo(
-    () => menuFiles.length === 2 && menuFiles.every((file) => file.type === 'image'),
+  const isTwoPageFlip = useMemo(
+    () => menuFiles.length === 2,
     [menuFiles]
   );
-  const isCarousel = useMemo(
-    () => menuFiles.length >= 3 && menuFiles.every((file) => file.type === 'image'),
-    [menuFiles]
+  const isMultiPage = useMemo(
+    () => menuFiles.length > 2 || (isPdf && pdfTotalPages > 1),
+    [menuFiles, isPdf, pdfTotalPages]
   );
 
   const handleSwipeStart = (event: PointerEvent<HTMLDivElement>) => {
-    if (!isCarousel) return;
+    if (isZoomed) return; // Don't swipe when zoomed
     event.currentTarget.setPointerCapture(event.pointerId);
     swipeRef.current = {
       dragging: true,
       startX: event.clientX,
+      startY: event.clientY,
       currentX: event.clientX,
+      currentY: event.clientY,
     };
   };
 
   const handleSwipeMove = (event: PointerEvent<HTMLDivElement>) => {
-    if (!swipeRef.current.dragging) return;
+    if (!swipeRef.current.dragging || isZoomed) return;
     swipeRef.current.currentX = event.clientX;
+    swipeRef.current.currentY = event.clientY;
   };
 
   const handleSwipeEnd = (event: PointerEvent<HTMLDivElement>) => {
-    if (!swipeRef.current.dragging) return;
+    if (!swipeRef.current.dragging || isZoomed) return;
     event.currentTarget.releasePointerCapture(event.pointerId);
     const deltaX = swipeRef.current.currentX - swipeRef.current.startX;
+    const deltaY = swipeRef.current.currentY - swipeRef.current.startY;
     swipeRef.current.dragging = false;
-    if (Math.abs(deltaX) < 40) return;
-    setIndex((prev) => {
-      const total = menuFiles.length || 1;
-      if (deltaX < 0) return (prev + 1) % total;
-      return (prev - 1 + total) % total;
-    });
+
+    // Only handle horizontal swipes
+    if (Math.abs(deltaX) < Math.abs(deltaY)) return;
+    if (Math.abs(deltaX) < 50) return;
+
+    if (isTwoPageFlip) {
+      // For 2-page flip, toggle flip state
+      setIsFlipped((prev) => !prev);
+    } else if (isMultiPage) {
+      // For multi-page, navigate pages
+      if (deltaX < 0) {
+        // Swipe left - next page
+        if (isPdf) {
+          setCurrentPage((prev) => Math.min(pdfTotalPages - 1, prev + 1));
+        } else {
+          setCurrentPage((prev) => Math.min(menuFiles.length - 1, prev + 1));
+        }
+      } else {
+        // Swipe right - previous page
+        setCurrentPage((prev) => Math.max(0, prev - 1));
+      }
+    }
   };
+
+  const handleDoubleClick = () => {
+    setIsZoomed((prev) => !prev);
+  };
+
+  const hasSocials = useMemo(
+    () => menuSocials && (menuSocials.instagram || menuSocials.facebook || menuSocials.tiktok || menuSocials.website),
+    [menuSocials]
+  );
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background text-muted-foreground">
-        <Loader2 className="h-6 w-6 animate-spin" />
+      <div className="fixed inset-0 flex items-center justify-center bg-background z-50">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-background text-muted-foreground gap-3">
-        <Utensils className="h-10 w-10 text-primary" />
+      <div className="fixed inset-0 flex flex-col items-center justify-center bg-background text-muted-foreground gap-4 z-50">
+        <Utensils className="h-12 w-12 text-primary" />
         <p className="text-sm">{error}</p>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background text-foreground px-4 py-10">
-      <div className="mx-auto max-w-4xl space-y-6">
-        <div className="flex flex-col gap-2 text-center">
-          <p className="text-xs uppercase tracking-[0.35em] text-muted-foreground">Menu QR</p>
-          <h1 className="text-2xl font-semibold">
-            {menuType === 'restaurant' ? 'Restaurant Menu' : 'Service Menu'}
-          </h1>
+    <div className="fixed inset-0 bg-background overflow-hidden z-40">
+      {/* Logo at top - centered */}
+      {menuLogo && (
+        <div className="absolute top-6 left-1/2 -translate-x-1/2 z-30">
+          <div className="h-16 w-16 rounded-full border-2 border-white/20 bg-white/10 backdrop-blur-sm shadow-lg overflow-hidden">
+            <img
+              src={menuLogo}
+              alt="Menu logo"
+              className="h-full w-full object-cover"
+            />
+          </div>
         </div>
+      )}
 
-        <div className="rounded-2xl border border-border/60 bg-card/70 p-5 space-y-4">
-          <div className="flex items-center justify-between text-xs uppercase tracking-[0.3em] text-muted-foreground">
-            <span>Menu Preview</span>
-            <span>{menuType === 'restaurant' ? 'Restaurant' : 'Services'}</span>
-          </div>
-
-          <div className="flex items-center justify-center">
-            <div className="relative h-[460px] w-[280px] rounded-2xl border border-border/70 bg-card/80 overflow-hidden shadow-xl">
-              {menuLogo ? (
-                <div className="absolute left-4 top-4 h-12 w-12 rounded-full border border-white/30 bg-white/10 shadow-lg">
-                  <div
-                    className="h-full w-full rounded-full bg-cover bg-center"
-                    style={{ backgroundImage: `url(${menuLogo})` }}
-                  />
-                </div>
-              ) : null}
-
-              {isPdf ? (
-                <div className="space-y-3 p-4">
-                  <div className="flex items-center justify-between text-[10px] uppercase tracking-[0.3em] text-muted-foreground">
-                    <span>PDF Menu</span>
-                    <span>Page {page}</span>
-                  </div>
-                  <div className="aspect-[4/5] w-full overflow-hidden rounded-xl border border-border/60 bg-black/5">
-                    <embed
-                      src={`${menuFiles[0]?.url}#page=${page}`}
-                      type="application/pdf"
-                      className="h-full w-full"
-                    />
-                  </div>
-                  <div className="flex items-center justify-center gap-3">
-                    <button
-                      type="button"
-                      className="rounded-full border border-border/60 px-3 py-1 text-xs uppercase tracking-[0.3em]"
-                      onClick={() => setPage((prev) => Math.max(1, prev - 1))}
-                    >
-                      <ChevronLeft className="h-4 w-4" />
-                    </button>
-                    <button
-                      type="button"
-                      className="rounded-full border border-border/60 px-3 py-1 text-xs uppercase tracking-[0.3em]"
-                      onClick={() => setPage((prev) => prev + 1)}
-                    >
-                      <ChevronRight className="h-4 w-4" />
-                    </button>
-                  </div>
-                </div>
-              ) : isFlip ? (
-                <button
-                  type="button"
-                  className="relative h-full w-full"
-                  onClick={() => setFlip((prev) => !prev)}
-                  aria-label="Flip menu preview"
-                >
-                  <div
-                    className="absolute inset-0 transition-transform duration-500"
-                    style={{
-                      transformStyle: 'preserve-3d',
-                      transform: flip ? 'rotateY(180deg)' : 'rotateY(0deg)',
-                    }}
-                  >
-                    <div className="absolute inset-0" style={{ backfaceVisibility: 'hidden' }}>
-                      <img
-                        src={menuFiles[0]?.url}
-                        alt="Menu front"
-                        className="h-full w-full object-cover"
-                      />
-                    </div>
-                    <div
-                      className="absolute inset-0"
-                      style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)' }}
-                    >
-                      <img
-                        src={menuFiles[1]?.url}
-                        alt="Menu back"
-                        className="h-full w-full object-cover"
-                      />
-                    </div>
-                  </div>
-                  <div className="absolute bottom-4 left-1/2 -translate-x-1/2 rounded-full border border-white/20 bg-black/40 px-3 py-1 text-[10px] uppercase tracking-[0.3em] text-white/80">
-                    Tap to flip
-                  </div>
-                </button>
-              ) : isCarousel ? (
+      {/* Main content area - full screen */}
+      <div
+        ref={containerRef}
+        className="absolute inset-0 flex items-center justify-center"
+        onPointerDown={handleSwipeStart}
+        onPointerMove={handleSwipeMove}
+        onPointerUp={handleSwipeEnd}
+        onPointerLeave={handleSwipeEnd}
+        onDoubleClick={handleDoubleClick}
+      >
+        <AnimatePresence mode="wait">
+          {isPdf ? (
+            <motion.div
+              key={`pdf-${currentPage}`}
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              transition={{ duration: 0.3 }}
+              className={`w-full h-full ${isZoomed ? 'cursor-zoom-out' : 'cursor-zoom-in'}`}
+            >
+              <iframe
+                ref={pdfRef}
+                src={`${menuFiles[0]?.url}#page=${currentPage + 1}&zoom=page-fit`}
+                className="w-full h-full border-0"
+                title="Menu PDF"
+              />
+            </motion.div>
+          ) : isTwoPageFlip ? (
+            <motion.div
+              key="flip-container"
+              className="relative w-full h-full max-w-4xl max-h-[90vh]"
+              style={{ perspective: '1000px' }}
+            >
+              <motion.div
+                className="relative w-full h-full"
+                animate={{ rotateY: isFlipped ? 180 : 0 }}
+                transition={{ duration: 0.6, ease: 'easeInOut' }}
+                style={{ transformStyle: 'preserve-3d' }}
+              >
+                {/* Front side */}
                 <div
-                  className="relative h-full w-full touch-pan-y"
-                  onPointerDown={handleSwipeStart}
-                  onPointerMove={handleSwipeMove}
-                  onPointerUp={handleSwipeEnd}
-                  onPointerLeave={handleSwipeEnd}
+                  className="absolute inset-0 w-full h-full"
+                  style={{
+                    backfaceVisibility: 'hidden',
+                    WebkitBackfaceVisibility: 'hidden',
+                  }}
+                  onClick={() => setIsFlipped((prev) => !prev)}
                 >
-                  {menuFiles.map((file, fileIndex) => (
-                    <img
-                      key={`${file.url}-${fileIndex}`}
-                      src={file.url}
-                      alt={`Menu page ${fileIndex + 1}`}
-                      className={`absolute inset-0 h-full w-full object-cover transition-all duration-700 ${
-                        fileIndex === index ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-full'
-                      }`}
+                  {menuFiles[0]?.type === 'pdf' ? (
+                    <iframe
+                      src={`${menuFiles[0]?.url}#zoom=page-fit`}
+                      className="w-full h-full border-0"
+                      title="Menu front"
                     />
-                  ))}
-                  <div className="absolute bottom-4 left-1/2 -translate-x-1/2 rounded-full border border-white/20 bg-black/40 px-3 py-1 text-[10px] uppercase tracking-[0.3em] text-white/80">
-                    Swipe to continue
-                  </div>
+                  ) : (
+                    <img
+                      src={menuFiles[0]?.url}
+                      alt="Menu front"
+                      className={`w-full h-full object-contain ${isZoomed ? 'scale-150 cursor-zoom-out' : 'cursor-zoom-in'} transition-transform duration-300`}
+                      onDoubleClick={handleDoubleClick}
+                    />
+                  )}
                 </div>
-              ) : (
-                <img
-                  src={menuFiles[0]?.url}
-                  alt="Menu preview"
-                  className="h-full w-full object-cover"
-                />
-              )}
+                {/* Back side */}
+                <div
+                  className="absolute inset-0 w-full h-full"
+                  style={{
+                    backfaceVisibility: 'hidden',
+                    WebkitBackfaceVisibility: 'hidden',
+                    transform: 'rotateY(180deg)',
+                  }}
+                  onClick={() => setIsFlipped((prev) => !prev)}
+                >
+                  {menuFiles[1]?.type === 'pdf' ? (
+                    <iframe
+                      src={`${menuFiles[1]?.url}#zoom=page-fit`}
+                      className="w-full h-full border-0"
+                      title="Menu back"
+                    />
+                  ) : (
+                    <img
+                      src={menuFiles[1]?.url}
+                      alt="Menu back"
+                      className={`w-full h-full object-contain ${isZoomed ? 'scale-150 cursor-zoom-out' : 'cursor-zoom-in'} transition-transform duration-300`}
+                      onDoubleClick={handleDoubleClick}
+                    />
+                  )}
+                </div>
+              </motion.div>
+            </motion.div>
+          ) : (
+            <motion.div
+              key={`image-${currentPage}`}
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              transition={{ duration: 0.3 }}
+              className="w-full h-full flex items-center justify-center"
+            >
+              <img
+                src={menuFiles[currentPage]?.url}
+                alt={`Menu page ${currentPage + 1}`}
+                className={`max-w-full max-h-full object-contain ${isZoomed ? 'scale-150 cursor-zoom-out' : 'cursor-zoom-in'} transition-transform duration-300`}
+              />
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
 
-              <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/60 to-transparent px-4 py-3 text-[10px] uppercase tracking-[0.3em] text-white/80">
-                Luminar Apps watermark · Free Forever
-              </div>
-            </div>
-          </div>
-
-          <div className="flex flex-wrap items-center justify-center gap-4 text-xs text-muted-foreground">
-            {menuSocials?.instagram ? (
-              <a className="flex items-center gap-1 text-primary" href={menuSocials.instagram} target="_blank" rel="noreferrer">
-                <Instagram className="h-4 w-4" />
-                Instagram
-              </a>
-            ) : null}
-            {menuSocials?.facebook ? (
-              <a className="flex items-center gap-1 text-primary" href={menuSocials.facebook} target="_blank" rel="noreferrer">
-                <Facebook className="h-4 w-4" />
-                Facebook
-              </a>
-            ) : null}
-            {menuSocials?.tiktok ? (
-              <a className="flex items-center gap-1 text-primary" href={menuSocials.tiktok} target="_blank" rel="noreferrer">
-                <Music2 className="h-4 w-4" />
-                TikTok
-              </a>
-            ) : null}
-            {menuSocials?.website ? (
-              <a className="flex items-center gap-1 text-primary" href={menuSocials.website} target="_blank" rel="noreferrer">
-                <Globe className="h-4 w-4" />
-                Website
-              </a>
-            ) : null}
-          </div>
+      {/* Watermark - bottom center */}
+      <div className="absolute bottom-20 left-1/2 -translate-x-1/2 z-30 flex items-center gap-3 px-4 py-2 bg-black/40 backdrop-blur-sm rounded-full border border-white/10">
+        <p className="text-[9px] uppercase tracking-[0.3em] text-white/60 mb-1 absolute -top-6 left-1/2 -translate-x-1/2 whitespace-nowrap">
+          This page was created with:
+        </p>
+        <img
+          src="/assets/QRC App Icon.png"
+          alt="QR Code Studio"
+          className="h-6 w-6 rounded-full"
+        />
+        <div className="flex flex-col">
+          <span className="text-xs font-semibold bg-gradient-to-r from-primary to-cyan-400 bg-clip-text text-transparent">
+            QR Code Studio
+          </span>
+          <span className="text-[9px] text-white/50">by Luminar Apps</span>
         </div>
       </div>
+
+      {/* Social Media Icons - bottom, only if user provided links */}
+      {hasSocials && (
+        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-30 flex items-center gap-4">
+          {menuSocials?.instagram && (
+            <a
+              href={menuSocials.instagram}
+              target="_blank"
+              rel="noreferrer"
+              className="h-10 w-10 rounded-full bg-white/10 backdrop-blur-sm border border-white/20 flex items-center justify-center hover:bg-white/20 transition-colors"
+              aria-label="Instagram"
+            >
+              <Instagram className="h-5 w-5 text-white" />
+            </a>
+          )}
+          {menuSocials?.facebook && (
+            <a
+              href={menuSocials.facebook}
+              target="_blank"
+              rel="noreferrer"
+              className="h-10 w-10 rounded-full bg-white/10 backdrop-blur-sm border border-white/20 flex items-center justify-center hover:bg-white/20 transition-colors"
+              aria-label="Facebook"
+            >
+              <Facebook className="h-5 w-5 text-white" />
+            </a>
+          )}
+          {menuSocials?.tiktok && (
+            <a
+              href={menuSocials.tiktok}
+              target="_blank"
+              rel="noreferrer"
+              className="h-10 w-10 rounded-full bg-white/10 backdrop-blur-sm border border-white/20 flex items-center justify-center hover:bg-white/20 transition-colors"
+              aria-label="TikTok"
+            >
+              <Music2 className="h-5 w-5 text-white" />
+            </a>
+          )}
+          {menuSocials?.website && (
+            <a
+              href={menuSocials.website}
+              target="_blank"
+              rel="noreferrer"
+              className="h-10 w-10 rounded-full bg-white/10 backdrop-blur-sm border border-white/20 flex items-center justify-center hover:bg-white/20 transition-colors"
+              aria-label="Website"
+            >
+              <Globe className="h-5 w-5 text-white" />
+            </a>
+          )}
+        </div>
+      )}
+
+      {/* Zoom indicator */}
+      {isZoomed && (
+        <div className="absolute top-20 left-1/2 -translate-x-1/2 z-30 px-4 py-2 bg-black/60 backdrop-blur-sm rounded-full border border-white/20">
+          <div className="flex items-center gap-2 text-white text-xs">
+            <ZoomOut className="h-4 w-4" />
+            <span className="uppercase tracking-[0.2em]">Double tap to zoom out</span>
+          </div>
+        </div>
+      )}
+
+      {/* Page indicator for multi-page */}
+      {isMultiPage && !isTwoPageFlip && (
+        <div className="absolute top-24 left-1/2 -translate-x-1/2 z-30 px-4 py-2 bg-black/60 backdrop-blur-sm rounded-full border border-white/20">
+          <span className="text-xs text-white/80 uppercase tracking-[0.2em]">
+            {isPdf ? `Page ${currentPage + 1}` : `${currentPage + 1} / ${menuFiles.length}`}
+          </span>
+        </div>
+      )}
+
+      {/* Swipe hint */}
+      {isMultiPage && !isZoomed && (
+        <div className="absolute bottom-32 left-1/2 -translate-x-1/2 z-30 px-4 py-2 bg-black/40 backdrop-blur-sm rounded-full border border-white/10 animate-pulse">
+          <span className="text-[10px] text-white/60 uppercase tracking-[0.3em]">
+            {isTwoPageFlip ? 'Tap to flip' : 'Swipe for next'}
+          </span>
+        </div>
+      )}
     </div>
   );
 };
