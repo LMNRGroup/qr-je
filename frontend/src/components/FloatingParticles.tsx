@@ -45,7 +45,7 @@ export const FloatingParticles = ({
   if (reducedMotion) {
     // Return static particles if reduced motion is preferred
     return (
-      <div className="fixed inset-0 -z-10 overflow-hidden pointer-events-none">
+      <div className="fixed inset-0 z-0 overflow-hidden pointer-events-none">
         {particles.map((particle) => (
           <div
             key={particle.id}
@@ -64,7 +64,7 @@ export const FloatingParticles = ({
   }
 
   return (
-    <div className="fixed inset-0 -z-10 overflow-hidden pointer-events-none">
+    <div className="fixed inset-0 z-0 overflow-hidden pointer-events-none">
       {particles.map((particle) => (
         <motion.div
           key={particle.id}

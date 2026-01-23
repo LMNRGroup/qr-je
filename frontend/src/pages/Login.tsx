@@ -69,24 +69,24 @@ const Login = () => {
 
   return (
     <div className="min-h-screen bg-[#0b0f14] text-foreground flex items-center justify-center p-4 relative overflow-hidden">
-      {/* Floating Particles Background - ONLY on Login page */}
-      <FloatingParticles 
-        count={40}
-        speed={0.6}
-        sizeRange={[2, 6]}
-        opacityRange={[0.08, 0.22]}
-      />
-      
       {/* Static background - base gradient */}
       <div className="fixed inset-0 -z-20 overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-[#0b0f14] via-[#1a1f2e] to-[#0b0f14]" />
       </div>
 
+      {/* Floating Particles Background - ONLY on Login page */}
+      <FloatingParticles 
+        count={40}
+        speed={0.6}
+        sizeRange={[2, 6]}
+        opacityRange={[0.15, 0.4]}
+      />
+
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
-        className="w-full max-w-md"
+        className="w-full max-w-md relative z-10"
       >
         {/* Logo */}
         <div className="flex flex-col items-center mb-8">
