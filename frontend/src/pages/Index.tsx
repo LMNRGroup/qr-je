@@ -2236,6 +2236,12 @@ const Index = () => {
     if (!file) return;
     event.target.value = '';
 
+    // Prevent duplicate uploads
+    if (menuLogoUploading) {
+      toast.warning('Upload already in progress. Please wait...');
+      return;
+    }
+
     // Reset states
     setMenuLogoUploadError(null);
     setMenuLogoUploadProgress(0);
@@ -2303,6 +2309,12 @@ const Index = () => {
     const files = Array.from(event.target.files ?? []);
     event.target.value = '';
     if (files.length === 0) return;
+
+    // Prevent duplicate uploads
+    if (menuUploading) {
+      toast.warning('Upload already in progress. Please wait...');
+      return;
+    }
 
     // Reset states
     setMenuUploadError(null);
@@ -2448,6 +2460,12 @@ const Index = () => {
     const file = event.target.files?.[0];
     event.target.value = '';
     if (!file) return;
+
+    // Prevent duplicate uploads
+    if (fileUploading) {
+      toast.warning('Upload already in progress. Please wait...');
+      return;
+    }
 
     // Reset states
     setFileUploadError(null);
