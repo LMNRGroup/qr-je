@@ -136,6 +136,15 @@ const FileViewer = () => {
 
   const pdfUrl = fileUrl || fileDataUrl;
 
+  // Don't render PDF viewer until we have a URL
+  if (isLoading && isPdf && !pdfUrl) {
+    return (
+      <div className="fixed inset-0 flex items-center justify-center bg-background z-50">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
   return (
     <div className="fixed inset-0 bg-background overflow-hidden z-40" style={{ width: '100vw', height: '100vh', maxWidth: '100vw' }}>
       {/* Main content area - full screen */}
@@ -149,7 +158,7 @@ const FileViewer = () => {
         style={{ width: '100%', height: '100%', maxWidth: '100vw', overflow: 'hidden' }}
       >
         <AnimatePresence mode="wait">
-          {isPdf ? (
+          {isPdf && pdfUrl ? (
             isTwoPagePdf ? (
               <motion.div
                 key="pdf-flip-container"
@@ -174,18 +183,20 @@ const FileViewer = () => {
                       WebkitBackfaceVisibility: 'hidden',
                     }}
                   >
-                    <PDFViewer
-                      url={pdfUrl}
-                      currentPage={0}
-                      onPageChange={setCurrentPage}
-                      onTotalPagesChange={setPdfTotalPages}
-                      isZoomed={isZoomed}
-                      onZoomChange={setIsZoomed}
-                      enableTwoPageFlip={true}
-                      onFlip={handleFlip}
-                      isFlipped={false}
-                      className="w-full h-full"
-                    />
+                    {pdfUrl && (
+                      <PDFViewer
+                        url={pdfUrl}
+                        currentPage={0}
+                        onPageChange={setCurrentPage}
+                        onTotalPagesChange={setPdfTotalPages}
+                        isZoomed={isZoomed}
+                        onZoomChange={setIsZoomed}
+                        enableTwoPageFlip={true}
+                        onFlip={handleFlip}
+                        isFlipped={false}
+                        className="w-full h-full"
+                      />
+                    )}
                   </div>
                   {/* Back side - Page 2 */}
                   <div
@@ -196,18 +207,20 @@ const FileViewer = () => {
                       transform: 'rotateY(180deg)',
                     }}
                   >
-                    <PDFViewer
-                      url={pdfUrl}
-                      currentPage={1}
-                      onPageChange={setCurrentPage}
-                      onTotalPagesChange={setPdfTotalPages}
-                      isZoomed={isZoomed}
-                      onZoomChange={setIsZoomed}
-                      enableTwoPageFlip={true}
-                      onFlip={handleFlip}
-                      isFlipped={true}
-                      className="w-full h-full"
-                    />
+                    {pdfUrl && (
+                      <PDFViewer
+                        url={pdfUrl}
+                        currentPage={1}
+                        onPageChange={setCurrentPage}
+                        onTotalPagesChange={setPdfTotalPages}
+                        isZoomed={isZoomed}
+                        onZoomChange={setIsZoomed}
+                        enableTwoPageFlip={true}
+                        onFlip={handleFlip}
+                        isFlipped={true}
+                        className="w-full h-full"
+                      />
+                    )}
                   </div>
                 </motion.div>
               </motion.div>
@@ -221,15 +234,17 @@ const FileViewer = () => {
                 className="w-full h-full flex items-center justify-center"
                 style={{ maxWidth: '100%', overflow: 'hidden' }}
               >
-                <PDFViewer
-                  url={pdfUrl}
-                  currentPage={currentPage}
-                  onPageChange={setCurrentPage}
-                  onTotalPagesChange={setPdfTotalPages}
-                  isZoomed={isZoomed}
-                  onZoomChange={setIsZoomed}
-                  className="w-full h-full"
-                />
+                {pdfUrl && (
+                  <PDFViewer
+                    url={pdfUrl}
+                    currentPage={currentPage}
+                    onPageChange={setCurrentPage}
+                    onTotalPagesChange={setPdfTotalPages}
+                    isZoomed={isZoomed}
+                    onZoomChange={setIsZoomed}
+                    className="w-full h-full"
+                  />
+                )}
               </motion.div>
             )
           ) : (

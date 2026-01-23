@@ -1,11 +1,9 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import * as pdfjsLib from 'pdfjs-dist';
-import { motion, AnimatePresence } from 'framer-motion';
 
-// Set up PDF.js worker
+// Set up PDF.js worker - use the worker from public folder
 if (typeof window !== 'undefined') {
-  // Use a CDN for the worker, or you can bundle it locally
-  pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
+  pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs';
 }
 
 interface PDFViewerProps {
@@ -47,32 +45,46 @@ export const PDFViewer = ({
   // Load PDF document
   useEffect(() => {
     const loadPdf = async () => {
+      if (!url) {
+        setIsLoading(false);
+        setError('No PDF URL provided');
+        return;
+      }
+
       try {
         setIsLoading(true);
         setError(null);
         
-        // Handle data URLs by converting to blob if needed
+        // Handle data URLs and regular URLs
         let pdfUrl = url;
-        if (url.startsWith('data:')) {
-          // PDF.js can handle data URLs, but we'll use it directly
-          pdfUrl = url;
+        let loadingOptions: { url: string } | { data: Uint8Array } = { url: pdfUrl };
+        
+        // If it's a data URL, convert to Uint8Array for better compatibility
+        if (url.startsWith('data:application/pdf')) {
+          try {
+            const response = await fetch(url);
+            const arrayBuffer = await response.arrayBuffer();
+            loadingOptions = { data: new Uint8Array(arrayBuffer) };
+          } catch (fetchError) {
+            // Fallback to direct URL if fetch fails
+            loadingOptions = { url: pdfUrl };
+          }
         }
         
-        const loadingTask = pdfjsLib.getDocument({ url: pdfUrl });
+        const loadingTask = pdfjsLib.getDocument(loadingOptions);
         const pdf = await loadingTask.promise;
         setPdfDoc(pdf);
         onTotalPagesChange(pdf.numPages);
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to load PDF');
+        const errorMessage = err instanceof Error ? err.message : 'Failed to load PDF';
+        setError(errorMessage);
         console.error('PDF loading error:', err);
       } finally {
         setIsLoading(false);
       }
     };
 
-    if (url) {
-      loadPdf();
-    }
+    loadPdf();
   }, [url, onTotalPagesChange]);
 
   // Calculate fit-to-screen scale
