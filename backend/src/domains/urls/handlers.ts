@@ -4,6 +4,7 @@ import { buildShortUrl } from '../../config/env'
 import { UrlConflictError, UrlNotFoundError, UrlValidationError } from './errors'
 import { UrlsService } from './service'
 import type { ScansService } from '../scans/service'
+import type { VcardsService } from '../vcards/service'
 import { recordAreaScanForUser } from '../scans/areaStore'
 import { lookupGeo } from '../scans/geo'
 import { parseCreateUrlInput, parseResolveParams, parseUpdateUrlInput } from './validators'
@@ -502,7 +503,7 @@ const deleteStorageFiles = async (options: Record<string, unknown> | null | unde
 export const deleteUrlHandler = (
   service: UrlsService,
   scansService?: ScansService,
-  vcardsService?: { getByShortId: (shortId: string) => Promise<{ id: string } | null>; deleteById: (id: string) => Promise<void> }
+  vcardsService?: VcardsService
 ) => {
   return async (c: Context<AppBindings>) => {
     const userId = c.get('userId')
