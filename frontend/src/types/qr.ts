@@ -1,3 +1,34 @@
+export interface AdaptiveSlot {
+  id: string;
+  url?: string;
+}
+
+export interface AdaptiveRule {
+  slot?: string;
+  startDate?: string;
+  endDate?: string;
+  days?: string[];
+  startTime?: string;
+  endTime?: string;
+}
+
+export interface AdaptiveConfig {
+  slots?: AdaptiveSlot[];
+  defaultSlot?: string;
+  dateRules?: AdaptiveRule[];
+  firstReturn?: {
+    enabled?: boolean;
+    firstSlot?: string;
+    returnSlot?: string;
+  };
+  admin?: {
+    enabled?: boolean;
+    ips?: string[];
+    slot?: string;
+  };
+  timezone?: string;
+}
+
 export interface QROptions {
   content: string;
   size: number;
@@ -23,6 +54,8 @@ export interface QROptions {
     tiktok?: string;
     website?: string;
   };
+  // Adaptive QR Code configuration
+  adaptive?: AdaptiveConfig;
 }
 
 export interface QRHistoryItem {

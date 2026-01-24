@@ -42,7 +42,7 @@ import {
   type ScanAreaSummary,
   type UserProfile,
 } from '@/lib/api';
-import { QROptions, QRHistoryItem, defaultQROptions } from '@/types/qr';
+import { QROptions, QRHistoryItem, defaultQROptions, AdaptiveConfig } from '@/types/qr';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   ChevronDown,
@@ -1398,7 +1398,24 @@ const Index = () => {
       return;
     }
     const optionsSnapshot = { ...optionsRef.current };
+    
+    // Build adaptive configuration if enabled
+    const adaptiveConfig = buildAdaptiveConfig();
+    const isAdaptiveQR = Boolean(adaptiveConfig);
+    
+    // Merge adaptive config into options if enabled
+    const finalOptions = isAdaptiveQR
+      ? {
+          ...optionsSnapshot,
+          adaptive: adaptiveConfig,
+        }
+      : optionsSnapshot;
+    
     setIsGenerating(true);
+    // Declare file variables outside IIFE for use in adaptive logic
+    let finalFileUrl = fileUrl;
+    let finalFileSize = fileSize;
+    
     try {
       const response = qrType === 'vcard'
         ? await createVcard({
@@ -1409,14 +1426,14 @@ const Index = () => {
             style: vcardStyle,
           },
           options: {
-            ...optionsSnapshot,
+            ...finalOptions,
             content: vcardUrl,
           },
         })
         : await (async () => {
           // For file QR, upload file to DB now (only when generating)
-          let finalFileUrl = fileUrl;
-          let finalFileSize = fileSize;
+          finalFileUrl = fileUrl;
+          finalFileSize = fileSize;
           
           if (qrType === 'file' && (fileDataUrl || fileBlob)) {
             try {
@@ -1450,37 +1467,67 @@ const Index = () => {
               : longFormContent,
             qrType === 'file'
               ? {
-                ...optionsSnapshot,
+                ...finalOptions,
                 fileName: fileName || 'File QR',
                 fileUrl: finalFileUrl,
                 fileSize: finalFileSize,
               }
             : qrType === 'menu'
               ? {
-                ...optionsSnapshot,
+                ...finalOptions,
                 menuFiles,
                 menuType,
                 menuLogoDataUrl,
                 menuSocials,
               }
-              : optionsSnapshot,
+              : finalOptions,
             `${qrMode ?? 'static'}:${qrType === 'website' ? 'url' : qrType ?? 'url'}`,
             name || (qrType === 'file' ? fileName || 'File QR' : null)
           );
         })();
       if (response.success) {
         if ('url' in response && response.url) {
-          // For vCard, update the URL with the name if provided
-          if (qrType === 'vcard' && name && response.url.id) {
+          // For vCard, update the URL with the name and adaptive config if provided
+          if (qrType === 'vcard' && response.url.id) {
             try {
-              await updateQR(response.url.id, { name });
+              const updatePayload: { name?: string; options?: Record<string, unknown> } = {};
+              if (name) {
+                updatePayload.name = name;
+              }
+              if (isAdaptiveQR && adaptiveConfig) {
+                updatePayload.options = {
+                  ...finalOptions,
+                  content: vcardUrl,
+                };
+              }
+              if (Object.keys(updatePayload).length > 0) {
+                await updateQR(response.url.id, updatePayload);
+              }
             } catch (error) {
-              console.warn('Failed to update vCard name:', error);
+              console.warn('Failed to update vCard:', error);
             }
           }
+          
+          // For adaptive QR codes, convert /r/ URL to /adaptive/ URL
+          let qrContent = response.url.shortUrl;
+          if (isAdaptiveQR && response.url.id && response.url.random) {
+            qrContent = `${appBaseUrl}/adaptive/${response.url.id}/${response.url.random}`;
+            // Update the QR code content in the database to point to adaptive endpoint
+            try {
+              await updateQR(response.url.id, {
+                options: {
+                  ...finalOptions,
+                  content: qrContent,
+                },
+              });
+            } catch (error) {
+              console.warn('Failed to update QR with adaptive URL:', error);
+            }
+          }
+          
           setGeneratedShortUrl(response.url.shortUrl);
           setGeneratedLongUrl(response.url.targetUrl);
-          setLastGeneratedContent(response.url.shortUrl);
+          setLastGeneratedContent(qrContent);
         } else if ('data' in response && response.data) {
           let nextItem = response.data;
           if ((qrType === 'file' || qrType === 'menu') && response.data.shortUrl) {
@@ -1490,31 +1537,77 @@ const Index = () => {
               const targetUrl = qrType === 'file'
                 ? `${appBaseUrl}/file/${id}/${random}`
                 : `${appBaseUrl}/menu/${id}/${random}`;
-              const updateResponse = await updateQR(id, {
-                targetUrl,
-                name: name || (qrType === 'file' ? fileName || 'File QR' : null),
-                options: qrType === 'file'
-                  ? {
-                    ...options,
+              
+              // Build options with adaptive config if enabled
+              const updateOptions = qrType === 'file'
+                ? {
+                    ...finalOptions,
                     fileName: fileName || 'File QR',
-                    fileUrl: finalFileUrl, // Issue #3: Use finalFileUrl (uploaded URL) instead of cached fileUrl
-                    fileSize: finalFileSize, // Issue #3: Use finalFileSize (uploaded size) instead of cached fileSize
+                    fileUrl: finalFileUrl,
+                    fileSize: finalFileSize,
                   }
-                  : {
-                    ...options,
+                : {
+                    ...finalOptions,
                     menuFiles,
                     menuType,
                     menuLogoDataUrl,
                     menuSocials,
-                  },
+                  };
+              
+              const updateResponse = await updateQR(id, {
+                targetUrl,
+                name: name || (qrType === 'file' ? fileName || 'File QR' : null),
+                options: updateOptions,
                 kind: `${qrMode ?? 'static'}:${qrType}`,
               });
               if (updateResponse.success && updateResponse.data) {
                 nextItem = updateResponse.data;
               }
+              
+              // For adaptive QR codes, convert /r/ URL to /adaptive/ URL
+              if (isAdaptiveQR) {
+                const adaptiveUrl = `${appBaseUrl}/adaptive/${id}/${random}`;
+                // Update QR code content to point to adaptive endpoint
+                try {
+                  await updateQR(id, {
+                    options: {
+                      ...updateOptions,
+                      content: adaptiveUrl,
+                    },
+                  });
+                  nextItem = {
+                    ...nextItem,
+                    shortUrl: adaptiveUrl,
+                    content: adaptiveUrl,
+                  };
+                } catch (error) {
+                  console.warn('Failed to update QR with adaptive URL:', error);
+                }
+              }
+            }
+          } else if (isAdaptiveQR && response.data.id && response.data.random) {
+            // For non-file/menu adaptive QR codes, convert /r/ URL to /adaptive/ URL
+            const adaptiveUrl = `${appBaseUrl}/adaptive/${response.data.id}/${response.data.random}`;
+            try {
+              await updateQR(response.data.id, {
+                options: {
+                  ...finalOptions,
+                  content: adaptiveUrl,
+                },
+              });
+              nextItem = {
+                ...nextItem,
+                shortUrl: adaptiveUrl,
+                content: adaptiveUrl,
+              };
+            } catch (error) {
+              console.warn('Failed to update QR with adaptive URL:', error);
             }
           }
-          const qrValue = nextItem.shortUrl ?? nextItem.content;
+          
+          const qrValue = isAdaptiveQR && nextItem.shortUrl?.includes('/adaptive/')
+            ? nextItem.shortUrl
+            : (nextItem.shortUrl ?? nextItem.content);
           setGeneratedShortUrl(nextItem.shortUrl ?? '');
           setLastGeneratedContent(qrValue);
         }
@@ -1568,6 +1661,51 @@ const Index = () => {
       tiktok: '',
       website: '',
     });
+    // Reset adaptive state
+    setAdaptiveSlotCount(2);
+    setAdaptiveSlots([
+      {
+        id: 'A',
+        name: 'Morning Menu',
+        type: 'url',
+        url: 'https://qrcode.luminarapps.com/menu-morning',
+        note: 'Breakfast lineup',
+      },
+      {
+        id: 'B',
+        name: 'Weekend Promo',
+        type: 'url',
+        url: 'https://qrcode.luminarapps.com/weekend-promo',
+        note: 'Weekend specials',
+      },
+      {
+        id: 'C',
+        name: 'Staff View',
+        type: 'url',
+        url: 'https://qrcode.luminarapps.com/staff',
+        note: 'Internal staff dashboard',
+      },
+    ]);
+    setAdaptiveDateRulesEnabled(true);
+    setAdaptiveDateRules([
+      {
+        id: crypto.randomUUID(),
+        slot: 'A',
+        startDate: '',
+        endDate: '',
+        startTime: '08:00',
+        endTime: '12:00',
+        days: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'],
+      },
+    ]);
+    setAdaptiveDefaultSlot('B');
+    setAdaptiveFirstReturnEnabled(true);
+    setAdaptiveFirstSlot('A');
+    setAdaptiveReturnSlot('B');
+    setAdaptiveAdminEnabled(false);
+    setAdaptiveAdminSlot('C');
+    setAdaptiveAdminIps(['192.168.1.24']);
+    setAdaptiveAdminIpInput('');
     setMenuFlip(false);
     setMenuCarouselIndex(0);
     setVcard({
@@ -3099,6 +3237,207 @@ const Index = () => {
     setActiveTab('adaptive');
     setPendingCreateScroll(false);
   };
+
+  // Check if a QR code is adaptive based on its content or options
+  const isQRCodeAdaptive = useCallback((item: QRHistoryItem | { content?: string; options?: QROptions }): boolean => {
+    // Check if content points to adaptive endpoint
+    if (item.content && item.content.includes('/adaptive/')) {
+      return true;
+    }
+    // Check if options contain adaptive config
+    if (item.options?.adaptive) {
+      return true;
+    }
+    return false;
+  }, []);
+
+  // Load adaptive configuration from saved QR options
+  const loadAdaptiveConfigFromOptions = useCallback((options: QROptions | undefined) => {
+    if (!options?.adaptive) {
+      return;
+    }
+
+    const adaptive = options.adaptive;
+
+    // Load slots
+    if (adaptive.slots && adaptive.slots.length > 0) {
+      const loadedSlots = adaptive.slots.map((slot, index) => {
+        const slotId = slot.id || (index === 0 ? 'A' : index === 1 ? 'B' : 'C');
+        return {
+          id: slotId,
+          name: `Slot ${slotId}`,
+          type: 'url' as const,
+          url: slot.url || '',
+          note: '',
+        };
+      });
+      setAdaptiveSlots(loadedSlots);
+      setAdaptiveSlotCount(Math.min(loadedSlots.length, 3));
+    }
+
+    // Load default slot
+    if (adaptive.defaultSlot) {
+      setAdaptiveDefaultSlot(adaptive.defaultSlot as 'A' | 'B' | 'C');
+    }
+
+    // Load date rules
+    if (adaptive.dateRules && adaptive.dateRules.length > 0) {
+      setAdaptiveDateRulesEnabled(true);
+      const loadedRules = adaptive.dateRules.map((rule) => ({
+        id: crypto.randomUUID(),
+        slot: rule.slot || adaptive.defaultSlot || 'A',
+        startDate: rule.startDate || '',
+        endDate: rule.endDate || '',
+        startTime: rule.startTime || '',
+        endTime: rule.endTime || '',
+        days: rule.days || [],
+      }));
+      setAdaptiveDateRules(loadedRules);
+    } else {
+      setAdaptiveDateRulesEnabled(false);
+    }
+
+    // Load first-return visitor settings
+    if (adaptive.firstReturn) {
+      setAdaptiveFirstReturnEnabled(adaptive.firstReturn.enabled ?? false);
+      if (adaptive.firstReturn.firstSlot) {
+        setAdaptiveFirstSlot(adaptive.firstReturn.firstSlot as 'A' | 'B' | 'C');
+      }
+      if (adaptive.firstReturn.returnSlot) {
+        setAdaptiveReturnSlot(adaptive.firstReturn.returnSlot as 'A' | 'B' | 'C');
+      }
+    }
+
+    // Load admin settings
+    if (adaptive.admin) {
+      setAdaptiveAdminEnabled(adaptive.admin.enabled ?? false);
+      if (adaptive.admin.ips && adaptive.admin.ips.length > 0) {
+        setAdaptiveAdminIps(adaptive.admin.ips);
+      }
+      if (adaptive.admin.slot) {
+        setAdaptiveAdminSlot(adaptive.admin.slot as 'A' | 'B' | 'C');
+      }
+    }
+  }, []);
+
+  // Build adaptive configuration from state
+  const buildAdaptiveConfig = (): AdaptiveConfig | undefined => {
+    // Check if adaptive is enabled (at least one slot has a valid URL)
+    const hasValidSlots = adaptiveSlotsVisible.some((slot) => slot.url && slot.url.trim().length > 0);
+    if (!hasValidSlots) {
+      return undefined;
+    }
+
+    // Build slots array (only include slots with valid URLs)
+    const slots: AdaptiveSlot[] = adaptiveSlotsVisible
+      .filter((slot) => {
+        if (!slot.url || !slot.url.trim()) return false;
+        // Validate URL format
+        try {
+          const url = slot.url.trim();
+          // Allow relative URLs or full URLs
+          if (url.startsWith('/') || url.startsWith('http://') || url.startsWith('https://')) {
+            if (url.startsWith('http://') || url.startsWith('https://')) {
+              new URL(url); // Will throw if invalid
+            }
+            return true;
+          }
+          return false;
+        } catch {
+          return false; // Invalid URL format
+        }
+      })
+      .map((slot) => ({
+        id: slot.id,
+        url: slot.url?.trim(),
+      }));
+
+    if (slots.length === 0) {
+      return undefined;
+    }
+
+    // Validate that default slot exists in slots
+    const defaultSlotExists = slots.some((s) => s.id === adaptiveDefaultSlot);
+    if (!defaultSlotExists && slots.length > 0) {
+      // Fallback to first slot if default doesn't exist
+      console.warn(`Default slot ${adaptiveDefaultSlot} not found in slots, using first slot`);
+    }
+
+    const config: AdaptiveConfig = {
+      slots,
+      defaultSlot: defaultSlotExists ? adaptiveDefaultSlot : slots[0]?.id,
+    };
+
+    // Add date rules if enabled and rules exist
+    if (adaptiveDateRulesEnabled && adaptiveDateRules.length > 0) {
+      const dateRules: AdaptiveRule[] = adaptiveDateRules
+        .filter((rule) => {
+          // Validate rule has a slot that exists
+          if (!rule.slot) return false;
+          const slotExists = slots.some((s) => s.id === rule.slot);
+          if (!slotExists) {
+            console.warn(`Rule references non-existent slot ${rule.slot}, skipping`);
+            return false;
+          }
+          return true;
+        })
+        .map((rule) => ({
+          slot: rule.slot,
+          startDate: rule.startDate || undefined,
+          endDate: rule.endDate || undefined,
+          startTime: rule.startTime || undefined,
+          endTime: rule.endTime || undefined,
+          days: rule.days && rule.days.length > 0 ? rule.days : undefined,
+        }));
+
+      if (dateRules.length > 0) {
+        config.dateRules = dateRules;
+      }
+    }
+
+    // Add first-return visitor logic if enabled
+    if (adaptiveFirstReturnEnabled) {
+      // Validate slots exist
+      const firstSlotExists = slots.some((s) => s.id === adaptiveFirstSlot);
+      const returnSlotExists = slots.some((s) => s.id === adaptiveReturnSlot);
+      
+      if (firstSlotExists && returnSlotExists) {
+        config.firstReturn = {
+          enabled: true,
+          firstSlot: adaptiveFirstSlot,
+          returnSlot: adaptiveReturnSlot,
+        };
+      } else {
+        console.warn('First-return visitor enabled but slots invalid, disabling');
+      }
+    }
+
+    // Add admin IP routing if enabled
+    if (adaptiveAdminEnabled && adaptiveAdminIps.length > 0) {
+      const adminSlotExists = slots.some((s) => s.id === adaptiveAdminSlot);
+      if (adminSlotExists) {
+        config.admin = {
+          enabled: true,
+          ips: adaptiveAdminIps.filter((ip) => ip.trim().length > 0), // Filter empty IPs
+          slot: adaptiveAdminSlot,
+        };
+      } else {
+        console.warn('Admin routing enabled but slot invalid, disabling');
+      }
+    }
+
+    // Add timezone if user has one set
+    if (userProfile?.timezone) {
+      config.timezone = userProfile.timezone;
+    }
+
+    return config;
+  };
+
+  // Check if adaptive QR code is enabled
+  const isAdaptiveEnabled = useMemo(() => {
+    return adaptiveSlotsVisible.some((slot) => slot.url && slot.url.trim().length > 0);
+  }, [adaptiveSlotsVisible]);
 
 
   const navItems = [
