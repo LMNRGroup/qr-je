@@ -7523,10 +7523,7 @@ const Index = () => {
               ) : (
                 <div className="glass-panel rounded-2xl p-6 text-sm text-muted-foreground">
                   {isMobileV2 ? (
-                    canGenerate ? (
-                    ) : (
-                      'Complete steps 2–3 to unlock customization.'
-                    )
+                    canGenerate ? null : 'Complete steps 2–3 to unlock customization.'
                   ) : isMobileV2 ? null : isMobile ? (
                     'Choose Customize to edit colors, style, and logo.'
                   ) : (
