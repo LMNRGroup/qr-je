@@ -132,8 +132,15 @@ const Login = () => {
 
     if (error) {
       // Check if error is due to email already in use
-      if (isSignUp && error.message.toLowerCase().includes('email') && error.message.toLowerCase().includes('already')) {
+      const errorLower = error.message.toLowerCase();
+      if (isSignUp && (
+        errorLower.includes('email') && errorLower.includes('already') ||
+        errorLower.includes('user already registered') ||
+        errorLower.includes('already registered') ||
+        error.code === 'signup_disabled' // Some Supabase configs return this
+      )) {
         setEmailAvailable(false);
+        setEmailTouched(true);
         toast.error('This email is already in use');
       } else {
         toast.error(error.message);
