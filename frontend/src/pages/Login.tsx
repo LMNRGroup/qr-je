@@ -204,6 +204,26 @@ const Login = () => {
       emailAvailable !== false // Allow null (not checked yet) but not false
     : email.trim() && password.trim();
 
+  // Get validation message explaining why button is disabled
+  const getValidationMessage = (): string | null => {
+    if (!isSignUp) return null;
+    if (loading) return null;
+    
+    if (!fullName.trim()) return 'Please enter your full name';
+    if (!username.trim()) return 'Please enter a username';
+    if (!email.trim()) return 'Please enter your email';
+    if (!password.trim()) return 'Please enter a password';
+    if (!acceptedTerms) return 'Please accept the Terms & Conditions';
+    if (usernameTouched && usernameAvailable === false) return 'Username is already taken. Please choose another.';
+    if (usernameTouched && usernameAvailable === null && !usernameChecking) return 'Please check if your username is available (click outside the username field)';
+    if (username.trim() && !usernameTouched) return 'Please check if your username is available (click outside the username field)';
+    if (emailTouched && emailAvailable === false) return 'This email is already in use. Please use a different email.';
+    
+    return null;
+  };
+
+  const validationMessage = getValidationMessage();
+
   return (
     <div className="h-full bg-[#0b0f14] text-foreground flex items-center justify-center p-4 relative overflow-hidden">
       {/* Static background - base gradient */}
@@ -392,24 +412,31 @@ const Login = () => {
                     </div>
                   )}
 
-                  <Button
-                    type="submit"
-                    disabled={loading || !isFormValid}
-                    className={`w-full h-12 font-medium glow ${
-                      isFormValid
-                        ? 'bg-gradient-to-r from-primary to-cyan-400 hover:opacity-90 text-primary-foreground'
-                        : 'bg-muted text-muted-foreground cursor-not-allowed opacity-50'
-                    }`}
-                  >
-                    {loading ? (
-                      <Loader2 className="h-5 w-5 animate-spin" />
-                    ) : (
-                      <>
-                        {isSignUp ? 'Create Account' : 'Sign In'}
-                        <ArrowRight className="ml-2 h-4 w-4" />
-                      </>
+                  <div className="space-y-2">
+                    <Button
+                      type="submit"
+                      disabled={loading || !isFormValid}
+                      className={`w-full h-12 font-medium glow ${
+                        isFormValid
+                          ? 'bg-gradient-to-r from-primary to-cyan-400 hover:opacity-90 text-primary-foreground'
+                          : 'bg-muted text-muted-foreground cursor-not-allowed opacity-50'
+                      }`}
+                    >
+                      {loading ? (
+                        <Loader2 className="h-5 w-5 animate-spin" />
+                      ) : (
+                        <>
+                          {isSignUp ? 'Create Account' : 'Sign In'}
+                          <ArrowRight className="ml-2 h-4 w-4" />
+                        </>
+                      )}
+                    </Button>
+                    {isSignUp && !isFormValid && validationMessage && (
+                      <p className="text-xs text-center text-muted-foreground/80 px-2">
+                        {validationMessage}
+                      </p>
                     )}
-                  </Button>
+                  </div>
                 </form>
 
                 <div className="mt-6 text-center space-y-3">
