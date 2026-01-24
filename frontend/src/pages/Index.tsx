@@ -1268,8 +1268,21 @@ const Index = () => {
   useEffect(() => {
     if (activeTab !== 'studio') {
       setSelectedQuickAction(null);
+      // Clean up file cache when leaving studio tab
+      if (fileDataUrl || fileBlob || fileUrl) {
+        // Revoke blob URL if it's a blob URL (for PDF previews)
+        if (fileUrl && fileUrl.startsWith('blob:')) {
+          URL.revokeObjectURL(fileUrl);
+        }
+        setFileDataUrl('');
+        setFileBlob(null);
+        setFileUrl('');
+        setFileName('');
+        setFileSize(0);
+        setFileTouched(false);
+      }
     }
-  }, [activeTab]);
+  }, [activeTab, fileDataUrl, fileBlob, fileUrl]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -1484,8 +1497,8 @@ const Index = () => {
                   ? {
                     ...options,
                     fileName: fileName || 'File QR',
-                    fileUrl,
-                    fileSize,
+                    fileUrl: finalFileUrl, // Issue #3: Use finalFileUrl (uploaded URL) instead of cached fileUrl
+                    fileSize: finalFileSize, // Issue #3: Use finalFileSize (uploaded size) instead of cached fileSize
                   }
                   : {
                     ...options,
@@ -3514,6 +3527,42 @@ const Index = () => {
     if (!isMobile) return;
     setMobileCustomizeStep(false);
   }, [qrMode, qrType, selectedQuickAction, isMobile]);
+
+  // Issue #1: Clear file cache when QR type changes to something other than 'file'
+  useEffect(() => {
+    if (qrType !== 'file' && (fileDataUrl || fileBlob || fileUrl)) {
+      // Revoke blob URL if it's a blob URL (for PDF previews)
+      if (fileUrl && fileUrl.startsWith('blob:')) {
+        URL.revokeObjectURL(fileUrl);
+      }
+      setFileDataUrl('');
+      setFileBlob(null);
+      setFileUrl('');
+      setFileName('');
+      setFileSize(0);
+      setFileTouched(false);
+    }
+  }, [qrType, fileDataUrl, fileBlob, fileUrl]);
+
+  // Issue #2: Cleanup file cache on component unmount or when wizard is closed
+  useEffect(() => {
+    return () => {
+      // Cleanup on unmount - clear file cache if user abandons QR creation
+      // Note: fileDataUrl is a data URL (data:image/png;base64,...), not a blob URL, so no need to revoke
+      // fileBlob will be garbage collected when state is cleared
+      // But fileUrl might be a blob URL (for PDF previews), so we need to revoke it
+      if (fileDataUrl || fileBlob || fileUrl) {
+        if (fileUrl && fileUrl.startsWith('blob:')) {
+          URL.revokeObjectURL(fileUrl);
+        }
+        setFileDataUrl('');
+        setFileBlob(null);
+        setFileUrl('');
+        setFileName('');
+        setFileSize(0);
+      }
+    };
+  }, [fileDataUrl, fileBlob, fileUrl]);
 
   useEffect(() => {
     if (!showCreateSection || hasSelectedMode) return;
