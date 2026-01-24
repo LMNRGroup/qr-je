@@ -19,6 +19,7 @@ import {
   Phone,
   QrCode,
   Send,
+  Sparkles,
   Trash2,
   Utensils,
   X,
@@ -182,6 +183,7 @@ const isWebUrl = (value: string) => /^https?:\/\//i.test(value);
 const parseKind = (kind?: string | null) => {
   if (!kind) return { mode: 'static', type: 'url' };
   if (kind === 'vcard') return { mode: 'static', type: 'vcard' };
+  if (kind === 'adaptive') return { mode: 'dynamic', type: 'adaptive' };
   if (kind === 'dynamic' || kind === 'static') return { mode: kind, type: 'url' };
   if (kind.includes(':')) {
     const [mode, type] = kind.split(':');
@@ -195,6 +197,16 @@ const parseKind = (kind?: string | null) => {
 
 const getQrPreviewContent = (item: QRHistoryItem) => {
   const parsed = parseKind(item.kind ?? null);
+  // Check if item has adaptive config in options
+  const isAdaptive = parsed.type === 'adaptive' || 
+                     (item.options && typeof item.options === 'object' && 
+                      'adaptive' in item.options && item.options.adaptive !== null);
+  
+  if (isAdaptive && item.shortUrl) {
+    // Convert /r/ URL to /adaptive/ URL for adaptive QRCs
+    return item.shortUrl.replace('/r/', '/adaptive/');
+  }
+  
   if (parsed.mode === 'dynamic') {
     return item.shortUrl ?? item.content;
   }
@@ -237,6 +249,12 @@ const typeStyles: Record<string, { label: string; icon: typeof Link; card: strin
     icon: Contact,
     card: 'border-border/60',
     badge: 'bg-secondary/40 text-muted-foreground border-border/60',
+  },
+  adaptive: {
+    label: 'Adaptive QRC™',
+    icon: Sparkles,
+    card: 'border-amber-500/70 bg-amber-500/10 dark:border-amber-400/60 dark:bg-amber-500/10',
+    badge: 'border-amber-600/70 text-white bg-amber-600/80 dark:border-amber-400/60 dark:text-amber-200 dark:bg-amber-500/25',
   },
 };
 
@@ -831,7 +849,12 @@ export function ArsenalPanel({
 
   const renderCardBadge = (item: QRHistoryItem) => {
     const parsed = parseKind(item.kind ?? null);
-    const typeMeta = typeStyles[parsed.type] ?? typeStyles.url;
+    // Check if item has adaptive config in options
+    const isAdaptive = parsed.type === 'adaptive' || 
+                       (item.options && typeof item.options === 'object' && 
+                        'adaptive' in item.options && item.options.adaptive !== null);
+    const itemType = isAdaptive ? 'adaptive' : parsed.type;
+    const typeMeta = typeStyles[itemType] ?? typeStyles.url;
     const modeMeta = modeStyles[parsed.mode === 'dynamic' ? 'dynamic' : 'static'];
     const ModeIcon = parsed.mode === 'dynamic' ? Zap : QrCode;
     const TypeIcon = typeMeta.icon;

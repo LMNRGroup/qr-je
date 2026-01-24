@@ -21,6 +21,29 @@ export const createUrlHandler = (service: UrlsService) => {
         return c.json({ message: 'Unauthorized' }, 401)
       }
 
+      // Check if user is trying to create an Adaptive QRC
+      const isAdaptiveQRC = input.kind === 'adaptive' || 
+                            (input.options && typeof input.options === 'object' && 
+                             'adaptive' in input.options && input.options.adaptive !== null)
+
+      if (isAdaptiveQRC) {
+        // Check if user already has an Adaptive QRC
+        const userUrls = await service.getUrlsForUser(userId)
+        const hasAdaptiveQRC = userUrls.some((url) => {
+          if (url.kind === 'adaptive') return true
+          if (url.options && typeof url.options === 'object' && 'adaptive' in url.options) {
+            return url.options.adaptive !== null && url.options.adaptive !== undefined
+          }
+          return false
+        })
+
+        if (hasAdaptiveQRC) {
+          return c.json({ 
+            message: 'You can only have one Adaptive QRC™ per account. Please modify your existing Adaptive QRC™ instead.' 
+          }, 409)
+        }
+      }
+
       const url = await service.createUrl({ ...input, userId })
 
       return c.json(
@@ -280,6 +303,35 @@ export const adaptiveResolveHandler = (service: UrlsService, scansService?: Scan
       const params = parseResolveParams(c.req.param())
       const url = await service.resolveUrl(params)
       const options = (url.options ?? {}) as AdaptiveOptions
+      
+      // Check scan limit for Adaptive QRC (500 scans per month)
+      // Only apply limit if this is actually an Adaptive QRC
+      const isAdaptiveQRC = url.kind === 'adaptive' || 
+                            (url.options && typeof url.options === 'object' && 
+                             'adaptive' in url.options && url.options.adaptive !== null)
+      
+      if (isAdaptiveQRC && scansService) {
+        const now = new Date()
+        const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
+        
+        // Get all scans for this specific URL since start of month
+        const allScans = await scansService.getScansForUrl(url.id, url.random, 1000)
+        const scansThisMonth = allScans.filter((scan) => {
+          const scanDate = new Date(scan.scannedAt)
+          return scanDate >= firstDayOfMonth
+        })
+        
+        if (scansThisMonth.length >= 500) {
+          // Return error - limit exceeded
+          return c.json({ 
+            message: 'Adaptive QRC™ monthly scan limit reached (500 scans). Please upgrade your plan or wait until next month.',
+            limitExceeded: true,
+            scansUsed: scansThisMonth.length,
+            limit: 500
+          }, 429)
+        }
+      }
+      
       const ip = getClientIp(c)
       const userAgent = c.req.header('user-agent') ?? null
       const tokenCookie = c.req.header('cookie')?.match(/adaptive_token=([^;]+)/)?.[1] ?? null
