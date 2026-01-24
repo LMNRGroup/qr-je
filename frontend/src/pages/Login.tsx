@@ -26,6 +26,8 @@ const Login = () => {
   const [emailChecking, setEmailChecking] = useState(false);
   const [usernameTouched, setUsernameTouched] = useState(false);
   const [emailTouched, setEmailTouched] = useState(false);
+  const [submitAttempted, setSubmitAttempted] = useState(false);
+  const [shakeKey, setShakeKey] = useState(0);
   
   const { signIn, signUp } = useAuth();
   const navigate = useNavigate();
@@ -40,6 +42,27 @@ const Login = () => {
       setIsSignUp(false);
     }
   }, [searchParams]);
+
+  // Reset submitAttempted when form becomes valid
+  useEffect(() => {
+    if (isSignUp && isFormValid) {
+      setSubmitAttempted(false);
+    }
+  }, [isSignUp, isFormValid]);
+
+  // Trigger shake animation when errors are detected
+  useEffect(() => {
+    if (hasErrors && isSignUp) {
+      setShakeKey(prev => prev + 1);
+    }
+  }, [hasErrors, isSignUp]);
+
+  // Trigger shake when username or email becomes unavailable
+  useEffect(() => {
+    if (isSignUp && (usernameAvailable === false || emailAvailable === false)) {
+      setShakeKey(prev => prev + 1);
+    }
+  }, [isSignUp, usernameAvailable, emailAvailable]);
 
   // Prevent body scrolling on login page (PWA/mobile)
   // Force dark mode on login page to ensure consistent styling
@@ -105,6 +128,14 @@ const Login = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    if (isSignUp) {
+      setSubmitAttempted(true);
+      // Trigger shake if there are errors
+      if (!isFormValid) {
+        setShakeKey(prev => prev + 1);
+      }
+    }
+    
     if (!email || !password) {
       toast.error('Please fill in all fields');
       return;
@@ -166,6 +197,7 @@ const Login = () => {
               setEmailAvailable(null);
               setUsernameTouched(false);
               setEmailTouched(false);
+              setSubmitAttempted(false);
             },
           },
         });
@@ -185,6 +217,7 @@ const Login = () => {
         setEmailAvailable(null);
         setUsernameTouched(false);
         setEmailTouched(false);
+        setSubmitAttempted(false);
         navigate('/login');
       } else {
         toast.success('Welcome back!');
@@ -205,24 +238,25 @@ const Login = () => {
     : email.trim() && password.trim();
 
   // Get validation message explaining why button is disabled
-  const getValidationMessage = (): string | null => {
+  const getValidationMessage = (): { message: string; isError: boolean } | null => {
     if (!isSignUp) return null;
     if (loading) return null;
     
-    if (!fullName.trim()) return 'Please enter your full name';
-    if (!username.trim()) return 'Please enter a username';
-    if (!email.trim()) return 'Please enter your email';
-    if (!password.trim()) return 'Please enter a password';
-    if (!acceptedTerms) return 'Please accept the Terms & Conditions';
-    if (usernameTouched && usernameAvailable === false) return 'Username is already taken. Please choose another.';
-    if (usernameTouched && usernameAvailable === null && !usernameChecking) return 'Please check if your username is available (click outside the username field)';
-    if (username.trim() && !usernameTouched) return 'Please check if your username is available (click outside the username field)';
-    if (emailTouched && emailAvailable === false) return 'This email is already in use. Please use a different email.';
+    if (!fullName.trim()) return { message: 'Please enter your full name', isError: false };
+    if (!username.trim()) return { message: 'Please enter a username', isError: false };
+    if (!email.trim()) return { message: 'Please enter your email', isError: false };
+    if (!password.trim()) return { message: 'Please enter a password', isError: false };
+    if (!acceptedTerms) return { message: 'Please accept the Terms & Conditions', isError: false };
+    if (usernameTouched && usernameAvailable === false) return { message: 'Username is already taken. Please choose another.', isError: true };
+    if (usernameTouched && usernameAvailable === null && !usernameChecking) return { message: 'Please check if your username is available (click outside the username field)', isError: false };
+    if (username.trim() && !usernameTouched) return { message: 'Please check if your username is available (click outside the username field)', isError: false };
+    if (emailTouched && emailAvailable === false) return { message: 'This email is already in use. Please use a different email.', isError: true };
     
     return null;
   };
 
   const validationMessage = getValidationMessage();
+  const hasErrors = (validationMessage?.isError || false) && (submitAttempted || usernameTouched || emailTouched);
 
   return (
     <div className="h-full bg-[#0b0f14] text-foreground flex items-center justify-center p-4 relative overflow-hidden">
@@ -263,10 +297,25 @@ const Login = () => {
 
         {/* Form Card */}
         <motion.div
+          key={shakeKey}
           initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ delay: 0.1 }}
-          className="rounded-2xl p-6 sm:p-8 bg-[#121621]/90 backdrop-blur-2xl border border-white/10 shadow-xl"
+          animate={{ 
+            opacity: 1, 
+            scale: 1,
+            x: hasErrors ? [0, -12, 12, -12, 12, -6, 6, 0] : 0,
+          }}
+          transition={{ 
+            delay: 0.1,
+            x: { 
+              duration: 0.6, 
+              ease: 'easeInOut'
+            }
+          }}
+          className={`rounded-2xl p-6 sm:p-8 bg-[#121621]/90 backdrop-blur-2xl border shadow-xl transition-colors ${
+            hasErrors 
+              ? 'border-red-500/50 shadow-red-500/20' 
+              : 'border-white/10'
+          }`}
         >
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -432,8 +481,12 @@ const Login = () => {
                       )}
                     </Button>
                     {isSignUp && !isFormValid && validationMessage && (
-                      <p className="text-xs text-center text-muted-foreground/80 px-2">
-                        {validationMessage}
+                      <p className={`text-xs text-center px-2 ${
+                        validationMessage.isError 
+                          ? 'text-red-500 font-medium' 
+                          : 'text-muted-foreground/80'
+                      }`}>
+                        {validationMessage.message}
                       </p>
                     )}
                   </div>
@@ -454,6 +507,7 @@ const Login = () => {
                       setEmailAvailable(null);
                       setUsernameTouched(false);
                       setEmailTouched(false);
+                      setSubmitAttempted(false);
                     }}
                     className="text-sm text-muted-foreground hover:text-primary transition-colors"
                   >
