@@ -7,7 +7,7 @@ import { QRPreview, QRPreviewHandle } from '@/components/QRPreview';
 import { 
   ArrowRight, 
   ArrowLeft, 
-  Clock, 
+  Timer, 
   Users, 
   Plus, 
   X, 
@@ -451,7 +451,7 @@ export const AdaptiveQRCWizard = ({
                               ? 'bg-amber-400/20' 
                               : 'bg-secondary/40'
                           }`}>
-                            <Clock className={`h-8 w-8 ${
+                            <Timer className={`h-8 w-8 ${
                               ruleType === 'time' 
                                 ? 'text-amber-400' 
                                 : 'text-muted-foreground'

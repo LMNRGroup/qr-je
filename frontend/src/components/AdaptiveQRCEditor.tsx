@@ -9,7 +9,7 @@ import {
   Loader2,
   Sparkles,
   Save,
-  Clock,
+  Timer,
   Users,
   Globe,
   Copy,
@@ -322,7 +322,7 @@ export const AdaptiveQRCEditor = ({
               <div className="flex gap-2 border-b border-amber-500/20">
                 {[
                   { id: 'contents', label: 'Contents', icon: Globe },
-                  { id: 'rules', label: 'Rules', icon: ruleType === 'time' ? Clock : Users },
+                  { id: 'rules', label: 'Rules', icon: ruleType === 'time' ? Timer : Users },
                   { id: 'preview', label: 'Preview', icon: Sparkles },
                 ].map((tab) => (
                   <button

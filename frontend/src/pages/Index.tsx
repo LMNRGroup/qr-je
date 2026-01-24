@@ -72,6 +72,7 @@ import {
   Settings,
   Sparkles,
   Star,
+  Timer,
   Utensils,
   User,
   UserRound,
@@ -8921,7 +8922,7 @@ const Index = () => {
                 <div className="grid md:grid-cols-2 gap-6">
                   <div className="glass-panel rounded-2xl p-6 border border-amber-500/20">
                     <div className="flex items-center gap-3 mb-4">
-                      <Clock className="h-6 w-6 text-amber-400" />
+                      <Timer className="h-6 w-6 text-amber-400" />
                       <h4 className="text-lg font-semibold text-amber-300">Time & Day Rules</h4>
                     </div>
                     <ul className="space-y-2 text-sm text-muted-foreground">
