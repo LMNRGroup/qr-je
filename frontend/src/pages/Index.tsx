@@ -1451,9 +1451,10 @@ const Index = () => {
                 menuSocials,
               }
               : optionsSnapshot,
-          `${qrMode ?? 'static'}:${qrType === 'website' ? 'url' : qrType ?? 'url'}`,
-          name || (qrType === 'file' ? fileName || 'File QR' : null)
-        );
+            `${qrMode ?? 'static'}:${qrType === 'website' ? 'url' : qrType ?? 'url'}`,
+            name || (qrType === 'file' ? fileName || 'File QR' : null)
+          );
+        })();
       if (response.success) {
         if ('url' in response && response.url) {
           // For vCard, update the URL with the name if provided
