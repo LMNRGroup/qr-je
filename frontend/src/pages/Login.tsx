@@ -77,6 +77,13 @@ const Login = () => {
     } else {
       if (isSignUp) {
         toast.success('Account created! Check your email to confirm.');
+        setIsSignUp(false);
+        setEmail('');
+        setPassword('');
+        setFullName('');
+        setUsername('');
+        setAcceptedTerms(false);
+        navigate('/login');
       } else {
         toast.success('Welcome back!');
         navigate('/');
