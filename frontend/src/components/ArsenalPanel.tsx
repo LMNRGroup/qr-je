@@ -1365,7 +1365,9 @@ export function ArsenalPanel({
         </div>
       ) : (
         <div className="grid gap-6 lg:grid-cols-[1.4fr_0.6fr]">
-          <div className="glass-panel rounded-2xl p-4 min-w-0 max-w-full">
+          <div className={`glass-panel rounded-2xl p-4 min-w-0 max-w-full ${
+            isMobileV2 ? 'flex flex-col overflow-hidden' : ''
+          }`}>
             <ScrollArea
               ref={(node) => {
                 if (!node) return;
@@ -1375,9 +1377,9 @@ export function ArsenalPanel({
               className={
                 isDesktop
                   ? 'h-auto max-h-none w-full max-w-full min-w-0 overflow-x-hidden'
-                  : `h-[calc(100dvh-260px)] sm:h-[calc(100dvh-320px)] ${
-                      isMobileV2 ? 'qrc-arsenal-scroll qrc-no-scroll-x max-w-full' : 'max-w-full'
-                    }`
+                  : isMobileV2
+                  ? 'qrc-arsenal-scroll qrc-no-scroll-x max-w-full w-full'
+                  : `h-[calc(100dvh-260px)] sm:h-[calc(100dvh-320px)] max-w-full w-full overflow-y-auto`
               }
             >
               <div
