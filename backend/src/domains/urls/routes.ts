@@ -19,12 +19,14 @@ import {
 } from '../scans/handlers'
 import { UrlsService } from './service'
 import type { ScansService } from '../scans/service'
+import type { VcardsService } from '../vcards/service'
 import type { AppBindings } from '../../shared/http/types'
 
 export const registerUrlsRoutes = (
   app: Hono<AppBindings>,
   service: UrlsService,
-  scansService: ScansService
+  scansService: ScansService,
+  vcardsService?: VcardsService
 ) => {
   app.post('/urls', createUrlHandler(service))
   app.get('/r/:id/:random', redirectUrlHandler(service, scansService))
@@ -38,5 +40,5 @@ export const registerUrlsRoutes = (
   app.get('/scans/counts', getUserScanCountsHandler(scansService))
   app.get('/urls', listUrlsHandler(service))
   app.patch('/urls/:id', updateUrlHandler(service))
-  app.delete('/urls/:id', deleteUrlHandler(service, scansService))
+  app.delete('/urls/:id', deleteUrlHandler(service, scansService, vcardsService))
 }

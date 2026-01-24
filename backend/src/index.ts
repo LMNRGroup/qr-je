@@ -43,9 +43,9 @@ app.get('/debug/auth', (c) => {
 registerUsersRoutes(app, usersService)
 const urlsService = createUrlsService(getUrlsStorage())
 const scansService = createScansService(getScansStorage())
-registerUrlsRoutes(app, urlsService, scansService)
-
 const vcardsService = createVcardsService(getVcardsStorage())
+registerUrlsRoutes(app, urlsService, scansService, vcardsService)
+
 registerVcardsRoutes(app, vcardsService, urlsService)
 
 export default app

@@ -7,6 +7,7 @@ export type VcardsService = {
   getByUserId: (userId: string) => Promise<Vcard[]>
   getByUserIdAndSlug: (userId: string, slug: string) => Promise<Vcard | null>
   getBySlug: (slug: string) => Promise<Vcard | null>
+  getByShortId: (shortId: string) => Promise<Vcard | null>
   deleteById: (id: string) => Promise<void>
 }
 
@@ -32,6 +33,10 @@ export const createVcardsService = (storage: VcardsStorage): VcardsService => {
     return storage.getBySlug(slug)
   }
 
+  const getByShortId = async (shortId: string) => {
+    return storage.getByShortId(shortId)
+  }
+
   const deleteById = async (id: string) => {
     await storage.deleteById(id)
   }
@@ -42,6 +47,7 @@ export const createVcardsService = (storage: VcardsStorage): VcardsService => {
     getByUserId,
     getByUserIdAndSlug,
     getBySlug,
+    getByShortId,
     deleteById
   }
 }

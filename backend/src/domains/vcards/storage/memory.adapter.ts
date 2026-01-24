@@ -26,6 +26,10 @@ export class InMemoryVcardsStorageAdapter implements VcardsStorage {
     return Array.from(this.records.values()).find((vcard) => vcard.slug === slug) ?? null
   }
 
+  async getByShortId(shortId: string) {
+    return Array.from(this.records.values()).find((vcard) => vcard.shortId === shortId) ?? null
+  }
+
   async deleteById(id: string) {
     this.records.delete(id)
   }

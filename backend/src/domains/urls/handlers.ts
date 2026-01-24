@@ -499,7 +499,11 @@ const deleteStorageFiles = async (options: Record<string, unknown> | null | unde
   }
 }
 
-export const deleteUrlHandler = (service: UrlsService, scansService?: ScansService) => {
+export const deleteUrlHandler = (
+  service: UrlsService,
+  scansService?: ScansService,
+  vcardsService?: { getByShortId: (shortId: string) => Promise<{ id: string } | null>; deleteById: (id: string) => Promise<void> }
+) => {
   return async (c: Context<AppBindings>) => {
     const userId = c.get('userId')
 
@@ -538,6 +542,20 @@ export const deleteUrlHandler = (service: UrlsService, scansService?: ScansServi
     } catch (error) {
       console.error('[storage] failed to delete storage files', error)
       // Continue with URL deletion even if storage cleanup fails
+    }
+
+    // If this is a vCard QR, delete the associated vCard record
+    if (url.kind === 'vcard' && vcardsService) {
+      try {
+        const vcard = await vcardsService.getByShortId(id)
+        if (vcard) {
+          await vcardsService.deleteById(vcard.id)
+          console.info(`[vcard] Deleted vCard ${vcard.id} associated with URL ${id}`)
+        }
+      } catch (error) {
+        console.error('[vcard] failed to delete vCard', error)
+        // Continue with URL deletion even if vCard cleanup fails
+      }
     }
 
     // Delete URL record

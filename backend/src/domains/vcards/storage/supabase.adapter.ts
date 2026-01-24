@@ -68,6 +68,13 @@ export class SupabaseVcardsStorageAdapter implements VcardsStorage {
     return rows[0] ? this.mapRow(rows[0]) : null
   }
 
+  async getByShortId(shortId: string) {
+    const rows = await this.requestJson<VcardRow[]>(
+      `vcards?select=*&short_id=eq.${encodeURIComponent(shortId)}&limit=1`
+    )
+    return rows[0] ? this.mapRow(rows[0]) : null
+  }
+
   async deleteById(id: string) {
     await this.request(`vcards?id=eq.${encodeURIComponent(id)}`, {
       method: 'DELETE'
