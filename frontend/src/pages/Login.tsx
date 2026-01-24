@@ -33,6 +33,38 @@ const Login = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
+  // Check if form is valid for signup (defined early for useEffects)
+  const isFormValid = isSignUp
+    ? email.trim() &&
+      password.trim() &&
+      fullName.trim() &&
+      username.trim() &&
+      acceptedTerms &&
+      usernameAvailable === true &&
+      emailAvailable !== false // Allow null (not checked yet) but not false
+    : email.trim() && password.trim();
+
+  // Get validation message explaining why button is disabled (defined early for useEffects)
+  const getValidationMessage = (): { message: string; isError: boolean } | null => {
+    if (!isSignUp) return null;
+    if (loading) return null;
+    
+    if (!fullName.trim()) return { message: 'Please enter your full name', isError: false };
+    if (!username.trim()) return { message: 'Please enter a username', isError: false };
+    if (!email.trim()) return { message: 'Please enter your email', isError: false };
+    if (!password.trim()) return { message: 'Please enter a password', isError: false };
+    if (!acceptedTerms) return { message: 'Please accept the Terms & Conditions', isError: false };
+    if (usernameTouched && usernameAvailable === false) return { message: 'Username is already taken. Please choose another.', isError: true };
+    if (usernameTouched && usernameAvailable === null && !usernameChecking) return { message: 'Please check if your username is available (click outside the username field)', isError: false };
+    if (username.trim() && !usernameTouched) return { message: 'Please check if your username is available (click outside the username field)', isError: false };
+    if (emailTouched && emailAvailable === false) return { message: 'This email is already in use. Please use a different email.', isError: true };
+    
+    return null;
+  };
+
+  const validationMessage = getValidationMessage();
+  const hasErrors = (validationMessage?.isError || false) && (submitAttempted || usernameTouched || emailTouched);
+
   useEffect(() => {
     const mode = searchParams.get('mode');
     if (mode === 'signup') {
@@ -225,38 +257,6 @@ const Login = () => {
       }
     }
   };
-
-  // Check if form is valid for signup
-  const isFormValid = isSignUp
-    ? email.trim() &&
-      password.trim() &&
-      fullName.trim() &&
-      username.trim() &&
-      acceptedTerms &&
-      usernameAvailable === true &&
-      emailAvailable !== false // Allow null (not checked yet) but not false
-    : email.trim() && password.trim();
-
-  // Get validation message explaining why button is disabled
-  const getValidationMessage = (): { message: string; isError: boolean } | null => {
-    if (!isSignUp) return null;
-    if (loading) return null;
-    
-    if (!fullName.trim()) return { message: 'Please enter your full name', isError: false };
-    if (!username.trim()) return { message: 'Please enter a username', isError: false };
-    if (!email.trim()) return { message: 'Please enter your email', isError: false };
-    if (!password.trim()) return { message: 'Please enter a password', isError: false };
-    if (!acceptedTerms) return { message: 'Please accept the Terms & Conditions', isError: false };
-    if (usernameTouched && usernameAvailable === false) return { message: 'Username is already taken. Please choose another.', isError: true };
-    if (usernameTouched && usernameAvailable === null && !usernameChecking) return { message: 'Please check if your username is available (click outside the username field)', isError: false };
-    if (username.trim() && !usernameTouched) return { message: 'Please check if your username is available (click outside the username field)', isError: false };
-    if (emailTouched && emailAvailable === false) return { message: 'This email is already in use. Please use a different email.', isError: true };
-    
-    return null;
-  };
-
-  const validationMessage = getValidationMessage();
-  const hasErrors = (validationMessage?.isError || false) && (submitAttempted || usernameTouched || emailTouched);
 
   return (
     <div className="h-full bg-[#0b0f14] text-foreground flex items-center justify-center p-4 relative overflow-hidden">
