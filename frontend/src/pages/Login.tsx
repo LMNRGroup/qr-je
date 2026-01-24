@@ -27,7 +27,8 @@ const Login = () => {
   const [usernameTouched, setUsernameTouched] = useState(false);
   const [emailTouched, setEmailTouched] = useState(false);
   const [submitAttempted, setSubmitAttempted] = useState(false);
-  const [shakeKey, setShakeKey] = useState(0);
+  const [showUsernameUnavailableOverlay, setShowUsernameUnavailableOverlay] = useState(false);
+  const [signupError, setSignupError] = useState<string | null>(null);
   
   const { signIn, signUp } = useAuth();
   const navigate = useNavigate();
@@ -44,10 +45,15 @@ const Login = () => {
       emailAvailable !== false // Allow null (not checked yet) but not false
     : email.trim() && password.trim();
 
-  // Get validation message explaining why button is disabled (defined early for useEffects)
+  // Get validation message explaining why button is disabled (only show after submit attempt)
   const getValidationMessage = (): { message: string; isError: boolean } | null => {
     if (!isSignUp) return null;
     if (loading) return null;
+    // Only show validation messages after user has attempted to submit
+    if (!submitAttempted) return null;
+    
+    // Show signup error if present
+    if (signupError) return { message: signupError, isError: true };
     
     if (!fullName.trim()) return { message: 'Please enter your full name', isError: false };
     if (!username.trim()) return { message: 'Please enter a username', isError: false };
@@ -63,7 +69,6 @@ const Login = () => {
   };
 
   const validationMessage = getValidationMessage();
-  const hasErrors = (validationMessage?.isError || false) && (submitAttempted || usernameTouched || emailTouched);
 
   useEffect(() => {
     const mode = searchParams.get('mode');
@@ -79,22 +84,9 @@ const Login = () => {
   useEffect(() => {
     if (isSignUp && isFormValid) {
       setSubmitAttempted(false);
+      setSignupError(null);
     }
   }, [isSignUp, isFormValid]);
-
-  // Trigger shake animation when errors are detected
-  useEffect(() => {
-    if (hasErrors && isSignUp) {
-      setShakeKey(prev => prev + 1);
-    }
-  }, [hasErrors, isSignUp]);
-
-  // Trigger shake when username or email becomes unavailable
-  useEffect(() => {
-    if (isSignUp && (usernameAvailable === false || emailAvailable === false)) {
-      setShakeKey(prev => prev + 1);
-    }
-  }, [isSignUp, usernameAvailable, emailAvailable]);
 
   // Prevent body scrolling on login page (PWA/mobile)
   // Force dark mode on login page to ensure consistent styling
@@ -117,23 +109,27 @@ const Login = () => {
   const handleUsernameBlur = async () => {
     if (!isSignUp || !username.trim()) {
       setUsernameTouched(false);
+      setShowUsernameUnavailableOverlay(false);
       return;
     }
     
     setUsernameTouched(true);
     setUsernameChecking(true);
+    setShowUsernameUnavailableOverlay(false);
     
     try {
       const result = await checkUsernameAvailability(username.trim());
       if (result.available) {
         setUsernameAvailable(true);
+        setShowUsernameUnavailableOverlay(false);
       } else {
         setUsernameAvailable(false);
-        toast.error(result.message || 'Username is already taken');
+        setShowUsernameUnavailableOverlay(true);
       }
     } catch (error) {
       console.error('Failed to check username availability:', error);
       setUsernameAvailable(null);
+      setShowUsernameUnavailableOverlay(false);
     } finally {
       setUsernameChecking(false);
     }
@@ -162,27 +158,56 @@ const Login = () => {
     
     if (isSignUp) {
       setSubmitAttempted(true);
-      // Trigger shake if there are errors
-      if (!isFormValid) {
-        setShakeKey(prev => prev + 1);
+      setSignupError(null);
+      
+      // Validate all fields before attempting signup
+      if (!fullName.trim()) {
+        setSignupError('Please enter your full name');
+        return;
       }
-    }
-    
-    if (!email || !password) {
-      toast.error('Please fill in all fields');
-      return;
-    }
-    if (isSignUp && (!fullName.trim() || !username.trim())) {
-      toast.error('Please add your full name and username');
-      return;
-    }
-    if (isSignUp && !acceptedTerms) {
-      toast.error('Please accept the Terms & Conditions');
-      return;
-    }
-    if (isSignUp && usernameAvailable === false) {
-      toast.error('Please choose an available username');
-      return;
+      if (!username.trim()) {
+        setSignupError('Please enter a username');
+        return;
+      }
+      if (!email.trim()) {
+        setSignupError('Please enter your email');
+        return;
+      }
+      if (!password.trim()) {
+        setSignupError('Please enter a password');
+        return;
+      }
+      if (password.length < 6) {
+        setSignupError('Password must be at least 6 characters long');
+        // Clear password on invalid password error
+        setPassword('');
+        return;
+      }
+      if (!acceptedTerms) {
+        setSignupError('Please accept the Terms & Conditions');
+        return;
+      }
+      if (usernameAvailable !== true) {
+        if (usernameAvailable === false) {
+          setSignupError('Username is already taken. Please choose another.');
+        } else {
+          setSignupError('Please check if your username is available (click outside the username field)');
+        }
+        return;
+      }
+      
+      // Email format validation
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email.trim())) {
+        setSignupError('Please enter a valid email address');
+        return;
+      }
+    } else {
+      // Login validation
+      if (!email || !password) {
+        toast.error('Please fill in all fields');
+        return;
+      }
     }
 
     setLoading(true);
@@ -204,8 +229,21 @@ const Login = () => {
       )) {
         setEmailAvailable(false);
         setEmailTouched(true);
-        toast.error('This email is already in use');
+        setSignupError('This email is already in use. Please use a different email.');
+        // Keep all data except don't clear anything
       } 
+      // Check if error is due to invalid password (signup)
+      else if (isSignUp && (
+        errorLower.includes('password') && (
+          errorLower.includes('weak') ||
+          errorLower.includes('invalid') ||
+          errorLower.includes('too short')
+        )
+      )) {
+        setSignupError('Password is too weak. Please use a stronger password.');
+        // Clear password on password error
+        setPassword('');
+      }
       // Check if error is due to account not existing (sign in)
       else if (!isSignUp && (
         errorLower.includes('invalid login') ||
@@ -230,11 +268,17 @@ const Login = () => {
               setUsernameTouched(false);
               setEmailTouched(false);
               setSubmitAttempted(false);
+              setSignupError(null);
             },
           },
         });
       } else {
-        toast.error(error.message);
+        // Generic error for signup - show in form, keep data
+        if (isSignUp) {
+          setSignupError(error.message || 'An error occurred. Please try again.');
+        } else {
+          toast.error(error.message);
+        }
       }
     } else {
       if (isSignUp) {
@@ -250,6 +294,8 @@ const Login = () => {
         setUsernameTouched(false);
         setEmailTouched(false);
         setSubmitAttempted(false);
+        setSignupError(null);
+        setShowUsernameUnavailableOverlay(false);
         navigate('/login');
       } else {
         toast.success('Welcome back!');
@@ -297,25 +343,15 @@ const Login = () => {
 
         {/* Form Card */}
         <motion.div
-          key={shakeKey}
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ 
             opacity: 1, 
             scale: 1,
-            x: hasErrors ? [0, -12, 12, -12, 12, -6, 6, 0] : 0,
           }}
           transition={{ 
             delay: 0.1,
-            x: { 
-              duration: 0.6, 
-              ease: 'easeInOut'
-            }
           }}
-          className={`rounded-2xl p-6 sm:p-8 bg-[#121621]/90 backdrop-blur-2xl border shadow-xl transition-colors ${
-            hasErrors 
-              ? 'border-red-500/50 shadow-red-500/20' 
-              : 'border-white/10'
-          }`}
+          className="rounded-2xl p-6 sm:p-8 bg-[#121621]/90 backdrop-blur-2xl border border-white/10 shadow-xl"
         >
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -351,6 +387,7 @@ const Login = () => {
                               // Reset availability when user types
                               if (usernameTouched) {
                                 setUsernameAvailable(null);
+                                setShowUsernameUnavailableOverlay(false);
                               }
                             }}
                             onBlur={handleUsernameBlur}
@@ -380,6 +417,30 @@ const Login = () => {
                             </div>
                           )}
                         </div>
+                        {/* Username Unavailable Overlay */}
+                        <AnimatePresence>
+                          {showUsernameUnavailableOverlay && (
+                            <motion.div
+                              initial={{ opacity: 0, y: -10 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              exit={{ opacity: 0, y: -10 }}
+                              transition={{ duration: 0.2 }}
+                              className="absolute top-full left-0 mt-2 z-50 bg-red-500/90 text-white text-sm px-4 py-2 rounded-lg shadow-lg backdrop-blur-sm border border-red-400/50"
+                            >
+                              <div className="flex items-center gap-2">
+                                <X className="h-4 w-4" />
+                                <span>Username is already taken. Please choose another.</span>
+                                <button
+                                  type="button"
+                                  onClick={() => setShowUsernameUnavailableOverlay(false)}
+                                  className="ml-2 hover:opacity-70 transition-opacity"
+                                >
+                                  <X className="h-3 w-3" />
+                                </button>
+                              </div>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
                       </div>
                     </>
                   )}
@@ -508,6 +569,8 @@ const Login = () => {
                       setUsernameTouched(false);
                       setEmailTouched(false);
                       setSubmitAttempted(false);
+                      setSignupError(null);
+                      setShowUsernameUnavailableOverlay(false);
                     }}
                     className="text-sm text-muted-foreground hover:text-primary transition-colors"
                   >
