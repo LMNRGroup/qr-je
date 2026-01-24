@@ -131,7 +131,7 @@ const Login = () => {
     setLoading(false);
 
     if (error) {
-      // Check if error is due to email already in use
+      // Check if error is due to email already in use (signup)
       const errorLower = error.message.toLowerCase();
       if (isSignUp && (
         errorLower.includes('email') && errorLower.includes('already') ||
@@ -142,6 +142,33 @@ const Login = () => {
         setEmailAvailable(false);
         setEmailTouched(true);
         toast.error('This email is already in use');
+      } 
+      // Check if error is due to account not existing (sign in)
+      else if (!isSignUp && (
+        errorLower.includes('invalid login') ||
+        errorLower.includes('invalid credentials') ||
+        errorLower.includes('email not confirmed') ||
+        errorLower.includes('user not found') ||
+        error.code === 'invalid_credentials' ||
+        error.code === 'email_not_confirmed'
+      )) {
+        toast.error('Account does not exist. Please sign up to create an account.', {
+          action: {
+            label: 'Sign Up',
+            onClick: () => {
+              setIsSignUp(true);
+              setEmail('');
+              setPassword('');
+              setFullName('');
+              setUsername('');
+              setAcceptedTerms(false);
+              setUsernameAvailable(null);
+              setEmailAvailable(null);
+              setUsernameTouched(false);
+              setEmailTouched(false);
+            },
+          },
+        });
       } else {
         toast.error(error.message);
       }
@@ -410,21 +437,21 @@ const Login = () => {
                     )}
                   </button>
                   {!isSignUp && (
-                    <div className="space-y-2">
+                    <div className="space-y-2 flex flex-col items-center">
                       <button
                         type="button"
                         onClick={() => {
                           // Placeholder for forgot password - do nothing until email flow is setup
                           toast.info('Password reset feature coming soon');
                         }}
-                        className="text-xs text-muted-foreground hover:text-primary transition-colors block"
+                        className="text-xs text-muted-foreground hover:text-primary transition-colors"
                       >
                         Forgot my password
                       </button>
                       <button
                         type="button"
                         onClick={() => navigate('/')}
-                        className="text-xs text-muted-foreground/40 hover:text-muted-foreground/60 transition-colors block"
+                        className="text-xs text-muted-foreground/40 hover:text-muted-foreground/60 transition-colors"
                       >
                         Continue without account
                       </button>
