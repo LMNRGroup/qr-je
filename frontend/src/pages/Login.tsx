@@ -3,11 +3,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/contexts/AuthContext';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowRight, Loader2, Lock, Mail } from 'lucide-react';
+import { ArrowRight, Loader2, Lock, Mail, Check, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { toast } from 'sonner';
 import { FloatingParticles } from '@/components/FloatingParticles';
+import { checkUsernameAvailability } from '@/lib/api';
 
 const Login = () => {
   const [email, setEmail] = useState('');
@@ -17,6 +18,15 @@ const Login = () => {
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);
   const [loading, setLoading] = useState(false);
+  
+  // Validation states
+  const [usernameAvailable, setUsernameAvailable] = useState<boolean | null>(null);
+  const [usernameChecking, setUsernameChecking] = useState(false);
+  const [emailAvailable, setEmailAvailable] = useState<boolean | null>(null);
+  const [emailChecking, setEmailChecking] = useState(false);
+  const [usernameTouched, setUsernameTouched] = useState(false);
+  const [emailTouched, setEmailTouched] = useState(false);
+  
   const { signIn, signUp } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -48,6 +58,50 @@ const Login = () => {
     };
   }, []);
 
+  // Check username availability
+  const handleUsernameBlur = async () => {
+    if (!isSignUp || !username.trim()) {
+      setUsernameTouched(false);
+      return;
+    }
+    
+    setUsernameTouched(true);
+    setUsernameChecking(true);
+    
+    try {
+      const result = await checkUsernameAvailability(username.trim());
+      if (result.available) {
+        setUsernameAvailable(true);
+      } else {
+        setUsernameAvailable(false);
+        toast.error(result.message || 'Username is already taken');
+      }
+    } catch (error) {
+      console.error('Failed to check username availability:', error);
+      setUsernameAvailable(null);
+    } finally {
+      setUsernameChecking(false);
+    }
+  };
+
+  // Check email availability (by attempting signup - Supabase will error if email exists)
+  const handleEmailBlur = async () => {
+    if (!isSignUp || !email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      setEmailTouched(false);
+      return;
+    }
+    
+    setEmailTouched(true);
+    setEmailChecking(true);
+    
+    // Note: We can't check email availability without attempting signup
+    // Supabase doesn't expose a direct email check endpoint
+    // So we'll check it during actual signup and show error then
+    // For now, we'll just mark it as "checking" and let the signup handle it
+    setEmailChecking(false);
+    setEmailAvailable(null); // Will be determined during signup
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -63,6 +117,10 @@ const Login = () => {
       toast.error('Please accept the Terms & Conditions');
       return;
     }
+    if (isSignUp && usernameAvailable === false) {
+      toast.error('Please choose an available username');
+      return;
+    }
 
     setLoading(true);
     
@@ -73,7 +131,13 @@ const Login = () => {
     setLoading(false);
 
     if (error) {
-      toast.error(error.message);
+      // Check if error is due to email already in use
+      if (isSignUp && error.message.toLowerCase().includes('email') && error.message.toLowerCase().includes('already')) {
+        setEmailAvailable(false);
+        toast.error('This email is already in use');
+      } else {
+        toast.error(error.message);
+      }
     } else {
       if (isSignUp) {
         toast.success('Account created! Check your email to confirm.');
@@ -83,6 +147,10 @@ const Login = () => {
         setFullName('');
         setUsername('');
         setAcceptedTerms(false);
+        setUsernameAvailable(null);
+        setEmailAvailable(null);
+        setUsernameTouched(false);
+        setEmailTouched(false);
         navigate('/login');
       } else {
         toast.success('Welcome back!');
@@ -90,6 +158,17 @@ const Login = () => {
       }
     }
   };
+
+  // Check if form is valid for signup
+  const isFormValid = isSignUp
+    ? email.trim() &&
+      password.trim() &&
+      fullName.trim() &&
+      username.trim() &&
+      acceptedTerms &&
+      usernameAvailable === true &&
+      emailAvailable !== false // Allow null (not checked yet) but not false
+    : email.trim() && password.trim();
 
   return (
     <div className="h-full bg-[#0b0f14] text-foreground flex items-center justify-center p-4 relative overflow-hidden">
@@ -159,13 +238,45 @@ const Login = () => {
                         <Label htmlFor="username" className="text-sm font-medium">
                           Username
                         </Label>
-                        <Input
-                          id="username"
-                          placeholder="username"
-                          value={username}
-                          onChange={(e) => setUsername(e.target.value.slice(0, 18))}
-                          className="h-12 bg-secondary/50 border-border focus:border-primary input-glow"
-                        />
+                        <div className="relative">
+                          <Input
+                            id="username"
+                            placeholder="username"
+                            value={username}
+                            onChange={(e) => {
+                              setUsername(e.target.value.slice(0, 18));
+                              // Reset availability when user types
+                              if (usernameTouched) {
+                                setUsernameAvailable(null);
+                              }
+                            }}
+                            onBlur={handleUsernameBlur}
+                            className={`h-12 bg-secondary/50 border-border focus:border-primary input-glow pr-10 ${
+                              usernameTouched
+                                ? usernameAvailable === true
+                                  ? 'border-green-500/50 focus:border-green-500'
+                                  : usernameAvailable === false
+                                    ? 'border-red-500/50 focus:border-red-500'
+                                    : ''
+                                : ''
+                            }`}
+                          />
+                          {usernameTouched && !usernameChecking && (
+                            <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                              {usernameAvailable === true && (
+                                <Check className="h-4 w-4 text-green-500" />
+                              )}
+                              {usernameAvailable === false && (
+                                <X className="h-4 w-4 text-red-500" />
+                              )}
+                            </div>
+                          )}
+                          {usernameChecking && (
+                            <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                              <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </>
                   )}
@@ -180,9 +291,28 @@ const Login = () => {
                         type="email"
                         placeholder="you@example.com"
                         value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        className="pl-10 h-12 bg-secondary/50 border-border focus:border-primary input-glow"
+                        onChange={(e) => {
+                          setEmail(e.target.value);
+                          // Reset availability when user types
+                          if (emailTouched && emailAvailable === false) {
+                            setEmailAvailable(null);
+                          }
+                        }}
+                        onBlur={handleEmailBlur}
+                        className={`pl-10 pr-10 h-12 bg-secondary/50 border-border focus:border-primary input-glow ${
+                          emailTouched && emailAvailable === false
+                            ? 'border-red-500/50 focus:border-red-500'
+                            : ''
+                        }`}
                       />
+                      {emailTouched && emailAvailable === false && (
+                        <X className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-red-500" />
+                      )}
+                      {emailChecking && (
+                        <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                          <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                        </div>
+                      )}
                     </div>
                   </div>
 
@@ -204,23 +334,38 @@ const Login = () => {
                   </div>
 
                   {isSignUp && (
-                    <label className="flex items-start gap-3 text-xs text-muted-foreground">
-                      <input
-                        type="checkbox"
-                        checked={acceptedTerms}
-                        onChange={(e) => setAcceptedTerms(e.target.checked)}
-                        className="mt-0.5 accent-primary"
-                      />
-                      <span>
-                        I agree to the Terms & Conditions and subscribe for free updates.
-                      </span>
-                    </label>
+                    <div className="space-y-2">
+                      <label className="flex items-start gap-3 text-xs text-muted-foreground">
+                        <input
+                          type="checkbox"
+                          checked={acceptedTerms}
+                          onChange={(e) => setAcceptedTerms(e.target.checked)}
+                          className="mt-0.5 accent-primary"
+                        />
+                        <span>
+                          I agree to the Terms & Conditions and subscribe for free updates.
+                        </span>
+                      </label>
+                      <div className="pl-6">
+                        <Link
+                          to="/terms"
+                          target="_blank"
+                          className="text-xs text-primary hover:text-primary/80 underline transition-colors"
+                        >
+                          See terms and conditions
+                        </Link>
+                      </div>
+                    </div>
                   )}
 
                   <Button
                     type="submit"
-                    disabled={loading}
-                    className="w-full h-12 bg-gradient-to-r from-primary to-cyan-400 hover:opacity-90 text-primary-foreground font-medium glow"
+                    disabled={loading || !isFormValid}
+                    className={`w-full h-12 font-medium glow ${
+                      isFormValid
+                        ? 'bg-gradient-to-r from-primary to-cyan-400 hover:opacity-90 text-primary-foreground'
+                        : 'bg-muted text-muted-foreground cursor-not-allowed opacity-50'
+                    }`}
                   >
                     {loading ? (
                       <Loader2 className="h-5 w-5 animate-spin" />
@@ -243,6 +388,11 @@ const Login = () => {
                       setFullName('');
                       setUsername('');
                       setAcceptedTerms(false);
+                      // Reset validation states
+                      setUsernameAvailable(null);
+                      setEmailAvailable(null);
+                      setUsernameTouched(false);
+                      setEmailTouched(false);
                     }}
                     className="text-sm text-muted-foreground hover:text-primary transition-colors"
                   >
@@ -253,11 +403,21 @@ const Login = () => {
                     )}
                   </button>
                   {!isSignUp && (
-                    <div>
+                    <div className="space-y-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          // Placeholder for forgot password - do nothing until email flow is setup
+                          toast.info('Password reset feature coming soon');
+                        }}
+                        className="text-xs text-muted-foreground hover:text-primary transition-colors block"
+                      >
+                        Forgot my password
+                      </button>
                       <button
                         type="button"
                         onClick={() => navigate('/')}
-                        className="text-xs text-muted-foreground/40 hover:text-muted-foreground/60 transition-colors"
+                        className="text-xs text-muted-foreground/40 hover:text-muted-foreground/60 transition-colors block"
                       >
                         Continue without account
                       </button>
