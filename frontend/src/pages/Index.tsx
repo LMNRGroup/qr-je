@@ -7509,10 +7509,10 @@ const Index = () => {
             </p>
           </button>
           <div className="flex items-center justify-between gap-4 sm:gap-5 lg:gap-6">
-            <div>
-              <p className="text-xs uppercase tracking-[0.4em] text-muted-foreground">Studio</p>
+            <div className={isMobileV2 ? "mb-0 pb-4 border-b border-border/50" : ""}>
+              <p className="text-xs uppercase tracking-[0.4em] text-muted-foreground mb-1">Studio</p>
               <h2 
-                className="text-2xl sm:text-3xl font-semibold tracking-tight cursor-pointer hover:text-primary/80 transition-colors"
+                className={`${isMobileV2 ? 'text-lg' : 'text-2xl sm:text-3xl'} font-semibold ${!isMobileV2 ? 'tracking-tight' : ''} cursor-pointer hover:text-primary/80 transition-colors`}
                 onClick={() => setShowNavOverlay(true)}
               >
                 Creative Workspace
@@ -8703,15 +8703,27 @@ const Index = () => {
 
         {activeTab === 'codes' && (
           <section id="arsenal" className={`space-y-6 ${isMobileV2 ? 'qrc-v2-section' : ''}`}>
-            <div>
-              <p className="text-xs uppercase tracking-[0.4em] text-muted-foreground">Arsenal</p>
-              <h2 
-                className="text-2xl sm:text-3xl font-semibold tracking-tight cursor-pointer hover:text-primary/80 transition-colors"
-                onClick={() => setShowNavOverlay(true)}
-              >
-                Your QR Codes
-              </h2>
-            </div>
+            {isMobileV2 ? (
+              <div className="mb-0 pb-4 border-b border-border/50">
+                <p className="text-xs uppercase tracking-[0.4em] text-muted-foreground mb-1">Arsenal</p>
+                <h2 
+                  className="text-lg font-semibold cursor-pointer hover:text-primary/80 transition-colors"
+                  onClick={() => setShowNavOverlay(true)}
+                >
+                  Your QR Codes
+                </h2>
+              </div>
+            ) : (
+              <div>
+                <p className="text-xs uppercase tracking-[0.4em] text-muted-foreground">Arsenal</p>
+                <h2 
+                  className="text-2xl sm:text-3xl font-semibold tracking-tight cursor-pointer hover:text-primary/80 transition-colors"
+                  onClick={() => setShowNavOverlay(true)}
+                >
+                  Your QR Codes
+                </h2>
+              </div>
+            )}
             {!isMobileV2 && showAdaptiveBanner && (
             <div className="grid gap-4 md:grid-cols-2">
                 <div className="relative">
@@ -8814,69 +8826,121 @@ const Index = () => {
 
         {activeTab === 'analytics' && (
           <section id="intel" className={`space-y-6 ${isMobileV2 ? 'qrc-v2-section' : ''}`}>
-            <div className="relative">
-              <div className="space-y-6">
-                <div className="flex flex-wrap items-start justify-between gap-2 sm:flex-nowrap sm:items-center">
-                  <div>
-                    <p className="text-xs uppercase tracking-[0.4em] text-muted-foreground">Intel</p>
-                    <h2 
-                      className="text-3xl font-semibold tracking-tight cursor-pointer hover:text-primary/80 transition-colors"
-                      onClick={() => setShowNavOverlay(true)}
-                    >
-                      Live Intelligence
-                    </h2>
-                  </div>
-                  <div className="relative ml-auto">
-                    <select
-                      defaultValue=""
-                      onChange={(event) => {
-                        const value = event.target.value as 'day' | 'week' | 'month' | '';
-                        if (!value) return;
-                        handleExportCsv(value);
-                        event.target.value = '';
-                      }}
-                      className="appearance-none rounded-xl border border-border bg-secondary/30 px-3 py-2 text-xs uppercase tracking-[0.3em] text-foreground pr-7 hover:bg-secondary/40"
-                    >
-                      <option value="" disabled>Export CSV</option>
-                      <option value="day">Today</option>
-                      <option value="week">This Week</option>
-                      <option value="month">This Month</option>
-                    </select>
-                    <ChevronDown className="pointer-events-none absolute right-2 top-1/2 h-3 w-3 -translate-y-1/2 text-muted-foreground" />
-                  </div>
+            {isMobileV2 ? (
+              <div className="space-y-4">
+                {/* Clickable Header - OUTSIDE and ON TOP of container */}
+                <div className="mb-0 pb-4 border-b border-border/50">
+                  <p className="text-xs uppercase tracking-[0.4em] text-muted-foreground mb-1">Intel</p>
+                  <h2 
+                    className="text-lg font-semibold cursor-pointer hover:text-primary/80 transition-colors"
+                    onClick={() => setShowNavOverlay(true)}
+                  >
+                    Live Intelligence
+                  </h2>
                 </div>
+                
+                <div className="glass-panel rounded-2xl p-4 flex flex-col overflow-hidden">
+                  <ScrollArea className="qrc-arsenal-scroll qrc-no-scroll-x max-w-full w-full">
+                    <div className="flex flex-col min-h-0 space-y-6">
+                      {/* Export CSV - inside scrollable */}
+                      <div className="relative">
+                        <select
+                          defaultValue=""
+                          onChange={(event) => {
+                            const value = event.target.value as 'day' | 'week' | 'month' | '';
+                            if (!value) return;
+                            handleExportCsv(value);
+                            event.target.value = '';
+                          }}
+                          className="appearance-none rounded-xl border border-border bg-secondary/30 px-3 py-2 text-xs uppercase tracking-[0.3em] text-foreground pr-7 hover:bg-secondary/40 w-full"
+                        >
+                          <option value="" disabled>Export CSV</option>
+                          <option value="day">Today</option>
+                          <option value="week">This Week</option>
+                          <option value="month">This Month</option>
+                        </select>
+                        <ChevronDown className="pointer-events-none absolute right-2 top-1/2 h-3 w-3 -translate-y-1/2 text-muted-foreground" />
+                      </div>
 
-                {isMobileV2 ? (
-                  <Tabs defaultValue="map">
-                    <TabsList className="grid w-full grid-cols-2">
-                      <TabsTrigger value="map">Map</TabsTrigger>
-                      <TabsTrigger value="snapshot">Snapshot</TabsTrigger>
-                    </TabsList>
-                    <TabsContent value="map">{intelMapPanel}</TabsContent>
-                    <TabsContent value="snapshot">{intelSnapshotPanel}</TabsContent>
-                  </Tabs>
-                ) : (
+                      {/* Tabs for Map/Snapshot */}
+                      <Tabs defaultValue="map">
+                        <TabsList className="grid w-full grid-cols-2">
+                          <TabsTrigger value="map">Map</TabsTrigger>
+                          <TabsTrigger value="snapshot">Snapshot</TabsTrigger>
+                        </TabsList>
+                        <TabsContent value="map" className="mt-4">{intelMapPanel}</TabsContent>
+                        <TabsContent value="snapshot" className="mt-4">{intelSnapshotPanel}</TabsContent>
+                      </Tabs>
+                    </div>
+                  </ScrollArea>
+                </div>
+              </div>
+            ) : (
+              <div className="relative">
+                <div className="space-y-6">
+                  <div className="flex flex-wrap items-start justify-between gap-2 sm:flex-nowrap sm:items-center">
+                    <div>
+                      <p className="text-xs uppercase tracking-[0.4em] text-muted-foreground">Intel</p>
+                      <h2 
+                        className="text-2xl sm:text-3xl font-semibold tracking-tight cursor-pointer hover:text-primary/80 transition-colors"
+                        onClick={() => setShowNavOverlay(true)}
+                      >
+                        Live Intelligence
+                      </h2>
+                    </div>
+                    <div className="relative ml-auto">
+                      <select
+                        defaultValue=""
+                        onChange={(event) => {
+                          const value = event.target.value as 'day' | 'week' | 'month' | '';
+                          if (!value) return;
+                          handleExportCsv(value);
+                          event.target.value = '';
+                        }}
+                        className="appearance-none rounded-xl border border-border bg-secondary/30 px-3 py-2 text-xs uppercase tracking-[0.3em] text-foreground pr-7 hover:bg-secondary/40"
+                      >
+                        <option value="" disabled>Export CSV</option>
+                        <option value="day">Today</option>
+                        <option value="week">This Week</option>
+                        <option value="month">This Month</option>
+                      </select>
+                      <ChevronDown className="pointer-events-none absolute right-2 top-1/2 h-3 w-3 -translate-y-1/2 text-muted-foreground" />
+                    </div>
+                  </div>
+
                   <div className="grid lg:grid-cols-[1.2fr_0.8fr] gap-6">
                     {intelMapPanel}
                     {intelSnapshotPanel}
                   </div>
-                )}
+                </div>
               </div>
-            </div>
+            )}
           </section>
         )}
 
         {activeTab === 'settings' && (
           <section id="config" className={`space-y-6 ${isMobileV2 ? 'qrc-v2-section qrc-config-section' : ''}`}>
-            <div>
-              <p className="text-xs uppercase tracking-[0.4em] text-muted-foreground">Config</p>
-              <h2 
-                className="text-3xl font-semibold tracking-tight cursor-pointer hover:text-primary/80 transition-colors"
-                onClick={() => setShowNavOverlay(true)}
-              >
-                Preferences
-              </h2>
-            </div>
+            {isMobileV2 ? (
+              <div className="mb-0 pb-4 border-b border-border/50">
+                <p className="text-xs uppercase tracking-[0.4em] text-muted-foreground mb-1">Config</p>
+                <h2 
+                  className="text-lg font-semibold cursor-pointer hover:text-primary/80 transition-colors"
+                  onClick={() => setShowNavOverlay(true)}
+                >
+                  User Preferences
+                </h2>
+              </div>
+            ) : (
+              <div>
+                <p className="text-xs uppercase tracking-[0.4em] text-muted-foreground">Config</p>
+                <h2 
+                  className="text-2xl sm:text-3xl font-semibold tracking-tight cursor-pointer hover:text-primary/80 transition-colors"
+                  onClick={() => setShowNavOverlay(true)}
+                >
+                  User Preferences
+                </h2>
+              </div>
+            )}
             {!isLoggedIn ? (
               <div className="glass-panel rounded-2xl p-6 text-sm text-muted-foreground space-y-4">
                 <p>From here you can customize your experience and preferences.</p>
