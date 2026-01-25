@@ -1,6 +1,10 @@
 export interface AdaptiveSlot {
   id: string;
+  name?: string;
   url?: string;
+  fileUrl?: string;
+  fileSize?: number;
+  fileType?: 'image' | 'pdf';
 }
 
 export interface AdaptiveRule {
