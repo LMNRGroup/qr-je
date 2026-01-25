@@ -306,16 +306,14 @@ export function UserMenu({ trigger, onSignOut }: { trigger?: React.ReactNode; on
           )}
             </div>
             <div className="px-3 pb-3">
-              <Button
+              <button
                 type="button"
-                variant="outline"
-                size="sm"
-                className="w-full border-border text-xs uppercase tracking-[0.25em]"
+                className="w-full rounded-xl border border-border/60 bg-secondary/40 hover:bg-secondary/60 transition-colors px-4 py-2.5 flex items-center justify-center gap-2 text-xs uppercase tracking-[0.3em] text-muted-foreground hover:text-foreground"
                 onClick={handleClearFeed}
               >
-                <Trash2 className="mr-2 h-3.5 w-3.5" />
+                <Trash2 className="h-3.5 w-3.5" />
                 Clear Feed
-              </Button>
+              </button>
             </div>
             <DropdownMenuSeparator />
             {/* Storage Usage Display */}
@@ -352,16 +350,14 @@ export function UserMenu({ trigger, onSignOut }: { trigger?: React.ReactNode; on
             </div>
             <DropdownMenuSeparator />
             <div className="px-3 pb-3">
-              <Button
+              <button
                 type="button"
-                variant="outline"
-                size="sm"
-                className="w-full border-border text-destructive hover:bg-destructive/10 hover:text-destructive text-xs uppercase tracking-[0.25em] justify-center"
+                className="w-full rounded-xl border border-destructive/40 bg-destructive/10 hover:bg-destructive/20 transition-colors px-4 py-2.5 flex items-center justify-center gap-2 text-xs uppercase tracking-[0.3em] text-destructive hover:text-destructive font-medium"
                 onClick={() => setShowSignOutConfirm(true)}
               >
-                <LogOut className="mr-2 h-3.5 w-3.5" />
+                <LogOut className="h-3.5 w-3.5" />
                 Sign Out
-              </Button>
+              </button>
             </div>
           </>
         ) : (
