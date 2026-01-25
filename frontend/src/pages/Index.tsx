@@ -6351,31 +6351,335 @@ const Index = () => {
                     setDialDragging(false);
                   }}
                 >
+                  {/* SVG Dial - Rotating Parts */}
                   <div
-                    className="absolute inset-0 rounded-full"
+                    className="absolute inset-0 pointer-events-none"
                     style={{
-                      border: '2px solid rgba(251,191,36,0.85)',
-                      boxShadow:
-                        '0 8px 20px rgba(0,0,0,0.25), inset 0 2px 4px rgba(255,255,255,0.45), inset 0 -8px 14px rgba(140,88,0,0.45)',
-                      background:
-                        'radial-gradient(circle at 30% 25%, rgba(255,248,210,0.75), rgba(251,191,36,0.6) 38%, rgba(214,142,16,0.55) 70%, rgba(102,61,0,0.35) 100%), repeating-conic-gradient(from 0deg, rgba(255,214,102,0.55) 0deg 1deg, rgba(120,72,0,0.18) 1deg 6deg)',
-                      WebkitMask: 'radial-gradient(circle at center, transparent 58%, black 66%)',
-                      mask: 'radial-gradient(circle at center, transparent 58%, black 66%)',
-                      transform: `rotate(${dialAngle}deg) scale(1.12)`,
-                      transformOrigin: 'center',
-                    }}
-                  />
-                  <div className="absolute inset-0 rounded-full border border-border/60 bg-card/70 shadow-[0_0_40px_rgba(15,23,42,0.25)]" />
-                  <div
-                    className={`absolute rounded-full border border-border/40 bg-card/80 overflow-visible ${
-                      dialDragging ? '' : 'transition-transform duration-200'
-                    }`}
-                    style={{
-                      inset: innerDialInset,
                       transform: `rotate(${dialAngle}deg)`,
-                      transformOrigin: 'center center',
+                      transformOrigin: 'center',
+                      width: '100%',
+                      height: '100%',
+                      willChange: 'transform', // GPU acceleration hint for smoother rotation
                     }}
                   >
+                    <svg
+                      viewBox="0 0 400 400"
+                      className="absolute"
+                      style={{
+                        width: `${dialSize * 1.2}px`, // Make SVG 20% larger than dial container
+                        height: `${dialSize * 1.2}px`,
+                        left: '50%',
+                        top: '50%',
+                        transform: 'translate(-50%, -50%)',
+                      }}
+                      preserveAspectRatio="xMidYMid meet"
+                    >
+                      <defs>
+                        <style>{`
+                          .dial-st0 { fill: #191a1e; }
+                          .dial-st1 { fill: url(#linear-gradient2); }
+                          .dial-st2 { fill: url(#linear-gradient1); }
+                          .dial-st3 { fill: url(#linear-gradient9); }
+                          .dial-st4 { fill: url(#linear-gradient3); }
+                          .dial-st5 { fill: url(#linear-gradient6); }
+                          .dial-st6 { fill: url(#linear-gradient8); }
+                          .dial-st7 { fill: url(#linear-gradient7); }
+                          .dial-st8 { fill: url(#linear-gradient5); }
+                          .dial-st9 { fill: url(#linear-gradient4); }
+                          .dial-st10 { fill: url(#linear-gradient31); }
+                          .dial-st11 { fill: url(#linear-gradient30); }
+                          .dial-st12 { fill: url(#linear-gradient38); }
+                          .dial-st13 { fill: url(#linear-gradient32); }
+                          .dial-st14 { fill: url(#linear-gradient61); }
+                          .dial-st15 { fill: url(#linear-gradient60); }
+                          .dial-st16 { fill: url(#linear-gradient62); }
+                          .dial-st17 { fill: url(#linear-gradient69); }
+                          .dial-st18 { fill: url(#linear-gradient65); }
+                          .dial-st19 { fill: url(#linear-gradient68); }
+                          .dial-st20 { fill: url(#linear-gradient67); }
+                          .dial-st21 { fill: url(#linear-gradient64); }
+                          .dial-st22 { fill: url(#linear-gradient63); }
+                          .dial-st23 { fill: url(#linear-gradient66); }
+                          .dial-st24 { fill: url(#linear-gradient71); }
+                          .dial-st25 { fill: url(#linear-gradient70); }
+                          .dial-st26 { fill: url(#linear-gradient39); }
+                          .dial-st27 { fill: url(#linear-gradient34); }
+                          .dial-st28 { fill: url(#linear-gradient37); }
+                          .dial-st29 { fill: url(#linear-gradient35); }
+                          .dial-st30 { fill: url(#linear-gradient33); }
+                          .dial-st31 { fill: url(#linear-gradient36); }
+                          .dial-st32 { fill: url(#linear-gradient80); }
+                          .dial-st33 { fill: url(#linear-gradient81); }
+                          .dial-st34 { fill: url(#linear-gradient40); }
+                          .dial-st35 { fill: url(#linear-gradient41); }
+                          .dial-st36 { fill: url(#linear-gradient42); }
+                          .dial-st37 { fill: url(#linear-gradient46); }
+                          .dial-st38 { fill: url(#linear-gradient48); }
+                          .dial-st39 { fill: url(#linear-gradient43); }
+                          .dial-st40 { fill: url(#linear-gradient44); }
+                          .dial-st41 { fill: url(#linear-gradient47); }
+                          .dial-st42 { fill: url(#linear-gradient45); }
+                          .dial-st43 { fill: url(#linear-gradient49); }
+                          .dial-st44 { fill: url(#linear-gradient89); }
+                          .dial-st45 { fill: url(#linear-gradient88); }
+                          .dial-st46 { fill: url(#linear-gradient83); }
+                          .dial-st47 { fill: url(#linear-gradient85); }
+                          .dial-st48 { fill: url(#linear-gradient79); }
+                          .dial-st49 { fill: url(#linear-gradient87); }
+                          .dial-st50 { fill: url(#linear-gradient78); }
+                          .dial-st51 { fill: url(#linear-gradient77); }
+                          .dial-st52 { fill: url(#linear-gradient76); }
+                          .dial-st53 { fill: url(#linear-gradient84); }
+                          .dial-st54 { fill: url(#linear-gradient82); }
+                          .dial-st55 { fill: url(#linear-gradient86); }
+                          .dial-st56 { fill: url(#linear-gradient75); }
+                          .dial-st57 { fill: url(#linear-gradient73); }
+                          .dial-st58 { fill: url(#linear-gradient74); }
+                          .dial-st59 { fill: url(#linear-gradient72); }
+                          .dial-st60 { fill: url(#linear-gradient50); }
+                          .dial-st61 { fill: url(#linear-gradient51); }
+                          .dial-st62 { fill: url(#linear-gradient52); }
+                          .dial-st63 { fill: url(#linear-gradient59); }
+                          .dial-st64 { fill: url(#linear-gradient53); }
+                          .dial-st65 { fill: url(#linear-gradient56); }
+                          .dial-st66 { fill: url(#linear-gradient54); }
+                          .dial-st67 { fill: url(#linear-gradient57); }
+                          .dial-st68 { fill: url(#linear-gradient55); }
+                          .dial-st69 { fill: url(#linear-gradient58); }
+                          .dial-st70 { fill: url(#linear-gradient28); }
+                          .dial-st71 { fill: url(#linear-gradient29); }
+                          .dial-st72 { fill: url(#linear-gradient18); }
+                          .dial-st73 { fill: url(#linear-gradient13); }
+                          .dial-st74 { fill: url(#linear-gradient12); }
+                          .dial-st75 { fill: url(#linear-gradient15); }
+                          .dial-st76 { fill: url(#linear-gradient16); }
+                          .dial-st77 { fill: url(#linear-gradient11); }
+                          .dial-st78 { fill: url(#linear-gradient10); }
+                          .dial-st79 { fill: url(#linear-gradient17); }
+                          .dial-st80 { fill: url(#linear-gradient14); }
+                          .dial-st81 { fill: url(#linear-gradient19); }
+                          .dial-st82 { fill: url(#linear-gradient23); }
+                          .dial-st83 { fill: url(#linear-gradient22); }
+                          .dial-st84 { fill: url(#linear-gradient24); }
+                          .dial-st85 { fill: url(#linear-gradient25); }
+                          .dial-st86 { fill: url(#linear-gradient21); }
+                          .dial-st87 { fill: url(#linear-gradient20); }
+                          .dial-st88 { fill: url(#linear-gradient27); }
+                          .dial-st89 { fill: url(#linear-gradient26); }
+                          .dial-st90 { fill: url(#linear-gradient); }
+                        `}</style>
+                        <linearGradient id="linear-gradient" x1="-37.01" y1="239.4" x2="-31.77" y2="239.4" gradientTransform="translate(446.04 45.95) rotate(90)" gradientUnits="userSpaceOnUse">
+                          <stop offset=".12" stopColor="#e8b327"/>
+                          <stop offset=".93" stopColor="#9b8c64"/>
+                        </linearGradient>
+                        <linearGradient id="linear-gradient1" x1="-36.7" y1="266.02" x2="-30.81" y2="266.02" xlinkHref="#linear-gradient"/>
+                        <linearGradient id="linear-gradient2" x1="-35.49" y1="212.91" x2="-28.9" y2="212.91" xlinkHref="#linear-gradient"/>
+                        <linearGradient id="linear-gradient3" x1="-33.35" y1="292.25" x2="-26.04" y2="292.25" xlinkHref="#linear-gradient"/>
+                        <linearGradient id="linear-gradient4" x1="-30.3" y1="187.07" x2="-22.26" y2="187.07" xlinkHref="#linear-gradient"/>
+                        <linearGradient id="linear-gradient5" x1="-26.34" y1="317.57" x2="-17.56" y2="317.57" xlinkHref="#linear-gradient"/>
+                        <linearGradient id="linear-gradient6" x1="-21.5" y1="162.39" x2="-11.98" y2="162.39" xlinkHref="#linear-gradient"/>
+                        <linearGradient id="linear-gradient7" x1="-15.78" y1="341.5" x2="-5.54" y2="341.5" xlinkHref="#linear-gradient"/>
+                        <linearGradient id="linear-gradient8" x1="-9.25" y1="139.34" x2="1.73" y2="139.34" xlinkHref="#linear-gradient"/>
+                        <linearGradient id="linear-gradient9" x1="-1.92" y1="363.54" x2="9.81" y2="363.54" xlinkHref="#linear-gradient"/>
+                        <linearGradient id="linear-gradient10" x1="6.18" y1="118.43" x2="18.63" y2="118.43" xlinkHref="#linear-gradient"/>
+                        <linearGradient id="linear-gradient11" x1="14.99" y1="383.21" x2="28.17" y2="383.21" xlinkHref="#linear-gradient"/>
+                        <linearGradient id="linear-gradient12" x1="24.47" y1="100.1" x2="38.37" y2="100.1" xlinkHref="#linear-gradient"/>
+                        <linearGradient id="linear-gradient13" x1="34.57" y1="400.11" x2="49.19" y2="400.11" xlinkHref="#linear-gradient"/>
+                        <linearGradient id="linear-gradient14" x1="45.25" y1="84.7" x2="60.56" y2="84.7" xlinkHref="#linear-gradient"/>
+                        <linearGradient id="linear-gradient15" x1="56.46" y1="413.91" x2="72.41" y2="413.91" xlinkHref="#linear-gradient"/>
+                        <linearGradient id="linear-gradient16" x1="68.15" y1="72.56" x2="84.68" y2="72.56" xlinkHref="#linear-gradient"/>
+                        <linearGradient id="linear-gradient17" x1="80.25" y1="424.34" x2="97.27" y2="424.34" xlinkHref="#linear-gradient"/>
+                        <linearGradient id="linear-gradient18" x1="92.72" y1="63.91" x2="110.13" y2="63.91" xlinkHref="#linear-gradient"/>
+                        <linearGradient id="linear-gradient19" x1="105.5" y1="431.17" x2="123.2" y2="431.17" xlinkHref="#linear-gradient"/>
+                        <linearGradient id="linear-gradient20" x1="118.52" y1="58.92" x2="136.43" y2="58.92" xlinkHref="#linear-gradient"/>
+                        <linearGradient id="linear-gradient21" x1="131.72" y1="434.3" x2="149.73" y2="434.3" xlinkHref="#linear-gradient"/>
+                        <linearGradient id="linear-gradient22" x1="145.02" y1="57.56" x2="163.07" y2="57.56" xlinkHref="#linear-gradient"/>
+                        <linearGradient id="linear-gradient23" x1="158.37" y1="434.3" x2="176.37" y2="434.3" xlinkHref="#linear-gradient"/>
+                        <linearGradient id="linear-gradient24" x1="171.68" y1="58.92" x2="189.57" y2="58.92" xlinkHref="#linear-gradient"/>
+                        <linearGradient id="linear-gradient25" x1="184.89" y1="431.17" x2="202.59" y2="431.17" xlinkHref="#linear-gradient"/>
+                        <linearGradient id="linear-gradient26" x1="197.97" y1="63.91" x2="215.37" y2="63.91" xlinkHref="#linear-gradient"/>
+                        <linearGradient id="linear-gradient27" x1="210.83" y1="424.34" x2="227.85" y2="424.34" xlinkHref="#linear-gradient"/>
+                        <linearGradient id="linear-gradient28" x1="223.42" y1="72.56" x2="239.95" y2="72.56" xlinkHref="#linear-gradient"/>
+                        <linearGradient id="linear-gradient29" x1="235.68" y1="413.92" x2="251.63" y2="413.92" xlinkHref="#linear-gradient"/>
+                        <linearGradient id="linear-gradient30" x1="247.53" y1="84.7" x2="262.84" y2="84.7" xlinkHref="#linear-gradient"/>
+                        <linearGradient id="linear-gradient31" x1="258.92" y1="400.11" x2="273.53" y2="400.11" xlinkHref="#linear-gradient"/>
+                        <linearGradient id="linear-gradient32" x1="269.73" y1="100.1" x2="283.63" y2="100.1" xlinkHref="#linear-gradient"/>
+                        <linearGradient id="linear-gradient33" x1="279.93" y1="383.21" x2="293.1" y2="383.21" xlinkHref="#linear-gradient"/>
+                        <linearGradient id="linear-gradient34" x1="289.47" y1="118.43" x2="301.91" y2="118.43" xlinkHref="#linear-gradient"/>
+                        <linearGradient id="linear-gradient35" x1="298.29" y1="363.53" x2="310.01" y2="363.53" xlinkHref="#linear-gradient"/>
+                        <linearGradient id="linear-gradient36" x1="313.63" y1="341.5" x2="323.88" y2="341.5" xlinkHref="#linear-gradient"/>
+                        <linearGradient id="linear-gradient37" x1="306.36" y1="139.34" x2="317.34" y2="139.34" xlinkHref="#linear-gradient"/>
+                        <linearGradient id="linear-gradient38" x1="320.08" y1="162.39" x2="329.59" y2="162.39" xlinkHref="#linear-gradient"/>
+                        <linearGradient id="linear-gradient39" x1="325.66" y1="317.57" x2="334.44" y2="317.57" xlinkHref="#linear-gradient"/>
+                        <linearGradient id="linear-gradient40" x1="330.36" y1="187.07" x2="338.4" y2="187.07" xlinkHref="#linear-gradient"/>
+                        <linearGradient id="linear-gradient41" x1="334.14" y1="292.25" x2="341.45" y2="292.25" xlinkHref="#linear-gradient"/>
+                        <linearGradient id="linear-gradient42" x1="337" y1="212.91" x2="343.59" y2="212.91" xlinkHref="#linear-gradient"/>
+                        <linearGradient id="linear-gradient43" x1="338.91" y1="266.02" x2="344.8" y2="266.02" xlinkHref="#linear-gradient"/>
+                        <linearGradient id="linear-gradient44" x1="339.87" x2="345.11" xlinkHref="#linear-gradient"/>
+                        <linearGradient id="linear-gradient45" x1="145.02" y1="57.56" x2="163.07" y2="57.56" xlinkHref="#linear-gradient"/>
+                        <linearGradient id="linear-gradient46" x1="118.52" y1="58.92" x2="136.43" y2="58.92" xlinkHref="#linear-gradient"/>
+                        <linearGradient id="linear-gradient47" x1="92.72" y1="63.91" x2="110.13" y2="63.91" xlinkHref="#linear-gradient"/>
+                        <linearGradient id="linear-gradient48" x1="68.15" y1="72.56" x2="84.68" y2="72.56" xlinkHref="#linear-gradient"/>
+                        <linearGradient id="linear-gradient49" x1="45.25" y1="84.7" x2="60.56" y2="84.7" xlinkHref="#linear-gradient"/>
+                        <linearGradient id="linear-gradient50" x1="24.47" y1="100.1" x2="38.37" y2="100.1" xlinkHref="#linear-gradient"/>
+                        <linearGradient id="linear-gradient51" x1="6.18" y1="118.43" x2="18.63" y2="118.43" xlinkHref="#linear-gradient"/>
+                        <linearGradient id="linear-gradient52" x1="-9.25" y1="139.34" x2="1.73" y2="139.34" xlinkHref="#linear-gradient"/>
+                        <linearGradient id="linear-gradient53" x1="-21.5" y1="162.39" x2="-11.98" y2="162.39" xlinkHref="#linear-gradient"/>
+                        <linearGradient id="linear-gradient54" x1="-30.3" y1="187.07" x2="-22.26" y2="187.07" xlinkHref="#linear-gradient"/>
+                        <linearGradient id="linear-gradient55" x1="-35.49" y1="212.91" x2="-28.9" y2="212.91" xlinkHref="#linear-gradient"/>
+                        <linearGradient id="linear-gradient56" x1="-36.7" y1="266.02" x2="-30.81" y2="266.02" xlinkHref="#linear-gradient"/>
+                        <linearGradient id="linear-gradient57" x1="-33.35" y1="292.25" x2="-26.04" y2="292.25" xlinkHref="#linear-gradient"/>
+                        <linearGradient id="linear-gradient58" x1="-26.34" y1="317.57" x2="-17.56" y2="317.57" xlinkHref="#linear-gradient"/>
+                        <linearGradient id="linear-gradient59" x1="-15.78" y1="341.5" x2="-5.54" y2="341.5" xlinkHref="#linear-gradient"/>
+                        <linearGradient id="linear-gradient60" x1="-1.92" y1="363.54" x2="9.81" y2="363.54" xlinkHref="#linear-gradient"/>
+                        <linearGradient id="linear-gradient61" x1="14.99" y1="383.21" x2="28.17" y2="383.21" xlinkHref="#linear-gradient"/>
+                        <linearGradient id="linear-gradient62" x1="34.57" y1="400.11" x2="49.19" y2="400.11" xlinkHref="#linear-gradient"/>
+                        <linearGradient id="linear-gradient63" x1="56.46" y1="413.91" x2="72.41" y2="413.91" xlinkHref="#linear-gradient"/>
+                        <linearGradient id="linear-gradient64" x1="80.25" y1="424.34" x2="97.27" y2="424.34" xlinkHref="#linear-gradient"/>
+                        <linearGradient id="linear-gradient65" x1="105.5" y1="431.17" x2="123.2" y2="431.17" xlinkHref="#linear-gradient"/>
+                        <linearGradient id="linear-gradient66" x1="131.72" y1="434.3" x2="149.73" y2="434.3" xlinkHref="#linear-gradient"/>
+                        <linearGradient id="linear-gradient67" x1="158.37" y1="434.3" x2="176.37" y2="434.3" xlinkHref="#linear-gradient"/>
+                        <linearGradient id="linear-gradient68" x1="184.89" y1="431.17" x2="202.59" y2="431.17" xlinkHref="#linear-gradient"/>
+                        <linearGradient id="linear-gradient69" x1="210.83" y1="424.34" x2="227.85" y2="424.34" xlinkHref="#linear-gradient"/>
+                        <linearGradient id="linear-gradient70" x1="235.68" y1="413.92" x2="251.63" y2="413.92" xlinkHref="#linear-gradient"/>
+                        <linearGradient id="linear-gradient71" x1="258.92" y1="400.11" x2="273.53" y2="400.11" xlinkHref="#linear-gradient"/>
+                        <linearGradient id="linear-gradient72" x1="279.93" y1="383.21" x2="293.1" y2="383.21" xlinkHref="#linear-gradient"/>
+                        <linearGradient id="linear-gradient73" x1="298.29" y1="363.53" x2="310.01" y2="363.53" xlinkHref="#linear-gradient"/>
+                        <linearGradient id="linear-gradient74" x1="313.63" y1="341.5" x2="323.88" y2="341.5" xlinkHref="#linear-gradient"/>
+                        <linearGradient id="linear-gradient75" x1="325.66" y1="317.57" x2="334.44" y2="317.57" xlinkHref="#linear-gradient"/>
+                        <linearGradient id="linear-gradient76" x1="334.14" y1="292.25" x2="341.45" y2="292.25" xlinkHref="#linear-gradient"/>
+                        <linearGradient id="linear-gradient77" x1="338.91" y1="266.02" x2="344.8" y2="266.02" xlinkHref="#linear-gradient"/>
+                        <linearGradient id="linear-gradient78" x1="339.87" x2="345.11" xlinkHref="#linear-gradient"/>
+                        <linearGradient id="linear-gradient79" x1="337" y1="212.91" x2="343.59" y2="212.91" xlinkHref="#linear-gradient"/>
+                        <linearGradient id="linear-gradient80" x1="330.36" y1="187.07" x2="338.4" y2="187.07" xlinkHref="#linear-gradient"/>
+                        <linearGradient id="linear-gradient81" x1="320.08" y1="162.39" x2="329.59" y2="162.39" xlinkHref="#linear-gradient"/>
+                        <linearGradient id="linear-gradient82" x1="306.36" y1="139.34" x2="317.34" y2="139.34" xlinkHref="#linear-gradient"/>
+                        <linearGradient id="linear-gradient83" x1="289.47" y1="118.43" x2="301.91" y2="118.43" xlinkHref="#linear-gradient"/>
+                        <linearGradient id="linear-gradient84" x1="269.73" y1="100.1" x2="283.63" y2="100.1" xlinkHref="#linear-gradient"/>
+                        <linearGradient id="linear-gradient85" x1="247.53" y1="84.7" x2="262.84" y2="84.7" xlinkHref="#linear-gradient"/>
+                        <linearGradient id="linear-gradient86" x1="223.42" y1="72.56" x2="239.95" y2="72.56" xlinkHref="#linear-gradient"/>
+                        <linearGradient id="linear-gradient87" x1="197.97" y1="63.91" x2="215.37" y2="63.91" xlinkHref="#linear-gradient"/>
+                        <linearGradient id="linear-gradient88" x1="171.68" y1="58.92" x2="189.57" y2="58.92" xlinkHref="#linear-gradient"/>
+                        <linearGradient id="linear-gradient89" x1="9.04" y1="200" x2="390.96" y2="200" gradientUnits="userSpaceOnUse">
+                          <stop offset="0" stopColor="#f9f297"/>
+                          <stop offset=".3" stopColor="#e0ab3d"/>
+                          <stop offset=".73" stopColor="#f9f39a"/>
+                          <stop offset="1" stopColor="#b78a43"/>
+                        </linearGradient>
+                      </defs>
+                      {/* Bezel teeth (45 circles) */}
+                      <g>
+                        <path className="dial-st90" d="M206.47,14.17c-3.78-.13-7.04-2.2-8.85-5.22.79,0,1.57-.01,2.36-.01,5.28,0,10.51.21,15.68.64-2.01,2.89-5.41,4.73-9.19,4.6Z"/>
+                        <path className="dial-st2" d="M171.03,11.11c5.9-.9,11.9-1.52,17.96-1.87-1.59,3.14-4.69,5.44-8.46,5.83-3.77.4-7.3-1.21-9.51-3.97Z"/>
+                        <path className="dial-st1" d="M232.26,16.89c-3.74-.66-6.68-3.17-8.05-6.43,6.03.76,11.97,1.81,17.81,3.13-2.39,2.6-6.02,3.96-9.76,3.3Z"/>
+                        <path className="dial-st4" d="M145,16.96c5.75-1.72,11.61-3.18,17.57-4.36-1.14,3.35-3.89,6.07-7.58,6.99-3.69.92-7.41-.19-9.99-2.62Z"/>
+                        <path className="dial-st9" d="M257.43,23.16c-3.61-1.17-6.19-4.09-7.08-7.51,5.86,1.6,11.6,3.47,17.22,5.59-2.74,2.25-6.53,3.09-10.14,1.92Z"/>
+                        <path className="dial-st8" d="M120.07,26.4c5.46-2.52,11.06-4.79,16.79-6.79-.66,3.48-3.01,6.57-6.54,7.99-3.53,1.43-7.36.85-10.25-1.2Z"/>
+                        <path className="dial-st5" d="M281.48,32.88c-3.42-1.67-5.56-4.91-5.97-8.43,5.56,2.4,10.99,5.05,16.26,7.95-3.02,1.84-6.88,2.14-10.29.48Z"/>
+                        <path className="dial-st7" d="M96.72,39.22c5.05-3.26,10.28-6.28,15.64-9.05-.16,3.53-2.06,6.91-5.36,8.81-3.28,1.89-7.15,1.86-10.29.25Z"/>
+                        <path className="dial-st6" d="M303.95,45.85c-3.15-2.12-4.81-5.61-4.73-9.15,5.15,3.14,10.14,6.52,14.96,10.11-3.24,1.39-7.09,1.15-10.23-.97Z"/>
+                        <path className="dial-st3" d="M75.37,55.17c4.56-3.93,9.3-7.64,14.22-11.13.32,3.51-1.1,7.11-4.09,9.44-2.98,2.33-6.81,2.84-10.14,1.69Z"/>
+                        <path className="dial-st78" d="M324.39,61.82c-2.81-2.54-3.97-6.21-3.41-9.69,4.66,3.82,9.13,7.84,13.4,12.08-3.39.91-7.17.14-9.99-2.39Z"/>
+                        <path className="dial-st77" d="M56.42,73.91c3.97-4.52,8.16-8.85,12.53-12.97.79,3.43-.11,7.17-2.74,9.89-2.62,2.72-6.34,3.76-9.8,3.08Z"/>
+                        <path className="dial-st74" d="M342.41,80.48c-2.43-2.9-3.07-6.7-2.04-10.06,4.09,4.42,7.96,9.03,11.61,13.82-3.49.44-7.13-.86-9.57-3.76Z"/>
+                        <path className="dial-st73" d="M40.25,95.12c3.31-5.04,6.86-9.91,10.62-14.6,1.27,3.28.9,7.12-1.32,10.19-2.23,3.07-5.78,4.61-9.3,4.41Z"/>
+                        <path className="dial-st80" d="M366.64,106.51c-3.53-.04-6.96-1.83-8.98-5.05-2.01-3.21-2.11-7.07-.61-10.26,3.43,4.94,6.63,10.05,9.59,15.31Z"/>
+                        <path className="dial-st75" d="M27.19,118.37c2.58-5.46,5.42-10.79,8.5-15.95,1.73,3.08,1.9,6.94.12,10.29-1.78,3.35-5.09,5.37-8.62,5.66Z"/>
+                        <path className="dial-st76" d="M378.05,130.63c-3.5-.54-6.66-2.79-8.21-6.26-1.54-3.46-1.1-7.32.84-10.27,2.71,5.37,5.17,10.89,7.37,16.53Z"/>
+                        <path className="dial-st79" d="M17.5,143.22c1.8-5.8,3.87-11.47,6.19-17.02,2.14,2.81,2.86,6.63,1.56,10.21-1.3,3.58-4.3,6.04-7.75,6.81Z"/>
+                        <path className="dial-st72" d="M385.96,156.08c-3.39-1.02-6.2-3.68-7.25-7.33-1.05-3.66-.08-7.42,2.26-10.07,1.93,5.68,3.6,11.49,4.98,17.4Z"/>
+                        <path className="dial-st81" d="M11.39,169.16c.97-6,2.23-11.9,3.75-17.7,2.51,2.49,3.75,6.17,2.96,9.88-.79,3.72-3.41,6.57-6.71,7.82Z"/>
+                        <path className="dial-st87" d="M390.24,182.38c-3.2-1.48-5.6-4.51-6.13-8.26-.53-3.76.96-7.34,3.63-9.65,1.11,5.88,1.94,11.85,2.5,17.91Z"/>
+                        <path className="dial-st86" d="M8.96,195.69c.13-6.07.55-12.09,1.24-18.01,2.83,2.11,4.55,5.58,4.28,9.35-.26,3.77-2.45,6.95-5.53,8.65Z"/>
+                        <path className="dial-st83" d="M390.83,209.03c-2.96-1.91-4.91-5.24-4.91-9.03s1.96-7.12,4.91-9.03c.14,2.99.21,6,.21,9.03s-.07,6.04-.21,9.03Z"/>
+                        <path className="dial-st82" d="M10.21,222.32c-.69-5.92-1.11-11.93-1.24-18,3.08,1.7,5.26,4.88,5.53,8.65.26,3.78-1.46,7.24-4.28,9.35Z"/>
+                        <path className="dial-st84" d="M387.74,235.53c-2.67-2.31-4.16-5.89-3.63-9.64.53-3.75,2.93-6.77,6.12-8.25-.55,6.06-1.39,12.02-2.49,17.9Z"/>
+                        <path className="dial-st85" d="M15.14,248.54c-1.52-5.8-2.78-11.7-3.75-17.7,3.3,1.25,5.92,4.11,6.71,7.82.79,3.72-.45,7.4-2.96,9.88Z"/>
+                        <path className="dial-st89" d="M380.98,261.32c-2.35-2.66-3.32-6.41-2.27-10.07,1.05-3.65,3.86-6.31,7.25-7.33-1.39,5.91-3.05,11.71-4.98,17.4Z"/>
+                        <path className="dial-st88" d="M23.69,273.8c-2.33-5.54-4.4-11.22-6.19-17.02,3.45.78,6.45,3.24,7.75,6.81,1.3,3.58.59,7.39-1.56,10.21Z"/>
+                        <path className="dial-st70" d="M370.67,285.91c-1.94-2.96-2.38-6.81-.84-10.28,1.55-3.48,4.71-5.72,8.21-6.26-2.2,5.65-4.66,11.16-7.37,16.53Z"/>
+                        <path className="dial-st71" d="M35.68,297.59c-3.08-5.17-5.92-10.49-8.5-15.96,3.53.29,6.84,2.31,8.62,5.66,1.78,3.35,1.61,7.22-.12,10.29Z"/>
+                        <path className="dial-st11" d="M357.05,308.8c-1.5-3.19-1.39-7.05.61-10.26,2.01-3.22,5.44-5,8.98-5.05-2.96,5.26-6.16,10.37-9.59,15.31Z"/>
+                        <path className="dial-st10" d="M50.88,319.48c-3.77-4.69-7.31-9.56-10.63-14.6,3.52-.2,7.07,1.34,9.3,4.41,2.22,3.06,2.6,6.9,1.33,10.19Z"/>
+                        <path className="dial-st13" d="M340.37,329.59c-1.03-3.37-.39-7.17,2.04-10.07,2.43-2.9,6.07-4.19,9.57-3.76-3.65,4.79-7.53,9.4-11.61,13.83Z"/>
+                        <path className="dial-st30" d="M68.96,339.05c-4.38-4.12-8.56-8.45-12.53-12.97,3.46-.68,7.17.36,9.8,3.08,2.62,2.72,3.53,6.47,2.74,9.89Z"/>
+                        <path className="dial-st27" d="M320.97,347.87c-.56-3.48.61-7.16,3.42-9.69,2.81-2.53,6.59-3.3,9.99-2.39-4.27,4.24-8.74,8.27-13.4,12.08Z"/>
+                        <path className="dial-st29" d="M89.59,355.97c-4.91-3.48-9.66-7.2-14.22-11.13,3.32-1.15,7.15-.64,10.13,1.68,2.98,2.33,4.4,5.92,4.09,9.44Z"/>
+                        <path className="dial-st31" d="M112.36,369.83c-5.37-2.77-10.59-5.79-15.64-9.05,3.14-1.61,7-1.65,10.29.25,3.29,1.89,5.19,5.27,5.36,8.8Z"/>
+                        <path className="dial-st28" d="M299.22,363.29c-.08-3.53,1.59-7.02,4.73-9.15,3.14-2.11,7-2.35,10.23-.97-4.82,3.6-9.81,6.97-14.96,10.11Z"/>
+                        <path className="dial-st12" d="M275.52,375.54c.41-3.51,2.55-6.76,5.97-8.42,3.41-1.67,7.27-1.36,10.29.47-5.27,2.9-10.7,5.55-16.26,7.95Z"/>
+                        <path className="dial-st26" d="M136.86,380.39c-5.73-2-11.32-4.27-16.78-6.79,2.89-2.04,6.72-2.62,10.24-1.2,3.53,1.43,5.89,4.5,6.54,7.99Z"/>
+                        <path className="dial-st34" d="M250.35,384.35c.89-3.43,3.46-6.34,7.08-7.51,3.61-1.17,7.41-.33,10.14,1.92-5.62,2.13-11.36,4-17.22,5.59Z"/>
+                        <path className="dial-st35" d="M162.57,387.4c-5.96-1.19-11.81-2.64-17.56-4.36,2.57-2.43,6.3-3.54,9.99-2.62,3.68.91,6.45,3.64,7.58,6.99Z"/>
+                        <path className="dial-st36" d="M224.22,389.54c1.37-3.25,4.31-5.77,8.05-6.43,3.74-.66,7.37.7,9.76,3.3-5.84,1.32-11.78,2.37-17.81,3.13Z"/>
+                        <path className="dial-st39" d="M189,390.75c-6.07-.35-12.06-.97-17.96-1.87,2.21-2.76,5.73-4.36,9.51-3.97,3.77.4,6.87,2.69,8.46,5.83Z"/>
+                        <path className="dial-st40" d="M199.97,391.06c-.79,0-1.57,0-2.36-.01,1.81-3.02,5.07-5.09,8.85-5.22s7.18,1.71,9.19,4.6c-5.17.42-10.4.64-15.68.64Z"/>
+                        <path className="dial-st42" d="M390.83,209.03c-2.96-1.91-4.91-5.24-4.91-9.03s1.96-7.12,4.91-9.03c.14,2.99.21,6,.21,9.03s-.07,6.04-.21,9.03Z"/>
+                        <path className="dial-st37" d="M390.24,182.38c-3.2-1.48-5.6-4.51-6.13-8.26-.53-3.76.96-7.34,3.63-9.65,1.11,5.88,1.94,11.85,2.5,17.91Z"/>
+                        <path className="dial-st41" d="M385.96,156.08c-3.39-1.02-6.2-3.68-7.25-7.33-1.05-3.66-.08-7.42,2.26-10.07,1.93,5.68,3.6,11.49,4.98,17.4Z"/>
+                        <path className="dial-st38" d="M378.05,130.63c-3.5-.54-6.66-2.79-8.21-6.26-1.54-3.46-1.1-7.32.84-10.27,2.71,5.37,5.17,10.89,7.37,16.53Z"/>
+                        <path className="dial-st43" d="M366.64,106.51c-3.53-.04-6.96-1.83-8.98-5.05-2.01-3.21-2.11-7.07-.61-10.26,3.43,4.94,6.63,10.05,9.59,15.31Z"/>
+                        <path className="dial-st60" d="M342.41,80.48c-2.43-2.9-3.07-6.7-2.04-10.06,4.09,4.42,7.96,9.03,11.61,13.82-3.49.44-7.13-.86-9.57-3.76Z"/>
+                        <path className="dial-st61" d="M324.39,61.82c-2.81-2.54-3.97-6.21-3.41-9.69,4.66,3.82,9.13,7.84,13.4,12.08-3.39.91-7.17.14-9.99-2.39Z"/>
+                        <path className="dial-st62" d="M303.95,45.85c-3.15-2.12-4.81-5.61-4.73-9.15,5.15,3.14,10.14,6.52,14.96,10.11-3.24,1.39-7.09,1.15-10.23-.97Z"/>
+                        <path className="dial-st64" d="M281.48,32.88c-3.42-1.67-5.56-4.91-5.97-8.43,5.56,2.4,10.99,5.05,16.26,7.95-3.02,1.84-6.88,2.14-10.29.48Z"/>
+                        <path className="dial-st66" d="M257.43,23.16c-3.61-1.17-6.19-4.09-7.08-7.51,5.86,1.6,11.6,3.47,17.22,5.59-2.74,2.25-6.53,3.09-10.14,1.92Z"/>
+                        <path className="dial-st68" d="M232.26,16.89c-3.74-.66-6.68-3.17-8.05-6.43,6.03.76,11.97,1.81,17.81,3.13-2.39,2.6-6.02,3.96-9.76,3.3Z"/>
+                        <path className="dial-st90" d="M206.47,14.17c-3.78-.13-7.04-2.2-8.85-5.22.79,0,1.57-.01,2.36-.01,5.28,0,10.51.21,15.68.64-2.01,2.89-5.41,4.73-9.19,4.6Z"/>
+                        <path className="dial-st65" d="M171.03,11.11c5.9-.9,11.9-1.52,17.96-1.87-1.59,3.14-4.69,5.44-8.46,5.83-3.77.4-7.3-1.21-9.51-3.97Z"/>
+                        <path className="dial-st67" d="M145,16.96c5.75-1.72,11.61-3.18,17.57-4.36-1.14,3.35-3.89,6.07-7.58,6.99-3.69.92-7.41-.19-9.99-2.62Z"/>
+                        <path className="dial-st69" d="M120.07,26.4c5.46-2.52,11.06-4.79,16.79-6.79-.66,3.48-3.01,6.57-6.54,7.99-3.53,1.43-7.36.85-10.25-1.2Z"/>
+                        <path className="dial-st63" d="M96.72,39.22c5.05-3.26,10.28-6.28,15.64-9.05-.16,3.53-2.06,6.91-5.36,8.81-3.28,1.89-7.15,1.86-10.29.25Z"/>
+                        <path className="dial-st15" d="M75.37,55.17c4.56-3.93,9.3-7.64,14.22-11.13.32,3.51-1.1,7.11-4.09,9.44-2.98,2.33-6.81,2.84-10.14,1.69Z"/>
+                        <path className="dial-st14" d="M56.42,73.91c3.97-4.52,8.16-8.85,12.53-12.97.79,3.43-.11,7.17-2.74,9.89-2.62,2.72-6.34,3.76-9.8,3.08Z"/>
+                        <path className="dial-st16" d="M40.25,95.12c3.31-5.04,6.86-9.91,10.62-14.6,1.27,3.28.9,7.12-1.32,10.19-2.23,3.07-5.78,4.61-9.3,4.41Z"/>
+                        <path className="dial-st22" d="M27.19,118.37c2.58-5.46,5.42-10.79,8.5-15.95,1.73,3.08,1.9,6.94.12,10.29-1.78,3.35-5.09,5.37-8.62,5.66Z"/>
+                        <path className="dial-st21" d="M17.5,143.22c1.8-5.8,3.87-11.47,6.19-17.02,2.14,2.81,2.86,6.63,1.56,10.21-1.3,3.58-4.3,6.04-7.75,6.81Z"/>
+                        <path className="dial-st18" d="M11.39,169.16c.97-6,2.23-11.9,3.75-17.7,2.51,2.49,3.75,6.17,2.96,9.88-.79,3.72-3.41,6.57-6.71,7.82Z"/>
+                        <path className="dial-st23" d="M8.96,195.69c.13-6.07.55-12.09,1.24-18.01,2.83,2.11,4.55,5.58,4.28,9.35-.26,3.77-2.45,6.95-5.53,8.65Z"/>
+                        <path className="dial-st20" d="M10.21,222.32c-.69-5.92-1.11-11.93-1.24-18,3.08,1.7,5.26,4.88,5.53,8.65.26,3.78-1.46,7.24-4.28,9.35Z"/>
+                        <path className="dial-st19" d="M15.14,248.54c-1.52-5.8-2.78-11.7-3.75-17.7,3.3,1.25,5.92,4.11,6.71,7.82.79,3.72-.45,7.4-2.96,9.88Z"/>
+                        <path className="dial-st17" d="M23.69,273.8c-2.33-5.54-4.4-11.22-6.19-17.02,3.45.78,6.45,3.24,7.75,6.81,1.3,3.58.59,7.39-1.56,10.21Z"/>
+                        <path className="dial-st25" d="M35.68,297.59c-3.08-5.17-5.92-10.49-8.5-15.96,3.53.29,6.84,2.31,8.62,5.66,1.78,3.35,1.61,7.22-.12,10.29Z"/>
+                        <path className="dial-st24" d="M50.88,319.48c-3.77-4.69-7.31-9.56-10.63-14.6,3.52-.2,7.07,1.34,9.3,4.41,2.22,3.06,2.6,6.9,1.33,10.19Z"/>
+                        <path className="dial-st59" d="M68.96,339.05c-4.38-4.12-8.56-8.45-12.53-12.97,3.46-.68,7.17.36,9.8,3.08,2.62,2.72,3.53,6.47,2.74,9.89Z"/>
+                        <path className="dial-st57" d="M89.59,355.97c-4.91-3.48-9.66-7.2-14.22-11.13,3.32-1.15,7.15-.64,10.13,1.68,2.98,2.33,4.4,5.92,4.09,9.44Z"/>
+                        <path className="dial-st58" d="M112.36,369.83c-5.37-2.77-10.59-5.79-15.64-9.05,3.14-1.61,7-1.65,10.29.25,3.29,1.89,5.19,5.27,5.36,8.8Z"/>
+                        <path className="dial-st56" d="M136.86,380.39c-5.73-2-11.32-4.27-16.78-6.79,2.89-2.04,6.72-2.62,10.24-1.2,3.53,1.43,5.89,4.5,6.54,7.99Z"/>
+                        <path className="dial-st52" d="M162.57,387.4c-5.96-1.19-11.81-2.64-17.56-4.36,2.57-2.43,6.3-3.54,9.99-2.62,3.68.91,6.45,3.64,7.58,6.99Z"/>
+                        <path className="dial-st51" d="M189,390.75c-6.07-.35-12.06-.97-17.96-1.87,2.21-2.76,5.73-4.36,9.51-3.97,3.77.4,6.87,2.69,8.46,5.83Z"/>
+                        <path className="dial-st50" d="M199.97,391.06c-.79,0-1.57,0-2.36-.01,1.81-3.02,5.07-5.09,8.85-5.22s7.18,1.71,9.19,4.6c-5.17.42-10.4.64-15.68.64Z"/>
+                        <path className="dial-st48" d="M224.22,389.54c1.37-3.25,4.31-5.77,8.05-6.43,3.74-.66,7.37.7,9.76,3.3-5.84,1.32-11.78,2.37-17.81,3.13Z"/>
+                        <path className="dial-st32" d="M250.35,384.35c.89-3.43,3.46-6.34,7.08-7.51,3.61-1.17,7.41-.33,10.14,1.92-5.62,2.13-11.36,4-17.22,5.59Z"/>
+                        <path className="dial-st33" d="M275.52,375.54c.41-3.51,2.55-6.76,5.97-8.42,3.41-1.67,7.27-1.36,10.29.47-5.27,2.9-10.7,5.55-16.26,7.95Z"/>
+                        <path className="dial-st54" d="M299.22,363.29c-.08-3.53,1.59-7.02,4.73-9.15,3.14-2.11,7-2.35,10.23-.97-4.82,3.6-9.81,6.97-14.96,10.11Z"/>
+                        <path className="dial-st46" d="M320.97,347.87c-.56-3.48.61-7.16,3.42-9.69,2.81-2.53,6.59-3.3,9.99-2.39-4.27,4.24-8.74,8.27-13.4,12.08Z"/>
+                        <path className="dial-st53" d="M340.37,329.59c-1.03-3.37-.39-7.17,2.04-10.07,2.43-2.9,6.07-4.19,9.57-3.76-3.65,4.79-7.53,9.4-11.61,13.83Z"/>
+                        <path className="dial-st47" d="M357.05,308.8c-1.5-3.19-1.39-7.05.61-10.26,2.01-3.22,5.44-5,8.98-5.05-2.96,5.26-6.16,10.37-9.59,15.31Z"/>
+                        <path className="dial-st55" d="M370.67,285.91c-1.94-2.96-2.38-6.81-.84-10.28,1.55-3.48,4.71-5.72,8.21-6.26-2.2,5.65-4.66,11.16-7.37,16.53Z"/>
+                        <path className="dial-st49" d="M380.98,261.32c-2.35-2.66-3.32-6.41-2.27-10.07,1.05-3.65,3.86-6.31,7.25-7.33-1.39,5.91-3.05,11.71-4.98,17.4Z"/>
+                        <path className="dial-st45" d="M387.74,235.53c-2.67-2.31-4.16-5.89-3.63-9.64.53-3.75,2.93-6.77,6.12-8.25-.55,6.06-1.39,12.02-2.49,17.9Z"/>
+                      </g>
+                      {/* Bezel ring */}
+                      <path className="dial-st44" d="M386.04,200c0-3.78,1.96-7.12,4.91-9.03-.13-2.88-.33-5.75-.59-8.59-3.2-1.48-5.6-4.51-6.13-8.26-.53-3.76.96-7.34,3.63-9.65-.53-2.82-1.12-5.62-1.78-8.4-3.39-1.02-6.2-3.68-7.25-7.33-1.05-3.66-.08-7.42,2.26-10.07-.91-2.71-1.89-5.39-2.93-8.04-3.5-.54-6.66-2.79-8.21-6.26-1.54-3.46-1.1-7.32.84-10.27-1.29-2.56-2.64-5.1-4.04-7.59-3.53-.04-6.96-1.83-8.98-5.05-2.01-3.21-2.11-7.07-.61-10.26-1.63-2.36-3.32-4.68-5.07-6.96-3.49.44-7.13-.86-9.57-3.76-2.43-2.9-3.07-6.7-2.04-10.06-1.95-2.12-3.95-4.19-6-6.21-3.39.91-7.17.14-9.99-2.39-2.81-2.54-3.97-6.21-3.41-9.69-2.22-1.82-4.48-3.6-6.79-5.32-3.24,1.39-7.09,1.15-10.23-.97-3.15-2.12-4.81-5.61-4.73-9.15-2.44-1.49-4.93-2.93-7.44-4.3-3.02,1.84-6.88,2.14-10.29.48-3.42-1.67-5.56-4.91-5.97-8.43-2.62-1.13-5.26-2.2-7.94-3.21h0c-2.74,2.25-6.53,3.09-10.14,1.92-3.61-1.17-6.19-4.09-7.08-7.51-2.75-.75-5.53-1.44-8.33-2.06-2.39,2.6-6.02,3.96-9.76,3.3-3.74-.66-6.68-3.17-8.05-6.43-2.83-.35-5.69-.65-8.56-.88-2.01,2.89-5.41,4.73-9.19,4.6-3.78-.13-7.04-2.2-8.85-5.22-2.89.04-5.76.13-8.62.3-1.59,3.14-4.69,5.44-8.46,5.83-3.77.4-7.3-1.21-9.51-3.97-2.84.44-5.66.93-8.46,1.48-1.14,3.35-3.89,6.07-7.58,6.99-3.69.92-7.41-.19-9.99-2.62-2.74.83-5.46,1.7-8.14,2.65-.66,3.48-3.01,6.57-6.54,7.99-3.53,1.43-7.36.85-10.25-1.2-2.61,1.2-5.17,2.45-7.71,3.77-.16,3.53-2.06,6.91-5.36,8.81-3.28,1.89-7.15,1.86-10.29.25-2.42,1.55-4.79,3.15-7.13,4.81.32,3.51-1.1,7.11-4.09,9.44s-6.81,2.84-10.14,1.69c-2.18,1.87-4.31,3.8-6.41,5.78.79,3.43-.11,7.17-2.74,9.89-2.62,2.72-6.34,3.76-9.8,3.08-1.9,2.16-3.75,4.36-5.55,6.61,1.27,3.28.9,7.12-1.32,10.19-2.23,3.07-5.78,4.61-9.3,4.41-1.58,2.39-3.1,4.83-4.57,7.29,1.73,3.08,1.9,6.94.12,10.29-1.78,3.35-5.09,5.37-8.62,5.66-1.22,2.58-2.39,5.19-3.49,7.83,2.14,2.81,2.86,6.63,1.56,10.21-1.3,3.58-4.3,6.04-7.75,6.81-.85,2.72-1.64,5.47-2.36,8.24,2.51,2.49,3.75,6.17,2.96,9.88-.79,3.72-3.41,6.57-6.71,7.82-.46,2.82-.86,5.66-1.19,8.52,2.83,2.11,4.55,5.58,4.28,9.35-.26,3.77-2.45,6.95-5.53,8.65-.03,1.43-.05,2.87-.05,4.31s.02,2.88.05,4.32c3.08,1.7,5.26,4.88,5.53,8.65.26,3.78-1.46,7.24-4.28,9.35.33,2.86.73,5.7,1.19,8.52,3.3,1.25,5.92,4.11,6.71,7.82.79,3.72-.45,7.4-2.96,9.88.72,2.77,1.51,5.52,2.36,8.24,3.45.78,6.45,3.24,7.75,6.81,1.3,3.58.59,7.39-1.56,10.21,1.1,2.64,2.26,5.25,3.49,7.83,3.53.29,6.84,2.31,8.62,5.66,1.78,3.35,1.61,7.22-.12,10.29,1.47,2.47,2.99,4.9,4.57,7.3,3.52-.2,7.07,1.34,9.3,4.41,2.22,3.06,2.6,6.9,1.33,10.19,1.8,2.25,3.65,4.45,5.54,6.6,3.46-.68,7.17.36,9.8,3.08,2.62,2.72,3.53,6.47,2.74,9.89,2.09,1.98,4.23,3.9,6.41,5.78h0c3.32-1.15,7.15-.64,10.13,1.68,2.98,2.33,4.4,5.92,4.09,9.44,2.34,1.66,4.71,3.27,7.13,4.81,3.13-1.61,7-1.65,10.29.25,3.29,1.89,5.19,5.27,5.36,8.8,2.54,1.32,5.11,2.57,7.71,3.77,2.89-2.04,6.72-2.62,10.24-1.2,3.53,1.43,5.89,4.5,6.54,7.99,2.69.95,5.41,1.83,8.15,2.65,2.57-2.43,6.3-3.54,9.99-2.62,3.68.91,6.45,3.64,7.58,6.99h0c2.8.56,5.61,1.05,8.46,1.48,2.21-2.76,5.73-4.36,9.51-3.97,3.77.4,6.87,2.69,8.46,5.83,2.86.16,5.73.26,8.62.3,1.81-3.02,5.07-5.09,8.85-5.22,3.78-.13,7.18,1.71,9.19,4.6,2.87-.23,5.73-.53,8.56-.88,1.37-3.25,4.31-5.77,8.05-6.43,3.74-.66,7.37.7,9.76,3.3,2.8-.62,5.58-1.31,8.33-2.06.89-3.43,3.46-6.34,7.08-7.51,3.61-1.17,7.41-.33,10.14,1.92h0c2.67-1.01,5.32-2.08,7.94-3.21.41-3.51,2.55-6.76,5.97-8.42,3.41-1.67,7.27-1.36,10.29.47,2.52-1.38,5-2.81,7.44-4.3-.08-3.53,1.59-7.02,4.73-9.15,3.14-2.11,7-2.35,10.23-.97,2.3-1.72,4.57-3.49,6.79-5.32-.56-3.48.61-7.16,3.42-9.69,2.81-2.53,6.59-3.3,9.99-2.39,2.04-2.01,4.04-4.08,6-6.2-1.03-3.37-.39-7.17,2.04-10.07,2.43-2.9,6.07-4.19,9.57-3.76,1.75-2.28,3.44-4.6,5.07-6.96-1.5-3.19-1.39-7.05.61-10.26,2.01-3.22,5.44-5,8.98-5.05,1.4-2.49,2.75-5.02,4.04-7.58-1.94-2.96-2.38-6.81-.84-10.28,1.55-3.48,4.71-5.72,8.21-6.26,1.03-2.66,2.01-5.34,2.93-8.05-2.35-2.66-3.32-6.41-2.27-10.07,1.05-3.65,3.86-6.31,7.25-7.33.66-2.78,1.25-5.58,1.78-8.4-2.67-2.31-4.16-5.89-3.63-9.64.53-3.75,2.93-6.77,6.12-8.25h0c.26-2.85.47-5.72.6-8.6-2.96-1.91-4.91-5.24-4.91-9.03ZM40.08,200c0-88.32,71.6-159.92,159.92-159.92s159.92,71.6,159.92,159.92-71.6,159.92-159.92,159.92S40.08,288.32,40.08,200Z"/>
+                      {/* Inner circle and radial lines */}
+                      <g>
+                        <circle className="dial-st0" cx="200" cy="200" r="159.92"/>
+                        <g>
+                          <rect className="dial-st0" x="369.87" y="190.48" width="5.29" height="19.04" transform="translate(572.52 -172.52) rotate(90)"/>
+                          <rect className="dial-st0" x="283.61" y="41.07" width="5.29" height="19.04" transform="translate(63.65 -136.35) rotate(30)"/>
+                          <rect className="dial-st0" x="111.09" y="41.07" width="5.29" height="19.04" transform="translate(-10.06 63.65) rotate(-30)"/>
+                          <rect className="dial-st0" x="24.83" y="190.48" width="5.29" height="19.04" transform="translate(-172.52 227.48) rotate(-90)"/>
+                          <rect className="dial-st0" x="111.09" y="339.89" width="5.29" height="19.04" transform="translate(37.54 708.87) rotate(-150)"/>
+                          <rect className="dial-st0" x="283.61" y="339.89" width="5.29" height="19.04" transform="translate(708.87 508.87) rotate(150)"/>
+                        </g>
+                      </g>
+                      {/* Triangle from SVG - rotates with dial, always points to Studio */}
+                      <polygon 
+                        className="dial-st0" 
+                        points="200 36.84 210.39 18.85 189.61 18.85 200 36.84"
+                      />
+                    </svg>
                   </div>
                   <div className="absolute inset-0">
                     {dialItems.map((item, index) => {
