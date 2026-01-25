@@ -19,6 +19,7 @@ import {
 } from '@/components/ui/accordion';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -8360,29 +8361,31 @@ const Index = () => {
                 Your QR Codes
               </h2>
             </div>
-            <div className="grid gap-4 md:grid-cols-2">
-              <button
-                type="button"
-                onClick={handleAdaptiveMockOpen}
-                className="group text-left rounded-2xl border border-border/40 bg-black/90 p-4 shadow-none transition hover:border-amber-300"
-              >
-                <div className="flex items-center justify-between">
-                  <span className="inline-flex items-center gap-2 text-xs uppercase tracking-[0.3em]">
-                    <Star className="h-4 w-4 fill-amber-300 text-amber-300" />
-                    <span className={adaptiveGradientText}>Adaptive QRC™</span>
-                  </span>
-                  <span className="rounded-full border border-amber-300/50 px-2 py-1 text-[10px] uppercase tracking-[0.3em] text-amber-200">
-                    Adaptive QRC™
-                  </span>
-                </div>
-                <p className="mt-3 text-sm font-semibold text-white">
-                  <span className={adaptiveGradientText}>Adaptive QRC™</span> · Lunch Routing
-                </p>
-                <p className="mt-1 text-xs text-white/70">
-                  Routes by time, returning visitors, and admin IPs.
-                </p>
-              </button>
-            </div>
+            {!isMobileV2 && (
+              <div className="grid gap-4 md:grid-cols-2">
+                <button
+                  type="button"
+                  onClick={handleAdaptiveMockOpen}
+                  className="group text-left rounded-2xl border border-border/40 bg-black/90 p-4 shadow-none transition hover:border-amber-300"
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="inline-flex items-center gap-2 text-xs uppercase tracking-[0.3em]">
+                      <Star className="h-4 w-4 fill-amber-300 text-amber-300" />
+                      <span className={adaptiveGradientText}>Adaptive QRC™</span>
+                    </span>
+                    <span className="rounded-full border border-amber-300/50 px-2 py-1 text-[10px] uppercase tracking-[0.3em] text-amber-200">
+                      Adaptive QRC™
+                    </span>
+                  </div>
+                  <p className="mt-3 text-sm font-semibold text-white">
+                    <span className={adaptiveGradientText}>Adaptive QRC™</span> · Lunch Routing
+                  </p>
+                  <p className="mt-1 text-xs text-white/70">
+                    Routes by time, returning visitors, and admin IPs.
+                  </p>
+                </button>
+              </div>
+            )}
             {isLoggedIn ? (
               <ArsenalPanel
                 refreshKey={arsenalRefreshKey}
@@ -8396,6 +8399,31 @@ const Index = () => {
                 language={(userProfile?.language ?? profileForm.language) as 'en' | 'es'}
                 timeZone={userProfile?.timezone || profileForm.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone}
                 cacheKey={user?.id ?? 'guest'}
+                topContent={isMobileV2 ? (
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <button
+                      type="button"
+                      onClick={handleAdaptiveMockOpen}
+                      className="group text-left rounded-2xl border border-border/40 bg-black/90 p-4 shadow-none transition hover:border-amber-300"
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="inline-flex items-center gap-2 text-xs uppercase tracking-[0.3em]">
+                          <Star className="h-4 w-4 fill-amber-300 text-amber-300" />
+                          <span className={adaptiveGradientText}>Adaptive QRC™</span>
+                        </span>
+                        <span className="rounded-full border border-amber-300/50 px-2 py-1 text-[10px] uppercase tracking-[0.3em] text-amber-200">
+                          Adaptive QRC™
+                        </span>
+                      </div>
+                      <p className="mt-3 text-sm font-semibold text-white">
+                        <span className={adaptiveGradientText}>Adaptive QRC™</span> · Lunch Routing
+                      </p>
+                      <p className="mt-1 text-xs text-white/70">
+                        Routes by time, returning visitors, and admin IPs.
+                      </p>
+                    </button>
+                  </div>
+                ) : undefined}
               />
             ) : (
               <div className="glass-panel rounded-2xl p-8 text-center space-y-4">
@@ -9078,104 +9106,108 @@ const Index = () => {
         )}
 
         {activeTab === 'adaptive' && (
-          <section id="adaptive" className="space-y-10">
-            {/* Header */}
-            <div className="text-center space-y-4">
-              <div className="flex items-center justify-center gap-3 mb-4">
-                <Sparkles className="h-8 w-8 text-amber-400" />
-                <p className="text-xs uppercase tracking-[0.4em] text-muted-foreground">Adaptive QRC™</p>
-              </div>
-              <h2 
-                className="text-4xl sm:text-5xl font-semibold tracking-tight bg-gradient-to-r from-amber-400 via-amber-300 to-amber-400 bg-clip-text text-transparent cursor-pointer hover:opacity-80 transition-opacity inline-block"
-                onClick={() => setShowNavOverlay(true)}
-              >
-                Adaptive QRC™
-              </h2>
-              <p className="text-xs uppercase tracking-[0.3em] bg-gradient-to-r from-amber-400 to-amber-300 bg-clip-text text-transparent">
-                Premium Content Routing
-              </p>
-              <p className="text-sm text-muted-foreground max-w-2xl mx-auto">
-                QR Codes, reimagined. <span className="bg-gradient-to-r from-amber-400 to-amber-300 bg-clip-text text-transparent font-semibold">Adaptive QRC™</span> lets you change what a code shows based on time, date,
-                and who’s scanning — the future of dynamic QR.
-              </p>
-            </div>
+          <section id="adaptive" className={`space-y-10 ${isMobileV2 ? 'qrc-v2-section' : ''}`}>
+            {isMobileV2 ? (
+              <div className="glass-panel rounded-2xl p-4 flex flex-col overflow-hidden">
+                <ScrollArea className="qrc-arsenal-scroll qrc-no-scroll-x max-w-full w-full">
+                  <div className="flex flex-col min-h-0">
+                    {/* Header */}
+                    <div className="text-center space-y-4 mb-6">
+                      <div className="flex items-center justify-center gap-3 mb-4">
+                        <Sparkles className="h-8 w-8 text-amber-400" />
+                        <p className="text-xs uppercase tracking-[0.4em] text-muted-foreground">Adaptive QRC™</p>
+                      </div>
+                      <h2 
+                        className="text-4xl sm:text-5xl font-semibold tracking-tight bg-gradient-to-r from-amber-400 via-amber-300 to-amber-400 bg-clip-text text-transparent cursor-pointer hover:opacity-80 transition-opacity inline-block"
+                        onClick={() => setShowNavOverlay(true)}
+                      >
+                        Adaptive QRC™
+                      </h2>
+                      <p className="text-xs uppercase tracking-[0.3em] bg-gradient-to-r from-amber-400 to-amber-300 bg-clip-text text-transparent">
+                        Premium Content Routing
+                      </p>
+                      <p className="text-sm text-muted-foreground max-w-2xl mx-auto">
+                        QR Codes, reimagined. <span className="bg-gradient-to-r from-amber-400 to-amber-300 bg-clip-text text-transparent font-semibold">Adaptive QRC™</span> lets you change what a code shows based on time, date,
+                        and who's scanning — the future of dynamic QR.
+                      </p>
+                    </div>
 
-            {/* Main Content */}
-            {existingAdaptiveQRC ? (
-              <div className="space-y-6">
-                {/* Existing Adaptive QRC Card */}
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="glass-panel rounded-2xl p-8 border-2 border-amber-500/30 bg-gradient-to-br from-amber-900/20 to-amber-800/10 shadow-xl shadow-amber-500/20"
-                >
-                  <div className="flex items-start justify-between mb-6">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-2">
-                        <div className="p-2 rounded-lg bg-amber-400/20 border border-amber-400/30">
-                          <Sparkles className="h-6 w-6 text-amber-400" />
-                        </div>
-                        <div>
-                          <h3 className="text-2xl font-bold text-amber-300">{existingAdaptiveQRC.name || 'My Adaptive QRC™'}</h3>
-                          <p className="text-sm text-amber-200/70 mt-1">
-                            Created {new Date(existingAdaptiveQRC.createdAt).toLocaleDateString()}
-                          </p>
+                    {/* Main Content */}
+                    {existingAdaptiveQRC ? (
+                      <div className="space-y-6 flex-1 min-h-0">
+                        {/* Existing Adaptive QRC Card */}
+                        <motion.div
+                          initial={{ opacity: 0, y: 20 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          className="glass-panel rounded-2xl p-8 border-2 border-amber-500/30 bg-gradient-to-br from-amber-900/20 to-amber-800/10 shadow-xl shadow-amber-500/20"
+                        >
+                          <div className="flex items-start justify-between mb-6">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-3 mb-2">
+                                <div className="p-2 rounded-lg bg-amber-400/20 border border-amber-400/30">
+                                  <Sparkles className="h-6 w-6 text-amber-400" />
+                                </div>
+                                <div>
+                                  <h3 className="text-2xl font-bold text-amber-300">{existingAdaptiveQRC.name || 'My Adaptive QRC™'}</h3>
+                                  <p className="text-sm text-amber-200/70 mt-1">
+                                    Created {new Date(existingAdaptiveQRC.createdAt).toLocaleDateString()}
+                                  </p>
+                                </div>
+                              </div>
+                              <div className="mt-4 flex items-center gap-4 text-sm">
+                                <div className="flex items-center gap-2 text-amber-200/80">
+                                  <Globe className="h-4 w-4" />
+                                  <span className="truncate max-w-md">{existingAdaptiveQRC.shortUrl?.replace('/r/', '/adaptive/') || existingAdaptiveQRC.content}</span>
+                                </div>
+                              </div>
+                            </div>
+                            <Button
+                              onClick={() => setShowAdaptiveEditor(true)}
+                              className="bg-gradient-to-r from-amber-400 to-amber-600 text-black hover:opacity-90 font-semibold shadow-lg shadow-amber-500/50"
+                            >
+                              <Paintbrush className="h-4 w-4 mr-2" />
+                              Edit
+                            </Button>
+                          </div>
+                          
+                          {/* Quick Stats */}
+                          <div className="grid grid-cols-3 gap-4 mt-6 pt-6 border-t border-amber-500/20">
+                            <div>
+                              <p className="text-xs uppercase tracking-[0.3em] text-amber-200/60 mb-1">Contents</p>
+                              <p className="text-2xl font-bold text-amber-300">
+                                {existingAdaptiveQRC.options?.adaptive?.slots?.length || 0}
+                              </p>
+                            </div>
+                            <div>
+                              <p className="text-xs uppercase tracking-[0.3em] text-amber-200/60 mb-1">Rule Type</p>
+                              <p className="text-2xl font-bold text-amber-300 capitalize">
+                                {existingAdaptiveQRC.options?.adaptive?.dateRules ? 'Time' : 
+                                 existingAdaptiveQRC.options?.adaptive?.firstReturn ? 'Visit' : 'None'}
+                              </p>
+                            </div>
+                            <div>
+                              <p className="text-xs uppercase tracking-[0.3em] text-amber-200/60 mb-1">Status</p>
+                              <p className="text-2xl font-bold text-amber-300">Active</p>
+                            </div>
+                          </div>
+                        </motion.div>
+
+                        {/* Info Card */}
+                        <div className="glass-panel rounded-2xl p-6 border border-amber-500/20 bg-amber-900/10">
+                          <div className="flex items-start gap-4">
+                            <Info className="h-5 w-5 text-amber-400 mt-0.5 flex-shrink-0" />
+                            <div className="space-y-2">
+                              <p className="text-sm font-semibold text-amber-200">Monthly Scan Limit</p>
+                              <p className="text-sm text-amber-200/70">
+                                Your Adaptive QRC™ has a limit of <span className="font-semibold text-amber-300">500 scans per month</span>. 
+                                Upgrade to Pro or Command for unlimited scans.
+                              </p>
+                            </div>
+                          </div>
                         </div>
                       </div>
-                      <div className="mt-4 flex items-center gap-4 text-sm">
-                        <div className="flex items-center gap-2 text-amber-200/80">
-                          <Globe className="h-4 w-4" />
-                          <span className="truncate max-w-md">{existingAdaptiveQRC.shortUrl?.replace('/r/', '/adaptive/') || existingAdaptiveQRC.content}</span>
-                        </div>
-                      </div>
-                    </div>
-                    <Button
-                      onClick={() => setShowAdaptiveEditor(true)}
-                      className="bg-gradient-to-r from-amber-400 to-amber-600 text-black hover:opacity-90 font-semibold shadow-lg shadow-amber-500/50"
-                    >
-                      <Paintbrush className="h-4 w-4 mr-2" />
-                      Edit
-                    </Button>
-                  </div>
-                  
-                  {/* Quick Stats */}
-                  <div className="grid grid-cols-3 gap-4 mt-6 pt-6 border-t border-amber-500/20">
-                    <div>
-                      <p className="text-xs uppercase tracking-[0.3em] text-amber-200/60 mb-1">Contents</p>
-                      <p className="text-2xl font-bold text-amber-300">
-                        {existingAdaptiveQRC.options?.adaptive?.slots?.length || 0}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-xs uppercase tracking-[0.3em] text-amber-200/60 mb-1">Rule Type</p>
-                      <p className="text-2xl font-bold text-amber-300 capitalize">
-                        {existingAdaptiveQRC.options?.adaptive?.dateRules ? 'Time' : 
-                         existingAdaptiveQRC.options?.adaptive?.firstReturn ? 'Visit' : 'None'}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-xs uppercase tracking-[0.3em] text-amber-200/60 mb-1">Status</p>
-                      <p className="text-2xl font-bold text-amber-300">Active</p>
-                    </div>
-                  </div>
-                </motion.div>
-
-                {/* Info Card */}
-                <div className="glass-panel rounded-2xl p-6 border border-amber-500/20 bg-amber-900/10">
-                  <div className="flex items-start gap-4">
-                    <Info className="h-5 w-5 text-amber-400 mt-0.5 flex-shrink-0" />
-                    <div className="space-y-2">
-                      <p className="text-sm font-semibold text-amber-200">Monthly Scan Limit</p>
-                      <p className="text-sm text-amber-200/70">
-                        Your Adaptive QRC™ has a limit of <span className="font-semibold text-amber-300">500 scans per month</span>. 
-                        Upgrade to Pro or Command for unlimited scans.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div className="space-y-6">
+                    ) : (
+                      <div className="space-y-6 flex-1 min-h-0">
                 {/* Create Card */}
                 <motion.div
                   initial={{ opacity: 0, y: 20 }}
@@ -9264,7 +9296,201 @@ const Index = () => {
                     </div>
                   </div>
                 </div>
+                      </div>
+                    )}
+                  </div>
+                </ScrollArea>
               </div>
+            ) : (
+              <>
+                {/* Header */}
+                <div className="text-center space-y-4">
+                  <div className="flex items-center justify-center gap-3 mb-4">
+                    <Sparkles className="h-8 w-8 text-amber-400" />
+                    <p className="text-xs uppercase tracking-[0.4em] text-muted-foreground">Adaptive QRC™</p>
+                  </div>
+                  <h2 
+                    className="text-4xl sm:text-5xl font-semibold tracking-tight bg-gradient-to-r from-amber-400 via-amber-300 to-amber-400 bg-clip-text text-transparent cursor-pointer hover:opacity-80 transition-opacity inline-block"
+                    onClick={() => setShowNavOverlay(true)}
+                  >
+                    Adaptive QRC™
+                  </h2>
+                  <p className="text-xs uppercase tracking-[0.3em] bg-gradient-to-r from-amber-400 to-amber-300 bg-clip-text text-transparent">
+                    Premium Content Routing
+                  </p>
+                  <p className="text-sm text-muted-foreground max-w-2xl mx-auto">
+                    QR Codes, reimagined. <span className="bg-gradient-to-r from-amber-400 to-amber-300 bg-clip-text text-transparent font-semibold">Adaptive QRC™</span> lets you change what a code shows based on time, date,
+                    and who's scanning — the future of dynamic QR.
+                  </p>
+                </div>
+
+                {/* Main Content */}
+                {existingAdaptiveQRC ? (
+                  <div className="space-y-6">
+                    {/* Existing Adaptive QRC Card */}
+                    <motion.div
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="glass-panel rounded-2xl p-8 border-2 border-amber-500/30 bg-gradient-to-br from-amber-900/20 to-amber-800/10 shadow-xl shadow-amber-500/20"
+                    >
+                      <div className="flex items-start justify-between mb-6">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-3 mb-2">
+                            <div className="p-2 rounded-lg bg-amber-400/20 border border-amber-400/30">
+                              <Sparkles className="h-6 w-6 text-amber-400" />
+                            </div>
+                            <div>
+                              <h3 className="text-2xl font-bold text-amber-300">{existingAdaptiveQRC.name || 'My Adaptive QRC™'}</h3>
+                              <p className="text-sm text-amber-200/70 mt-1">
+                                Created {new Date(existingAdaptiveQRC.createdAt).toLocaleDateString()}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="mt-4 flex items-center gap-4 text-sm">
+                            <div className="flex items-center gap-2 text-amber-200/80">
+                              <Globe className="h-4 w-4" />
+                              <span className="truncate max-w-md">{existingAdaptiveQRC.shortUrl?.replace('/r/', '/adaptive/') || existingAdaptiveQRC.content}</span>
+                            </div>
+                          </div>
+                        </div>
+                        <Button
+                          onClick={() => setShowAdaptiveEditor(true)}
+                          className="bg-gradient-to-r from-amber-400 to-amber-600 text-black hover:opacity-90 font-semibold shadow-lg shadow-amber-500/50"
+                        >
+                          <Paintbrush className="h-4 w-4 mr-2" />
+                          Edit
+                        </Button>
+                      </div>
+                      
+                      {/* Quick Stats */}
+                      <div className="grid grid-cols-3 gap-4 mt-6 pt-6 border-t border-amber-500/20">
+                        <div>
+                          <p className="text-xs uppercase tracking-[0.3em] text-amber-200/60 mb-1">Contents</p>
+                          <p className="text-2xl font-bold text-amber-300">
+                            {existingAdaptiveQRC.options?.adaptive?.slots?.length || 0}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-xs uppercase tracking-[0.3em] text-amber-200/60 mb-1">Rule Type</p>
+                          <p className="text-2xl font-bold text-amber-300 capitalize">
+                            {existingAdaptiveQRC.options?.adaptive?.dateRules ? 'Time' : 
+                             existingAdaptiveQRC.options?.adaptive?.firstReturn ? 'Visit' : 'None'}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-xs uppercase tracking-[0.3em] text-amber-200/60 mb-1">Status</p>
+                          <p className="text-2xl font-bold text-amber-300">Active</p>
+                        </div>
+                      </div>
+                    </motion.div>
+
+                    {/* Info Card */}
+                    <div className="glass-panel rounded-2xl p-6 border border-amber-500/20 bg-amber-900/10">
+                      <div className="flex items-start gap-4">
+                        <Info className="h-5 w-5 text-amber-400 mt-0.5 flex-shrink-0" />
+                        <div className="space-y-2">
+                          <p className="text-sm font-semibold text-amber-200">Monthly Scan Limit</p>
+                          <p className="text-sm text-amber-200/70">
+                            Your Adaptive QRC™ has a limit of <span className="font-semibold text-amber-300">500 scans per month</span>. 
+                            Upgrade to Pro or Command for unlimited scans.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-6">
+                    {/* Create Card */}
+                    <motion.div
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="glass-panel rounded-2xl p-12 border-2 border-amber-500/30 bg-gradient-to-br from-amber-900/20 to-amber-800/10 shadow-xl shadow-amber-500/20 text-center"
+                    >
+                      <div className="max-w-2xl mx-auto space-y-6">
+                        <div className="flex justify-center">
+                          <div className="p-6 rounded-2xl bg-gradient-to-br from-amber-400/20 to-amber-600/20 border-2 border-amber-400/40">
+                            <Sparkles className="h-16 w-16 text-amber-400" />
+                          </div>
+                        </div>
+                        <div>
+                          <h3 className="text-3xl font-bold bg-gradient-to-r from-amber-400 via-amber-300 to-amber-400 bg-clip-text text-transparent mb-3">
+                            Create Your Adaptive QRC™
+                          </h3>
+                          <p className="text-muted-foreground mb-6">
+                            Build a premium QR code that routes content based on time, day, or visitor count. 
+                            One Adaptive QRC™ per account with 500 scans per month.
+                          </p>
+                        </div>
+                        {!user ? (
+                          <div className="space-y-4">
+                            <p className="text-sm text-muted-foreground">
+                              Sign in to create your Adaptive QRC™
+                            </p>
+                            <Button
+                              onClick={() => navigate('/login')}
+                              className="bg-gradient-to-r from-amber-400 to-amber-600 text-black hover:opacity-90 font-semibold shadow-lg shadow-amber-500/50"
+                            >
+                              Sign In
+                            </Button>
+                          </div>
+                        ) : (
+                          <Button
+                            onClick={() => setShowAdaptiveWizard(true)}
+                            size="lg"
+                            className="bg-gradient-to-r from-amber-400 via-amber-500 to-amber-600 text-black hover:opacity-90 font-bold text-lg px-8 py-6 shadow-2xl shadow-amber-500/50"
+                          >
+                            <Sparkles className="h-5 w-5 mr-2" />
+                            Create Adaptive QRC™
+                          </Button>
+                        )}
+                      </div>
+                    </motion.div>
+
+                    {/* Features */}
+                    <div className="grid md:grid-cols-2 gap-6">
+                      <div className="glass-panel rounded-2xl p-6 border border-amber-500/20">
+                        <div className="flex items-center gap-3 mb-4">
+                          <Timer className="h-6 w-6 text-amber-400" />
+                          <h4 className="text-lg font-semibold text-amber-300">Time & Day Rules</h4>
+                        </div>
+                        <ul className="space-y-2 text-sm text-muted-foreground">
+                          <li>• 2-3 content options</li>
+                          <li>• Time-based routing</li>
+                          <li>• Day of week selection</li>
+                          <li>• Calendar date ranges</li>
+                        </ul>
+                      </div>
+                      <div className="glass-panel rounded-2xl p-6 border border-amber-500/20">
+                        <div className="flex items-center gap-3 mb-4">
+                          <Users className="h-6 w-6 text-amber-400" />
+                          <h4 className="text-lg font-semibold text-amber-300">Visit-Based Rules</h4>
+                        </div>
+                        <ul className="space-y-2 text-sm text-muted-foreground">
+                          <li>• 2 content options</li>
+                          <li>• First visit content</li>
+                          <li>• Second visit content</li>
+                          <li>• Automatic detection</li>
+                        </ul>
+                      </div>
+                    </div>
+
+                    {/* Info Card */}
+                    <div className="glass-panel rounded-2xl p-6 border border-amber-500/20 bg-amber-900/10">
+                      <div className="flex items-start gap-4">
+                        <Info className="h-5 w-5 text-amber-400 mt-0.5 flex-shrink-0" />
+                        <div className="space-y-2">
+                          <p className="text-sm font-semibold text-amber-200">Limits & Restrictions</p>
+                          <ul className="text-sm text-amber-200/70 space-y-1">
+                            <li>• One Adaptive QRC™ per account</li>
+                            <li>• 500 scans per month limit (upgrade for unlimited)</li>
+                            <li>• Choose either Time rules OR Visit rules (not both)</li>
+                          </ul>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </>
             )}
           </section>
         )}

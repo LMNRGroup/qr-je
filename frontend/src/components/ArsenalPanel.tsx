@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import type React from 'react';
 import {
   ArrowDownAz,
   ArrowDownUp,
@@ -279,6 +280,7 @@ export function ArsenalPanel({
   language = 'en',
   timeZone,
   cacheKey,
+  topContent,
 }: {
   refreshKey?: number;
   onStatsChange?: (stats: { total: number; dynamic: number }) => void;
@@ -287,6 +289,7 @@ export function ArsenalPanel({
   language?: 'en' | 'es';
   timeZone?: string;
   cacheKey?: string;
+  topContent?: React.ReactNode;
 }) {
   const [isDesktop, setIsDesktop] = useState(() => {
     if (typeof window === 'undefined') return true;
@@ -1188,169 +1191,102 @@ export function ArsenalPanel({
     );
   };
 
-  return (
-    <div className="space-y-6" data-overflow-check>
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        {isMobileV2 ? (
-          <div className="flex w-full items-center justify-between gap-2 flex-nowrap qrc-arsenal-toolbar">
-            <div className="flex min-w-0 flex-1 items-center gap-2">
-              <Button
-                variant={isSelectMode ? 'secondary' : 'outline'}
-                size="sm"
-                className="border-border text-[10px] uppercase tracking-[0.2em] whitespace-nowrap px-2"
-                onClick={() => {
-                  if (isSelectMode) {
-                    setSelectedIds(new Set());
-                  }
-                  setIsSelectMode((prev) => !prev);
-                }}
-              >
-                <span className="truncate">
-                  {isSelectMode ? t('Cancel Select', 'Cancelar seleccion') : t('Select Multiple', 'Seleccion multiple')}
-                </span>
-              </Button>
-              {isSelectMode && (
-                <Button
-                  variant="outline"
-                  size="icon"
-                  className="group relative border-border shrink-0"
-                  onClick={() => setShowBulkDelete(true)}
-                  disabled={selectedIds.size === 0}
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                  <span className="pointer-events-none absolute -bottom-6 left-1/2 -translate-x-1/2 text-[10px] uppercase tracking-[0.35em] text-muted-foreground opacity-0 transition group-hover:opacity-100">
-                    {t('Delete', 'Eliminar')}
-                  </span>
-                </Button>
-              )}
-            </div>
-            <div className="flex items-center gap-1 shrink-0">
-              <div className="inline-flex rounded-full border border-border/60 bg-secondary/30 p-1">
-                <button
-                  type="button"
-                  className={`h-8 w-8 rounded-full transition ${
-                    viewMode === 'grid' ? 'bg-primary/15 text-primary' : 'text-muted-foreground hover:text-foreground'
-                  }`}
-                  onClick={() => setViewMode('grid')}
-                  aria-label="Grid view"
-                >
-                  <LayoutGrid className="mx-auto h-4 w-4" />
-                </button>
-                <button
-                  type="button"
-                  className={`h-8 w-8 rounded-full transition ${
-                    viewMode === 'list' ? 'bg-primary/15 text-primary' : 'text-muted-foreground hover:text-foreground'
-                  }`}
-                  onClick={() => setViewMode('list')}
-                  aria-label="List view"
-                >
-                  <List className="mx-auto h-4 w-4" />
-                </button>
-              </div>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="border-border text-[10px] uppercase tracking-[0.2em] px-2"
-                  >
-                    <ArrowDownUp className="h-3.5 w-3.5" />
-                    Sort
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="bg-card/95 border-border">
-                  <DropdownMenuItem onClick={() => setSortMode('newest')}>
-                    <ArrowDownAz className="mr-2 h-4 w-4" />
-                    Newest
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setSortMode('oldest')}>
-                    <ArrowUpAz className="mr-2 h-4 w-4" />
-                    Oldest
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setSortMode('alpha')}>
-                    <ArrowDownAz className="mr-2 h-4 w-4" />
-                    Alphabetical
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-          </div>
-        ) : (
-          <div className="flex flex-wrap items-center gap-2">
-            <Button
-              variant={isSelectMode ? 'secondary' : 'outline'}
-              size="sm"
-              className="border-border text-xs uppercase tracking-[0.25em]"
-              onClick={() => {
-                if (isSelectMode) {
-                  setSelectedIds(new Set());
-                }
-                setIsSelectMode((prev) => !prev);
-              }}
-            >
-              {isSelectMode ? t('Cancel Select', 'Cancelar seleccion') : t('Select Multiple', 'Seleccion multiple')}
-            </Button>
-            {isSelectMode && (
-              <Button
-                variant="outline"
-                size="icon"
-                className="group relative border-border"
-                onClick={() => setShowBulkDelete(true)}
-                disabled={selectedIds.size === 0}
-              >
-                <Trash2 className="h-3.5 w-3.5" />
-                <span className="pointer-events-none absolute -bottom-6 left-1/2 -translate-x-1/2 text-[10px] uppercase tracking-[0.35em] text-muted-foreground opacity-0 transition group-hover:opacity-100">
-                  {t('Delete', 'Eliminar')}
-                </span>
-              </Button>
-            )}
-            <div className="inline-flex rounded-full border border-border/60 bg-secondary/30 p-1">
-              <button
-                type="button"
-                className={`h-9 w-9 rounded-full transition ${
-                  viewMode === 'grid' ? 'bg-primary/15 text-primary' : 'text-muted-foreground hover:text-foreground'
-                }`}
-                onClick={() => setViewMode('grid')}
-                aria-label="Grid view"
-              >
-                <LayoutGrid className="mx-auto h-4 w-4" />
-              </button>
-              <button
-                type="button"
-                className={`h-9 w-9 rounded-full transition ${
-                  viewMode === 'list' ? 'bg-primary/15 text-primary' : 'text-muted-foreground hover:text-foreground'
-                }`}
-                onClick={() => setViewMode('list')}
-                aria-label="List view"
-              >
-                <List className="mx-auto h-4 w-4" />
-              </button>
-            </div>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm" className="border-border text-xs uppercase tracking-[0.25em]">
-                  <ArrowDownUp className="h-3.5 w-3.5" />
-                  Sort
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="bg-card/95 border-border">
-                <DropdownMenuItem onClick={() => setSortMode('newest')}>
-                  <ArrowDownAz className="mr-2 h-4 w-4" />
-                  Newest
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setSortMode('oldest')}>
-                  <ArrowUpAz className="mr-2 h-4 w-4" />
-                  Oldest
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setSortMode('alpha')}>
-                  <ArrowDownAz className="mr-2 h-4 w-4" />
-                  Alphabetical
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
+  // Toolbar component for reuse
+  const renderToolbar = () => (
+    <div className={`flex w-full items-center justify-between gap-2 flex-nowrap qrc-arsenal-toolbar ${
+      isMobileV2 ? 'sticky top-0 z-10 bg-background/95 backdrop-blur-sm pb-2 pt-2' : ''
+    }`}>
+      <div className="flex min-w-0 flex-1 items-center gap-2">
+        <Button
+          variant={isSelectMode ? 'secondary' : 'outline'}
+          size="sm"
+          className="border-border text-[10px] uppercase tracking-[0.2em] whitespace-nowrap px-2"
+          onClick={() => {
+            if (isSelectMode) {
+              setSelectedIds(new Set());
+            }
+            setIsSelectMode((prev) => !prev);
+          }}
+        >
+          <span className="truncate">
+            {isSelectMode ? t('Cancel Select', 'Cancelar seleccion') : t('Select Multiple', 'Seleccion multiple')}
+          </span>
+        </Button>
+        {isSelectMode && (
+          <Button
+            variant="outline"
+            size="icon"
+            className="group relative border-border shrink-0"
+            onClick={() => setShowBulkDelete(true)}
+            disabled={selectedIds.size === 0}
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+            <span className="pointer-events-none absolute -bottom-6 left-1/2 -translate-x-1/2 text-[10px] uppercase tracking-[0.35em] text-muted-foreground opacity-0 transition group-hover:opacity-100">
+              {t('Delete', 'Eliminar')}
+            </span>
+          </Button>
         )}
       </div>
+      <div className="flex items-center gap-1 shrink-0">
+        <div className="inline-flex rounded-full border border-border/60 bg-secondary/30 p-1">
+          <button
+            type="button"
+            className={`h-8 w-8 rounded-full transition ${
+              viewMode === 'grid' ? 'bg-primary/15 text-primary' : 'text-muted-foreground hover:text-foreground'
+            }`}
+            onClick={() => setViewMode('grid')}
+            aria-label="Grid view"
+          >
+            <LayoutGrid className="mx-auto h-4 w-4" />
+          </button>
+          <button
+            type="button"
+            className={`h-8 w-8 rounded-full transition ${
+              viewMode === 'list' ? 'bg-primary/15 text-primary' : 'text-muted-foreground hover:text-foreground'
+            }`}
+            onClick={() => setViewMode('list')}
+            aria-label="List view"
+          >
+            <List className="mx-auto h-4 w-4" />
+          </button>
+        </div>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="outline"
+              size="sm"
+              className="border-border text-[10px] uppercase tracking-[0.2em] px-2"
+            >
+              <ArrowDownUp className="h-3.5 w-3.5" />
+              Sort
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="bg-card/95 border-border">
+            <DropdownMenuItem onClick={() => setSortMode('newest')}>
+              <ArrowDownAz className="mr-2 h-4 w-4" />
+              Newest
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setSortMode('oldest')}>
+              <ArrowUpAz className="mr-2 h-4 w-4" />
+              Oldest
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setSortMode('alpha')}>
+              <ArrowDownAz className="mr-2 h-4 w-4" />
+              Alphabetical
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="space-y-6" data-overflow-check>
+      {!isMobileV2 && (
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          {renderToolbar()}
+        </div>
+      )}
 
       {isLoading ? (
         <div className="flex items-center justify-center py-10 text-muted-foreground">
@@ -1382,13 +1318,20 @@ export function ArsenalPanel({
                   : `h-[calc(100dvh-260px)] sm:h-[calc(100dvh-320px)] max-w-full w-full overflow-y-auto`
               }
             >
-              <div
-                className={
-                  viewMode === 'grid'
-                    ? 'grid gap-4 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 auto-rows-fr min-w-0 max-w-full overflow-x-hidden'
-                    : `space-y-2 w-full max-w-full min-w-0 overflow-x-hidden ${isMobileV2 ? 'qrc-arsenal-list' : ''}`
-                }
-              >
+              <div className="flex flex-col min-h-0">
+                {isMobileV2 && renderToolbar()}
+                {isMobileV2 && topContent && (
+                  <div className="mb-4">
+                    {topContent}
+                  </div>
+                )}
+                <div
+                  className={`flex-1 min-h-0 ${
+                    viewMode === 'grid'
+                      ? 'grid gap-4 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 auto-rows-fr min-w-0 max-w-full overflow-x-hidden'
+                      : `space-y-2 w-full max-w-full min-w-0 overflow-x-hidden ${isMobileV2 ? 'qrc-arsenal-list' : ''}`
+                  }`}
+                >
                 {pagedItems.map((item) => {
                   const isSelected = item.id === selectedId;
                   const isChecked = selectedIds.has(item.id);
@@ -1642,6 +1585,7 @@ export function ArsenalPanel({
                     </button>
                   );
                 })}
+                </div>
               </div>
             </ScrollArea>
             {pageCount > 1 && (
