@@ -787,9 +787,9 @@ export function ArsenalPanel({
 
   const handleDelete = async (item: QRHistoryItem) => {
     try {
-      await deleteQRFromHistory(item.id);
-      // Free up storage used by this QR's files (delete files from storage)
+      // Free up storage used by this QR's files (delete files from storage) BEFORE deletion
       await freeQRStorage(item);
+      await deleteQRFromHistory(item.id);
       setItems((prev) => prev.filter((entry) => entry.id !== item.id));
       if (selectedId === item.id) {
         setSelectedId(null);
@@ -797,6 +797,7 @@ export function ArsenalPanel({
         setEditContent('');
       }
       toast.success('QR deleted');
+      // Trigger refresh to sync across devices and update storage
       onRefreshRequest?.();
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to delete QR';
