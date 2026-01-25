@@ -688,6 +688,8 @@ const Index = () => {
     const getLabel = (item: QRHistoryItem) => item.name?.trim() || 'QRC';
     const poll = async () => {
       if (cancelled || scanNotifyPollingRef.current) return;
+      // Skip polling if tab is hidden to reduce egress
+      if (typeof document !== 'undefined' && document.hidden) return;
       scanNotifyPollingRef.current = true;
       try {
         const history = await getQRHistory();
@@ -727,7 +729,8 @@ const Index = () => {
       }
     };
     poll();
-    interval = window.setInterval(poll, 15000);
+    // Reduced from 15s to 60s to reduce egress usage
+    interval = window.setInterval(poll, 60000);
     return () => {
       cancelled = true;
       if (interval) window.clearInterval(interval);
@@ -840,6 +843,8 @@ const Index = () => {
       profileForm.timezone ||
       Intl.DateTimeFormat().resolvedOptions().timeZone;
     const fetchSummary = async (showLoading: boolean) => {
+      // Skip if tab is hidden to reduce egress
+      if (typeof document !== 'undefined' && document.hidden && !showLoading) return;
       if (showLoading) setIntelLoading(true);
       try {
         const summary = await getScanSummary(intelRange, timeZone);
@@ -864,7 +869,8 @@ const Index = () => {
       }
     };
     fetchSummary(true);
-    pollTimer = window.setInterval(() => fetchSummary(false), 10000);
+    // Reduced from 10s to 30s to reduce egress usage
+    pollTimer = window.setInterval(() => fetchSummary(false), 30000);
     return () => {
       cancelled = true;
       if (pollTimer) window.clearInterval(pollTimer);
@@ -914,6 +920,8 @@ const Index = () => {
     let cancelled = false;
     let pollTimer: number | undefined;
     const fetchAreas = async (showToast: boolean) => {
+      // Skip if tab is hidden to reduce egress
+      if (typeof document !== 'undefined' && document.hidden && !showToast) return;
       try {
         const areas = await getScanAreas();
         if (cancelled) return;
@@ -929,7 +937,8 @@ const Index = () => {
       }
     };
     fetchAreas(true);
-    pollTimer = window.setInterval(() => fetchAreas(false), 15000);
+    // Reduced from 15s to 60s to reduce egress usage
+    pollTimer = window.setInterval(() => fetchAreas(false), 60000);
     return () => {
       cancelled = true;
       if (pollTimer) window.clearInterval(pollTimer);
@@ -1645,8 +1654,7 @@ const Index = () => {
         toast.success('QR code generated!');
         setHasGenerated(true);
         setArsenalRefreshKey((prev) => prev + 1);
-        // Update storage immediately after QR creation (without waiting for refresh)
-        await recalculateStorageFromDB();
+        // refreshArsenalStats() will handle storage recalculation internally
         setShowGenerateSuccess(true);
         setShowNameOverlay(false);
         resetCreateFlow();
@@ -3329,8 +3337,7 @@ const Index = () => {
         toast.success('Adaptive QRC™ created successfully!');
         setShowAdaptiveWizard(false);
         setArsenalRefreshKey((prev) => prev + 1);
-        // Update storage immediately after Adaptive QRC creation
-        await recalculateStorageFromDB();
+        // refreshArsenalStats() will handle storage recalculation internally
         await refreshArsenalStats();
       } else {
         throw new Error('Failed to create Adaptive QRC™');
@@ -3434,8 +3441,7 @@ const Index = () => {
       toast.success('Adaptive QRC™ updated successfully!');
       setShowAdaptiveEditor(false);
       setArsenalRefreshKey((prev) => prev + 1);
-      // Update storage immediately after Adaptive QRC update
-      await recalculateStorageFromDB();
+      // refreshArsenalStats() will handle storage recalculation internally
       await refreshArsenalStats();
     } catch (error) {
       throw error;

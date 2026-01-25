@@ -546,14 +546,6 @@ export function ArsenalPanel({
             // Ignore cache clear errors
           }
         }
-        // If refreshKey is set, clear cache to force fresh fetch (fixes sync across devices)
-        if (refreshKey && cacheId && typeof window !== 'undefined') {
-          try {
-            window.localStorage.removeItem(cacheId);
-          } catch {
-            // Ignore cache clear errors
-          }
-        }
         const canUseCache = !refreshKey;
         const cached = canUseCache ? readCache() : null;
         if (cached) {
@@ -642,27 +634,41 @@ export function ArsenalPanel({
     let interval: number | undefined;
     const pollScans = () => {
       if (!isVisible()) return; // Skip if tab is hidden
+      // Skip if document is hidden to reduce egress
+      if (typeof document !== 'undefined' && document.hidden) return;
       loadScanCounts(items, false);
     };
 
     // Initial poll
     pollScans();
 
-    // Poll every 45 seconds (reduced from 15s to reduce load)
-    interval = window.setInterval(pollScans, 45000);
+    // Reduced from 45s to 120s to significantly reduce egress usage
+    interval = window.setInterval(pollScans, 120000);
 
-    // Also poll on visibility change (when tab becomes visible)
+    // Debounced visibility change handler to reduce unnecessary fetches
+    let visibilityDebounce: NodeJS.Timeout | undefined;
     const handleVisibilityChange = () => {
       if (isVisible()) {
-        // Clear cache to force fresh fetch when tab becomes visible
-        scanCountsCacheRef.current = null;
-        pollScans();
+        // Clear any pending debounce
+        if (visibilityDebounce) {
+          clearTimeout(visibilityDebounce);
+        }
+        // Wait 2 seconds after visibility change before fetching (debounce)
+        visibilityDebounce = setTimeout(() => {
+          // Only clear cache and fetch if data is stale (> 5 minutes old)
+          const cached = scanCountsCacheRef.current;
+          if (!cached || Date.now() - cached.timestamp > 5 * 60 * 1000) {
+            scanCountsCacheRef.current = null;
+            pollScans();
+          }
+        }, 2000);
       }
     };
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
     return () => {
       if (interval) window.clearInterval(interval);
+      if (visibilityDebounce) clearTimeout(visibilityDebounce);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
