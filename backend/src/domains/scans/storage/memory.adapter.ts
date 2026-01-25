@@ -12,6 +12,14 @@ export class InMemoryScansStorageAdapter implements ScansStorage {
     return this.records.filter((scan) => scan.urlId === urlId && scan.urlRandom === urlRandom).length
   }
 
+  async getCountByUrlAndDateRange(urlId: string, urlRandom: string, since: Date, until: Date) {
+    return this.records.filter((scan) => {
+      if (scan.urlId !== urlId || scan.urlRandom !== urlRandom) return false
+      const scanDate = new Date(scan.scannedAt)
+      return scanDate >= since && scanDate <= until
+    }).length
+  }
+
   async getByUrl(urlId: string, urlRandom: string, limit = 100) {
     return this.records
       .filter((scan) => scan.urlId === urlId && scan.urlRandom === urlRandom)

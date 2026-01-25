@@ -4,6 +4,7 @@ import type { ScansStorage } from './storage/interface'
 export type ScansService = {
   recordScan: (input: CreateScanInput) => Promise<Scan>
   getScanCount: (urlId: string, urlRandom: string) => Promise<number>
+  getCountByUrlAndDateRange: (urlId: string, urlRandom: string, since: Date, until: Date) => Promise<number>
   getScansForUrl: (urlId: string, urlRandom: string, limit?: number) => Promise<Scan[]>
   deleteByUrlId: (urlId: string) => Promise<void>
   getTotalForUser: (userId: string) => Promise<number>
@@ -40,6 +41,10 @@ export const createScansService = (storage: ScansStorage): ScansService => {
 
   const getScanCount = (urlId: string, urlRandom: string) => {
     return storage.getCountByUrl(urlId, urlRandom)
+  }
+
+  const getCountByUrlAndDateRange = (urlId: string, urlRandom: string, since: Date, until: Date) => {
+    return storage.getCountByUrlAndDateRange(urlId, urlRandom, since, until)
   }
 
   const getScansForUrl = (urlId: string, urlRandom: string, limit = 100) => {
@@ -89,6 +94,7 @@ export const createScansService = (storage: ScansStorage): ScansService => {
   return {
     recordScan,
     getScanCount,
+    getCountByUrlAndDateRange,
     getScansForUrl,
     deleteByUrlId,
     getTotalForUser,

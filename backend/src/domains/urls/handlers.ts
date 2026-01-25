@@ -245,47 +245,42 @@ export const redirectUrlHandler = (service: UrlsService, scansService?: ScansSer
     const startedAt = getNowMs()
     try {
       const params = parseResolveParams(c.req.param())
-      const url = await service.resolveUrl(params)
+      const url = await service.resolveUrl(params) // ✅ Only blocking operation
       const ip = getClientIp(c)
       const userAgent = c.req.header('user-agent') ?? null
-      let geo = { city: null, region: null, countryCode: null, lat: null, lon: null }
-      try {
-        geo = await lookupGeo(ip)
-      } catch (areaError) {
-        console.error('[scan] failed to lookup geo', areaError)
-      }
-
       const responseMs = Math.round(getNowMs() - startedAt)
-      try {
-        recordAreaScanForUser({
+
+      // ✅ FIRE-AND-FORGET: Don't block redirect for analytics
+      Promise.all([
+        // Geo lookup + area scan recording (async, non-blocking)
+        lookupGeo(ip)
+          .then((geo) => {
+            recordAreaScanForUser({
+              userId: url.userId,
+              ip,
+              userAgent,
+              city: geo.city,
+              region: geo.region,
+              countryCode: geo.countryCode,
+              lat: geo.lat,
+              lon: geo.lon,
+              responseMs
+            }).catch((err) => console.error('[scan] failed to record area scan', err))
+          })
+          .catch((err) => console.error('[scan] failed to lookup geo', err)),
+        
+        // Scan recording (async, non-blocking)
+        scansService?.recordScan({
+          urlId: url.id,
+          urlRandom: url.random,
           userId: url.userId,
           ip,
           userAgent,
-          city: geo.city,
-          region: geo.region,
-          countryCode: geo.countryCode,
-          lat: geo.lat,
-          lon: geo.lon,
           responseMs
-        })
-      } catch (areaError) {
-        console.error('[scan] failed to record area scan', areaError)
-      }
-      if (scansService) {
-        Promise.resolve(
-          scansService.recordScan({
-            urlId: url.id,
-            urlRandom: url.random,
-            userId: url.userId,
-            ip,
-            userAgent,
-            responseMs
-          })
-        ).catch((scanError) => {
-          console.error('[scan] failed to record scan', scanError)
-        })
-      }
+        }).catch((err) => console.error('[scan] failed to record scan', err))
+      ]).catch(() => {}) // Ignore all analytics errors
 
+      // ✅ IMMEDIATE REDIRECT - Don't wait for analytics
       return c.redirect(url.targetUrl, 302)
     } catch (error) {
       if (error instanceof UrlValidationError) {
@@ -573,19 +568,20 @@ export const adaptiveResolveHandler = (service: UrlsService, scansService?: Scan
         const now = new Date()
         const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
         
-        // Get all scans for this specific URL since start of month
-        const allScans = await scansService.getScansForUrl(url.id, url.random, 1000)
-        const scansThisMonth = allScans.filter((scan) => {
-          const scanDate = new Date(scan.scannedAt)
-          return scanDate >= firstDayOfMonth
-        })
+        // ✅ Use optimized COUNT query instead of fetching all records
+        const scanCount = await scansService.getCountByUrlAndDateRange(
+          url.id,
+          url.random,
+          firstDayOfMonth,
+          now
+        )
         
-        if (scansThisMonth.length >= 500) {
+        if (scanCount >= 500) {
           // Return error - limit exceeded
           return c.json({ 
             message: 'Adaptive QRC™ monthly scan limit reached (500 scans). Please upgrade your plan or wait until next month.',
             limitExceeded: true,
-            scansUsed: scansThisMonth.length,
+            scansUsed: scanCount,
             limit: 500
           }, 429)
         }
@@ -599,47 +595,42 @@ export const adaptiveResolveHandler = (service: UrlsService, scansService?: Scan
         const token = crypto.randomUUID()
         c.header('Set-Cookie', `adaptive_token=${token}; Path=/; Max-Age=31536000; SameSite=Lax`)
       }
-      let geo = { city: null, region: null, countryCode: null, lat: null, lon: null }
-      try {
-        geo = await lookupGeo(ip)
-      } catch (areaError) {
-        console.error('[scan] failed to lookup adaptive geo', areaError)
-      }
+      
       const adaptiveTarget = resolveAdaptiveTarget(options, ip, isReturning)
       const destination = adaptiveTarget ?? url.targetUrl
-      
-      // Record scan regardless
       const responseMs = Math.round(getNowMs() - startedAt)
-      try {
-        recordAreaScanForUser({
+
+      // ✅ FIRE-AND-FORGET: Don't block redirect for analytics
+      Promise.all([
+        // Geo lookup + area scan recording (async, non-blocking)
+        lookupGeo(ip)
+          .then((geo) => {
+            recordAreaScanForUser({
+              userId: url.userId,
+              ip,
+              userAgent,
+              city: geo.city,
+              region: geo.region,
+              countryCode: geo.countryCode,
+              lat: geo.lat,
+              lon: geo.lon,
+              responseMs
+            }).catch((err) => console.error('[scan] failed to record adaptive area scan', err))
+          })
+          .catch((err) => console.error('[scan] failed to lookup adaptive geo', err)),
+        
+        // Scan recording (async, non-blocking)
+        scansService?.recordScan({
+          urlId: url.id,
+          urlRandom: url.random,
           userId: url.userId,
           ip,
           userAgent,
-          city: geo.city,
-          region: geo.region,
-          countryCode: geo.countryCode,
-          lat: geo.lat,
-          lon: geo.lon,
           responseMs
-        })
-      } catch (areaError) {
-        console.error('[scan] failed to record adaptive area scan', areaError)
-      }
-      if (scansService) {
-        Promise.resolve(
-          scansService.recordScan({
-            urlId: url.id,
-            urlRandom: url.random,
-            userId: url.userId,
-            ip,
-            userAgent,
-            responseMs
-          })
-        ).catch((scanError) => {
-          console.error('[scan] failed to record adaptive scan', scanError)
-        })
-      }
+        }).catch((err) => console.error('[scan] failed to record adaptive scan', err))
+      ]).catch(() => {}) // Ignore all analytics errors
       
+      // ✅ IMMEDIATE REDIRECT - Don't wait for analytics
       // Use 307 (Temporary Redirect) instead of 302 for better performance
       // This preserves the HTTP method and is faster than 302
       return c.redirect(destination, 307)

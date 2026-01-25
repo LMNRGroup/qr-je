@@ -1,4 +1,4 @@
-import { and, desc, eq, sql } from 'drizzle-orm'
+import { and, desc, eq, gte, lte, sql } from 'drizzle-orm'
 
 import { db } from '../../../infra/db/postgres.db'
 import { scans } from '../../../infra/db/schema'
@@ -24,6 +24,22 @@ export class DrizzleScansStorageAdapter implements ScansStorage {
       .select({ count: sql<number>`count(*)` })
       .from(scans)
       .where(and(eq(scans.urlId, urlId), eq(scans.urlRandom, urlRandom)))
+
+    return rows[0]?.count ?? 0
+  }
+
+  async getCountByUrlAndDateRange(urlId: string, urlRandom: string, since: Date, until: Date) {
+    const rows = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(scans)
+      .where(
+        and(
+          eq(scans.urlId, urlId),
+          eq(scans.urlRandom, urlRandom),
+          gte(scans.scannedAt, since),
+          lte(scans.scannedAt, until)
+        )
+      )
 
     return rows[0]?.count ?? 0
   }

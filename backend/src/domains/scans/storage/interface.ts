@@ -3,6 +3,7 @@ import type { Scan } from '../models'
 export type ScansStorage = {
   recordScan: (scan: Scan) => Promise<void>
   getCountByUrl: (urlId: string, urlRandom: string) => Promise<number>
+  getCountByUrlAndDateRange: (urlId: string, urlRandom: string, since: Date, until: Date) => Promise<number>
   getByUrl: (urlId: string, urlRandom: string, limit?: number) => Promise<Scan[]>
   deleteByUrlId: (urlId: string) => Promise<void>
   getTotalForUser: (userId: string) => Promise<number>
