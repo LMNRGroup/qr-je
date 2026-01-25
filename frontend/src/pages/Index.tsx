@@ -4351,31 +4351,53 @@ const Index = () => {
         <div className="rounded-xl border border-border/60 bg-secondary/30 p-4 sm:col-span-2 lg:col-span-2">
           <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground mb-4">Signal Trends</p>
           <div className="relative w-full" style={{ height: '200px' }}>
-            {trendPoints.length > 0 ? (
-              <svg
-                viewBox={`0 0 ${Math.max(400, trendPoints.length * 20)} 180`}
-                className="w-full h-full"
-                preserveAspectRatio="none"
-              >
-                <defs>
-                  <linearGradient id="lineGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-                    <stop offset="0%" stopColor="rgb(251, 191, 36)" stopOpacity="0.3" />
-                    <stop offset="100%" stopColor="rgb(251, 191, 36)" stopOpacity="0.05" />
-                  </linearGradient>
-                </defs>
-                
-                {/* Grid lines */}
-                {(() => {
-                  const max = Math.max(1, ...trendPoints.map((p) => p.count ?? 0));
-                  const gridLines = 4;
-                  const points = trendPoints.length;
-                  const width = Math.max(400, points * 20);
-                  const height = 160;
-                  const padding = 20;
-                  const chartWidth = width - padding * 2;
-                  const chartHeight = height - padding * 2;
+            {trendPoints.length > 0 ? (() => {
+              // Calculate chart dimensions
+              const max = Math.max(1, ...trendPoints.map((p) => p.count ?? 0));
+              const points = trendPoints.length;
+              const svgWidth = Math.max(400, points * 20);
+              const svgHeight = 180;
+              const padding = 20;
+              const chartWidth = svgWidth - padding * 2;
+              const chartHeight = svgHeight - padding * 2;
+              const gridLines = 4;
+              
+              // Calculate label interval based on range
+              const labelInterval = intelRange === '30d' || intelRange === 'all' 
+                ? Math.max(1, Math.floor(points / 6))
+                : intelRange === '7d'
+                ? Math.max(1, Math.floor(points / 4))
+                : 1;
+              
+              // Generate path data for line and area
+              const getPointCoords = (index: number, count: number) => {
+                const x = padding + (chartWidth / Math.max(1, points - 1)) * index;
+                const y = padding + chartHeight - ((count / max) * chartHeight);
+                return { x, y };
+              };
+              
+              const linePath = trendPoints.map((point, index) => {
+                const { x, y } = getPointCoords(index, point.count ?? 0);
+                return `${index === 0 ? 'M' : 'L'} ${x} ${y}`;
+              }).join(' ');
+              
+              const areaPath = `${linePath} L ${padding + chartWidth} ${padding + chartHeight} L ${padding} ${padding + chartHeight} Z`;
+              
+              return (
+                <svg
+                  viewBox={`0 0 ${svgWidth} ${svgHeight}`}
+                  className="w-full h-full"
+                  preserveAspectRatio="xMidYMid meet"
+                >
+                  <defs>
+                    <linearGradient id="lineGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                      <stop offset="0%" stopColor="rgb(251, 191, 36)" stopOpacity="0.3" />
+                      <stop offset="100%" stopColor="rgb(251, 191, 36)" stopOpacity="0.05" />
+                    </linearGradient>
+                  </defs>
                   
-                  return Array.from({ length: gridLines + 1 }).map((_, i) => {
+                  {/* Grid lines */}
+                  {Array.from({ length: gridLines + 1 }).map((_, i) => {
                     const y = padding + (chartHeight / gridLines) * i;
                     const value = max - (max / gridLines) * i;
                     return (
@@ -4383,7 +4405,7 @@ const Index = () => {
                         <line
                           x1={padding}
                           y1={y}
-                          x2={width - padding}
+                          x2={svgWidth - padding}
                           y2={y}
                           stroke="currentColor"
                           strokeOpacity="0.1"
@@ -4404,59 +4426,21 @@ const Index = () => {
                         )}
                       </g>
                     );
-                  });
-                })()}
-                
-                {/* Area fill */}
-                {(() => {
-                  const max = Math.max(1, ...trendPoints.map((p) => p.count ?? 0));
-                  const points = trendPoints.length;
-                  const width = Math.max(400, points * 20);
-                  const height = 160;
-                  const padding = 20;
-                  const chartWidth = width - padding * 2;
-                  const chartHeight = height - padding * 2;
+                  })}
                   
-                  if (max === 0) return null;
-                  
-                  const pathData = trendPoints.map((point, index) => {
-                    const x = padding + (chartWidth / (points - 1 || 1)) * index;
-                    const y = padding + chartHeight - ((point.count ?? 0) / max) * chartHeight;
-                    return `${index === 0 ? 'M' : 'L'} ${x} ${y}`;
-                  }).join(' ');
-                  
-                  const areaPath = `${pathData} L ${padding + chartWidth} ${padding + chartHeight} L ${padding} ${padding + chartHeight} Z`;
-                  
-                  return (
+                  {/* Area fill */}
+                  {max > 0 && (
                     <path
                       d={areaPath}
                       fill="url(#lineGradient)"
                       stroke="none"
                     />
-                  );
-                })()}
-                
-                {/* Line */}
-                {(() => {
-                  const max = Math.max(1, ...trendPoints.map((p) => p.count ?? 0));
-                  const points = trendPoints.length;
-                  const width = Math.max(400, points * 20);
-                  const height = 160;
-                  const padding = 20;
-                  const chartWidth = width - padding * 2;
-                  const chartHeight = height - padding * 2;
+                  )}
                   
-                  if (max === 0 || points === 0) return null;
-                  
-                  const pathData = trendPoints.map((point, index) => {
-                    const x = padding + (chartWidth / (points - 1 || 1)) * index;
-                    const y = padding + chartHeight - ((point.count ?? 0) / max) * chartHeight;
-                    return `${index === 0 ? 'M' : 'L'} ${x} ${y}`;
-                  }).join(' ');
-                  
-                  return (
+                  {/* Line */}
+                  {max > 0 && points > 0 && (
                     <path
-                      d={pathData}
+                      d={linePath}
                       fill="none"
                       stroke="rgb(251, 191, 36)"
                       strokeWidth="2.5"
@@ -4464,24 +4448,11 @@ const Index = () => {
                       strokeLinejoin="round"
                       className="drop-shadow-sm"
                     />
-                  );
-                })()}
-                
-                {/* Data points */}
-                {(() => {
-                  const max = Math.max(1, ...trendPoints.map((p) => p.count ?? 0));
-                  const points = trendPoints.length;
-                  const width = Math.max(400, points * 20);
-                  const height = 160;
-                  const padding = 20;
-                  const chartWidth = width - padding * 2;
-                  const chartHeight = height - padding * 2;
+                  )}
                   
-                  if (max === 0) return null;
-                  
-                  return trendPoints.map((point, index) => {
-                    const x = padding + (chartWidth / (points - 1 || 1)) * index;
-                    const y = padding + chartHeight - ((point.count ?? 0) / max) * chartHeight;
+                  {/* Data points */}
+                  {max > 0 && trendPoints.map((point, index) => {
+                    const { x, y } = getPointCoords(index, point.count ?? 0);
                     return (
                       <g key={`point-${index}`}>
                         <circle
@@ -4489,37 +4460,24 @@ const Index = () => {
                           cy={y}
                           r="4"
                           fill="rgb(251, 191, 36)"
-                          stroke="rgb(15, 23, 42)"
+                          stroke="hsl(var(--background))"
                           strokeWidth="2"
                           className="hover:r-5 transition-all cursor-pointer"
                         />
                         <title>{`${point.label}: ${point.count} scans`}</title>
                       </g>
                     );
-                  });
-                })()}
-                
-                {/* X-axis labels */}
-                {(() => {
-                  const points = trendPoints.length;
-                  const width = Math.max(400, points * 20);
-                  const height = 160;
-                  const padding = 20;
-                  const chartWidth = width - padding * 2;
-                  const labelInterval = intelRange === '30d' || intelRange === 'all' 
-                    ? Math.max(1, Math.floor(points / 6))
-                    : intelRange === '7d'
-                    ? Math.max(1, Math.floor(points / 4))
-                    : 1;
+                  })}
                   
-                  return trendPoints.map((point, index) => {
+                  {/* X-axis labels */}
+                  {trendPoints.map((point, index) => {
                     if (index % labelInterval !== 0 && index !== points - 1) return null;
-                    const x = padding + (chartWidth / (points - 1 || 1)) * index;
+                    const { x } = getPointCoords(index, 0);
                     return (
                       <text
                         key={`label-${index}`}
                         x={x}
-                        y={height - 5}
+                        y={svgHeight - 5}
                         fontSize="10"
                         fill="currentColor"
                         fillOpacity="0.5"
@@ -4529,10 +4487,10 @@ const Index = () => {
                         {point.label}
                       </text>
                     );
-                  });
-                })()}
-              </svg>
-            ) : (
+                  })}
+                </svg>
+              );
+            })() : (
               <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
                 No scan data available
               </div>
