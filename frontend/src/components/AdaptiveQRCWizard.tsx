@@ -825,11 +825,11 @@ export const AdaptiveQRCWizard = ({
                     exit={{ opacity: 0, x: 20 }}
                     className="space-y-6"
                   >
-                    <div className="text-center space-y-2 mb-8">
-                      <h2 className="text-3xl font-bold bg-gradient-to-r from-amber-400 via-amber-300 to-amber-400 bg-clip-text text-transparent">
+                    <div className={`text-center space-y-2 ${isMobileV2 ? 'mb-4' : 'mb-8'}`}>
+                      <h2 className={`${isMobileV2 ? 'text-xl' : 'text-3xl'} font-bold bg-gradient-to-r from-amber-400 via-amber-300 to-amber-400 bg-clip-text text-transparent`}>
                         Add Your Contents
                       </h2>
-                      <p className="text-muted-foreground">
+                      <p className={`${isMobileV2 ? 'text-xs' : ''} text-muted-foreground`}>
                         {ruleType === 'time' 
                           ? 'Add 2-3 contents (URL or File) that will be shown based on time and day rules'
                           : 'Add 2 contents (URL or File) for first and second visits'}
@@ -1035,11 +1035,11 @@ export const AdaptiveQRCWizard = ({
                     exit={{ opacity: 0, x: 20 }}
                     className="space-y-6"
                   >
-                    <div className="text-center space-y-2 mb-8">
-                      <h2 className="text-3xl font-bold bg-gradient-to-r from-amber-400 via-amber-300 to-amber-400 bg-clip-text text-transparent">
+                    <div className={`text-center space-y-2 ${isMobileV2 ? 'mb-4' : 'mb-8'}`}>
+                      <h2 className={`${isMobileV2 ? 'text-xl' : 'text-3xl'} font-bold bg-gradient-to-r from-amber-400 via-amber-300 to-amber-400 bg-clip-text text-transparent`}>
                         Configure Time Rules
                       </h2>
-                      <p className="text-muted-foreground">
+                      <p className={`${isMobileV2 ? 'text-xs' : ''} text-muted-foreground`}>
                         Set when each content should be shown
                       </p>
                     </div>
@@ -1160,11 +1160,11 @@ export const AdaptiveQRCWizard = ({
                     exit={{ opacity: 0, x: 20 }}
                     className="space-y-6"
                   >
-                    <div className="text-center space-y-2 mb-8">
-                      <h2 className="text-3xl font-bold bg-gradient-to-r from-amber-400 via-amber-300 to-amber-400 bg-clip-text text-transparent">
+                    <div className={`text-center space-y-2 ${isMobileV2 ? 'mb-4' : 'mb-8'}`}>
+                      <h2 className={`${isMobileV2 ? 'text-xl' : 'text-3xl'} font-bold bg-gradient-to-r from-amber-400 via-amber-300 to-amber-400 bg-clip-text text-transparent`}>
                         Configure Visit Rules
                       </h2>
-                      <p className="text-muted-foreground">
+                      <p className={`${isMobileV2 ? 'text-xs' : ''} text-muted-foreground`}>
                         Assign content for first and second visits
                       </p>
                     </div>
@@ -1217,11 +1217,11 @@ export const AdaptiveQRCWizard = ({
                     exit={{ opacity: 0, x: 20 }}
                     className="space-y-6"
                   >
-                    <div className="text-center space-y-2 mb-8">
-                      <h2 className="text-3xl font-bold bg-gradient-to-r from-amber-400 via-amber-300 to-amber-400 bg-clip-text text-transparent">
+                    <div className={`text-center space-y-2 ${isMobileV2 ? 'mb-4' : 'mb-8'}`}>
+                      <h2 className={`${isMobileV2 ? 'text-xl' : 'text-3xl'} font-bold bg-gradient-to-r from-amber-400 via-amber-300 to-amber-400 bg-clip-text text-transparent`}>
                         Review & Generate
                       </h2>
-                      <p className="text-muted-foreground">
+                      <p className={`${isMobileV2 ? 'text-xs' : ''} text-muted-foreground`}>
                         Review your Adaptive QRC™ configuration
                       </p>
                     </div>
