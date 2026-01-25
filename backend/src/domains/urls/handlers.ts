@@ -378,7 +378,9 @@ export const adaptiveResolveHandler = (service: UrlsService, scansService?: Scan
           console.error('[scan] failed to record adaptive scan', scanError)
         })
       }
-      return c.redirect(destination, 302)
+      // Use 307 (Temporary Redirect) instead of 302 for better performance
+      // This preserves the HTTP method and is faster than 302
+      return c.redirect(destination, 307)
     } catch (error) {
       if (error instanceof UrlValidationError) {
         return c.json({ message: error.message }, 400)
