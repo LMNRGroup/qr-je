@@ -9649,7 +9649,7 @@ const Index = () => {
                     </motion.div>
 
                     {/* Info Card */}
-                    <div className="glass-panel rounded-2xl p-6 border border-amber-500/20 bg-amber-900/10">
+                    <div className="glass-panel rounded-2xl p-6 border border-amber-500/20 bg-amber-400/10 dark:bg-amber-500/15">
                       <div className="flex items-start gap-4">
                         <Info className="h-5 w-5 text-amber-400 mt-0.5 flex-shrink-0" />
                         <div className="space-y-2">
