@@ -4339,7 +4339,9 @@ const Index = () => {
             {intelLoading
               ? '...'
               : Number.isFinite(intelSummary.avgResponseMs) && intelSummary.avgResponseMs !== null
-                ? `${(intelSummary.avgResponseMs / 1000).toFixed(2)}s`
+                ? intelSummary.avgResponseMs < 1000
+                  ? `${Math.round(intelSummary.avgResponseMs)}ms`
+                  : `${(intelSummary.avgResponseMs / 1000).toFixed(2)}s`
                 : 'N/A'}
           </p>
         </div>
