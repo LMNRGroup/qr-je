@@ -836,6 +836,8 @@ const Index = () => {
   useEffect(() => {
     if (!isSessionReady) return;
     if (activeTab !== 'analytics') return;
+    // Don't poll if tab is hidden to reduce egress
+    if (typeof document !== 'undefined' && document.hidden) return;
     let cancelled = false;
     let pollTimer: number | undefined;
     const timeZone =
@@ -869,13 +871,15 @@ const Index = () => {
       }
     };
     fetchSummary(true);
-    // Reduced from 10s to 30s to reduce egress usage
-    pollTimer = window.setInterval(() => fetchSummary(false), 30000);
+    // Reduced from 30s to 120s to significantly reduce egress usage
+    pollTimer = window.setInterval(() => fetchSummary(false), 120000);
     return () => {
       cancelled = true;
       if (pollTimer) window.clearInterval(pollTimer);
     };
-  }, [activeTab, intelRange, isSessionReady, profileForm.timezone, userProfile?.timezone]);
+    // Only depend on activeTab and isSessionReady - use refs for timezone/range to avoid restarting interval
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, isSessionReady]);
 
   useEffect(() => {
     if (!isSessionReady) return;
@@ -917,6 +921,8 @@ const Index = () => {
   useEffect(() => {
     if (!isSessionReady) return;
     if (activeTab !== 'analytics') return;
+    // Don't poll if tab is hidden to reduce egress
+    if (typeof document !== 'undefined' && document.hidden) return;
     let cancelled = false;
     let pollTimer: number | undefined;
     const fetchAreas = async (showToast: boolean) => {
@@ -937,8 +943,8 @@ const Index = () => {
       }
     };
     fetchAreas(true);
-    // Reduced from 15s to 60s to reduce egress usage
-    pollTimer = window.setInterval(() => fetchAreas(false), 60000);
+    // Reduced from 60s to 180s (3 minutes) to significantly reduce egress usage
+    pollTimer = window.setInterval(() => fetchAreas(false), 180000);
     return () => {
       cancelled = true;
       if (pollTimer) window.clearInterval(pollTimer);
