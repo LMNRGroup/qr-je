@@ -811,8 +811,48 @@ const Index = () => {
         });
         setExistingAdaptiveQRC(adaptiveQRC || null);
         
-        // Recalculate storage from actual DB files
-        await recalculateStorageFromDB();
+        // Calculate storage from the data we already fetched (no need to fetch again!)
+        let totalStorage = 0;
+        for (const item of response.data) {
+          const opts = item.options;
+          
+          // File QR
+          if (opts.fileSize && typeof opts.fileSize === 'number') {
+            totalStorage += opts.fileSize;
+          }
+          
+          // Menu files
+          if (opts.menuFiles && Array.isArray(opts.menuFiles)) {
+            for (const file of opts.menuFiles) {
+              if (file && typeof file === 'object' && 'size' in file && typeof file.size === 'number') {
+                totalStorage += file.size;
+              }
+            }
+          }
+          
+          // Menu logo
+          if (opts.menuLogoSize && typeof opts.menuLogoSize === 'number') {
+            totalStorage += opts.menuLogoSize;
+          }
+          
+          // Adaptive QRC files
+          if (opts.adaptive && typeof opts.adaptive === 'object' && 'slots' in opts.adaptive) {
+            const slots = opts.adaptive.slots;
+            if (Array.isArray(slots)) {
+              for (const slot of slots) {
+                if (slot && typeof slot === 'object' && 'fileSize' in slot && typeof slot.fileSize === 'number') {
+                  totalStorage += slot.fileSize;
+                }
+              }
+            }
+          }
+        }
+        
+        // Update localStorage with calculated storage (no additional fetch!)
+        if (typeof window !== 'undefined') {
+          window.localStorage.setItem(STORAGE_KEY, String(totalStorage));
+          window.dispatchEvent(new CustomEvent('qrc:storage-update', { detail: totalStorage }));
+        }
       }
       if (Number.isFinite(summary.total)) {
         setScanStats({ total: summary.total });
@@ -820,7 +860,7 @@ const Index = () => {
     } catch {
       // ignore stats errors
     }
-  }, [isSessionReady, parseKind, recalculateStorageFromDB]);
+  }, [isSessionReady, parseKind]);
 
   useEffect(() => {
     refreshArsenalStats();
@@ -1513,16 +1553,16 @@ const Index = () => {
           }
           
           return generateQR(
-            qrType === 'file' || qrType === 'menu'
-              ? `${appBaseUrl}/pending/${crypto.randomUUID()}`
-              : longFormContent,
-            qrType === 'file'
-              ? {
+          qrType === 'file' || qrType === 'menu'
+            ? `${appBaseUrl}/pending/${crypto.randomUUID()}`
+            : longFormContent,
+          qrType === 'file'
+            ? {
                 ...finalOptions,
-                fileName: fileName || 'File QR',
+              fileName: fileName || 'File QR',
                 fileUrl: finalFileUrl,
                 fileSize: finalFileSize,
-              }
+            }
             : qrType === 'menu'
               ? {
                 ...finalOptions,
@@ -1532,9 +1572,9 @@ const Index = () => {
                 menuSocials,
               }
               : finalOptions,
-            `${qrMode ?? 'static'}:${qrType === 'website' ? 'url' : qrType ?? 'url'}`,
+          `${qrMode ?? 'static'}:${qrType === 'website' ? 'url' : qrType ?? 'url'}`,
             name || (qrType === 'file' ? fileName || 'File QR' : null)
-          );
+        );
         })();
       if (response.success) {
         if ('url' in response && response.url) {
@@ -1597,7 +1637,7 @@ const Index = () => {
                     fileUrl: finalFileUrl,
                     fileSize: finalFileSize,
                   }
-                : {
+                  : {
                     ...finalOptions,
                     menuFiles,
                     menuType,
@@ -6469,7 +6509,7 @@ const Index = () => {
                     <svg
                       viewBox="0 0 400 400"
                       className="absolute"
-                      style={{
+                    style={{
                         width: `${dialSize * 1.2}px`, // Make SVG 20% larger than dial container
                         height: `${dialSize * 1.2}px`,
                         left: '50%',
@@ -8465,29 +8505,29 @@ const Index = () => {
               </h2>
             </div>
             {!isMobileV2 && showAdaptiveBanner && (
-              <div className="grid gap-4 md:grid-cols-2">
+            <div className="grid gap-4 md:grid-cols-2">
                 <div className="relative">
-                  <button
-                    type="button"
-                    onClick={handleAdaptiveMockOpen}
+              <button
+                type="button"
+                onClick={handleAdaptiveMockOpen}
                     className="group text-left rounded-2xl border border-border/40 bg-black/90 p-4 shadow-none transition hover:border-amber-300 w-full"
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="inline-flex items-center gap-2 text-xs uppercase tracking-[0.3em]">
-                        <Star className="h-4 w-4 fill-amber-300 text-amber-300" />
-                        <span className={adaptiveGradientText}>Adaptive QRC™</span>
-                      </span>
-                      <span className="rounded-full border border-amber-300/50 px-2 py-1 text-[10px] uppercase tracking-[0.3em] text-amber-200">
-                        Adaptive QRC™
-                      </span>
-                    </div>
-                    <p className="mt-3 text-sm font-semibold text-white">
-                      <span className={adaptiveGradientText}>Adaptive QRC™</span> · Lunch Routing
-                    </p>
-                    <p className="mt-1 text-xs text-white/70">
-                      Routes by time, returning visitors, and admin IPs.
-                    </p>
-                  </button>
+              >
+                <div className="flex items-center justify-between">
+                  <span className="inline-flex items-center gap-2 text-xs uppercase tracking-[0.3em]">
+                    <Star className="h-4 w-4 fill-amber-300 text-amber-300" />
+                    <span className={adaptiveGradientText}>Adaptive QRC™</span>
+                  </span>
+                  <span className="rounded-full border border-amber-300/50 px-2 py-1 text-[10px] uppercase tracking-[0.3em] text-amber-200">
+                    Adaptive QRC™
+                  </span>
+                </div>
+                <p className="mt-3 text-sm font-semibold text-white">
+                  <span className={adaptiveGradientText}>Adaptive QRC™</span> · Lunch Routing
+                </p>
+                <p className="mt-1 text-xs text-white/70">
+                  Routes by time, returning visitors, and admin IPs.
+                </p>
+              </button>
                   <button
                     type="button"
                     onClick={(e) => {
@@ -8499,7 +8539,7 @@ const Index = () => {
                   >
                     <X className="h-3.5 w-3.5" />
                   </button>
-                </div>
+            </div>
               </div>
             )}
             {isLoggedIn ? (
@@ -9484,21 +9524,21 @@ const Index = () => {
             ) : (
               <>
                 {/* Header */}
-                <div className="text-center space-y-4">
+            <div className="text-center space-y-4">
                   <div className="flex items-center justify-center gap-3 mb-4">
                     <Sparkles className="h-8 w-8 text-amber-400" />
-                    <p className="text-xs uppercase tracking-[0.4em] text-muted-foreground">Adaptive QRC™</p>
+              <p className="text-xs uppercase tracking-[0.4em] text-muted-foreground">Adaptive QRC™</p>
                   </div>
-                  <h2 
+              <h2 
                     className="text-4xl sm:text-5xl font-semibold tracking-tight bg-gradient-to-r from-amber-400 via-amber-300 to-amber-400 bg-clip-text text-transparent cursor-pointer hover:opacity-80 transition-opacity inline-block"
-                    onClick={() => setShowNavOverlay(true)}
-                  >
-                    Adaptive QRC™
-                  </h2>
+                onClick={() => setShowNavOverlay(true)}
+              >
+                Adaptive QRC™
+              </h2>
                   <p className="text-xs uppercase tracking-[0.3em] bg-gradient-to-r from-amber-400 to-amber-300 bg-clip-text text-transparent">
                     Premium Content Routing
-                  </p>
-                  <p className="text-sm text-muted-foreground max-w-2xl mx-auto">
+              </p>
+              <p className="text-sm text-muted-foreground max-w-2xl mx-auto">
                     QR Codes, reimagined. <span className="bg-gradient-to-r from-amber-400 to-amber-300 bg-clip-text text-transparent font-semibold">Adaptive QRC™</span> lets you change what a code shows based on time, date,
                     and who's scanning — the future of dynamic QR.
                   </p>
@@ -9540,8 +9580,8 @@ const Index = () => {
                           <Paintbrush className="h-4 w-4 mr-2" />
                           Edit
                         </Button>
-                      </div>
-                      
+            </div>
+
                       {/* Quick Stats */}
                       <div className="grid grid-cols-3 gap-4 mt-6 pt-6 border-t border-amber-500/20">
                         <div>
