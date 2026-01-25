@@ -45,7 +45,7 @@ import {
   type ScanAreaSummary,
   type UserProfile,
 } from '@/lib/api';
-import { QROptions, QRHistoryItem, defaultQROptions, AdaptiveConfig } from '@/types/qr';
+import { QROptions, QRHistoryItem, defaultQROptions, AdaptiveConfig, AdaptiveSlot, AdaptiveRule } from '@/types/qr';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   ChevronDown,
@@ -9285,6 +9285,62 @@ const Index = () => {
                               <p className="text-2xl font-bold text-amber-300">Active</p>
                             </div>
                           </div>
+
+                          {/* Contents & Rules Display */}
+                          {existingAdaptiveQRC.options?.adaptive && (
+                            <div className="mt-6 pt-6 border-t border-amber-500/20">
+                              <p className="text-xs uppercase tracking-[0.3em] text-amber-200/60 mb-4">Rules & Contents</p>
+                              <div className="space-y-3">
+                                {existingAdaptiveQRC.options.adaptive.firstReturn?.enabled && (
+                                  <>
+                                    {existingAdaptiveQRC.options.adaptive.firstReturn.firstSlot && (() => {
+                                      const firstSlot = existingAdaptiveQRC.options.adaptive.slots?.find((s: any) => s.id === existingAdaptiveQRC.options.adaptive.firstReturn.firstSlot);
+                                      return firstSlot ? (
+                                        <div className="flex items-center justify-between py-2 px-3 rounded-lg bg-amber-900/20 border border-amber-500/20">
+                                          <span className="text-sm font-medium text-amber-200/80">First Visit:</span>
+                                          <span className="text-sm font-semibold text-amber-300">{firstSlot.name || 'Unnamed'}</span>
+                                        </div>
+                                      ) : null;
+                                    })()}
+                                    {existingAdaptiveQRC.options.adaptive.firstReturn.returnSlot && (() => {
+                                      const returnSlot = existingAdaptiveQRC.options.adaptive.slots?.find((s: any) => s.id === existingAdaptiveQRC.options.adaptive.firstReturn.returnSlot);
+                                      return returnSlot ? (
+                                        <div className="flex items-center justify-between py-2 px-3 rounded-lg bg-amber-900/20 border border-amber-500/20">
+                                          <span className="text-sm font-medium text-amber-200/80">Returning Visit:</span>
+                                          <span className="text-sm font-semibold text-amber-300">{returnSlot.name || 'Unnamed'}</span>
+                                        </div>
+                                      ) : null;
+                                    })()}
+                                  </>
+                                )}
+                                {existingAdaptiveQRC.options.adaptive.dateRules && existingAdaptiveQRC.options.adaptive.dateRules.length > 0 && (
+                                  existingAdaptiveQRC.options.adaptive.dateRules.map((rule: any, index: number) => {
+                                    const slot = existingAdaptiveQRC.options.adaptive.slots?.find((s: any) => s.id === rule.slot);
+                                    const timeRange = rule.startTime && rule.endTime 
+                                      ? `${rule.startTime} - ${rule.endTime}`
+                                      : rule.startTime || rule.endTime || 'All day';
+                                    const days = rule.days && rule.days.length > 0 
+                                      ? rule.days.join(', ')
+                                      : 'Every day';
+                                    return slot ? (
+                                      <div key={index} className="flex items-center justify-between py-2 px-3 rounded-lg bg-amber-900/20 border border-amber-500/20">
+                                        <div className="flex-1">
+                                          <span className="text-sm font-medium text-amber-200/80">Rule {index + 1} ({days}):</span>
+                                          <span className="text-sm font-semibold text-amber-300 ml-2">{slot.name || 'Unnamed'}</span>
+                                        </div>
+                                        <span className="text-xs text-amber-200/60 ml-2">{timeRange}</span>
+                                      </div>
+                                    ) : null;
+                                  })
+                                )}
+                                {(!existingAdaptiveQRC.options.adaptive.firstReturn?.enabled && (!existingAdaptiveQRC.options.adaptive.dateRules || existingAdaptiveQRC.options.adaptive.dateRules.length === 0)) && (
+                                  <div className="py-2 px-3 rounded-lg bg-amber-900/20 border border-amber-500/20">
+                                    <span className="text-sm text-amber-200/60">No rules configured. Using default content.</span>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          )}
                         </motion.div>
 
                         {/* Info Card */}

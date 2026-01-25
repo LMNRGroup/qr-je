@@ -640,14 +640,6 @@ export const adaptiveResolveHandler = (service: UrlsService, scansService?: Scan
         })
       }
       
-      // Check if user wants to skip info page (query parameter ?redirect=true)
-      const skipInfo = c.req.query('redirect') === 'true'
-      
-      // Always show info page for Adaptive QRC unless redirect parameter is set
-      if (isAdaptiveQRC && !skipInfo) {
-        return c.html(buildAdaptiveInfoPage(url, options, destination, isReturning))
-      }
-      
       // Use 307 (Temporary Redirect) instead of 302 for better performance
       // This preserves the HTTP method and is faster than 302
       return c.redirect(destination, 307)

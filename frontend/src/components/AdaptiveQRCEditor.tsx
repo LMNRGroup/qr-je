@@ -570,13 +570,12 @@ export const AdaptiveQRCEditor = ({
 
   return (
     <div className="fixed inset-0 z-[100] bg-gradient-to-br from-[#0b0f14] via-[#1a1a1a] to-[#0b0f14] overflow-y-auto">
-      {/* Gold gradient overlay - MORE GOLD! */}
-      <div className="fixed inset-0 bg-gradient-to-br from-amber-900/30 via-amber-800/20 to-amber-900/30 pointer-events-none" />
-      <div className="fixed inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-amber-500/10 via-transparent to-transparent pointer-events-none" />
+      {/* Gold gradient overlay - matching wizard */}
+      <div className="fixed inset-0 bg-gradient-to-br from-amber-900/20 via-transparent to-amber-900/20 pointer-events-none" />
       
       <div className="relative z-10 min-h-screen">
-        {/* Gold Header */}
-        <div className="sticky top-0 z-20 bg-gradient-to-r from-amber-900/90 via-amber-800/90 to-amber-900/90 backdrop-blur-xl border-b-2 border-amber-400/50 shadow-lg shadow-amber-500/20">
+        {/* Gold Header - matching wizard */}
+        <div className="sticky top-0 z-20 bg-background/80 backdrop-blur-xl border-b border-amber-500/20">
           <div className="container mx-auto px-4 py-6 flex items-center justify-between">
             <div className="flex items-center gap-4">
               <div className="p-3 rounded-xl bg-amber-400/20 border border-amber-400/30">
@@ -596,7 +595,7 @@ export const AdaptiveQRCEditor = ({
                 variant="ghost"
                 size="sm"
                 onClick={onClose}
-                className="text-amber-200 hover:text-amber-100 hover:bg-amber-500/20"
+                className="text-muted-foreground hover:text-foreground"
               >
                 <X className="h-5 w-5" />
               </Button>
@@ -641,11 +640,11 @@ export const AdaptiveQRCEditor = ({
                     exit={{ opacity: 0, y: -20 }}
                     className="space-y-4"
                   >
-                    <div className="glass-panel rounded-2xl p-6 border-2 border-amber-500/30 bg-gradient-to-br from-amber-900/20 to-amber-800/10 shadow-xl shadow-amber-500/20">
+                    <div className="glass-panel rounded-2xl p-6 border border-amber-500/20 shadow-lg shadow-amber-500/10">
                       <div className="flex items-center justify-between mb-6">
                         <div>
-                          <h2 className="text-2xl font-bold text-amber-300 mb-2">Content URLs</h2>
-                          <p className="text-sm text-amber-200/70">
+                          <h2 className="text-2xl font-bold bg-gradient-to-r from-amber-400 via-amber-300 to-amber-400 bg-clip-text text-transparent mb-2">Content URLs</h2>
+                          <p className="text-sm text-muted-foreground">
                             Manage the URLs that will be shown based on your rules
                           </p>
                         </div>
@@ -664,7 +663,7 @@ export const AdaptiveQRCEditor = ({
                         {contents.map((content, index) => (
                           <div
                             key={content.id}
-                            className="rounded-xl p-4 bg-gradient-to-r from-amber-900/30 to-amber-800/20 border border-amber-500/30"
+                            className="glass-panel rounded-2xl p-6 border border-amber-500/20 shadow-lg shadow-amber-500/10"
                           >
                             <div className="flex items-center justify-between mb-3">
                               <div className="flex items-center gap-3">
@@ -693,20 +692,20 @@ export const AdaptiveQRCEditor = ({
 
                             {/* Content Name Input */}
                             <div className="mb-4">
-                              <Label className="text-sm font-semibold text-amber-200 mb-2 block">Content Name</Label>
+                              <Label className="text-sm font-medium mb-2 block">Content Name</Label>
                               <Input
                                 value={content.name}
                                 onChange={(e) => handleContentChange(content.id, 'name', e.target.value)}
                                 placeholder={ruleType === 'visit' 
                                   ? (index === 0 ? 'First Visit Content' : 'Second Visit Content')
                                   : `Content ${index + 1} Name`}
-                                className="h-11 bg-amber-900/40 border-amber-500/40 focus:border-amber-400 text-amber-100 placeholder:text-amber-500/50"
+                                className="h-11 bg-secondary/40 border-amber-500/30 focus:border-amber-400 text-lg"
                               />
                             </div>
 
                             {/* Input Type Toggle */}
                             <div className="mb-4">
-                              <Label className="text-sm font-semibold text-amber-200 mb-2 block">Content Type</Label>
+                              <Label className="text-sm font-medium mb-2 block">Content Type</Label>
                               <div className="flex gap-2">
                                 <button
                                   type="button"
@@ -714,7 +713,7 @@ export const AdaptiveQRCEditor = ({
                                   className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl border transition-all ${
                                     content.inputType === 'url'
                                       ? 'border-amber-400 bg-amber-500/10 text-amber-400'
-                                      : 'border-amber-500/20 bg-amber-900/40 text-amber-300/60 hover:border-amber-500/40'
+                                      : 'border-amber-500/30 text-amber-400 hover:bg-amber-500/10'
                                   }`}
                                 >
                                   <LinkIcon className="h-4 w-4" />
@@ -726,7 +725,7 @@ export const AdaptiveQRCEditor = ({
                                   className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl border transition-all ${
                                     content.inputType === 'file'
                                       ? 'border-amber-400 bg-amber-500/10 text-amber-400'
-                                      : 'border-amber-500/20 bg-amber-900/40 text-amber-300/60 hover:border-amber-500/40'
+                                      : 'border-amber-500/30 text-amber-400 hover:bg-amber-500/10'
                                   }`}
                                 >
                                   <FileIcon className="h-4 w-4" />
@@ -738,12 +737,12 @@ export const AdaptiveQRCEditor = ({
                             {/* URL Input */}
                             {content.inputType === 'url' && (
                               <div>
-                                <Label className="text-sm font-semibold text-amber-200 mb-2 block">URL</Label>
+                                <Label className="text-sm font-medium mb-2 block">URL</Label>
                                 <Input
                                   value={content.url}
                                   onChange={(e) => handleContentChange(content.id, 'url', e.target.value)}
                                   placeholder="https://example.com"
-                                  className="h-11 bg-amber-900/40 border-amber-500/40 focus:border-amber-400 text-amber-100 placeholder:text-amber-500/50"
+                                  className="h-11 bg-secondary/40 border-amber-500/30 focus:border-amber-400 text-lg"
                                 />
                               </div>
                             )}
@@ -751,7 +750,7 @@ export const AdaptiveQRCEditor = ({
                             {/* File Upload */}
                             {content.inputType === 'file' && (
                               <div>
-                                <Label className="text-sm font-semibold text-amber-200 mb-2 block">File (PDF, PNG, or JPEG)</Label>
+                                <Label className="text-sm font-medium mb-2 block">File (PDF, PNG, or JPEG)</Label>
                                 {content.fileUrl ? (
                                   <div className="space-y-2">
                                     <div className="flex items-center gap-2 p-3 rounded-lg bg-amber-500/10 border border-amber-500/30">
@@ -809,7 +808,7 @@ export const AdaptiveQRCEditor = ({
                                       )}
                                     </Button>
                                     {content.uploadProgress !== undefined && content.uploadProgress > 0 && content.uploadProgress < 100 && (
-                                      <div className="relative h-2 bg-amber-900/40 rounded-full overflow-hidden">
+                                      <div className="relative h-2 bg-secondary/40 rounded-full overflow-hidden">
                                         <div
                                           className="absolute inset-0 bg-gradient-to-r from-amber-400 via-amber-300 to-amber-400 transition-all duration-300"
                                           style={{ width: `${content.uploadProgress}%` }}
@@ -842,11 +841,11 @@ export const AdaptiveQRCEditor = ({
                     className="space-y-4"
                   >
                     {ruleType === 'time' && (
-                      <div className="glass-panel rounded-2xl p-6 border-2 border-amber-500/30 bg-gradient-to-br from-amber-900/20 to-amber-800/10 shadow-xl shadow-amber-500/20">
+                      <div className="glass-panel rounded-2xl p-6 border border-amber-500/20 shadow-lg shadow-amber-500/10">
                         <div className="flex items-center justify-between mb-6">
                           <div>
-                            <h2 className="text-2xl font-bold text-amber-300 mb-2">Time Rules</h2>
-                            <p className="text-sm text-amber-200/70">
+                            <h2 className="text-2xl font-bold bg-gradient-to-r from-amber-400 via-amber-300 to-amber-400 bg-clip-text text-transparent mb-2">Time Rules</h2>
+                            <p className="text-sm text-muted-foreground">
                               Configure when each content should be displayed
                             </p>
                           </div>
@@ -863,10 +862,10 @@ export const AdaptiveQRCEditor = ({
                           {timeRules.map((rule, index) => (
                             <div
                               key={rule.id}
-                              className="rounded-xl p-5 bg-gradient-to-r from-amber-900/30 to-amber-800/20 border border-amber-500/30"
+                              className="glass-panel rounded-2xl p-6 border border-amber-500/20 shadow-lg shadow-amber-500/10"
                             >
                               <div className="flex items-center justify-between mb-4">
-                                <h3 className="font-semibold text-amber-200">Rule {index + 1}</h3>
+                                <h3 className="font-semibold">Rule {index + 1}</h3>
                                 <Button
                                   variant="ghost"
                                   size="sm"
@@ -878,11 +877,11 @@ export const AdaptiveQRCEditor = ({
                               </div>
                               <div className="space-y-4">
                                 <div>
-                                  <Label className="text-sm text-amber-200/80 mb-2 block">Content</Label>
+                                  <Label className="text-sm font-medium mb-2 block">Content</Label>
                                   <select
                                     value={rule.contentId}
                                     onChange={(e) => handleTimeRuleChange(rule.id, 'contentId', e.target.value)}
-                                    className="w-full h-11 rounded-xl border border-amber-500/40 bg-amber-900/40 px-3 text-amber-100"
+                                    className="w-full h-11 rounded-xl border border-amber-500/30 bg-secondary/40 px-3"
                                   >
                                     {contents.filter(c => 
                                       c.name.trim().length > 0 && 
@@ -896,12 +895,12 @@ export const AdaptiveQRCEditor = ({
                                 </div>
                                 <div className="grid md:grid-cols-2 gap-4">
                                   <div>
-                                    <Label className="text-sm text-amber-200/80 mb-2 block">Start Time</Label>
+                                    <Label className="text-sm font-medium mb-2 block">Start Time</Label>
                                     <Input
                                       type="time"
                                       value={rule.startTime || ''}
                                       onChange={(e) => handleTimeRuleChange(rule.id, 'startTime', e.target.value)}
-                                      className="bg-amber-900/40 border-amber-500/40 text-amber-100"
+                                      className="bg-secondary/40 border-amber-500/30"
                                     />
                                   </div>
                                   <div>
@@ -945,7 +944,7 @@ export const AdaptiveQRCEditor = ({
                                         className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
                                           rule.days?.includes(day)
                                             ? 'bg-gradient-to-r from-amber-400 to-amber-600 text-black shadow-lg shadow-amber-500/50 scale-105'
-                                            : 'bg-amber-900/40 text-amber-300/60 hover:bg-amber-800/40 hover:text-amber-200 border border-amber-500/20'
+                                            : 'bg-secondary/40 text-muted-foreground hover:bg-secondary/60 border border-border'
                                         }`}
                                       >
                                         {day}
@@ -961,10 +960,10 @@ export const AdaptiveQRCEditor = ({
                     )}
 
                     {ruleType === 'visit' && (
-                      <div className="glass-panel rounded-2xl p-6 border-2 border-amber-500/30 bg-gradient-to-br from-amber-900/20 to-amber-800/10 shadow-xl shadow-amber-500/20">
+                      <div className="glass-panel rounded-2xl p-6 border border-amber-500/20 shadow-lg shadow-amber-500/10">
                         <div className="mb-6">
-                          <h2 className="text-2xl font-bold text-amber-300 mb-2">Visit Rules</h2>
-                          <p className="text-sm text-amber-200/70">
+                          <h2 className="text-2xl font-bold bg-gradient-to-r from-amber-400 via-amber-300 to-amber-400 bg-clip-text text-transparent mb-2">Visit Rules</h2>
+                          <p className="text-sm text-muted-foreground">
                             Assign content for first and second visits
                           </p>
                         </div>
@@ -978,13 +977,13 @@ export const AdaptiveQRCEditor = ({
                             return (
                               <div
                                 key={number}
-                                className="rounded-xl p-5 bg-gradient-to-r from-amber-900/30 to-amber-800/20 border border-amber-500/30"
+                                className="glass-panel rounded-2xl p-6 border border-amber-500/20 shadow-lg shadow-amber-500/10"
                               >
                                 <div className="flex items-center gap-3 mb-4">
                                   <div className="w-10 h-10 rounded-full bg-gradient-to-r from-amber-400 to-amber-600 flex items-center justify-center text-black font-bold shadow-lg shadow-amber-500/50">
                                     {number}
                                   </div>
-                                  <h3 className="font-semibold text-amber-200">{label}</h3>
+                                  <h3 className="font-semibold">{label}</h3>
                                 </div>
                                 <select
                                   value={contentId}
