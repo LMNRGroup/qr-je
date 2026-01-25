@@ -9462,6 +9462,7 @@ const Index = () => {
                     )}
                   </div>
                 </ScrollArea>
+                </div>
               </div>
             ) : (
               <>
