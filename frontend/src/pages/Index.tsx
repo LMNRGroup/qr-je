@@ -9595,7 +9595,7 @@ const Index = () => {
                     <motion.div
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
-                      className="glass-panel rounded-2xl p-8 border-2 border-amber-500/30 bg-gradient-to-br from-amber-900/20 to-amber-800/10 shadow-xl shadow-amber-500/20"
+                      className="glass-panel rounded-2xl p-8 border-2 border-amber-500/30 bg-gradient-to-br from-amber-400/10 via-amber-300/5 to-amber-400/10 dark:from-amber-500/15 dark:via-amber-400/10 dark:to-amber-500/15 shadow-xl shadow-amber-500/20"
                     >
                       <div className="flex items-start justify-between mb-6">
                         <div className="flex-1">
@@ -9668,7 +9668,7 @@ const Index = () => {
                     <motion.div
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
-                      className="glass-panel rounded-2xl p-12 border-2 border-amber-500/30 bg-gradient-to-br from-amber-900/20 to-amber-800/10 shadow-xl shadow-amber-500/20 text-center"
+                      className="glass-panel rounded-2xl p-12 border-2 border-amber-500/30 bg-gradient-to-br from-amber-400/10 via-amber-300/5 to-amber-400/10 dark:from-amber-500/15 dark:via-amber-400/10 dark:to-amber-500/15 shadow-xl shadow-amber-500/20 text-center"
                     >
                       <div className="max-w-2xl mx-auto space-y-6">
                         <div className="flex justify-center">
