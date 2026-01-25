@@ -696,6 +696,13 @@ const Index = () => {
       try {
         const history = await getQRHistory();
         if (!history.success || cancelled) return;
+        
+        // Early return if user has no QR codes - no need to fetch counts
+        if (!history.data || history.data.length === 0) {
+          scanNotifyPollingRef.current = false;
+          return;
+        }
+        
         const targets = history.data.slice(0, 10);
         
         // Use bulk endpoint instead of per-QR calls
@@ -744,7 +751,12 @@ const Index = () => {
     if (!isSessionReady || typeof window === 'undefined') return;
     try {
       const response = await getQRHistory();
-      if (!response.success || !response.data) return;
+      if (!response.success || !response.data || response.data.length === 0) {
+        // No QR codes - set storage to 0 and return early
+        window.localStorage.setItem(STORAGE_KEY, '0');
+        window.dispatchEvent(new CustomEvent('qrc:storage-update', { detail: 0 }));
+        return;
+      }
       
       let totalStorage = 0;
       for (const item of response.data) {
@@ -797,67 +809,83 @@ const Index = () => {
       return;
     }
     try {
-      const [response, summary] = await Promise.all([getQRHistory(), getScanSummary('all')]);
-      if (response.success) {
-        setQrHistory(response.data);
-        const dynamicCount = response.data.filter(
-          (item) => parseKind(item.kind ?? null).mode === 'dynamic'
-        ).length;
-        setArsenalStats({ total: response.data.length, dynamic: dynamicCount });
+      const response = await getQRHistory();
+      if (!response.success) {
+        setArsenalStats({ total: 0, dynamic: 0 });
+        setScanStats({ total: 0 });
+        return;
+      }
+      
+      setQrHistory(response.data);
+      const qrCount = response.data.length;
+      const dynamicCount = response.data.filter(
+        (item) => parseKind(item.kind ?? null).mode === 'dynamic'
+      ).length;
+      setArsenalStats({ total: qrCount, dynamic: dynamicCount });
+      
+      // Find existing Adaptive QRC
+      const adaptiveQRC = response.data.find((item) => {
+        return item.kind === 'adaptive' || 
+               (item.options && typeof item.options === 'object' && 
+                'adaptive' in item.options && item.options.adaptive !== null);
+      });
+      setExistingAdaptiveQRC(adaptiveQRC || null);
+      
+      // Only fetch scan summary if user has QR codes (optimize for users with no QRs)
+      if (qrCount > 0) {
+        try {
+          const summary = await getScanSummary('all');
+          if (Number.isFinite(summary.total)) {
+            setScanStats({ total: summary.total });
+          }
+        } catch {
+          // ignore scan summary errors
+        }
+      } else {
+        setScanStats({ total: 0 });
+      }
+      
+      // Calculate storage from the data we already fetched (no need to fetch again!)
+      let totalStorage = 0;
+      for (const item of response.data) {
+        const opts = item.options;
         
-        // Find existing Adaptive QRC
-        const adaptiveQRC = response.data.find((item) => {
-          return item.kind === 'adaptive' || 
-                 (item.options && typeof item.options === 'object' && 
-                  'adaptive' in item.options && item.options.adaptive !== null);
-        });
-        setExistingAdaptiveQRC(adaptiveQRC || null);
+        // File QR
+        if (opts.fileSize && typeof opts.fileSize === 'number') {
+          totalStorage += opts.fileSize;
+        }
         
-        // Calculate storage from the data we already fetched (no need to fetch again!)
-        let totalStorage = 0;
-        for (const item of response.data) {
-          const opts = item.options;
-          
-          // File QR
-          if (opts.fileSize && typeof opts.fileSize === 'number') {
-            totalStorage += opts.fileSize;
-          }
-          
-          // Menu files
-          if (opts.menuFiles && Array.isArray(opts.menuFiles)) {
-            for (const file of opts.menuFiles) {
-              if (file && typeof file === 'object' && 'size' in file && typeof file.size === 'number') {
-                totalStorage += file.size;
-              }
-            }
-          }
-          
-          // Menu logo
-          if (opts.menuLogoSize && typeof opts.menuLogoSize === 'number') {
-            totalStorage += opts.menuLogoSize;
-          }
-          
-          // Adaptive QRC files
-          if (opts.adaptive && typeof opts.adaptive === 'object' && 'slots' in opts.adaptive) {
-            const slots = opts.adaptive.slots;
-            if (Array.isArray(slots)) {
-              for (const slot of slots) {
-                if (slot && typeof slot === 'object' && 'fileSize' in slot && typeof slot.fileSize === 'number') {
-                  totalStorage += slot.fileSize;
-                }
-              }
+        // Menu files
+        if (opts.menuFiles && Array.isArray(opts.menuFiles)) {
+          for (const file of opts.menuFiles) {
+            if (file && typeof file === 'object' && 'size' in file && typeof file.size === 'number') {
+              totalStorage += file.size;
             }
           }
         }
         
-        // Update localStorage with calculated storage (no additional fetch!)
-        if (typeof window !== 'undefined') {
-          window.localStorage.setItem(STORAGE_KEY, String(totalStorage));
-          window.dispatchEvent(new CustomEvent('qrc:storage-update', { detail: totalStorage }));
+        // Menu logo
+        if (opts.menuLogoSize && typeof opts.menuLogoSize === 'number') {
+          totalStorage += opts.menuLogoSize;
+        }
+        
+        // Adaptive QRC files
+        if (opts.adaptive && typeof opts.adaptive === 'object' && 'slots' in opts.adaptive) {
+          const slots = opts.adaptive.slots;
+          if (Array.isArray(slots)) {
+            for (const slot of slots) {
+              if (slot && typeof slot === 'object' && 'fileSize' in slot && typeof slot.fileSize === 'number') {
+                totalStorage += slot.fileSize;
+              }
+            }
+          }
         }
       }
-      if (Number.isFinite(summary.total)) {
-        setScanStats({ total: summary.total });
+      
+      // Update localStorage with calculated storage (no additional fetch!)
+      if (typeof window !== 'undefined') {
+        window.localStorage.setItem(STORAGE_KEY, String(totalStorage));
+        window.dispatchEvent(new CustomEvent('qrc:storage-update', { detail: totalStorage }));
       }
     } catch {
       // ignore stats errors
@@ -926,11 +954,18 @@ const Index = () => {
     };
     // Only depend on activeTab and isSessionReady - use refs for timezone/range to avoid restarting interval
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab, isSessionReady]);
+  }, [activeTab, isSessionReady, arsenalStats.total]);
 
   useEffect(() => {
     if (!isSessionReady) return;
     if (activeTab !== 'analytics') return;
+    // Skip if user has no QR codes - no need to fetch trends
+    if (arsenalStats.total === 0) {
+      setIntelTrends([]);
+      return;
+    }
+    // Don't fetch if tab is hidden to reduce egress
+    if (typeof document !== 'undefined' && document.hidden) return;
     let cancelled = false;
     const timeZone =
       userProfile?.timezone ||
@@ -963,11 +998,16 @@ const Index = () => {
     return () => {
       cancelled = true;
     };
-  }, [activeTab, intelRange, isSessionReady, profileForm.timezone, userProfile?.timezone]);
+  }, [activeTab, intelRange, isSessionReady, profileForm.timezone, userProfile?.timezone, arsenalStats.total]);
 
   useEffect(() => {
     if (!isSessionReady) return;
     if (activeTab !== 'analytics') return;
+    // Skip if user has no QR codes - no need to fetch areas
+    if (arsenalStats.total === 0) {
+      setScanAreas([]);
+      return;
+    }
     // Don't poll if tab is hidden to reduce egress
     if (typeof document !== 'undefined' && document.hidden) return;
     let cancelled = false;
@@ -975,6 +1015,8 @@ const Index = () => {
     const fetchAreas = async (showToast: boolean) => {
       // Skip if tab is hidden to reduce egress
       if (typeof document !== 'undefined' && document.hidden && !showToast) return;
+      // Skip if user has no QR codes
+      if (arsenalStats.total === 0 && !showToast) return;
       try {
         const areas = await getScanAreas();
         if (cancelled) return;
@@ -996,7 +1038,7 @@ const Index = () => {
       cancelled = true;
       if (pollTimer) window.clearInterval(pollTimer);
     };
-  }, [activeTab, isSessionReady]);
+  }, [activeTab, isSessionReady, arsenalStats.total]);
 
   useEffect(() => {
     if (!isSignalsMenuOpen) return;
