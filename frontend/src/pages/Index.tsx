@@ -478,6 +478,7 @@ const Index = () => {
   const [showAdaptiveWizard, setShowAdaptiveWizard] = useState(false);
   const [showAdaptiveEditor, setShowAdaptiveEditor] = useState(false);
   const [existingAdaptiveQRC, setExistingAdaptiveQRC] = useState<QRHistoryItem | null>(null);
+  const [isGeneratingAdaptive, setIsGeneratingAdaptive] = useState(false);
   const [showAdaptiveBanner, setShowAdaptiveBanner] = useState(true);
   const [qrHistory, setQrHistory] = useState<QRHistoryItem[]>([]);
   const photoDragRef = useRef<HTMLDivElement>(null);
@@ -3271,6 +3272,7 @@ const Index = () => {
       return;
     }
 
+    setIsGeneratingAdaptive(true);
     try {
       const appBaseUrl = typeof window !== 'undefined'
         ? window.location.origin
@@ -3326,17 +3328,50 @@ const Index = () => {
       } else {
         throw error;
       }
+    } finally {
+      setIsGeneratingAdaptive(false);
     }
+  };
+
+  // Handle Adaptive QRC edit from Arsenal
+  const handleAdaptiveEdit = (item: QRHistoryItem) => {
+    setExistingAdaptiveQRC(item);
+    setShowAdaptiveEditor(true);
   };
 
   // Handle Adaptive QRC update
   const handleAdaptiveQRCUpdate = async (config: AdaptiveConfig, name: string) => {
     if (!existingAdaptiveQRC) return;
 
+    setIsGeneratingAdaptive(true);
     try {
       const appBaseUrl = typeof window !== 'undefined'
         ? window.location.origin
         : (import.meta.env.VITE_PUBLIC_APP_URL ?? 'https://qrcode.luminarapps.com');
+
+      // Get old file URLs to delete
+      const oldConfig = existingAdaptiveQRC.options?.adaptive;
+      const oldFileUrls: string[] = [];
+      if (oldConfig?.slots) {
+        for (const slot of oldConfig.slots) {
+          if (slot.fileUrl) {
+            oldFileUrls.push(slot.fileUrl);
+          }
+        }
+      }
+
+      // Get new file URLs
+      const newFileUrls: string[] = [];
+      if (config.slots) {
+        for (const slot of config.slots) {
+          if (slot.fileUrl) {
+            newFileUrls.push(slot.fileUrl);
+          }
+        }
+      }
+
+      // Find files to delete (in old but not in new)
+      const filesToDelete = oldFileUrls.filter(url => !newFileUrls.includes(url));
 
       const adaptiveUrl = existingAdaptiveQRC.shortUrl?.replace('/r/', '/adaptive/') || 
                          `${appBaseUrl}/adaptive/${existingAdaptiveQRC.id}/${existingAdaptiveQRC.random}`;
@@ -3350,12 +3385,44 @@ const Index = () => {
         },
       });
 
+      // Delete old files from storage
+      if (filesToDelete.length > 0 && isSupabaseConfigured) {
+        try {
+          const { data: { session } } = await supabase.auth.getSession();
+          if (session) {
+            for (const fileUrl of filesToDelete) {
+              try {
+                // Extract file path from URL
+                const urlParts = fileUrl.split('/');
+                const fileName = urlParts[urlParts.length - 1];
+                const folder = urlParts[urlParts.length - 2];
+                const filePath = `${folder}/${fileName}`;
+                
+                const { error } = await supabase.storage
+                  .from(QR_ASSETS_BUCKET)
+                  .remove([filePath]);
+                
+                if (error) {
+                  console.warn(`Failed to delete file ${filePath}:`, error);
+                }
+              } catch (error) {
+                console.warn(`Error deleting file ${fileUrl}:`, error);
+              }
+            }
+          }
+        } catch (error) {
+          console.warn('Error cleaning up old files:', error);
+        }
+      }
+
       toast.success('Adaptive QRC™ updated successfully!');
       setShowAdaptiveEditor(false);
       setArsenalRefreshKey((prev) => prev + 1);
       await refreshArsenalStats();
     } catch (error) {
       throw error;
+    } finally {
+      setIsGeneratingAdaptive(false);
     }
   };
 
@@ -8413,6 +8480,7 @@ const Index = () => {
                 language={(userProfile?.language ?? profileForm.language) as 'en' | 'es'}
                 timeZone={userProfile?.timezone || profileForm.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone}
                 cacheKey={user?.id ?? 'guest'}
+                onAdaptiveEdit={handleAdaptiveEdit}
                 topContent={isMobileV2 && showAdaptiveBanner ? (
                   <div className="grid gap-4 md:grid-cols-2">
                     <div className="relative">
@@ -9533,6 +9601,33 @@ const Index = () => {
             isMobile={isMobile}
             isMobileV2={isMobileV2}
           />
+        )}
+
+        {/* GENERATING Adaptive QRC™ Loading Overlay */}
+        {isGeneratingAdaptive && (
+          <div className="fixed inset-0 z-[110] flex items-center justify-center bg-gradient-to-br from-[#0b0f14]/95 via-[#1a1a1a]/95 to-[#0b0f14]/95 backdrop-blur-sm">
+            <div className="fixed inset-0 bg-gradient-to-br from-amber-900/30 via-amber-800/20 to-amber-900/30 pointer-events-none" />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              className="relative z-10 text-center space-y-6"
+            >
+              <div className="flex items-center justify-center">
+                <div className="relative">
+                  <div className="absolute inset-0 bg-gradient-to-r from-amber-400 via-amber-300 to-amber-400 rounded-full blur-2xl opacity-50 animate-pulse" />
+                  <Loader2 className="h-16 w-16 text-amber-400 animate-spin relative z-10" />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <h2 className="text-3xl font-bold bg-gradient-to-r from-amber-400 via-amber-300 to-amber-400 bg-clip-text text-transparent">
+                  GENERATING Adaptive QRC™
+                </h2>
+                <p className="text-sm text-muted-foreground">
+                  Creating your premium content routing QR code...
+                </p>
+              </div>
+            </motion.div>
+          </div>
         )}
 
         {/* Adaptive QRC Editor Overlay */}

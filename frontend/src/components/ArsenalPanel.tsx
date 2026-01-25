@@ -281,6 +281,7 @@ export function ArsenalPanel({
   timeZone,
   cacheKey,
   topContent,
+  onAdaptiveEdit,
 }: {
   refreshKey?: number;
   onStatsChange?: (stats: { total: number; dynamic: number }) => void;
@@ -290,6 +291,7 @@ export function ArsenalPanel({
   timeZone?: string;
   cacheKey?: string;
   topContent?: React.ReactNode;
+  onAdaptiveEdit?: (item: QRHistoryItem) => void;
 }) {
   const [isDesktop, setIsDesktop] = useState(() => {
     if (typeof window === 'undefined') return true;
@@ -671,6 +673,18 @@ export function ArsenalPanel({
   };
 
   const handleSelect = (item: QRHistoryItem) => {
+    // Check if this is an Adaptive QRC or Dynamic QR code
+    const parsed = parseKind(item.kind ?? null);
+    const isAdaptive = parsed.type === 'adaptive' || 
+                       (item.options && typeof item.options === 'object' && 
+                        'adaptive' in item.options && item.options.adaptive !== null);
+    
+    // If it's Adaptive/Dynamic, open the Adaptive editor instead
+    if (isAdaptive && onAdaptiveEdit) {
+      onAdaptiveEdit(item);
+      return;
+    }
+    
     if (hasUnsavedChanges) {
       setPendingAction({ type: 'select', item });
       setShowUnsavedPrompt(true);
