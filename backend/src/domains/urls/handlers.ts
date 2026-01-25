@@ -105,7 +105,11 @@ const getNowMs = () => (typeof performance !== 'undefined' ? performance.now() :
 
 type AdaptiveSlot = {
   id: string
+  name?: string
   url?: string
+  fileUrl?: string
+  fileSize?: number
+  fileType?: 'image' | 'pdf'
 }
 
 type AdaptiveRule = {
@@ -142,7 +146,8 @@ const resolveAdaptiveSlotUrl = (options: AdaptiveOptions, slotId: string | undef
   if (!slotId) return null
   const slots = options.adaptive?.slots ?? options.adaptiveSlots ?? []
   const match = slots.find((slot) => slot.id === slotId)
-  return match?.url ?? null
+  // Return fileUrl if available, otherwise url
+  return match?.fileUrl ?? match?.url ?? null
 }
 
 const parseTimeRange = (time?: string) => {
@@ -296,6 +301,260 @@ export const redirectUrlHandler = (service: UrlsService, scansService?: ScansSer
   }
 }
 
+const buildAdaptiveInfoPage = (url: any, options: AdaptiveOptions, currentTarget: string | null, isReturning: boolean) => {
+  const adaptive = options.adaptive ?? {}
+  const slots = adaptive.slots ?? []
+  const qrName = url.name || 'Adaptive QRC™'
+  
+  // Build rules display
+  let rulesHtml = ''
+  
+  // Visit-based rules
+  if (adaptive.firstReturn?.enabled) {
+    const firstSlot = slots.find((s: any) => s.id === adaptive.firstReturn?.firstSlot)
+    const returnSlot = slots.find((s: any) => s.id === adaptive.firstReturn?.returnSlot)
+    rulesHtml += `
+      <div class="rule-item">
+        <div class="rule-label">First Visit:</div>
+        <div class="rule-content">${firstSlot?.name || 'Not set'}</div>
+      </div>
+      <div class="rule-item">
+        <div class="rule-label">Returning Visit:</div>
+        <div class="rule-content">${returnSlot?.name || 'Not set'}</div>
+      </div>
+    `
+  }
+  
+  // Time-based rules
+  if (adaptive.dateRules && adaptive.dateRules.length > 0) {
+    adaptive.dateRules.forEach((rule: any, index: number) => {
+      const slot = slots.find((s: any) => s.id === rule.slot)
+      const timeRange = rule.startTime && rule.endTime 
+        ? `${rule.startTime} - ${rule.endTime}`
+        : rule.startTime || rule.endTime || 'All day'
+      const days = rule.days && rule.days.length > 0 
+        ? rule.days.join(', ')
+        : 'Every day'
+      rulesHtml += `
+        <div class="rule-item">
+          <div class="rule-label">Rule ${index + 1} (${days}):</div>
+          <div class="rule-content">${slot?.name || 'Not set'} - ${timeRange}</div>
+        </div>
+      `
+    })
+  }
+  
+  // Default slot
+  const defaultSlot = slots.find((s: any) => s.id === (adaptive.defaultSlot || slots[0]?.id))
+  const defaultContent = defaultSlot?.name || 'Default content'
+  
+  // Current target - find which slot matches the current destination
+  let currentContent = defaultContent
+  if (currentTarget) {
+    const currentSlot = slots.find((s: any) => 
+      (s.url && s.url === currentTarget) || 
+      (s.fileUrl && s.fileUrl === currentTarget)
+    )
+    if (currentSlot?.name) {
+      currentContent = currentSlot.name
+    }
+  }
+  
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${qrName} - Adaptive QRC™</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      background: linear-gradient(135deg, #0b0f14 0%, #1a1a1a 50%, #0b0f14 100%);
+      color: #e5e5e5;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .container {
+      max-width: 600px;
+      width: 100%;
+      background: rgba(26, 26, 26, 0.95);
+      border: 1px solid rgba(212, 175, 55, 0.3);
+      border-radius: 24px;
+      padding: 32px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+    }
+    .header {
+      text-align: center;
+      margin-bottom: 32px;
+    }
+    .sparkles {
+      font-size: 32px;
+      margin-bottom: 12px;
+    }
+    h1 {
+      font-size: 28px;
+      font-weight: 700;
+      background: linear-gradient(135deg, #D4AF37 0%, #F7EF8A 50%, #D4AF37 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 8px;
+    }
+    .subtitle {
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.3em;
+      color: rgba(212, 175, 55, 0.7);
+      margin-bottom: 24px;
+    }
+    .section {
+      margin-bottom: 24px;
+    }
+    .section-title {
+      font-size: 14px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.2em;
+      color: rgba(212, 175, 55, 0.9);
+      margin-bottom: 12px;
+    }
+    .rule-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 16px;
+      background: rgba(212, 175, 55, 0.1);
+      border: 1px solid rgba(212, 175, 55, 0.2);
+      border-radius: 12px;
+      margin-bottom: 8px;
+    }
+    .rule-label {
+      font-weight: 600;
+      color: rgba(212, 175, 55, 0.9);
+      font-size: 13px;
+    }
+    .rule-content {
+      color: #e5e5e5;
+      font-size: 14px;
+      text-align: right;
+    }
+    .current-content {
+      background: rgba(212, 175, 55, 0.15);
+      border: 2px solid rgba(212, 175, 55, 0.4);
+      padding: 16px;
+      border-radius: 12px;
+      margin-top: 8px;
+    }
+    .current-content-label {
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.2em;
+      color: rgba(212, 175, 55, 0.7);
+      margin-bottom: 8px;
+    }
+    .current-content-value {
+      font-size: 18px;
+      font-weight: 700;
+      color: #D4AF37;
+    }
+    .default-content {
+      padding: 12px 16px;
+      background: rgba(100, 100, 100, 0.1);
+      border: 1px solid rgba(100, 100, 100, 0.2);
+      border-radius: 12px;
+      margin-top: 8px;
+    }
+    .default-label {
+      font-size: 12px;
+      color: rgba(200, 200, 200, 0.7);
+      margin-bottom: 4px;
+    }
+    .default-value {
+      font-size: 14px;
+      color: #e5e5e5;
+    }
+    .redirect-info {
+      text-align: center;
+      margin-top: 32px;
+      padding-top: 24px;
+      border-top: 1px solid rgba(212, 175, 55, 0.2);
+      color: rgba(200, 200, 200, 0.7);
+      font-size: 13px;
+    }
+    .redirect-button {
+      display: inline-block;
+      margin-top: 16px;
+      padding: 12px 24px;
+      background: linear-gradient(135deg, #D4AF37 0%, #F7EF8A 50%, #D4AF37 100%);
+      color: #1a1a1a;
+      text-decoration: none;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 14px;
+      transition: opacity 0.2s;
+    }
+    .redirect-button:hover {
+      opacity: 0.9;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <div class="sparkles">✨</div>
+      <h1>${qrName}</h1>
+      <div class="subtitle">Adaptive QRC™</div>
+    </div>
+    
+    <div class="section">
+      <div class="section-title">Currently Displaying</div>
+      <div class="current-content">
+        <div class="current-content-label">Content</div>
+        <div class="current-content-value">${currentContent}</div>
+      </div>
+    </div>
+    
+    ${rulesHtml ? `
+    <div class="section">
+      <div class="section-title">Rules</div>
+      ${rulesHtml}
+    </div>
+    ` : ''}
+    
+    <div class="section">
+      <div class="section-title">Default Content</div>
+      <div class="default-content">
+        <div class="default-label">When no rules match:</div>
+        <div class="default-value">${defaultContent}</div>
+      </div>
+    </div>
+    
+    <div class="redirect-info">
+      <p>Redirecting to content in <span id="countdown">3</span> seconds...</p>
+      <a href="${currentTarget || '#'}" class="redirect-button">Continue Now →</a>
+    </div>
+  </div>
+  
+  <script>
+    let countdown = 3;
+    const countdownEl = document.getElementById('countdown');
+    const interval = setInterval(() => {
+      countdown--;
+      if (countdownEl) countdownEl.textContent = countdown;
+      if (countdown <= 0) {
+        clearInterval(interval);
+        window.location.href = '${currentTarget || '#'}';
+      }
+    }, 1000);
+  </script>
+</body>
+</html>`
+}
+
 export const adaptiveResolveHandler = (service: UrlsService, scansService?: ScansService) => {
   return async (c: Context<AppBindings>) => {
     const startedAt = getNowMs()
@@ -348,6 +607,8 @@ export const adaptiveResolveHandler = (service: UrlsService, scansService?: Scan
       }
       const adaptiveTarget = resolveAdaptiveTarget(options, ip, isReturning)
       const destination = adaptiveTarget ?? url.targetUrl
+      
+      // Record scan regardless
       const responseMs = Math.round(getNowMs() - startedAt)
       try {
         recordAreaScanForUser({
@@ -378,6 +639,15 @@ export const adaptiveResolveHandler = (service: UrlsService, scansService?: Scan
           console.error('[scan] failed to record adaptive scan', scanError)
         })
       }
+      
+      // Check if user wants to skip info page (query parameter ?redirect=true)
+      const skipInfo = c.req.query('redirect') === 'true'
+      
+      // Always show info page for Adaptive QRC unless redirect parameter is set
+      if (isAdaptiveQRC && !skipInfo) {
+        return c.html(buildAdaptiveInfoPage(url, options, destination, isReturning))
+      }
+      
       // Use 307 (Temporary Redirect) instead of 302 for better performance
       // This preserves the HTTP method and is faster than 302
       return c.redirect(destination, 307)
