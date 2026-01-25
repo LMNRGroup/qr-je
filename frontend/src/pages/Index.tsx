@@ -9775,7 +9775,7 @@ const Index = () => {
         {/* GENERATING Adaptive QRC™ Loading Overlay */}
         {isGeneratingAdaptive && (
           <div className="fixed inset-0 z-[110] flex items-center justify-center bg-gradient-to-br from-[#0b0f14]/95 via-[#1a1a1a]/95 to-[#0b0f14]/95 backdrop-blur-sm">
-            <div className="fixed inset-0 bg-gradient-to-br from-amber-900/30 via-amber-800/20 to-amber-900/30 pointer-events-none" />
+            <div className="fixed inset-0 bg-gradient-to-br from-amber-400/20 via-amber-300/10 to-amber-400/20 dark:from-amber-500/25 dark:via-amber-400/15 dark:to-amber-500/25 pointer-events-none" />
             <motion.div
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
