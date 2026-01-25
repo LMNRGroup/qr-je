@@ -39,7 +39,7 @@ export const createUrlHandler = (service: UrlsService) => {
 
         if (hasAdaptiveQRC) {
           return c.json({ 
-            message: 'You can only have one Adaptive QRC per account. Please modify your existing Adaptive QRC instead.' 
+            message: 'You can only have one Adaptive QRC™ per account. Please modify your existing Adaptive QRC™ instead.' 
           }, 409)
         }
       }
@@ -324,7 +324,7 @@ export const adaptiveResolveHandler = (service: UrlsService, scansService?: Scan
         if (scansThisMonth.length >= 500) {
           // Return error - limit exceeded
           return c.json({ 
-            message: 'Adaptive QRC monthly scan limit reached (500 scans). Please upgrade your plan or wait until next month.',
+            message: 'Adaptive QRC™ monthly scan limit reached (500 scans). Please upgrade your plan or wait until next month.',
             limitExceeded: true,
             scansUsed: scansThisMonth.length,
             limit: 500

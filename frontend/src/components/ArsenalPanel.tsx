@@ -251,7 +251,7 @@ const typeStyles: Record<string, { label: string; icon: typeof Link; card: strin
     badge: 'bg-secondary/40 text-muted-foreground border-border/60',
   },
   adaptive: {
-    label: 'Adaptive QRC',
+    label: 'Adaptive QRC™',
     icon: Sparkles,
     card: 'border-amber-500/70 bg-amber-500/10 dark:border-amber-400/60 dark:bg-amber-500/10',
     badge: 'border-amber-600/70 text-white bg-amber-600/80 dark:border-amber-400/60 dark:text-amber-200 dark:bg-amber-500/25',

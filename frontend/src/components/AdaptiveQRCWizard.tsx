@@ -64,7 +64,7 @@ export const AdaptiveQRCWizard = ({
   isMobileV2 = false,
 }: AdaptiveQRCWizardProps) => {
   const [step, setStep] = useState(1);
-  const [qrName, setQrName] = useState(existingAdaptiveQRC?.name || 'My Adaptive QRC');
+  const [qrName, setQrName] = useState(existingAdaptiveQRC?.name || 'My Adaptive QRC™');
   const [ruleType, setRuleType] = useState<RuleType>(null);
   const [contents, setContents] = useState<AdaptiveContent[]>([]);
   const [timeRules, setTimeRules] = useState<TimeRule[]>([]);
@@ -96,7 +96,7 @@ export const AdaptiveQRCWizard = ({
   useEffect(() => {
     if (existingAdaptiveQRC?.options?.adaptive) {
       const adaptive = existingAdaptiveQRC.options.adaptive;
-      setQrName(existingAdaptiveQRC.name || 'My Adaptive QRC');
+      setQrName(existingAdaptiveQRC.name || 'My Adaptive QRC™');
       
       if (adaptive.slots && adaptive.slots.length > 0) {
         const loadedContents = adaptive.slots.map((slot: any, index: number) => ({
@@ -297,7 +297,7 @@ export const AdaptiveQRCWizard = ({
       const config = buildAdaptiveConfig();
       await onComplete(config, qrName);
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to create Adaptive QRC';
+      const message = error instanceof Error ? error.message : 'Failed to create Adaptive QRC™';
       toast.error(message);
     } finally {
       setLoading(false);
@@ -333,10 +333,10 @@ export const AdaptiveQRCWizard = ({
               <Sparkles className="h-6 w-6 text-amber-400" />
               <div>
                 <h1 className="text-2xl font-bold bg-gradient-to-r from-amber-400 via-amber-300 to-amber-400 bg-clip-text text-transparent">
-                  Adaptive QRC
+                  Adaptive QRC™
                 </h1>
                 <p className="text-xs text-muted-foreground uppercase tracking-[0.3em]">
-                  {existingAdaptiveQRC ? 'Edit Your Adaptive QRC' : 'Create Your Adaptive QRC'}
+                  {existingAdaptiveQRC ? 'Edit Your Adaptive QRC™' : 'Create Your Adaptive QRC™'}
                 </p>
               </div>
             </div>
@@ -393,21 +393,21 @@ export const AdaptiveQRCWizard = ({
                   >
                     <div className="text-center space-y-2 mb-8">
                       <h2 className="text-3xl font-bold bg-gradient-to-r from-amber-400 via-amber-300 to-amber-400 bg-clip-text text-transparent">
-                        Name Your Adaptive QRC
+                        Name Your Adaptive QRC™
                       </h2>
                       <p className="text-muted-foreground">
-                        Give your Adaptive QRC a memorable name
+                        Give your Adaptive QRC™ a memorable name
                       </p>
                     </div>
                     <div className="glass-panel rounded-2xl p-8 border border-amber-500/20 shadow-lg shadow-amber-500/10">
                       <Label htmlFor="qrName" className="text-sm font-medium mb-2 block">
-                        Adaptive QRC Name
+                        Adaptive QRC™ Name
                       </Label>
                       <Input
                         id="qrName"
                         value={qrName}
                         onChange={(e) => setQrName(e.target.value.slice(0, 50))}
-                        placeholder="My Adaptive QRC"
+                        placeholder="My Adaptive QRC™"
                         className="h-14 bg-secondary/40 border-amber-500/30 focus:border-amber-400 text-lg"
                         maxLength={50}
                       />
@@ -432,7 +432,7 @@ export const AdaptiveQRCWizard = ({
                         Choose Your Rule Type
                       </h2>
                       <p className="text-muted-foreground">
-                        Select how your Adaptive QRC will route content
+                        Select how your Adaptive QRC™ will route content
                       </p>
                     </div>
                     <div className="grid md:grid-cols-2 gap-6">
@@ -773,7 +773,7 @@ export const AdaptiveQRCWizard = ({
                         Review & Generate
                       </h2>
                       <p className="text-muted-foreground">
-                        Review your Adaptive QRC configuration
+                        Review your Adaptive QRC™ configuration
                       </p>
                     </div>
                     <div className="glass-panel rounded-2xl p-6 border border-amber-500/20 space-y-4">
@@ -847,7 +847,7 @@ export const AdaptiveQRCWizard = ({
                     ) : (
                       <>
                         <Sparkles className="h-4 w-4 mr-2" />
-                        Generate Adaptive QRC
+                        Generate Adaptive QRC™
                       </>
                     )}
                   </Button>
