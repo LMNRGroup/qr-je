@@ -660,16 +660,16 @@ export const AdaptiveQRCWizard = ({
           </div>
         </div>
 
-        <div className="container mx-auto px-4 py-8 max-w-6xl">
-          <div className="grid lg:grid-cols-[1fr_400px] gap-8">
+        <div className={`container mx-auto px-4 py-4 sm:py-8 ${isMobileV2 ? 'max-w-full' : 'max-w-6xl'}`}>
+          <div className={`${isMobileV2 ? 'flex flex-col' : 'grid lg:grid-cols-[1fr_400px]'} gap-4 sm:gap-8`}>
             {/* Main Content */}
-            <div className="space-y-6">
-              {/* Step Indicator */}
-              <div className="flex items-center justify-center gap-2 mb-8">
+            <div className={`space-y-4 sm:space-y-6 ${isMobileV2 ? 'w-full' : ''}`}>
+              {/* Step Indicator - Mobile Optimized */}
+              <div className={`flex items-center justify-center ${isMobileV2 ? 'gap-1 mb-4' : 'gap-2 mb-8'} overflow-x-auto pb-2`}>
                 {[1, 2, 3, 4, 5].map((s) => (
                   <div key={s} className="flex items-center gap-2">
                     <div
-                      className={`w-10 h-10 rounded-full flex items-center justify-center font-semibold transition-all ${
+                      className={`${isMobileV2 ? 'w-8 h-8 text-sm' : 'w-10 h-10'} rounded-full flex items-center justify-center font-semibold transition-all ${
                         s === step
                           ? 'bg-gradient-to-r from-amber-400 to-amber-600 text-black scale-110 shadow-lg shadow-amber-500/50'
                           : s < step
@@ -677,11 +677,11 @@ export const AdaptiveQRCWizard = ({
                           : 'bg-secondary/40 text-muted-foreground border border-border'
                       }`}
                     >
-                      {s < step ? <Check className="h-5 w-5" /> : s}
+                      {s < step ? <Check className={isMobileV2 ? 'h-4 w-4' : 'h-5 w-5'} /> : s}
                     </div>
                     {s < 5 && (
                       <div
-                        className={`h-1 w-8 transition-all ${
+                        className={`h-1 ${isMobileV2 ? 'w-4' : 'w-8'} transition-all ${
                           s < step ? 'bg-amber-500' : 'bg-border'
                         }`}
                       />
@@ -700,16 +700,16 @@ export const AdaptiveQRCWizard = ({
                     exit={{ opacity: 0, x: 20 }}
                     className="space-y-6"
                   >
-                    <div className="text-center space-y-2 mb-8">
-                      <h2 className="text-3xl font-bold bg-gradient-to-r from-amber-400 via-amber-300 to-amber-400 bg-clip-text text-transparent">
+                    <div className={`text-center space-y-2 ${isMobileV2 ? 'mb-4' : 'mb-8'}`}>
+                      <h2 className={`${isMobileV2 ? 'text-xl' : 'text-3xl'} font-bold bg-gradient-to-r from-amber-400 via-amber-300 to-amber-400 bg-clip-text text-transparent`}>
                         Name Your Adaptive QRC™
                       </h2>
-                      <p className="text-muted-foreground">
+                      <p className={`${isMobileV2 ? 'text-xs' : ''} text-muted-foreground`}>
                         Give your Adaptive QRC™ a memorable name
                       </p>
                     </div>
-                    <div className="glass-panel rounded-2xl p-8 border border-amber-500/20 shadow-lg shadow-amber-500/10">
-                      <Label htmlFor="qrName" className="text-sm font-medium mb-2 block">
+                    <div className={`glass-panel rounded-2xl ${isMobileV2 ? 'p-4' : 'p-8'} border border-amber-500/20 shadow-lg shadow-amber-500/10`}>
+                      <Label htmlFor="qrName" className={`${isMobileV2 ? 'text-xs' : 'text-sm'} font-medium mb-2 block`}>
                         Adaptive QRC™ Name
                       </Label>
                       <Input
@@ -717,7 +717,7 @@ export const AdaptiveQRCWizard = ({
                         value={qrName}
                         onChange={(e) => setQrName(e.target.value.slice(0, 50))}
                         placeholder="My Adaptive QRC™"
-                        className="h-14 bg-secondary/40 border-amber-500/30 focus:border-amber-400 text-lg"
+                        className={`${isMobileV2 ? 'h-10 text-sm' : 'h-14 text-lg'} bg-secondary/40 border-amber-500/30 focus:border-amber-400`}
                         maxLength={50}
                       />
                       <p className="text-xs text-muted-foreground mt-2">
@@ -1319,21 +1319,35 @@ export const AdaptiveQRCWizard = ({
               </div>
             </div>
 
-            {/* Preview Panel */}
-            <div className="hidden lg:block">
-              <div className="sticky top-24">
-                <div className="glass-panel rounded-2xl p-6 border border-amber-500/20 shadow-lg shadow-amber-500/10">
-                  <h3 className="text-lg font-semibold mb-4 text-amber-400">Preview</h3>
-                  <div className="flex justify-center">
-                    <QRPreview
-                      ref={qrRef}
-                      content={previewContent}
-                      options={previewOptions}
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
+                   {/* Preview Panel */}
+                   {!isMobileV2 && (
+                     <div className="hidden lg:block">
+                       <div className="sticky top-24">
+                         <div className="glass-panel rounded-2xl p-6 border border-amber-500/20 shadow-lg shadow-amber-500/10">
+                           <h3 className="text-lg font-semibold mb-4 text-amber-400">Preview</h3>
+                           <div className="flex justify-center">
+                             <QRPreview
+                               ref={qrRef}
+                               content={previewContent}
+                               options={previewOptions}
+                             />
+                           </div>
+                         </div>
+                       </div>
+                     </div>
+                   )}
+                   {isMobileV2 && (
+                     <div className="glass-panel rounded-2xl p-4 border border-amber-500/20 shadow-lg shadow-amber-500/10 mt-4">
+                       <h3 className="text-sm font-semibold mb-3 text-amber-400">Preview</h3>
+                       <div className="flex justify-center">
+                         <QRPreview
+                           ref={qrRef}
+                           content={previewContent}
+                           options={{ ...previewOptions, size: 200 }}
+                         />
+                       </div>
+                     </div>
+                   )}
           </div>
         </div>
       </div>

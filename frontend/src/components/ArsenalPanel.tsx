@@ -311,6 +311,7 @@ export function ArsenalPanel({
   const [isSelectMode, setIsSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showBulkDelete, setShowBulkDelete] = useState(false);
+  const [longPressTimer, setLongPressTimer] = useState<Record<string, NodeJS.Timeout>>({});
   const [showUnsavedPrompt, setShowUnsavedPrompt] = useState(false);
   const [pendingAction, setPendingAction] = useState<
     | { type: 'select'; item: QRHistoryItem }
@@ -1361,11 +1362,65 @@ export function ArsenalPanel({
                     size: previewSize,
                     content: getQrPreviewContent(item),
                   };
+                  // Long press handler for mobile
+                  const handleTouchStart = (e: React.TouchEvent) => {
+                    if (!isMobileV2) return;
+                    const timer = setTimeout(() => {
+                      // Long press detected - show delete option
+                      setDeleteTarget(item);
+                      // Haptic feedback if available
+                      if ('vibrate' in navigator) {
+                        navigator.vibrate(50);
+                      }
+                    }, 500); // 500ms long press
+                    setLongPressTimer((prev) => ({ ...prev, [item.id]: timer }));
+                  };
+
+                  const handleTouchEnd = (e: React.TouchEvent) => {
+                    if (!isMobileV2) return;
+                    const timer = longPressTimer[item.id];
+                    if (timer) {
+                      clearTimeout(timer);
+                      setLongPressTimer((prev) => {
+                        const next = { ...prev };
+                        delete next[item.id];
+                        return next;
+                      });
+                    }
+                  };
+
+                  const handleTouchCancel = (e: React.TouchEvent) => {
+                    if (!isMobileV2) return;
+                    const timer = longPressTimer[item.id];
+                    if (timer) {
+                      clearTimeout(timer);
+                      setLongPressTimer((prev) => {
+                        const next = { ...prev };
+                        delete next[item.id];
+                        return next;
+                      });
+                    }
+                  };
+
                   return (
                     <button
                       key={item.id}
                       type="button"
+                      onTouchStart={handleTouchStart}
+                      onTouchEnd={handleTouchEnd}
+                      onTouchCancel={handleTouchCancel}
                       onClick={() => {
+                        // Clear any pending long press
+                        const timer = longPressTimer[item.id];
+                        if (timer) {
+                          clearTimeout(timer);
+                          setLongPressTimer((prev) => {
+                            const next = { ...prev };
+                            delete next[item.id];
+                            return next;
+                          });
+                          return; // Don't trigger click if long press was detected
+                        }
                         if (isSelectMode) {
                           setSelectedIds((prev) => {
                             const next = new Set(prev);
