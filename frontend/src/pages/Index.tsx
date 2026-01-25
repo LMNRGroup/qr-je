@@ -9297,17 +9297,29 @@ const Index = () => {
         )}
 
         {activeTab === 'upgrade' && (
-          <section id="upgrade" className="space-y-10">
-            <div className="text-center space-y-3">
-              <p className="text-xs uppercase tracking-[0.4em] text-muted-foreground">Upgrade</p>
-              <h2 
-                className="text-3xl font-semibold tracking-tight cursor-pointer hover:text-primary/80 transition-colors inline-block"
-                onClick={() => setShowNavOverlay(true)}
-              >
-                QR Code Studio by Luminar Apps
-              </h2>
-              <p className="text-sm text-muted-foreground">Pricing comparison for every team size.</p>
-            </div>
+          <section id="upgrade" className={`space-y-10 ${isMobileV2 ? 'qrc-v2-section' : ''}`}>
+            {isMobileV2 ? (
+              <div className="mb-0 pb-4 border-b border-border/50 text-center">
+                <p className="text-xs uppercase tracking-[0.4em] text-muted-foreground mb-1">Upgrade</p>
+                <h2 
+                  className="text-lg font-semibold cursor-pointer hover:text-primary/80 transition-colors"
+                  onClick={() => setShowNavOverlay(true)}
+                >
+                  Our Plans
+                </h2>
+              </div>
+            ) : (
+              <div className="text-center space-y-3">
+                <p className="text-xs uppercase tracking-[0.4em] text-muted-foreground">Upgrade</p>
+                <h2 
+                  className="text-2xl sm:text-3xl font-semibold tracking-tight cursor-pointer hover:text-primary/80 transition-colors inline-block"
+                  onClick={() => setShowNavOverlay(true)}
+                >
+                  Our Plans
+                </h2>
+                <p className="text-sm text-muted-foreground">Pricing comparison for every team size.</p>
+              </div>
+            )}
 
             <div className="text-center text-sm text-muted-foreground">
               Current plan: <span className="text-foreground font-semibold">FREE FOREVER PLAN</span>
