@@ -849,7 +849,12 @@ const Index = () => {
       if (typeof document !== 'undefined' && document.hidden && !showLoading) return;
       if (showLoading) setIntelLoading(true);
       try {
-        const summary = await getScanSummary(intelRange, timeZone);
+        // Use current values from state instead of closure values
+        const currentRange = intelRange;
+        const currentTimeZone = userProfile?.timezone ||
+          profileForm.timezone ||
+          Intl.DateTimeFormat().resolvedOptions().timeZone;
+        const summary = await getScanSummary(currentRange, currentTimeZone);
         if (cancelled) return;
         setIntelSummary({
           total: summary.total,
