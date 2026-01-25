@@ -4349,33 +4349,194 @@ const Index = () => {
 
       <div className="grid sm:grid-cols-2 gap-4">
         <div className="rounded-xl border border-border/60 bg-secondary/30 p-4 sm:col-span-2 lg:col-span-2">
-          <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Signal Trends</p>
-          <div className="mt-4 h-24 sm:h-32 overflow-x-auto">
-            <div className="h-full flex items-end gap-1 sm:gap-2 min-w-full">
-              {trendPoints.map((point, index, arr) => {
-                const max = Math.max(1, ...arr.map((item) => item.count ?? 0));
-                const height = Math.max(12, Math.round(((point.count ?? 0) / max) * 100));
-                // For 30 days, show every 3rd label to avoid crowding
-                const showLabel = intelRange === '30d' || intelRange === 'all' 
-                  ? index % 3 === 0 || index === arr.length - 1
-                  : true;
-                return (
-                  <div key={`${point.label}-${index}`} className="flex h-full flex-1 flex-col items-center min-w-0">
-                    <div className="flex w-full flex-1 items-end">
-                      <div
-                        className="w-full rounded-md bg-gradient-to-t from-amber-300/20 to-amber-300/80"
-                        style={{ height: `${height}%` }}
-                      />
-                    </div>
-                    {showLabel && (
-                      <span className="mt-2 text-[9px] sm:text-[10px] uppercase tracking-[0.2em] text-muted-foreground whitespace-nowrap">
+          <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground mb-4">Signal Trends</p>
+          <div className="relative w-full" style={{ height: '200px' }}>
+            {trendPoints.length > 0 ? (
+              <svg
+                viewBox={`0 0 ${Math.max(400, trendPoints.length * 20)} 180`}
+                className="w-full h-full"
+                preserveAspectRatio="none"
+              >
+                <defs>
+                  <linearGradient id="lineGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                    <stop offset="0%" stopColor="rgb(251, 191, 36)" stopOpacity="0.3" />
+                    <stop offset="100%" stopColor="rgb(251, 191, 36)" stopOpacity="0.05" />
+                  </linearGradient>
+                </defs>
+                
+                {/* Grid lines */}
+                {(() => {
+                  const max = Math.max(1, ...trendPoints.map((p) => p.count ?? 0));
+                  const gridLines = 4;
+                  const points = trendPoints.length;
+                  const width = Math.max(400, points * 20);
+                  const height = 160;
+                  const padding = 20;
+                  const chartWidth = width - padding * 2;
+                  const chartHeight = height - padding * 2;
+                  
+                  return Array.from({ length: gridLines + 1 }).map((_, i) => {
+                    const y = padding + (chartHeight / gridLines) * i;
+                    const value = max - (max / gridLines) * i;
+                    return (
+                      <g key={`grid-${i}`}>
+                        <line
+                          x1={padding}
+                          y1={y}
+                          x2={width - padding}
+                          y2={y}
+                          stroke="currentColor"
+                          strokeOpacity="0.1"
+                          strokeWidth="1"
+                        />
+                        {i < gridLines && (
+                          <text
+                            x={padding - 8}
+                            y={y + 4}
+                            fontSize="10"
+                            fill="currentColor"
+                            fillOpacity="0.4"
+                            textAnchor="end"
+                            className="font-mono"
+                          >
+                            {Math.round(value)}
+                          </text>
+                        )}
+                      </g>
+                    );
+                  });
+                })()}
+                
+                {/* Area fill */}
+                {(() => {
+                  const max = Math.max(1, ...trendPoints.map((p) => p.count ?? 0));
+                  const points = trendPoints.length;
+                  const width = Math.max(400, points * 20);
+                  const height = 160;
+                  const padding = 20;
+                  const chartWidth = width - padding * 2;
+                  const chartHeight = height - padding * 2;
+                  
+                  if (max === 0) return null;
+                  
+                  const pathData = trendPoints.map((point, index) => {
+                    const x = padding + (chartWidth / (points - 1 || 1)) * index;
+                    const y = padding + chartHeight - ((point.count ?? 0) / max) * chartHeight;
+                    return `${index === 0 ? 'M' : 'L'} ${x} ${y}`;
+                  }).join(' ');
+                  
+                  const areaPath = `${pathData} L ${padding + chartWidth} ${padding + chartHeight} L ${padding} ${padding + chartHeight} Z`;
+                  
+                  return (
+                    <path
+                      d={areaPath}
+                      fill="url(#lineGradient)"
+                      stroke="none"
+                    />
+                  );
+                })()}
+                
+                {/* Line */}
+                {(() => {
+                  const max = Math.max(1, ...trendPoints.map((p) => p.count ?? 0));
+                  const points = trendPoints.length;
+                  const width = Math.max(400, points * 20);
+                  const height = 160;
+                  const padding = 20;
+                  const chartWidth = width - padding * 2;
+                  const chartHeight = height - padding * 2;
+                  
+                  if (max === 0 || points === 0) return null;
+                  
+                  const pathData = trendPoints.map((point, index) => {
+                    const x = padding + (chartWidth / (points - 1 || 1)) * index;
+                    const y = padding + chartHeight - ((point.count ?? 0) / max) * chartHeight;
+                    return `${index === 0 ? 'M' : 'L'} ${x} ${y}`;
+                  }).join(' ');
+                  
+                  return (
+                    <path
+                      d={pathData}
+                      fill="none"
+                      stroke="rgb(251, 191, 36)"
+                      strokeWidth="2.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      className="drop-shadow-sm"
+                    />
+                  );
+                })()}
+                
+                {/* Data points */}
+                {(() => {
+                  const max = Math.max(1, ...trendPoints.map((p) => p.count ?? 0));
+                  const points = trendPoints.length;
+                  const width = Math.max(400, points * 20);
+                  const height = 160;
+                  const padding = 20;
+                  const chartWidth = width - padding * 2;
+                  const chartHeight = height - padding * 2;
+                  
+                  if (max === 0) return null;
+                  
+                  return trendPoints.map((point, index) => {
+                    const x = padding + (chartWidth / (points - 1 || 1)) * index;
+                    const y = padding + chartHeight - ((point.count ?? 0) / max) * chartHeight;
+                    return (
+                      <g key={`point-${index}`}>
+                        <circle
+                          cx={x}
+                          cy={y}
+                          r="4"
+                          fill="rgb(251, 191, 36)"
+                          stroke="rgb(15, 23, 42)"
+                          strokeWidth="2"
+                          className="hover:r-5 transition-all cursor-pointer"
+                        />
+                        <title>{`${point.label}: ${point.count} scans`}</title>
+                      </g>
+                    );
+                  });
+                })()}
+                
+                {/* X-axis labels */}
+                {(() => {
+                  const points = trendPoints.length;
+                  const width = Math.max(400, points * 20);
+                  const height = 160;
+                  const padding = 20;
+                  const chartWidth = width - padding * 2;
+                  const labelInterval = intelRange === '30d' || intelRange === 'all' 
+                    ? Math.max(1, Math.floor(points / 6))
+                    : intelRange === '7d'
+                    ? Math.max(1, Math.floor(points / 4))
+                    : 1;
+                  
+                  return trendPoints.map((point, index) => {
+                    if (index % labelInterval !== 0 && index !== points - 1) return null;
+                    const x = padding + (chartWidth / (points - 1 || 1)) * index;
+                    return (
+                      <text
+                        key={`label-${index}`}
+                        x={x}
+                        y={height - 5}
+                        fontSize="10"
+                        fill="currentColor"
+                        fillOpacity="0.5"
+                        textAnchor="middle"
+                        className="uppercase tracking-wider"
+                      >
                         {point.label}
-                      </span>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
+                      </text>
+                    );
+                  });
+                })()}
+              </svg>
+            ) : (
+              <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
+                No scan data available
+              </div>
+            )}
           </div>
         </div>
       </div>
