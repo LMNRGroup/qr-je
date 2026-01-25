@@ -74,7 +74,15 @@ const summarizeUserAgent = (ua: string | null) => {
   return { device, browser }
 }
 
-const resolveAreaId = (countryCode: string | null) => {
+const resolveAreaId = (countryCode: string | null, region: string | null) => {
+  // Check region first for PR (since IP geolocation often returns US for PR)
+  if (region) {
+    const regionUpper = region.toUpperCase()
+    if (regionUpper === 'PR' || regionUpper === 'PUERTO RICO') {
+      return 'PR'
+    }
+  }
+  // Then check countryCode
   if (!countryCode) return 'UNKNOWN'
   if (countryCode.toUpperCase() === 'PR') return 'PR'
   return countryCode.toUpperCase()
@@ -109,7 +117,8 @@ export const recordAreaScanForUser = (input: {
   responseMs: number | null
 }) => {
   const store = getStoreForUser(input.userId)
-  const areaId = resolveAreaId(input.countryCode)
+  // ✅ FIX: Check both region and countryCode for PR detection
+  const areaId = resolveAreaId(input.countryCode, input.region)
   const { device, browser } = summarizeUserAgent(input.userAgent)
   const scan: AreaScanRecord = {
     timestamp: new Date().toISOString(),

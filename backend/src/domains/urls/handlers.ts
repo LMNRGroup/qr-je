@@ -267,7 +267,22 @@ export const redirectUrlHandler = (service: UrlsService, scansService?: ScansSer
               responseMs
             }).catch((err) => console.error('[scan] failed to record area scan', err))
           })
-          .catch((err) => console.error('[scan] failed to lookup geo', err)),
+          .catch((err) => {
+            // ✅ FIX: Even if geo lookup fails, try to record with available data
+            console.error('[scan] failed to lookup geo', err)
+            // Record with minimal data - at least we know a scan happened
+            recordAreaScanForUser({
+              userId: url.userId,
+              ip,
+              userAgent,
+              city: null,
+              region: null,
+              countryCode: null,
+              lat: null,
+              lon: null,
+              responseMs
+            }).catch((err) => console.error('[scan] failed to record area scan (fallback)', err))
+          }),
         
         // Scan recording (async, non-blocking)
         scansService?.recordScan({
@@ -617,7 +632,22 @@ export const adaptiveResolveHandler = (service: UrlsService, scansService?: Scan
               responseMs
             }).catch((err) => console.error('[scan] failed to record adaptive area scan', err))
           })
-          .catch((err) => console.error('[scan] failed to lookup adaptive geo', err)),
+          .catch((err) => {
+            // ✅ FIX: Even if geo lookup fails, try to record with available data
+            console.error('[scan] failed to lookup adaptive geo', err)
+            // Record with minimal data - at least we know a scan happened
+            recordAreaScanForUser({
+              userId: url.userId,
+              ip,
+              userAgent,
+              city: null,
+              region: null,
+              countryCode: null,
+              lat: null,
+              lon: null,
+              responseMs
+            }).catch((err) => console.error('[scan] failed to record adaptive area scan (fallback)', err))
+          }),
         
         // Scan recording (async, non-blocking)
         scansService?.recordScan({

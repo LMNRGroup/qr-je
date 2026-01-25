@@ -82,8 +82,8 @@ export class InMemoryScansStorageAdapter implements ScansStorage {
     const values = this.records
       .filter((scan) => scan.userId === userId && typeof scan.responseMs === 'number')
       .map((scan) => scan.responseMs as number)
-    // Only calculate average if we have 2 or more scans
-    if (values.length < 2) return null
+    // ✅ FIX: Return average even with 1 scan (user wants to see it)
+    if (values.length < 1) return null
     const total = values.reduce((sum, value) => sum + value, 0)
     return total / values.length
   }
@@ -98,8 +98,8 @@ export class InMemoryScansStorageAdapter implements ScansStorage {
           new Date(scan.scannedAt) >= sinceDate
       )
       .map((scan) => scan.responseMs as number)
-    // Only calculate average if we have 2 or more scans
-    if (values.length < 2) return null
+    // ✅ FIX: Return average even with 1 scan (user wants to see it)
+    if (values.length < 1) return null
     const total = values.reduce((sum, value) => sum + value, 0)
     return total / values.length
   }

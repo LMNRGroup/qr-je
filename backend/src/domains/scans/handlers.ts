@@ -47,6 +47,20 @@ const getDateKeyInZone = (value: Date, timeZone: string) => {
   return `${get('year')}-${get('month')}-${get('day')}`
 }
 
+const getHourKeyInZone = (value: Date, timeZone: string) => {
+  const formatter = new Intl.DateTimeFormat('en-US', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    hour12: false
+  })
+  const parts = formatter.formatToParts(value)
+  const get = (type: string) => parts.find((part) => part.type === type)?.value ?? ''
+  return `${get('year')}-${get('month')}-${get('day')}-${get('hour')}`
+}
+
 export const getScanCountHandler = (scansService: ScansService, urlsService: UrlsService) => {
   return async (c: Context<AppBindings>) => {
     const userId = c.get('userId')
@@ -170,18 +184,35 @@ export const getUserScanTrendsHandler = (scansService: ScansService) => {
 
       const timestamps = await scansService.getScanTimestampsForUserSince(userId, since)
       const map = new Map<string, number>()
-      timestamps.forEach((timestamp) => {
-        const key = getDateKeyInZone(new Date(String(timestamp)), timeZone)
-        map.set(key, (map.get(key) ?? 0) + 1)
-      })
-      const points = Array.from({ length: days }, (_, index) => {
-        const date = new Date(startDate)
-        date.setUTCDate(startDate.getUTCDate() + index)
-        const key = getDateKeyInZone(date, timeZone)
-        return { date: date.toISOString(), count: map.get(key) ?? 0 }
-      })
-
-      return c.json({ days, points })
+      
+      // ✅ FIX: If days === 1 (today), group by hour instead of day
+      if (days === 1) {
+        timestamps.forEach((timestamp) => {
+          const key = getHourKeyInZone(new Date(String(timestamp)), timeZone)
+          map.set(key, (map.get(key) ?? 0) + 1)
+        })
+        // Generate 24 hours for today
+        const points = Array.from({ length: 24 }, (_, index) => {
+          const date = new Date(todayStart)
+          date.setUTCHours(date.getUTCHours() + index)
+          const key = getHourKeyInZone(date, timeZone)
+          return { date: date.toISOString(), count: map.get(key) ?? 0 }
+        })
+        return c.json({ days: 1, points, hourly: true })
+      } else {
+        // Original day-based grouping
+        timestamps.forEach((timestamp) => {
+          const key = getDateKeyInZone(new Date(String(timestamp)), timeZone)
+          map.set(key, (map.get(key) ?? 0) + 1)
+        })
+        const points = Array.from({ length: days }, (_, index) => {
+          const date = new Date(startDate)
+          date.setUTCDate(startDate.getUTCDate() + index)
+          const key = getDateKeyInZone(date, timeZone)
+          return { date: date.toISOString(), count: map.get(key) ?? 0 }
+        })
+        return c.json({ days, points, hourly: false })
+      }
     } catch (error) {
       console.error('[scans] trends failed', error)
       const baseDetail = error instanceof Error ? error.message : String(error)

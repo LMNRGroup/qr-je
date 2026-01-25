@@ -263,49 +263,92 @@ const Index = () => {
     [options]
   );
   const trendPoints = useMemo(() => {
-    const keyFormatter = new Intl.DateTimeFormat('en-CA', {
-      timeZone: trendTimeZone,
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-    });
-    // Show actual dates (MM/DD) instead of just weekdays
-    const dateFormatter = new Intl.DateTimeFormat('en-US', {
-      timeZone: trendTimeZone,
-      month: 'short',
-      day: 'numeric',
-    });
-    const map = new Map<string, number>();
-    intelTrends.forEach((point) => {
-      if (!point.date) return;
-      const key = keyFormatter.format(new Date(point.date));
-      map.set(key, point.count ?? 0);
-    });
+    // Check if we're showing hourly data (for today)
+    const isHourly = (intelTrends as any)?.hourly === true || (intelTrends.length > 0 && intelRange === 'today');
     
-    // Determine number of days based on intelRange
-    let days = 7; // default
-    if (intelRange === 'today') {
-      days = 1;
-    } else if (intelRange === '7d') {
-      days = 7;
-    } else if (intelRange === '30d') {
-      days = 30;
-    } else if (intelRange === 'all') {
-      // For "all", show last 30 days as a reasonable default
-      days = 30;
+    if (isHourly && intelRange === 'today') {
+      // ✅ FIX: Handle hourly data for today
+      const hourFormatter = new Intl.DateTimeFormat('en-CA', {
+        timeZone: trendTimeZone,
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        hour12: false,
+      });
+      const hourLabelFormatter = new Intl.DateTimeFormat('en-US', {
+        timeZone: trendTimeZone,
+        hour: 'numeric',
+        hour12: true,
+      });
+      const map = new Map<string, number>();
+      intelTrends.forEach((point) => {
+        if (!point.date) return;
+        const key = hourFormatter.format(new Date(point.date));
+        map.set(key, point.count ?? 0);
+      });
+      
+      // Generate 24 hours for today
+      const today = new Date();
+      const todayStart = new Date(today);
+      todayStart.setHours(0, 0, 0, 0);
+      
+      return Array.from({ length: 24 }, (_, index) => {
+        const date = new Date(todayStart);
+        date.setHours(date.getHours() + index);
+        const key = hourFormatter.format(date);
+        return {
+          date,
+          count: map.get(key) ?? 0,
+          label: hourLabelFormatter.format(date), // Show hour like "12 AM", "1 PM"
+        };
+      });
+    } else {
+      // Original day-based grouping
+      const keyFormatter = new Intl.DateTimeFormat('en-CA', {
+        timeZone: trendTimeZone,
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+      });
+      // Show actual dates (MM/DD) instead of just weekdays
+      const dateFormatter = new Intl.DateTimeFormat('en-US', {
+        timeZone: trendTimeZone,
+        month: 'short',
+        day: 'numeric',
+      });
+      const map = new Map<string, number>();
+      intelTrends.forEach((point) => {
+        if (!point.date) return;
+        const key = keyFormatter.format(new Date(point.date));
+        map.set(key, point.count ?? 0);
+      });
+      
+      // Determine number of days based on intelRange
+      let days = 7; // default
+      if (intelRange === 'today') {
+        days = 1;
+      } else if (intelRange === '7d') {
+        days = 7;
+      } else if (intelRange === '30d') {
+        days = 30;
+      } else if (intelRange === 'all') {
+        // For "all", show last 30 days as a reasonable default
+        days = 30;
+      }
+      
+      const today = new Date();
+      return Array.from({ length: days }, (_, index) => {
+        const date = new Date(today);
+        date.setDate(today.getDate() - (days - 1 - index));
+        const key = keyFormatter.format(date);
+        return {
+          date,
+          count: map.get(key) ?? 0,
+          label: dateFormatter.format(date), // Show actual date like "Jan 15"
+        };
+      });
     }
-    
-    const today = new Date();
-    return Array.from({ length: days }, (_, index) => {
-      const date = new Date(today);
-      date.setDate(today.getDate() - (days - 1 - index));
-      const key = keyFormatter.format(date);
-      return {
-        date,
-        count: map.get(key) ?? 0,
-        label: dateFormatter.format(date), // Show actual date like "Jan 15"
-      };
-    });
   }, [intelTrends, trendTimeZone, intelRange]);
   const productionStages = useMemo(
     () => [

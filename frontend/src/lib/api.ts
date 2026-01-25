@@ -339,14 +339,22 @@ export async function getScanSummary(
 export async function getScanTrends(
   days = 7,
   timeZone?: string
-): Promise<Array<{ date: string; count: number }>> {
+): Promise<Array<{ date: string; count: number }> & { hourly?: boolean }> {
   const params = new URLSearchParams();
   params.set('days', String(days));
   if (timeZone) params.set('tz', timeZone);
   const query = params.toString() ? `?${params.toString()}` : '';
   const response = await request(`/scans/trends${query}`);
-  const data = (await response.json()) as { points?: Array<{ date: string; count: number }> };
-  return data.points ?? [];
+  const data = (await response.json()) as { 
+    points?: Array<{ date: string; count: number }>; 
+    hourly?: boolean;
+  };
+  const result = data.points ?? [];
+  // Add hourly flag to result array
+  if (data.hourly) {
+    (result as any).hourly = true;
+  }
+  return result as Array<{ date: string; count: number }> & { hourly?: boolean };
 }
 
 export type ScanAreaSummary = {
