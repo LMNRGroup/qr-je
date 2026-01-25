@@ -578,7 +578,10 @@ export function ArsenalPanel({
             setEditName(first.name?.trim() ?? '');
             setEditContent(first.content);
           }
-          const countsResult = await loadScanCounts(getCountTargets(response.data));
+          // Only fetch scan counts if user has QR codes (optimize for users with no QRs)
+          const countsResult = response.data.length > 0
+            ? await loadScanCounts(getCountTargets(response.data))
+            : { counts: {} as Record<string, number>, today: 0 };
           writeCache({
             items: response.data,
             scanCounts: countsResult.counts,
