@@ -7,6 +7,7 @@ import type { ScansService } from '../scans/service'
 import type { VcardsService } from '../vcards/service'
 import { recordAreaScanForUser } from '../scans/areaStore'
 import { lookupGeo } from '../scans/geo'
+import type { AreaStorage } from '../scans/storage/area.interface'
 import { parseCreateUrlInput, parseResolveParams, parseUpdateUrlInput } from './validators'
 import type { AppBindings } from '../../shared/http/types'
 
@@ -240,7 +241,7 @@ const resolveAdaptiveTarget = (options: AdaptiveOptions, ip: string | null, isRe
   const defaultSlot = adaptive.defaultSlot ?? options.adaptiveDefaultSlot
   return resolveAdaptiveSlotUrl(options, defaultSlot)
 }
-export const redirectUrlHandler = (service: UrlsService, scansService?: ScansService) => {
+export const redirectUrlHandler = (service: UrlsService, scansService?: ScansService, areaStorage?: AreaStorage) => {
   return async (c: Context<AppBindings>) => {
     const startedAt = getNowMs()
     try {
@@ -253,9 +254,9 @@ export const redirectUrlHandler = (service: UrlsService, scansService?: ScansSer
       // ✅ FIRE-AND-FORGET: Don't block redirect for analytics
       Promise.all([
         // Geo lookup + area scan recording (async, non-blocking)
-        lookupGeo(ip)
+        areaStorage ? lookupGeo(ip)
           .then((geo) => {
-            recordAreaScanForUser({
+            recordAreaScanForUser(areaStorage, {
               userId: url.userId,
               ip,
               userAgent,
@@ -271,7 +272,7 @@ export const redirectUrlHandler = (service: UrlsService, scansService?: ScansSer
             // ✅ FIX: Even if geo lookup fails, try to record with available data
             console.error('[scan] failed to lookup geo', err)
             // Record with minimal data - at least we know a scan happened
-            recordAreaScanForUser({
+            recordAreaScanForUser(areaStorage, {
               userId: url.userId,
               ip,
               userAgent,
@@ -282,7 +283,7 @@ export const redirectUrlHandler = (service: UrlsService, scansService?: ScansSer
               lon: null,
               responseMs
             }).catch((err) => console.error('[scan] failed to record area scan (fallback)', err))
-          }),
+          }) : Promise.resolve(),
         
         // Scan recording (async, non-blocking)
         scansService?.recordScan({
@@ -565,7 +566,7 @@ const buildAdaptiveInfoPage = (url: any, options: AdaptiveOptions, currentTarget
 </html>`
 }
 
-export const adaptiveResolveHandler = (service: UrlsService, scansService?: ScansService) => {
+export const adaptiveResolveHandler = (service: UrlsService, scansService?: ScansService, areaStorage?: AreaStorage) => {
   return async (c: Context<AppBindings>) => {
     const startedAt = getNowMs()
     try {
@@ -618,9 +619,9 @@ export const adaptiveResolveHandler = (service: UrlsService, scansService?: Scan
       // ✅ FIRE-AND-FORGET: Don't block redirect for analytics
       Promise.all([
         // Geo lookup + area scan recording (async, non-blocking)
-        lookupGeo(ip)
+        areaStorage ? lookupGeo(ip)
           .then((geo) => {
-            recordAreaScanForUser({
+            recordAreaScanForUser(areaStorage, {
               userId: url.userId,
               ip,
               userAgent,
@@ -636,7 +637,7 @@ export const adaptiveResolveHandler = (service: UrlsService, scansService?: Scan
             // ✅ FIX: Even if geo lookup fails, try to record with available data
             console.error('[scan] failed to lookup adaptive geo', err)
             // Record with minimal data - at least we know a scan happened
-            recordAreaScanForUser({
+            recordAreaScanForUser(areaStorage, {
               userId: url.userId,
               ip,
               userAgent,
@@ -647,7 +648,7 @@ export const adaptiveResolveHandler = (service: UrlsService, scansService?: Scan
               lon: null,
               responseMs
             }).catch((err) => console.error('[scan] failed to record adaptive area scan (fallback)', err))
-          }),
+          }) : Promise.resolve(),
         
         // Scan recording (async, non-blocking)
         scansService?.recordScan({

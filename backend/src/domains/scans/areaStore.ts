@@ -19,12 +19,7 @@ export type AreaSummary = {
   lon: number | null
 }
 
-type AreaStore = {
-  scans: AreaScanRecord[]
-  areas: Map<string, AreaSummary>
-}
-
-const userStores = new Map<string, AreaStore>()
+// Removed in-memory store - now using database storage
 const PR_CENTER = { lat: 18.2208, lon: -66.5901 }
 const COUNTRY_FALLBACKS: Record<string, { lat: number; lon: number; label: string }> = {
   US: { lat: 39.8283, lon: -98.5795, label: 'United States' },
@@ -39,13 +34,7 @@ const COUNTRY_FALLBACKS: Record<string, { lat: number; lon: number; label: strin
   DE: { lat: 51.1657, lon: 10.4515, label: 'Germany' }
 }
 
-const getStoreForUser = (userId: string) => {
-  const existing = userStores.get(userId)
-  if (existing) return existing
-  const created: AreaStore = { scans: [], areas: new Map() }
-  userStores.set(userId, created)
-  return created
-}
+// Removed getStoreForUser - now using database storage
 
 const maskIp = (ip: string | null) => {
   if (!ip) return null
@@ -105,62 +94,45 @@ const resolveAreaLatLon = (
   return { lat: null, lon: null }
 }
 
-export const recordAreaScanForUser = (input: {
-  userId: string
-  ip: string | null
-  userAgent: string | null
-  city: string | null
-  region: string | null
-  countryCode: string | null
-  lat: number | null
-  lon: number | null
-  responseMs: number | null
-}) => {
-  const store = getStoreForUser(input.userId)
+import type { AreaStorage } from './storage/area.interface'
+
+export const recordAreaScanForUser = async (
+  areaStorage: AreaStorage,
+  input: {
+    userId: string
+    ip: string | null
+    userAgent: string | null
+    city: string | null
+    region: string | null
+    countryCode: string | null
+    lat: number | null
+    lon: number | null
+    responseMs: number | null
+  }
+) => {
   // ✅ FIX: Check both region and countryCode for PR detection
   const areaId = resolveAreaId(input.countryCode, input.region)
   const { device, browser } = summarizeUserAgent(input.userAgent)
-  const scan: AreaScanRecord = {
-    timestamp: new Date().toISOString(),
+  const label = resolveAreaLabel(areaId)
+  const resolved = resolveAreaLatLon(areaId, input.lat, input.lon)
+
+  await areaStorage.recordAreaScan({
+    userId: input.userId,
+    areaId,
+    label,
+    city: input.city,
+    region: input.region,
+    countryCode: input.countryCode,
+    lat: resolved.lat,
+    lon: resolved.lon,
     ip: maskIp(input.ip),
-    city: input.city ?? null,
-    region: input.region ?? null,
-    countryCode: input.countryCode ?? null,
+    userAgent: input.userAgent,
     device,
     browser,
-    responseMs: input.responseMs ?? null
-  }
-
-  store.scans.push(scan)
-
-  const existing = store.areas.get(areaId)
-  if (existing) {
-    existing.count += 1
-    existing.lastSeenAt = scan.timestamp
-    existing.recentScans.unshift(scan)
-    existing.recentScans = existing.recentScans.slice(0, 20)
-    if (existing.lat === null || existing.lon === null) {
-      const resolved = resolveAreaLatLon(areaId, input.lat, input.lon)
-      existing.lat = resolved.lat
-      existing.lon = resolved.lon
-    }
-    return
-  }
-
-  const resolved = resolveAreaLatLon(areaId, input.lat, input.lon)
-  store.areas.set(areaId, {
-    areaId,
-    label: resolveAreaLabel(areaId),
-    count: 1,
-    lastSeenAt: scan.timestamp,
-    recentScans: [scan],
-    lat: resolved.lat,
-    lon: resolved.lon
+    responseMs: input.responseMs
   })
 }
 
-export const getAreasForUser = (userId: string) => {
-  const store = userStores.get(userId)
-  if (!store) return []
-  return Array.from(store.areas.values())
+export const getAreasForUser = async (areaStorage: AreaStorage, userId: string) => {
+  return await areaStorage.getAreasForUser(userId)
 }

@@ -8,7 +8,7 @@ import { registerUsersRoutes } from './domains/users/routes'
 import { registerVcardsRoutes } from './domains/vcards/routes'
 import { createVcardsService } from './domains/vcards/service'
 import { createScansService } from './domains/scans/service'
-import { getScansStorage, getUrlsStorage, getUsersStorage, getVcardsStorage } from './infra/storage/factory'
+import { getScansStorage, getUrlsStorage, getUsersStorage, getVcardsStorage, getAreaStorage } from './infra/storage/factory'
 import { createAuthMiddleware } from './shared/http/auth'
 import type { AppBindings } from './shared/http/types'
 
@@ -44,7 +44,8 @@ registerUsersRoutes(app, usersService)
 const urlsService = createUrlsService(getUrlsStorage())
 const scansService = createScansService(getScansStorage())
 const vcardsService = createVcardsService(getVcardsStorage())
-registerUrlsRoutes(app, urlsService, scansService, vcardsService)
+const areaStorage = getAreaStorage()
+registerUrlsRoutes(app, urlsService, scansService, vcardsService, areaStorage)
 
 registerVcardsRoutes(app, vcardsService, urlsService)
 

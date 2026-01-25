@@ -3,6 +3,7 @@ import type { Context } from 'hono'
 import type { ScansService } from './service'
 import { getAreasForUser } from './areaStore'
 import type { UrlsService } from '../urls/service'
+import type { AreaStorage } from './storage/area.interface'
 import type { AppBindings } from '../../shared/http/types'
 import { parseResolveParams } from '../urls/validators'
 import { UrlValidationError, UrlNotFoundError } from '../urls/errors'
@@ -223,14 +224,15 @@ export const getUserScanTrendsHandler = (scansService: ScansService) => {
   }
 }
 
-export const getScanAreasHandler = () => {
+export const getScanAreasHandler = (areaStorage: AreaStorage) => {
   return async (c: Context<AppBindings>) => {
     const userId = c.get('userId')
     if (!userId) {
       return c.json({ message: 'Unauthorized' }, 401)
     }
 
-    return c.json(getAreasForUser(userId))
+    const areas = await getAreasForUser(areaStorage, userId)
+    return c.json(areas)
   }
 }
 

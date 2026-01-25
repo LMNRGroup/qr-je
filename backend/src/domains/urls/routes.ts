@@ -20,23 +20,25 @@ import {
 import { UrlsService } from './service'
 import type { ScansService } from '../scans/service'
 import type { VcardsService } from '../vcards/service'
+import type { AreaStorage } from '../scans/storage/area.interface'
 import type { AppBindings } from '../../shared/http/types'
 
 export const registerUrlsRoutes = (
   app: Hono<AppBindings>,
   service: UrlsService,
   scansService: ScansService,
-  vcardsService?: VcardsService
+  vcardsService?: VcardsService,
+  areaStorage?: AreaStorage
 ) => {
   app.post('/urls', createUrlHandler(service))
-  app.get('/r/:id/:random', redirectUrlHandler(service, scansService))
-  app.get('/adaptive/:id/:random', adaptiveResolveHandler(service, scansService))
+  app.get('/r/:id/:random', redirectUrlHandler(service, scansService, areaStorage))
+  app.get('/adaptive/:id/:random', adaptiveResolveHandler(service, scansService, areaStorage))
   app.get('/public/urls/:id/:random', publicUrlDetailsHandler(service))
   app.get('/urls/:id/:random/scans/count', getScanCountHandler(scansService, service))
   app.get('/urls/:id/:random/scans', listScansHandler(scansService, service))
   app.get('/scans/summary', getUserScanSummaryHandler(scansService))
   app.get('/scans/trends', getUserScanTrendsHandler(scansService))
-  app.get('/scans/areas', getScanAreasHandler())
+  app.get('/scans/areas', getScanAreasHandler(areaStorage!))
   app.get('/scans/counts', getUserScanCountsHandler(scansService))
   app.get('/urls', listUrlsHandler(service))
   app.patch('/urls/:id', updateUrlHandler(service))
