@@ -763,6 +763,18 @@ const Index = () => {
         if (opts.menuLogoSize && typeof opts.menuLogoSize === 'number') {
           totalStorage += opts.menuLogoSize;
         }
+        
+        // Adaptive QRC files
+        if (opts.adaptive && typeof opts.adaptive === 'object' && 'slots' in opts.adaptive) {
+          const slots = opts.adaptive.slots;
+          if (Array.isArray(slots)) {
+            for (const slot of slots) {
+              if (slot && typeof slot === 'object' && 'fileSize' in slot && typeof slot.fileSize === 'number') {
+                totalStorage += slot.fileSize;
+              }
+            }
+          }
+        }
       }
       
       // Update localStorage with actual DB storage
@@ -1633,6 +1645,8 @@ const Index = () => {
         toast.success('QR code generated!');
         setHasGenerated(true);
         setArsenalRefreshKey((prev) => prev + 1);
+        // Update storage immediately after QR creation (without waiting for refresh)
+        await recalculateStorageFromDB();
         setShowGenerateSuccess(true);
         setShowNameOverlay(false);
         resetCreateFlow();
@@ -3315,6 +3329,8 @@ const Index = () => {
         toast.success('Adaptive QRC™ created successfully!');
         setShowAdaptiveWizard(false);
         setArsenalRefreshKey((prev) => prev + 1);
+        // Update storage immediately after Adaptive QRC creation
+        await recalculateStorageFromDB();
         await refreshArsenalStats();
       } else {
         throw new Error('Failed to create Adaptive QRC™');
@@ -3418,6 +3434,8 @@ const Index = () => {
       toast.success('Adaptive QRC™ updated successfully!');
       setShowAdaptiveEditor(false);
       setArsenalRefreshKey((prev) => prev + 1);
+      // Update storage immediately after Adaptive QRC update
+      await recalculateStorageFromDB();
       await refreshArsenalStats();
     } catch (error) {
       throw error;

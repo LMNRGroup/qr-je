@@ -100,6 +100,18 @@ const calculateQRStorageSize = (item: QRHistoryItem): number => {
     total += opts.fileSize;
   }
   
+  // Adaptive QRC files
+  if (opts.adaptive && typeof opts.adaptive === 'object' && 'slots' in opts.adaptive) {
+    const slots = opts.adaptive.slots;
+    if (Array.isArray(slots)) {
+      for (const slot of slots) {
+        if (slot && typeof slot === 'object' && 'fileSize' in slot && typeof slot.fileSize === 'number') {
+          total += slot.fileSize;
+        }
+      }
+    }
+  }
+  
   // vCard photo (stored as dataUrl, but we track size)
   // Note: vCard photos are stored in options.photo as dataUrl, but we don't have size stored
   // For now, we'll skip vCard photos in deletion cleanup (they're small anyway)
@@ -168,6 +180,18 @@ const freeQRStorage = async (item: QRHistoryItem) => {
   // Delete menu logo
   if (opts.menuLogoDataUrl && typeof opts.menuLogoDataUrl === 'string' && opts.menuLogoDataUrl.includes('/storage/')) {
     await deleteFileFromStorage(opts.menuLogoDataUrl);
+  }
+  
+  // Delete Adaptive QRC files
+  if (opts.adaptive && typeof opts.adaptive === 'object' && 'slots' in opts.adaptive) {
+    const slots = opts.adaptive.slots;
+    if (Array.isArray(slots)) {
+      for (const slot of slots) {
+        if (slot && typeof slot === 'object' && 'fileUrl' in slot && typeof slot.fileUrl === 'string') {
+          await deleteFileFromStorage(slot.fileUrl);
+        }
+      }
+    }
   }
   
   // Update localStorage storage usage
@@ -514,6 +538,22 @@ export function ArsenalPanel({
     const loadHistory = async () => {
       setIsLoading(true);
       try {
+        // If refreshKey is set, clear cache to force fresh fetch (fixes sync across devices)
+        if (refreshKey && cacheId && typeof window !== 'undefined') {
+          try {
+            window.localStorage.removeItem(cacheId);
+          } catch {
+            // Ignore cache clear errors
+          }
+        }
+        // If refreshKey is set, clear cache to force fresh fetch (fixes sync across devices)
+        if (refreshKey && cacheId && typeof window !== 'undefined') {
+          try {
+            window.localStorage.removeItem(cacheId);
+          } catch {
+            // Ignore cache clear errors
+          }
+        }
         const canUseCache = !refreshKey;
         const cached = canUseCache ? readCache() : null;
         if (cached) {
@@ -771,15 +811,16 @@ export function ArsenalPanel({
       // Get items before deletion to free storage
       const itemsToDelete = items.filter((item) => selectedIds.has(item.id));
       
-      await Promise.all(ids.map((id) => deleteQRFromHistory(id)));
-      
-      // Free up storage for all deleted QRs (delete files from storage)
+      // Free up storage for all deleted QRs (delete files from storage) BEFORE deletion
       await Promise.all(itemsToDelete.map((item) => freeQRStorage(item)));
+      
+      await Promise.all(ids.map((id) => deleteQRFromHistory(id)));
       
       setItems((prev) => prev.filter((entry) => !selectedIds.has(entry.id)));
       setSelectedIds(new Set());
       setIsSelectMode(false);
       toast.success('Selected QR codes deleted');
+      // Trigger refresh to sync across devices and update storage
       onRefreshRequest?.();
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to delete selected QR codes';
