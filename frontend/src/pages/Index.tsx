@@ -672,6 +672,8 @@ const Index = () => {
     if (!isLoggedIn || !user?.id) return;
     if (!isMobile) return;
     if (activeTab === 'codes') return;
+    // Skip polling if tab is hidden to reduce egress
+    if (typeof document !== 'undefined' && document.hidden) return;
     let cancelled = false;
     let interval: number | undefined;
     const storageKey = `qrc.scan.counts.${user.id}`;
@@ -729,8 +731,8 @@ const Index = () => {
       }
     };
     poll();
-    // Reduced from 15s to 60s to reduce egress usage
-    interval = window.setInterval(poll, 60000);
+    // Reduced from 60s to 180s (3 minutes) to significantly reduce egress usage
+    interval = window.setInterval(poll, 180000);
     return () => {
       cancelled = true;
       if (interval) window.clearInterval(interval);
