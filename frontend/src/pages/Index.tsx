@@ -3257,13 +3257,13 @@ const Index = () => {
   // Handle Adaptive QRC creation
   const handleAdaptiveQRCCreate = async (config: AdaptiveConfig, name: string) => {
     if (!user) {
-      toast.error('Please sign in to create Adaptive QRC™');
+      toast.error('Please sign in to create Adaptive QRC');
       return;
     }
 
     // Check if user already has an Adaptive QRC
     if (existingAdaptiveQRC) {
-      toast.error('You already have an Adaptive QRC™. Please edit your existing one.');
+      toast.error('You already have an Adaptive QRC. Please edit your existing one.');
       setShowAdaptiveWizard(false);
       setShowAdaptiveEditor(true);
       return;
@@ -3308,15 +3308,15 @@ const Index = () => {
           },
         });
 
-        toast.success('Adaptive QRC™ created successfully!');
+        toast.success('Adaptive QRC created successfully!');
         setShowAdaptiveWizard(false);
         setArsenalRefreshKey((prev) => prev + 1);
         await refreshArsenalStats();
       } else {
-        throw new Error('Failed to create Adaptive QRC™');
+        throw new Error('Failed to create Adaptive QRC');
       }
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to create Adaptive QRC™';
+      const message = error instanceof Error ? error.message : 'Failed to create Adaptive QRC';
       if (message.includes('already have')) {
         toast.error(message);
         setShowAdaptiveWizard(false);
@@ -3348,7 +3348,7 @@ const Index = () => {
         },
       });
 
-      toast.success('Adaptive QRC™ updated successfully!');
+      toast.success('Adaptive QRC updated successfully!');
       setShowAdaptiveEditor(false);
       setArsenalRefreshKey((prev) => prev + 1);
       await refreshArsenalStats();
@@ -3563,7 +3563,7 @@ const Index = () => {
     { id: 'studio', label: 'Studio' },
     { id: 'codes', label: 'Arsenal' },
     { id: 'analytics', label: 'Intel' },
-    { id: 'adaptive', label: 'Adaptive QRC™' },
+    { id: 'adaptive', label: 'Adaptive QRC' },
     { id: 'upgrade', label: 'Upgrade' },
     { id: 'settings', label: 'Config' },
   ] as const;
@@ -3604,7 +3604,7 @@ const Index = () => {
     studio: 'Create a new QR in seconds.',
     codes: 'View your QR codes.',
     analytics: 'Review scans and insights.',
-    adaptive: 'Adaptive QRC™ controls.',
+    adaptive: 'Adaptive QRC controls.',
     upgrade: 'Compare plans and features.',
     settings: 'Update your preferences.',
   };
@@ -8065,14 +8065,14 @@ const Index = () => {
                 <div className="flex items-center justify-between">
                   <span className="inline-flex items-center gap-2 text-xs uppercase tracking-[0.3em]">
                     <Star className="h-4 w-4 fill-amber-300 text-amber-300" />
-                    <span className={adaptiveGradientText}>Adaptive QRC™</span>
+                    <span className={adaptiveGradientText}>Adaptive QRC</span>
                   </span>
                   <span className="rounded-full border border-amber-300/50 px-2 py-1 text-[10px] uppercase tracking-[0.3em] text-amber-200">
-                    Adaptive QRC™
+                    Adaptive QRC
                   </span>
                 </div>
                 <p className="mt-3 text-sm font-semibold text-white">
-                  <span className={adaptiveGradientText}>Adaptive QRC™</span> · Lunch Routing
+                  <span className={adaptiveGradientText}>Adaptive QRC</span> · Lunch Routing
                 </p>
                 <p className="mt-1 text-xs text-white/70">
                   Routes by time, returning visitors, and admin IPs.
@@ -8565,7 +8565,7 @@ const Index = () => {
                   <li><span className="font-semibold text-foreground">Watermark</span> Enabled</li>
                   <li className="flex items-center gap-2">
                     <span className="font-semibold text-foreground">1</span>
-                    <span className={adaptiveGradientText}>Adaptive QRC™</span>
+                    <span className={adaptiveGradientText}>Adaptive QRC</span>
                     <span className="text-[10px] uppercase tracking-[0.3em] text-foreground">Autodestroy in 7 days</span>
                     <span className="relative group">
                       <Info className="h-3.5 w-3.5 text-muted-foreground" />
@@ -8611,8 +8611,8 @@ const Index = () => {
                   <li><span className="font-semibold text-foreground">Preset</span> Loadouts</li>
                   <li><span className="font-semibold text-foreground">Priority</span> Updates</li>
                   <li><span className="font-semibold text-foreground">No</span> Watermark</li>
-                  <li><span className={adaptiveGradientText}>Adaptive QRC™</span> Unlimited Scans</li>
-                  <li><span className="font-semibold text-foreground">+ $3</span> per extra Adaptive QRC™</li>
+                  <li><span className={adaptiveGradientText}>Adaptive QRC</span> Unlimited Scans</li>
+                  <li><span className="font-semibold text-foreground">+ $3</span> per extra Adaptive QRC</li>
                 </ul>
                 <div className="text-xs uppercase tracking-[0.3em] text-primary">Compare</div>
               </div>
@@ -8653,8 +8653,8 @@ const Index = () => {
                   <li><span className="font-semibold text-foreground">Shared</span> Arsenal</li>
                   <li><span className="font-semibold text-foreground">Priority</span> Support</li>
                   <li><span className="font-semibold text-foreground">No</span> Watermark</li>
-                  <li><span className={adaptiveGradientText}>Adaptive QRC™</span> Unlimited Scans</li>
-                  <li><span className="font-semibold text-foreground">+ $2</span> per extra Adaptive QRC™</li>
+                  <li><span className={adaptiveGradientText}>Adaptive QRC</span> Unlimited Scans</li>
+                  <li><span className="font-semibold text-foreground">+ $2</span> per extra Adaptive QRC</li>
                 </ul>
                 <div className="text-xs uppercase tracking-[0.3em] text-amber-200">Compare</div>
               </div>
@@ -8678,8 +8678,8 @@ const Index = () => {
                     ['Bulk Creation', '—', 'Included', 'High-volume'],
                     ['Custom Colors & Logos', '—', 'Included', 'Included'],
                     ['Preset Loadouts', '—', 'Included', 'Included'],
-                    ['Adaptive QRC™', '1 (Autodestroy 7 Days)', '1 Included', '5 Included'],
-                    ['Extra Adaptive QRC™', '—', '$3 / mo', '$2 / mo'],
+                    ['Adaptive QRC', '1 (Autodestroy 7 Days)', '1 Included', '5 Included'],
+                    ['Extra Adaptive QRC', '—', '$3 / mo', '$2 / mo'],
                     ['API Access', '—', '—', 'Included'],
                     ['Team Users', '—', '—', 'Up to 5'],
                     ['Shared Arsenal', '—', '—', 'Included'],
@@ -8730,7 +8730,7 @@ const Index = () => {
                           <li>1 Dynamic QR Code</li>
                           <li>Basic Intel</li>
                           <li>Watermark Enabled</li>
-                          <li><span className={adaptiveGradientText}>Adaptive QRC™</span> autodestroy in 7 days</li>
+                          <li><span className={adaptiveGradientText}>Adaptive QRC</span> autodestroy in 7 days</li>
                         </ul>
                       </div>
                       <div className="rounded-xl border border-primary/60 bg-primary/10 p-4 space-y-2">
@@ -8739,8 +8739,8 @@ const Index = () => {
                           <li>25 Dynamic QR Codes</li>
                           <li>Full Intel + Bulk Creation</li>
                           <li>No Watermark</li>
-                          <li><span className={adaptiveGradientText}>Adaptive QRC™</span> unlimited scans</li>
-                          <li>$3 per extra Adaptive QRC™</li>
+                          <li><span className={adaptiveGradientText}>Adaptive QRC</span> unlimited scans</li>
+                          <li>$3 per extra Adaptive QRC</li>
                         </ul>
                       </div>
                     </div>
@@ -8752,7 +8752,7 @@ const Index = () => {
                           <li>1 Dynamic QR Code</li>
                           <li>Basic Intel</li>
                           <li>Watermark Enabled</li>
-                          <li><span className={adaptiveGradientText}>Adaptive QRC™</span> autodestroy in 7 days</li>
+                          <li><span className={adaptiveGradientText}>Adaptive QRC</span> autodestroy in 7 days</li>
                         </ul>
                       </div>
                       <div className="rounded-xl border border-amber-300/60 bg-amber-400/10 p-4 space-y-2">
@@ -8761,8 +8761,8 @@ const Index = () => {
                           <li>Unlimited Dynamic QR Codes</li>
                           <li>Advanced Intel + API Access</li>
                           <li>No Watermark + Priority Support</li>
-                          <li><span className={adaptiveGradientText}>Adaptive QRC™</span> unlimited scans</li>
-                          <li>$2 per extra Adaptive QRC™</li>
+                          <li><span className={adaptiveGradientText}>Adaptive QRC</span> unlimited scans</li>
+                          <li>$2 per extra Adaptive QRC</li>
                         </ul>
                       </div>
                     </div>
@@ -8779,19 +8779,19 @@ const Index = () => {
             <div className="text-center space-y-4">
               <div className="flex items-center justify-center gap-3 mb-4">
                 <Sparkles className="h-8 w-8 text-amber-400" />
-                <p className="text-xs uppercase tracking-[0.4em] text-muted-foreground">Adaptive QRC™</p>
+                <p className="text-xs uppercase tracking-[0.4em] text-muted-foreground">Adaptive QRC</p>
               </div>
               <h2 
                 className="text-4xl sm:text-5xl font-semibold tracking-tight bg-gradient-to-r from-amber-400 via-amber-300 to-amber-400 bg-clip-text text-transparent cursor-pointer hover:opacity-80 transition-opacity inline-block"
                 onClick={() => setShowNavOverlay(true)}
               >
-                Adaptive QRC™
+                Adaptive QRC
               </h2>
               <p className="text-xs uppercase tracking-[0.3em] bg-gradient-to-r from-amber-400 to-amber-300 bg-clip-text text-transparent">
                 Premium Content Routing
               </p>
               <p className="text-sm text-muted-foreground max-w-2xl mx-auto">
-                QR Codes, reimagined. <span className="bg-gradient-to-r from-amber-400 to-amber-300 bg-clip-text text-transparent font-semibold">Adaptive QRC™</span> lets you change what a code shows based on time, date,
+                QR Codes, reimagined. <span className="bg-gradient-to-r from-amber-400 to-amber-300 bg-clip-text text-transparent font-semibold">Adaptive QRC</span> lets you change what a code shows based on time, date,
                 and who’s scanning — the future of dynamic QR.
               </p>
             </div>
@@ -8812,7 +8812,7 @@ const Index = () => {
                           <Sparkles className="h-6 w-6 text-amber-400" />
                         </div>
                         <div>
-                          <h3 className="text-2xl font-bold text-amber-300">{existingAdaptiveQRC.name || 'My Adaptive QRC™'}</h3>
+                          <h3 className="text-2xl font-bold text-amber-300">{existingAdaptiveQRC.name || 'My Adaptive QRC'}</h3>
                           <p className="text-sm text-amber-200/70 mt-1">
                             Created {new Date(existingAdaptiveQRC.createdAt).toLocaleDateString()}
                           </p>
@@ -8863,7 +8863,7 @@ const Index = () => {
                     <div className="space-y-2">
                       <p className="text-sm font-semibold text-amber-200">Monthly Scan Limit</p>
                       <p className="text-sm text-amber-200/70">
-                        Your Adaptive QRC™ has a limit of <span className="font-semibold text-amber-300">500 scans per month</span>. 
+                        Your Adaptive QRC has a limit of <span className="font-semibold text-amber-300">500 scans per month</span>. 
                         Upgrade to Pro or Command for unlimited scans.
                       </p>
                     </div>
@@ -8886,17 +8886,17 @@ const Index = () => {
                     </div>
                     <div>
                       <h3 className="text-3xl font-bold bg-gradient-to-r from-amber-400 via-amber-300 to-amber-400 bg-clip-text text-transparent mb-3">
-                        Create Your Adaptive QRC™
+                        Create Your Adaptive QRC
                       </h3>
                       <p className="text-muted-foreground mb-6">
                         Build a premium QR code that routes content based on time, day, or visitor count. 
-                        One Adaptive QRC™ per account with 500 scans per month.
+                        One Adaptive QRC per account with 500 scans per month.
                       </p>
                     </div>
                     {!user ? (
                       <div className="space-y-4">
                         <p className="text-sm text-muted-foreground">
-                          Sign in to create your Adaptive QRC™
+                          Sign in to create your Adaptive QRC
                         </p>
                         <Button
                           onClick={() => navigate('/login')}
@@ -8912,7 +8912,7 @@ const Index = () => {
                         className="bg-gradient-to-r from-amber-400 via-amber-500 to-amber-600 text-black hover:opacity-90 font-bold text-lg px-8 py-6 shadow-2xl shadow-amber-500/50"
                       >
                         <Sparkles className="h-5 w-5 mr-2" />
-                        Create Adaptive QRC™
+                        Create Adaptive QRC
                       </Button>
                     )}
                   </div>
@@ -8953,7 +8953,7 @@ const Index = () => {
                     <div className="space-y-2">
                       <p className="text-sm font-semibold text-amber-200">Limits & Restrictions</p>
                       <ul className="text-sm text-amber-200/70 space-y-1">
-                        <li>• One Adaptive QRC™ per account</li>
+                        <li>• One Adaptive QRC per account</li>
                         <li>• 500 scans per month limit (upgrade for unlimited)</li>
                         <li>• Choose either Time rules OR Visit rules (not both)</li>
                       </ul>
@@ -9028,7 +9028,7 @@ const Index = () => {
                             Slot {slot.id}
                           </p>
                           <span className={`text-[10px] uppercase tracking-[0.3em] ${adaptiveGradientText}`}>
-                            Adaptive QRC™
+                            Adaptive QRC
                           </span>
                         </div>
                         <Input
@@ -9367,7 +9367,7 @@ const Index = () => {
                   <div className="glass-panel rounded-2xl p-6 space-y-4">
                     <div className="flex items-center justify-between">
                       <p className={`text-xs uppercase tracking-[0.3em] ${adaptiveGradientText}`}>
-                        Adaptive QRC™
+                        Adaptive QRC
                       </p>
                       <span className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground">
                         Preview
@@ -9383,9 +9383,9 @@ const Index = () => {
                   <div className="glass-panel rounded-2xl p-6 space-y-3">
                     <Button
                       className="group w-full bg-black text-white uppercase tracking-[0.2em] text-xs transition hover:bg-amber-400"
-                      onClick={() => toast.success('Adaptive QRC™ saved (mock).')}
+                      onClick={() => toast.success('Adaptive QRC saved (mock).')}
                     >
-                      Save <span className="text-amber-300 transition group-hover:text-white">Adaptive QRC™</span>
+                      Save <span className="text-amber-300 transition group-hover:text-white">Adaptive QRC</span>
                     </Button>
                     <Button
                       variant="outline"

@@ -242,9 +242,9 @@ export const AdaptiveQRCEditor = ({
     try {
       const config = buildAdaptiveConfig();
       await onSave(config, qrName);
-      toast.success('Adaptive QRC™ updated successfully!');
+      toast.success('Adaptive QRC updated successfully!');
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to update Adaptive QRC™';
+      const message = error instanceof Error ? error.message : 'Failed to update Adaptive QRC';
       toast.error(message);
     } finally {
       setLoading(false);
@@ -294,7 +294,7 @@ export const AdaptiveQRCEditor = ({
               </div>
               <div>
                 <h1 className="text-3xl font-bold bg-gradient-to-r from-amber-300 via-amber-200 to-amber-300 bg-clip-text text-transparent drop-shadow-lg">
-                  Edit Adaptive QRC™
+                  Edit Adaptive QRC
                 </h1>
                 <p className="text-xs text-amber-200/80 uppercase tracking-[0.3em] mt-1">
                   Premium Content Routing
@@ -601,7 +601,7 @@ export const AdaptiveQRCEditor = ({
                       <div className="mb-6">
                         <h2 className="text-2xl font-bold text-amber-300 mb-2">QR Code Preview</h2>
                         <p className="text-sm text-amber-200/70">
-                          Your Adaptive QRC™ preview
+                          Your Adaptive QRC preview
                         </p>
                       </div>
                       <div className="flex justify-center mb-6">
@@ -655,11 +655,11 @@ export const AdaptiveQRCEditor = ({
             <div className="space-y-6">
               {/* Name Editor */}
               <div className="glass-panel rounded-2xl p-6 border-2 border-amber-500/30 bg-gradient-to-br from-amber-900/20 to-amber-800/10 shadow-xl shadow-amber-500/20">
-                <Label className="text-sm font-semibold text-amber-200 mb-3 block">Adaptive QRC™ Name</Label>
+                <Label className="text-sm font-semibold text-amber-200 mb-3 block">Adaptive QRC Name</Label>
                 <Input
                   value={qrName}
                   onChange={(e) => setQrName(e.target.value.slice(0, 50))}
-                  placeholder="My Adaptive QRC™"
+                  placeholder="My Adaptive QRC"
                   className="h-12 bg-amber-900/40 border-amber-500/40 focus:border-amber-400 text-amber-100 mb-2"
                   maxLength={50}
                 />
