@@ -264,7 +264,6 @@ export function AdaptivePage({
         </div>
       ) : (
         <section id="adaptive" className="space-y-10">
-        <>
           {/* Header */}
           <div className="text-center space-y-4">
             <div className="flex items-center justify-center gap-3 mb-4">
