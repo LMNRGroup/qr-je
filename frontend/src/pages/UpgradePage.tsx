@@ -21,7 +21,7 @@ export function UpgradePage({
   return (
     <section id="upgrade" className={`space-y-10 ${isMobileV2 ? 'qrc-v2-section' : ''}`}>
       {isMobileV2 ? (
-        <div className="mb-0 pb-4 border-b border-border/50 text-center">
+        <div className="mb-0 pb-3 text-center">
           <p className="text-xs uppercase tracking-[0.4em] text-muted-foreground mb-1">Upgrade</p>
           <h2 
             className="text-lg font-semibold cursor-pointer hover:text-primary/80 transition-colors"

@@ -7151,7 +7151,7 @@ const Index = () => {
             </p>
           </button>
           <div className="flex items-center justify-between gap-4 sm:gap-5 lg:gap-6">
-            <div className={isMobileV2 ? "mb-0 pb-4 border-b border-border/50" : ""}>
+            <div className={isMobileV2 ? "mb-0 pb-3" : ""}>
               <p className="text-xs uppercase tracking-[0.4em] text-muted-foreground mb-1">Studio</p>
               <h2 
                 className={`${isMobileV2 ? 'text-lg' : 'text-2xl sm:text-3xl'} font-semibold ${!isMobileV2 ? 'tracking-tight' : ''} cursor-pointer hover:text-primary/80 transition-colors`}
@@ -8417,7 +8417,7 @@ const Index = () => {
         {activeTab === 'upgrade' && (
           <section id="upgrade" className={`space-y-10 ${isMobileV2 ? 'qrc-v2-section' : ''}`}>
             {isMobileV2 ? (
-              <div className="mb-0 pb-4 border-b border-border/50 text-center">
+              <div className="mb-0 pb-3 text-center">
                 <p className="text-xs uppercase tracking-[0.4em] text-muted-foreground mb-1">Upgrade</p>
                 <h2 
                   className="text-lg font-semibold cursor-pointer hover:text-primary/80 transition-colors"
@@ -8694,7 +8694,7 @@ const Index = () => {
             {isMobileV2 ? (
               <div className="space-y-4">
                 {/* Clickable Header - OUTSIDE and ON TOP of container */}
-                <div className="mb-0 pb-4 border-b border-border/50">
+                <div className="mb-0 pb-3">
                   <p className="text-xs uppercase tracking-[0.4em] text-muted-foreground mb-1">Rules Based QRC</p>
                   <h2 
                     className="text-lg font-semibold bg-gradient-to-r from-amber-400 via-amber-300 to-amber-400 bg-clip-text text-transparent cursor-pointer hover:opacity-80 transition-opacity"

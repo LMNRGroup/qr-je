@@ -561,7 +561,7 @@ export function IntelPage({
       {isMobileV2 ? (
         <div className="space-y-4">
           {/* Clickable Header - OUTSIDE and ON TOP of container */}
-          <div className="mb-0 pb-4 border-b border-border/50">
+          <div className="mb-0 pb-3">
             <p className="text-xs uppercase tracking-[0.4em] text-muted-foreground mb-1">Intel</p>
             <h2 
               className="text-lg font-semibold cursor-pointer hover:text-primary/80 transition-colors"

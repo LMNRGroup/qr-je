@@ -29,21 +29,22 @@
   }
 
   html[data-mobile-ui="v2"] .qrc-arsenal-scroll {
-    max-height: calc(100dvh - 260px);
-    height: calc(100dvh - 260px);
+    max-height: calc(100dvh - 220px);
+    height: calc(100dvh - 220px);
     display: flex;
     flex-direction: column;
     overflow: hidden;
   }
 
   html[data-mobile-ui="v2"] .qrc-arsenal-scroll [data-radix-scroll-area-viewport] {
-    overflow-x: hidden;
-    overflow-y: auto;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
     -webkit-overflow-scrolling: touch;
     overscroll-behavior: contain;
     flex: 1;
     min-height: 0;
     max-height: 100%;
+    height: 100%;
   }
 
   html[data-mobile-ui="v2"] .qrc-arsenal-list {

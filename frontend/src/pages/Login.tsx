@@ -244,13 +244,10 @@ const Login = () => {
         // Clear password on password error
         setPassword('');
       }
-      // Check if error is due to account not existing (sign in)
+      // Check if error is due to account not existing (sign in) - email not found (specific errors)
       else if (!isSignUp && (
-        errorLower.includes('invalid login') ||
-        errorLower.includes('invalid credentials') ||
         errorLower.includes('email not confirmed') ||
         errorLower.includes('user not found') ||
-        error.code === 'invalid_credentials' ||
         error.code === 'email_not_confirmed'
       )) {
         toast.error('Account does not exist. Please sign up to create an account.', {
@@ -272,12 +269,28 @@ const Login = () => {
             },
           },
         });
+      }
+      // Check if error is due to incorrect password or invalid credentials (sign in)
+      // Supabase returns "Invalid login credentials" for both wrong password and non-existent account
+      // We'll treat "Invalid login credentials" as incorrect password (more common case)
+      else if (!isSignUp && (
+        errorLower.includes('invalid password') ||
+        errorLower.includes('wrong password') ||
+        errorLower.includes('incorrect password') ||
+        errorLower.includes('invalid login') ||
+        errorLower.includes('invalid credentials') ||
+        error.code === 'invalid_credentials'
+      )) {
+        toast.error('Incorrect password. Please try again.');
+        // Clear password field on incorrect password
+        setPassword('');
       } else {
         // Generic error for signup - show in form, keep data
         if (isSignUp) {
           setSignupError(error.message || 'An error occurred. Please try again.');
         } else {
-          toast.error(error.message);
+          // For sign in, show generic error
+          toast.error(error.message || 'An error occurred. Please try again.');
         }
       }
     } else {
