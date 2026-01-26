@@ -4569,18 +4569,46 @@ const Index = () => {
       <div className="glass-panel rounded-2xl p-6 hidden lg:block">
         <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Top Regions</p>
         <div className="mt-3 space-y-2 text-sm">
-          <div className="flex items-center justify-between">
-            <span>Frankfurt</span>
-            <span className="text-primary">38%</span>
-          </div>
-          <div className="flex items-center justify-between">
-            <span>Singapore</span>
-            <span className="text-primary">24%</span>
-          </div>
-          <div className="flex items-center justify-between">
-            <span>Dallas</span>
-            <span className="text-primary">18%</span>
-          </div>
+          {(() => {
+            // Calculate top regions from scanAreas
+            if (scanAreas.length === 0) {
+              return (
+                <div className="text-xs text-muted-foreground py-2">No scan data available.</div>
+              );
+            }
+
+            // Calculate total scans across all areas
+            const totalScans = scanAreas.reduce((sum, area) => sum + area.count, 0);
+            
+            if (totalScans === 0) {
+              return (
+                <div className="text-xs text-muted-foreground py-2">No scans recorded.</div>
+              );
+            }
+
+            // Sort areas by count (descending) and take top 3
+            const topRegions = [...scanAreas]
+              .sort((a, b) => b.count - a.count)
+              .slice(0, 3)
+              .map((area) => ({
+                label: area.label,
+                count: area.count,
+                percentage: Math.round((area.count / totalScans) * 100)
+              }));
+
+            if (topRegions.length === 0) {
+              return (
+                <div className="text-xs text-muted-foreground py-2">No regions to display.</div>
+              );
+            }
+
+            return topRegions.map((region, index) => (
+              <div key={`${region.label}-${index}`} className="flex items-center justify-between">
+                <span className="truncate pr-2">{region.label}</span>
+                <span className="text-primary font-semibold flex-shrink-0">{region.percentage}%</span>
+              </div>
+            ));
+          })()}
         </div>
       </div>
     </div>
