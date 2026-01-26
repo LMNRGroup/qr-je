@@ -276,11 +276,6 @@ const Index = () => {
         hour: '2-digit',
         hour12: false,
       });
-      const hourLabelFormatter = new Intl.DateTimeFormat('en-US', {
-        timeZone: trendTimeZone,
-        hour: 'numeric',
-        hour12: true,
-      });
       const map = new Map<string, number>();
       intelTrends.forEach((point) => {
         if (!point.date) return;
@@ -293,6 +288,14 @@ const Index = () => {
       const todayStart = new Date(today);
       todayStart.setHours(0, 0, 0, 0);
       
+      // Helper to format hour as simple number (12, 1, 2, ... 11)
+      const formatHourLabel = (date: Date): string => {
+        const hour = date.getHours();
+        // Convert 24-hour to 12-hour format: 0->12, 1-11->1-11, 12->12, 13-23->1-11
+        const hour12 = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
+        return hour12.toString();
+      };
+      
       return Array.from({ length: 24 }, (_, index) => {
         const date = new Date(todayStart);
         date.setHours(date.getHours() + index);
@@ -300,7 +303,7 @@ const Index = () => {
         return {
           date,
           count: map.get(key) ?? 0,
-          label: hourLabelFormatter.format(date), // Show hour like "12 AM", "1 PM"
+          label: formatHourLabel(date), // Show just hour number: "12", "1", "2", etc.
         };
       });
     } else {
