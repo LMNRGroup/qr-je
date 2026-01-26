@@ -1581,8 +1581,8 @@ const Index = () => {
     }
     const optionsSnapshot = { ...optionsRef.current };
     
-    // Build adaptive configuration if enabled
-    const adaptiveConfig = buildAdaptiveConfig();
+    // Build adaptive configuration ONLY if QR type is 'adaptive'
+    const adaptiveConfig = qrType === 'adaptive' ? buildAdaptiveConfig() : undefined;
     const isAdaptiveQR = Boolean(adaptiveConfig);
     
     // Merge adaptive config into options if enabled
@@ -3018,11 +3018,17 @@ const Index = () => {
         setFileUrl(objectUrl);
       }
       setFileName(file.name);
+      
+      // Mark file as touched and clear any previous errors
+      setFileTouched(true);
+      setFileUploadError(null);
+      
+      // Keep progress at 100% to show upload completed (don't reset in finally)
+      setFileUploading(false);
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to process file upload.';
       setFileUploadError(message);
       toast.error(`Upload failed: ${message}`);
-    } finally {
       setFileUploading(false);
       setFileUploadProgress(0);
     }
