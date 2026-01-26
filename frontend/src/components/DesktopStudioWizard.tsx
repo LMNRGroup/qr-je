@@ -36,6 +36,7 @@ import { ErrorCorrectionSelector } from '@/components/ErrorCorrectionSelector';
 import { LogoUpload } from '@/components/LogoUpload';
 import { SizeSlider } from '@/components/SizeSlider';
 import { SocialMediaSelector, type SocialPlatform } from '@/components/SocialMediaSelector';
+import { PortalEditor, type PortalLink, type PortalCustomization } from '@/components/PortalEditor';
 import {
   QRWizardStep,
   STEP_CONFIG,
@@ -77,6 +78,11 @@ interface DesktopStudioWizardProps {
   user: { id: string } | null;
   socialPlatform: SocialPlatform;
   socialHandle: string;
+  portalLinks: PortalLink[];
+  portalTitle: string;
+  portalDescription: string;
+  portalTemplate: number;
+  portalCustomization: PortalCustomization;
   
   // Handlers
   onModeChange: (mode: 'static' | 'dynamic' | null) => void;
@@ -94,6 +100,7 @@ interface DesktopStudioWizardProps {
   onPhoneTouched: (touched: boolean) => void;
   onFileTouched: (touched: boolean) => void;
   onSocialChange: (platform: SocialPlatform, handle: string) => void;
+  onPortalChange: (links: PortalLink[], title: string, description: string, template: number, customization: PortalCustomization) => void;
   navigate: (path: string) => void;
   toast: {
     error: (message: string) => void;
@@ -153,11 +160,17 @@ export function DesktopStudioWizard({
   onPhoneTouched,
   onFileTouched,
   onSocialChange,
+  onPortalChange,
   fileUploading,
   fileUploadProgress,
   fileUploadError,
   socialPlatform,
   socialHandle,
+  portalLinks,
+  portalTitle,
+  portalDescription,
+  portalTemplate,
+  portalCustomization,
   navigate,
   toast,
   onShowVcardCustomizer,
@@ -189,17 +202,11 @@ export function DesktopStudioWizard({
       menuFilesCount,
       socialPlatform: socialPlatform || '',
       socialHandle,
-      portalLinks: [],
-      portalTitle: '',
-      portalDescription: '',
-      portalTemplate: 1,
-      portalCustomization: {
-        backgroundColor: '',
-        buttonColor: '',
-        buttonStyle: 'square' as const,
-        fontFamily: '',
-        fontColor: '',
-      },
+      portalLinks,
+      portalTitle,
+      portalDescription,
+      portalTemplate,
+      portalCustomization,
       websiteTouched,
       emailTouched,
       phoneTouched,
@@ -222,6 +229,11 @@ export function DesktopStudioWizard({
       menuFilesCount,
       socialPlatform,
       socialHandle,
+      portalLinks,
+      portalTitle,
+      portalDescription,
+      portalTemplate,
+      portalCustomization,
       websiteTouched,
       emailTouched,
       phoneTouched,
@@ -542,6 +554,7 @@ export function DesktopStudioWizard({
                      qrType === 'file' ? 'File Upload' :
                      qrType === 'menu' ? 'Menu Customization' :
                      qrType === 'social' ? 'Social Media' :
+                     qrType === 'portal' ? 'Portal Links' :
                      STEP_CONFIG[3].title}
                   </h3>
                   <p className="text-sm text-muted-foreground">
@@ -549,6 +562,7 @@ export function DesktopStudioWizard({
                      qrType === 'file' ? 'Upload a file to share via QR code' :
                      qrType === 'menu' ? 'Upload menu pages, add logo, and customize your menu' :
                      qrType === 'social' ? 'Select a platform and enter your handle' :
+                     qrType === 'portal' ? 'Add up to 3 links and customize your portal' :
                      STEP_CONFIG[3].description}
                   </p>
                 </div>
@@ -712,6 +726,23 @@ export function DesktopStudioWizard({
                       handle={socialHandle}
                       onPlatformChange={(platform) => onSocialChange(platform, socialHandle)}
                       onHandleChange={(handle) => onSocialChange(socialPlatform, handle)}
+                    />
+                  </div>
+                )}
+
+                {qrType === 'portal' && (
+                  <div className="space-y-4">
+                    <PortalEditor
+                      links={portalLinks}
+                      onLinksChange={(links) => onPortalChange(links, portalTitle, portalDescription, portalTemplate, portalCustomization)}
+                      title={portalTitle}
+                      onTitleChange={(title) => onPortalChange(portalLinks, title, portalDescription, portalTemplate, portalCustomization)}
+                      description={portalDescription}
+                      onDescriptionChange={(description) => onPortalChange(portalLinks, portalTitle, description, portalTemplate, portalCustomization)}
+                      template={portalTemplate}
+                      onTemplateChange={(template) => onPortalChange(portalLinks, portalTitle, portalDescription, template, portalCustomization)}
+                      customization={portalCustomization}
+                      onCustomizationChange={(customization) => onPortalChange(portalLinks, portalTitle, portalDescription, portalTemplate, customization)}
                     />
                   </div>
                 )}

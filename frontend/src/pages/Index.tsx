@@ -7082,6 +7082,18 @@ const Index = () => {
             fileUploadError={fileUploadError}
             socialPlatform={socialPlatform}
             socialHandle={socialHandle}
+            portalLinks={portalLinks}
+            portalTitle={portalTitle}
+            portalDescription={portalDescription}
+            portalTemplate={portalTemplate}
+            portalCustomization={portalCustomization}
+            onPortalChange={(links, title, description, template, customization) => {
+              setPortalLinks(links);
+              setPortalTitle(title);
+              setPortalDescription(description);
+              setPortalTemplate(template);
+              setPortalCustomization(customization);
+            }}
             navigate={navigate}
             toast={toast}
             onShowVcardCustomizer={() => setShowVcardCustomizer(true)}
