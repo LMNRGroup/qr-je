@@ -202,6 +202,8 @@ const Index = () => {
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [usernameStatus, setUsernameStatus] = useState<'idle' | 'checking' | 'available' | 'taken' | 'invalid'>('idle');
   const [usernameError, setUsernameError] = useState('');
+  const [passwordError, setPasswordError] = useState('');
+  const [passwordStatus, setPasswordStatus] = useState<'idle' | 'validating' | 'error' | 'success'>('idle');
   const [showAvatarEditor, setShowAvatarEditor] = useState(false);
   const [avatarDirty, setAvatarDirty] = useState(false);
   const [tourActive, setTourActive] = useState(false);
@@ -2059,28 +2061,42 @@ const Index = () => {
       return;
     }
     setProfileSaving(true);
+    setPasswordError('');
+    setPasswordStatus('idle');
+    
     if (profileForm.newPassword || profileForm.currentPassword || profileForm.confirmPassword) {
       if (!profileForm.currentPassword || !profileForm.newPassword) {
-        toast.error('Enter your current and new password.');
+        setPasswordError(t('Enter your current and new password.', 'Ingresa tu contraseña actual y nueva.'));
+        setPasswordStatus('error');
         setProfileSaving(false);
         return;
       }
       if (profileForm.newPassword !== profileForm.confirmPassword) {
-        toast.error('New passwords do not match.');
+        setPasswordError(t('New passwords do not match.', 'Las contraseñas nuevas no coinciden.'));
+        setPasswordStatus('error');
+        setProfileSaving(false);
+        return;
+      }
+      if (profileForm.newPassword.length < 6) {
+        setPasswordError(t('New password must be at least 6 characters.', 'La nueva contraseña debe tener al menos 6 caracteres.'));
+        setPasswordStatus('error');
         setProfileSaving(false);
         return;
       }
       if (!user.email) {
-        toast.error('Unable to verify password without an email.');
+        setPasswordError(t('Unable to verify password without an email.', 'No se puede verificar la contraseña sin un correo electrónico.'));
+        setPasswordStatus('error');
         setProfileSaving(false);
         return;
       }
+      setPasswordStatus('validating');
       const { error: signInError } = await supabase.auth.signInWithPassword({
         email: user.email,
         password: profileForm.currentPassword,
       });
       if (signInError) {
-        toast.error('Current password is incorrect.');
+        setPasswordError(t('Current password is incorrect.', 'La contraseña actual es incorrecta.'));
+        setPasswordStatus('error');
         setProfileSaving(false);
         return;
       }
@@ -2088,10 +2104,12 @@ const Index = () => {
         password: profileForm.newPassword,
       });
       if (passwordError) {
-        toast.error(passwordError.message);
+        setPasswordError(passwordError.message);
+        setPasswordStatus('error');
         setProfileSaving(false);
         return;
       }
+      setPasswordStatus('success');
     }
 
     try {
@@ -2142,6 +2160,8 @@ const Index = () => {
       setAvatarDirty(false);
       setUsernameStatus('idle');
       setUsernameError('');
+      setPasswordError('');
+      setPasswordStatus('idle');
       toast.success('Preferences saved!');
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to update preferences.';
@@ -8383,6 +8403,10 @@ const Index = () => {
             handleUsernameCheck={handleUsernameCheck}
             setUsernameStatus={setUsernameStatus}
             setUsernameError={setUsernameError}
+            passwordError={passwordError}
+            passwordStatus={passwordStatus}
+            setPasswordError={setPasswordError}
+            setPasswordStatus={setPasswordStatus}
             setShowNavOverlay={setShowNavOverlay}
             timeZoneOptions={timeZoneOptions}
             avatarOptions={avatarOptions}
