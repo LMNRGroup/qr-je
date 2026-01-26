@@ -88,10 +88,12 @@
 
   html[data-mobile-ui="v2"] .qrc-arsenal-list {
     overflow-x: hidden;
+    min-width: 0;
   }
 
   html[data-mobile-ui="v2"] .qrc-arsenal-list > * {
     max-width: 100%;
+    min-width: 0;
   }
 
   html[data-mobile-ui="v2"] .qrc-v2-drawer {

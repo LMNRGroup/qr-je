@@ -357,6 +357,7 @@ export function ArsenalPanel({
   const isMobileUiV2 =
     typeof document !== 'undefined' && document.documentElement.dataset.mobileUi === 'v2';
   const isMobileV2 = isMobile && isMobileUiV2;
+  const viewModeInitRef = useRef(false);
   const cacheId = cacheKey ? `qrc.arsenal.cache:${cacheKey}` : null;
   const CACHE_TTL_MS = 5 * 60 * 1000;
   const lastTodayRef = useRef(0);
@@ -369,6 +370,12 @@ export function ArsenalPanel({
     media.addEventListener('change', update);
     return () => media.removeEventListener('change', update);
   }, []);
+
+  useEffect(() => {
+    if (!isMobileV2 || viewModeInitRef.current) return;
+    setViewMode('list');
+    viewModeInitRef.current = true;
+  }, [isMobileV2]);
 
   useEffect(() => {
     if (!isMobileV2 || !import.meta.env.DEV) return;
@@ -1296,10 +1303,11 @@ export function ArsenalPanel({
   };
 
   // Toolbar component for reuse
-  const renderToolbar = () => (
-    <div className={`flex w-full items-center justify-between gap-2 flex-nowrap qrc-arsenal-toolbar ${
-      isMobileV2 ? 'sticky top-0 z-10 pb-2 pt-2' : ''
-    }`}>
+  const renderToolbar = () => {
+    if (isMobileV2) {
+      return (
+        <div className="qrc-arsenal-toolbar sticky top-0 z-10 flex flex-col gap-2 pb-2 pt-2">
+          <div className="flex w-full items-center justify-between gap-2">
             <div className="flex min-w-0 flex-1 items-center gap-2">
               <Button
                 variant={isSelectMode ? 'secondary' : 'outline'}
@@ -1331,58 +1339,147 @@ export function ArsenalPanel({
                 </Button>
               )}
             </div>
-            <div className="flex items-center gap-1 shrink-0">
-              <div className="inline-flex rounded-full border border-border/60 bg-secondary/30 p-1">
-                <button
-                  type="button"
-                  className={`h-8 w-8 rounded-full transition ${
-                    viewMode === 'grid' ? 'bg-primary/15 text-primary' : 'text-muted-foreground hover:text-foreground'
-                  }`}
-                  onClick={() => setViewMode('grid')}
-                  aria-label="Grid view"
-                >
-                  <LayoutGrid className="mx-auto h-4 w-4" />
-                </button>
-                <button
-                  type="button"
-                  className={`h-8 w-8 rounded-full transition ${
-                    viewMode === 'list' ? 'bg-primary/15 text-primary' : 'text-muted-foreground hover:text-foreground'
-                  }`}
-                  onClick={() => setViewMode('list')}
-                  aria-label="List view"
-                >
-                  <List className="mx-auto h-4 w-4" />
-                </button>
-              </div>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="border-border text-[10px] uppercase tracking-[0.2em] px-2"
-                  >
-                    <ArrowDownUp className="h-3.5 w-3.5" />
-                    Sort
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="bg-card/95 border-border">
-                  <DropdownMenuItem onClick={() => setSortMode('newest')}>
-                    <ArrowDownAz className="mr-2 h-4 w-4" />
-                    Newest
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setSortMode('oldest')}>
-                    <ArrowUpAz className="mr-2 h-4 w-4" />
-                    Oldest
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setSortMode('alpha')}>
-                    <ArrowDownAz className="mr-2 h-4 w-4" />
-                    Alphabetical
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
           </div>
-  );
+          <div className="flex w-full items-center justify-between gap-2">
+            <div className="inline-flex rounded-full border border-border/60 bg-secondary/30 p-1">
+              <button
+                type="button"
+                className={`h-8 w-8 rounded-full transition ${
+                  viewMode === 'grid' ? 'bg-primary/15 text-primary' : 'text-muted-foreground hover:text-foreground'
+                }`}
+                onClick={() => setViewMode('grid')}
+                aria-label="Grid view"
+              >
+                <LayoutGrid className="mx-auto h-4 w-4" />
+              </button>
+              <button
+                type="button"
+                className={`h-8 w-8 rounded-full transition ${
+                  viewMode === 'list' ? 'bg-primary/15 text-primary' : 'text-muted-foreground hover:text-foreground'
+                }`}
+                onClick={() => setViewMode('list')}
+                aria-label="List view"
+              >
+                <List className="mx-auto h-4 w-4" />
+              </button>
+            </div>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="border-border text-[10px] uppercase tracking-[0.2em] px-2"
+                >
+                  <ArrowDownUp className="h-3.5 w-3.5" />
+                  Sort
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="bg-card/95 border-border">
+                <DropdownMenuItem onClick={() => setSortMode('newest')}>
+                  <ArrowDownAz className="mr-2 h-4 w-4" />
+                  Newest
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setSortMode('oldest')}>
+                  <ArrowUpAz className="mr-2 h-4 w-4" />
+                  Oldest
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setSortMode('alpha')}>
+                  <ArrowDownAz className="mr-2 h-4 w-4" />
+                  Alphabetical
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className="flex w-full items-center justify-between gap-2 flex-nowrap qrc-arsenal-toolbar">
+        <div className="flex min-w-0 flex-1 items-center gap-2">
+          <Button
+            variant={isSelectMode ? 'secondary' : 'outline'}
+            size="sm"
+            className="border-border text-[10px] uppercase tracking-[0.2em] whitespace-nowrap px-2"
+            onClick={() => {
+              if (isSelectMode) {
+                setSelectedIds(new Set());
+              }
+              setIsSelectMode((prev) => !prev);
+            }}
+          >
+            <span className="truncate">
+              {isSelectMode ? t('Cancel Select', 'Cancelar seleccion') : t('Select Multiple', 'Seleccion multiple')}
+            </span>
+          </Button>
+          {isSelectMode && (
+            <Button
+              variant="outline"
+              size="icon"
+              className="group relative border-border shrink-0"
+              onClick={() => setShowBulkDelete(true)}
+              disabled={selectedIds.size === 0}
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              <span className="pointer-events-none absolute -bottom-6 left-1/2 -translate-x-1/2 text-[10px] uppercase tracking-[0.35em] text-muted-foreground opacity-0 transition group-hover:opacity-100">
+                {t('Delete', 'Eliminar')}
+              </span>
+            </Button>
+          )}
+        </div>
+        <div className="flex items-center gap-1 shrink-0">
+          <div className="inline-flex rounded-full border border-border/60 bg-secondary/30 p-1">
+            <button
+              type="button"
+              className={`h-8 w-8 rounded-full transition ${
+                viewMode === 'grid' ? 'bg-primary/15 text-primary' : 'text-muted-foreground hover:text-foreground'
+              }`}
+              onClick={() => setViewMode('grid')}
+              aria-label="Grid view"
+            >
+              <LayoutGrid className="mx-auto h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              className={`h-8 w-8 rounded-full transition ${
+                viewMode === 'list' ? 'bg-primary/15 text-primary' : 'text-muted-foreground hover:text-foreground'
+              }`}
+              onClick={() => setViewMode('list')}
+              aria-label="List view"
+            >
+              <List className="mx-auto h-4 w-4" />
+            </button>
+          </div>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="outline"
+                size="sm"
+                className="border-border text-[10px] uppercase tracking-[0.2em] px-2"
+              >
+                <ArrowDownUp className="h-3.5 w-3.5" />
+                Sort
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="bg-card/95 border-border">
+              <DropdownMenuItem onClick={() => setSortMode('newest')}>
+                <ArrowDownAz className="mr-2 h-4 w-4" />
+                Newest
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setSortMode('oldest')}>
+                <ArrowUpAz className="mr-2 h-4 w-4" />
+                Oldest
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setSortMode('alpha')}>
+                <ArrowDownAz className="mr-2 h-4 w-4" />
+                Alphabetical
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div className="space-y-6" data-overflow-check>
@@ -1405,37 +1502,233 @@ export function ArsenalPanel({
         </div>
       ) : (
         <div className="grid gap-6 lg:grid-cols-[1.4fr_0.6fr]">
-          <div className={`glass-panel rounded-2xl p-4 min-w-0 max-w-full ${
-            isMobileV2 ? 'flex flex-col overflow-hidden' : ''
-          }`}>
-            <ScrollArea
-              ref={(node) => {
-                if (!node) return;
-                listScrollRef.current = node.querySelector('[data-radix-scroll-area-viewport]') as HTMLDivElement | null;
-              }}
-              style={{ paddingRight: isMobile ? 12 : 0 }}
-              className={
-                isDesktop
-                  ? 'h-auto max-h-none w-full max-w-full min-w-0 overflow-x-hidden'
-                  : isMobileV2
-                  ? 'qrc-arsenal-scroll qrc-no-scroll-x max-w-full w-full'
-                  : `h-[calc(100dvh-260px)] sm:h-[calc(100dvh-320px)] max-w-full w-full overflow-y-auto`
-              }
-            >
+          <div className={`${isMobileV2 ? 'min-w-0 max-w-full' : 'glass-panel rounded-2xl p-4 min-w-0 max-w-full'}`}>
+            {isMobileV2 ? (
               <div className="flex flex-col min-h-0">
-                {isMobileV2 && renderToolbar()}
-                {isMobileV2 && topContent && (
-                  <div className="mb-2">
-                    {topContent}
-                  </div>
-                )}
-              <div
+                {renderToolbar()}
+                {topContent && <div className="mb-2">{topContent}</div>}
+                <div
                   className={`flex-1 min-h-0 ${
-                  viewMode === 'grid'
-                    ? `grid ${isMobileV2 ? 'gap-2' : 'gap-4'} md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 auto-rows-fr min-w-0 max-w-full overflow-x-hidden`
-                    : `${isMobileV2 ? 'space-y-1.5' : 'space-y-2'} w-full max-w-full min-w-0 overflow-x-hidden ${isMobileV2 ? 'qrc-arsenal-list' : ''}`
+                    viewMode === 'grid'
+                      ? 'grid gap-2 grid-cols-1 min-w-0 max-w-full overflow-x-hidden'
+                      : 'space-y-1.5 w-full max-w-full min-w-0 overflow-x-hidden qrc-arsenal-list'
                   }`}
+                >
+                  {pagedItems.map((item) => {
+                    const isSelected = item.id === selectedId;
+                    const isChecked = selectedIds.has(item.id);
+                    const parsed = parseKind(item.kind ?? null);
+                    const typeMeta = typeStyles[parsed.type] ?? typeStyles.url;
+                    const modeMeta = modeStyles[parsed.mode === 'dynamic' ? 'dynamic' : 'static'];
+                    const isList = viewMode === 'list';
+                    const isMobileList = isList && isMobile;
+                    const displayName = getDisplayName(item, sortedItems);
+                    const previewSize = isDesktop ? 120 : isMobileV2 ? 64 : 72;
+                    const cardOptions: QROptions = {
+                      ...item.options,
+                      size: previewSize,
+                      content: getQrPreviewContent(item),
+                    };
+                    // Long press handler for mobile
+                    const handleTouchStart = (e: React.TouchEvent) => {
+                      if (!isMobileV2) return;
+                      const timer = setTimeout(() => {
+                        setShowDeleteX(item.id);
+                        if ('vibrate' in navigator) {
+                          navigator.vibrate(50);
+                        }
+                      }, 500);
+                      setLongPressTimer((prev) => ({ ...prev, [item.id]: timer }));
+                    };
+
+                    const handleTouchEnd = (e: React.TouchEvent) => {
+                      if (!isMobileV2) return;
+                      const timer = longPressTimer[item.id];
+                      if (timer) {
+                        clearTimeout(timer);
+                        setLongPressTimer((prev) => {
+                          const next = { ...prev };
+                          delete next[item.id];
+                          return next;
+                        });
+                      }
+                    };
+
+                    const handleTouchCancel = (e: React.TouchEvent) => {
+                      if (!isMobileV2) return;
+                      const timer = longPressTimer[item.id];
+                      if (timer) {
+                        clearTimeout(timer);
+                        setLongPressTimer((prev) => {
+                          const next = { ...prev };
+                          delete next[item.id];
+                          return next;
+                        });
+                      }
+                    };
+
+                    const handleDeleteXClick = (e: React.MouseEvent | React.TouchEvent) => {
+                      e.stopPropagation();
+                      setDeleteTarget(item);
+                      setShowDeleteX(null);
+                    };
+
+                    const shouldShowDeleteX = isMobileV2 && showDeleteX === item.id;
+
+                    return (
+                      <div key={item.id} className="relative w-full min-w-0">
+                        <button
+                          type="button"
+                          onTouchStart={handleTouchStart}
+                          onTouchEnd={handleTouchEnd}
+                          onTouchCancel={handleTouchCancel}
+                          onClick={() => {
+                            if (shouldShowDeleteX) {
+                              setShowDeleteX(null);
+                              return;
+                            }
+                            const timer = longPressTimer[item.id];
+                            if (timer) {
+                              clearTimeout(timer);
+                              setLongPressTimer((prev) => {
+                                const next = { ...prev };
+                                delete next[item.id];
+                                return next;
+                              });
+                              return;
+                            }
+                            if (isSelectMode) {
+                              setSelectedIds((prev) => {
+                                const next = new Set(prev);
+                                if (next.has(item.id)) {
+                                  next.delete(item.id);
+                                } else {
+                                  next.add(item.id);
+                                }
+                                return next;
+                              });
+                              return;
+                            }
+                            handleSelect(item);
+                          }}
+                          data-qr-card={item.id}
+                          className={`group w-full rounded-2xl border text-left transition overflow-hidden min-w-0 max-w-full ${
+                            isSelectMode && isChecked
+                              ? 'border-amber-400/80 bg-amber-300/10 shadow-[0_0_18px_rgba(251,191,36,0.3)]'
+                              : isSelected
+                              ? 'border-amber-300/70 bg-amber-200/10 shadow-[0_0_18px_rgba(251,191,36,0.2)]'
+                              : `${modeMeta.card} hover:border-primary/40 hover:bg-secondary/40`
+                          } p-2`}
+                        >
+                          {isMobileList ? (
+                            <div className="flex flex-col gap-2 min-w-0 w-full overflow-hidden">
+                              <div className="min-w-0 space-y-1">
+                                <p
+                                  className="text-[13px] font-semibold leading-snug max-h-[2.6em] overflow-hidden"
+                                  title={displayName}
+                                >
+                                  {displayName}
+                                </p>
+                                <p className="text-[11px] text-muted-foreground truncate max-w-full">
+                                  {item.content}
+                                </p>
+                              </div>
+                              <div className="flex flex-wrap items-center gap-2 min-w-0">
+                                <span
+                                  className={`inline-flex min-w-0 items-center justify-center gap-1 rounded-full border px-2 py-0.5 text-[9px] uppercase tracking-[0.2em] ${modeMeta.badge}`}
+                                >
+                                  {parsed.mode === 'dynamic' ? (
+                                    <Zap className="h-3 w-3" />
+                                  ) : (
+                                    <QrCode className="h-3 w-3" />
+                                  )}
+                                  <span className="truncate">
+                                    {parsed.mode === 'dynamic' ? 'Dynamic' : 'Static'}
+                                  </span>
+                                </span>
+                                <span
+                                  className={`inline-flex min-w-0 items-center justify-center gap-1 rounded-full border px-2 py-0.5 text-[9px] uppercase tracking-[0.2em] ${typeMeta.badge}`}
+                                >
+                                  <span className="truncate">{typeMeta.label}</span>
+                                </span>
+                                <div className="ml-auto">{renderScanCount(item, 'md', 'center')}</div>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="flex items-start gap-2">
+                              <div className="min-w-0 flex-1 space-y-1">
+                                <p
+                                  className="text-[13px] font-semibold leading-snug max-h-[2.6em] overflow-hidden"
+                                  title={displayName}
+                                >
+                                  {displayName}
+                                </p>
+                                <p className="text-[11px] text-muted-foreground truncate">{item.content}</p>
+                                <div className="mt-2 flex flex-col gap-1 text-[9px] uppercase tracking-[0.25em]">
+                                  <span
+                                    className={`inline-flex w-full items-center justify-center gap-1 rounded-full border px-2 py-0.5 ${typeMeta.badge}`}
+                                  >
+                                    <typeMeta.icon className="h-3 w-3" />
+                                    <span className="truncate">{typeMeta.label}</span>
+                                  </span>
+                                  <span
+                                    className={`inline-flex w-full items-center justify-center gap-1 rounded-full border px-2 py-0.5 ${modeMeta.badge}`}
+                                  >
+                                    {parsed.mode === 'dynamic' ? (
+                                      <Zap className="h-3 w-3" />
+                                    ) : (
+                                      <QrCode className="h-3 w-3" />
+                                    )}
+                                    <span className="truncate">
+                                      {parsed.mode === 'dynamic' ? 'Dynamic' : 'Static'}
+                                    </span>
+                                  </span>
+                                  {renderScanCount(item, 'lg', 'center')}
+                                </div>
+                              </div>
+                              <div className={`shrink-0 border overflow-hidden rounded-lg p-0.5 ${modeMeta.card}`}>
+                                <QRPreview options={cardOptions} showCaption={false} innerPadding={3} />
+                              </div>
+                            </div>
+                          )}
+                        </button>
+
+                        {shouldShowDeleteX && (
+                          <button
+                            type="button"
+                            className="absolute top-2 right-2 h-7 w-7 rounded-full border border-destructive/60 bg-destructive/10 text-destructive text-xs"
+                            onClick={handleDeleteXClick}
+                            aria-label="Delete QR"
+                          >
+                            X
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : (
+              <ScrollArea
+                ref={(node) => {
+                  if (!node) return;
+                  listScrollRef.current = node.querySelector('[data-radix-scroll-area-viewport]') as HTMLDivElement | null;
+                }}
+                style={{ paddingRight: isMobile ? 12 : 0 }}
+                className={
+                  isDesktop
+                    ? 'h-auto max-h-none w-full max-w-full min-w-0 overflow-x-hidden'
+                    : `h-[calc(100dvh-260px)] sm:h-[calc(100dvh-320px)] max-w-full w-full overflow-y-auto`
+                }
               >
+                <div className="flex flex-col min-h-0">
+                  <div
+                    className={`flex-1 min-h-0 ${
+                      viewMode === 'grid'
+                        ? `grid ${isMobileV2 ? 'gap-2' : 'gap-4'} md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 auto-rows-fr min-w-0 max-w-full overflow-x-hidden`
+                        : `${isMobileV2 ? 'space-y-1.5' : 'space-y-2'} w-full max-w-full min-w-0 overflow-x-hidden ${isMobileV2 ? 'qrc-arsenal-list' : ''}`
+                    }`}
+                  >
                 {pagedItems.map((item) => {
                   const isSelected = item.id === selectedId;
                   const isChecked = selectedIds.has(item.id);
