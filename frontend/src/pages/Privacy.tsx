@@ -26,7 +26,7 @@ const Privacy = () => {
           </Button>
         </div>
 
-      <div className="glass-panel rounded-2xl p-6 space-y-6 text-sm text-muted-foreground">
+        <div className="glass-panel rounded-2xl p-6 space-y-6 text-sm text-muted-foreground">
         <div className="space-y-3">
           <h2 className="text-base font-semibold text-foreground">1. Information We Collect</h2>
           
@@ -181,6 +181,7 @@ const Privacy = () => {
           <h2 className="text-base font-semibold text-foreground">12. Governing Law</h2>
           <p>This Privacy Policy is governed by the laws of the Commonwealth of Puerto Rico.</p>
         </div>
+      </div>
       </div>
     </div>
   );

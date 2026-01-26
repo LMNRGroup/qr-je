@@ -26,7 +26,7 @@ const Terms = () => {
           </Button>
         </div>
 
-      <div className="glass-panel rounded-2xl p-6 space-y-6 text-sm text-muted-foreground">
+        <div className="glass-panel rounded-2xl p-6 space-y-6 text-sm text-muted-foreground">
         <div className="space-y-3">
           <h2 className="text-base font-semibold text-foreground">1. Agreement to Terms</h2>
           <p>
@@ -237,6 +237,7 @@ const Terms = () => {
           <p>For questions regarding these Terms:</p>
           <p>Luminar Apps</p>
           <p>Email: support@luminarapps.com</p>
+        </div>
         </div>
       </div>
     </div>
