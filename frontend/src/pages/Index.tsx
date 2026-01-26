@@ -1745,10 +1745,8 @@ const Index = () => {
                   };
               
               // Determine kind field - NEVER set to 'adaptive' unless explicitly creating Adaptive QRC
-              // Note: qrType can never be 'adaptive' in wizard flow, so kind will always follow pattern
-              const updateKind = (qrType as string) === 'adaptive'
-                ? 'adaptive'
-                : `${qrMode ?? 'static'}:${qrType}`;
+              // Note: qrType is 'file' | 'menu' here, so kind will always follow pattern (never 'adaptive')
+              const updateKind = `${qrMode ?? 'static'}:${qrType}`;
               
               const updateResponse = await updateQR(id, {
                 targetUrl,
