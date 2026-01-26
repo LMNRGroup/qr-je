@@ -59,7 +59,7 @@ const Login = () => {
     if (!username.trim()) return { message: 'Please enter a username', isError: false };
     if (!email.trim()) return { message: 'Please enter your email', isError: false };
     if (!password.trim()) return { message: 'Please enter a password', isError: false };
-    if (!acceptedTerms) return { message: 'Please accept the Terms & Conditions', isError: false };
+    if (!acceptedTerms) return { message: 'Please accept the Terms & Conditions and Privacy Policy', isError: false };
     if (usernameTouched && usernameAvailable === false) return { message: 'Username is already taken. Please choose another.', isError: true };
     if (usernameTouched && usernameAvailable === null && !usernameChecking) return { message: 'Please check if your username is available (click outside the username field)', isError: false };
     if (username.trim() && !usernameTouched) return { message: 'Please check if your username is available (click outside the username field)', isError: false };
@@ -184,7 +184,7 @@ const Login = () => {
         return;
       }
       if (!acceptedTerms) {
-        setSignupError('Please accept the Terms & Conditions');
+        setSignupError('Please accept the Terms & Conditions and Privacy Policy');
         return;
       }
       if (usernameAvailable !== true) {
@@ -520,18 +520,25 @@ const Login = () => {
                           className="mt-0.5 accent-primary"
                         />
                         <span>
-                          I agree to the Terms & Conditions and subscribe for free updates.
+                          I agree to the{' '}
+                          <Link
+                            to="/terms"
+                            target="_blank"
+                            className="text-primary hover:text-primary/80 underline transition-colors"
+                          >
+                            Terms & Conditions
+                          </Link>
+                          {' '}and{' '}
+                          <Link
+                            to="/privacy"
+                            target="_blank"
+                            className="text-primary hover:text-primary/80 underline transition-colors"
+                          >
+                            Privacy Policy
+                          </Link>
+                          {' '}and subscribe for free updates.
                         </span>
                       </label>
-                      <div className="pl-6">
-                        <Link
-                          to="/terms"
-                          target="_blank"
-                          className="text-xs text-primary hover:text-primary/80 underline transition-colors"
-                        >
-                          See terms and conditions
-                        </Link>
-                      </div>
                     </div>
                   )}
 
