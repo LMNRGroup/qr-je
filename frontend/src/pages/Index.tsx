@@ -8,6 +8,7 @@ import { QRPreview, QRPreviewHandle } from '@/components/QRPreview';
 import { SizeSlider } from '@/components/SizeSlider';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { UserMenu } from '@/components/UserMenu';
+import { SystemNotificationTab } from '@/components/SystemNotificationTab';
 import { DesktopStudioWizard } from '@/components/DesktopStudioWizard';
 import { AdaptiveQRCWizard } from '@/components/AdaptiveQRCWizard';
 import { AdaptiveQRCEditor } from '@/components/AdaptiveQRCEditor';
@@ -10555,6 +10556,8 @@ const Index = () => {
           </motion.div>
         </div>
       )}
+      {/* System Notification Tab - Bottom Left */}
+      <SystemNotificationTab />
     </div>
   );
 };

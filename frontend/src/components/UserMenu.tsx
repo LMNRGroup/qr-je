@@ -131,17 +131,16 @@ export function UserMenu({ trigger, onSignOut }: { trigger?: React.ReactNode; on
 
   const headerName = displayName === 'there' ? 'Your' : displayName;
 
-  const visibleSystem = systemNotifications.filter((note) => !dismissedSystemIds.has(note.id)).slice(0, 2);
+  // System notifications are now handled separately (not in feed)
   const visibleUser = userFeed
     .slice()
     .sort((a, b) => b.createdAt - a.createdAt)
     .slice(0, Math.max(0, 10));
   const latestNotificationAt = useMemo(() => {
-    const systemLatest = systemNotifications.reduce((max, note) => Math.max(max, note.createdAt), 0);
     const userLatest = userFeed.reduce((max, note) => Math.max(max, note.createdAt), 0);
-    return Math.max(systemLatest, userLatest);
-  }, [systemNotifications, userFeed]);
-  const hasNotifications = visibleSystem.length + visibleUser.length > 0;
+    return userLatest;
+  }, [userFeed]);
+  const hasNotifications = visibleUser.length > 0;
   const hasUnread = latestNotificationAt > lastSeenAt;
   const userNotificationCount = Math.min(userFeed.length, 10);
   const markFeedSeen = () => {
@@ -245,61 +244,7 @@ export function UserMenu({ trigger, onSignOut }: { trigger?: React.ReactNode; on
               </div>
             );
           })}
-          {visibleSystem.map((note) => {
-            const isExpanded = expandedId === note.id;
-            const isLong = note.message.length > 120;
-            const displayMessage = !isExpanded && isLong
-              ? `${note.message.slice(0, 120).trim()}...`
-              : note.message;
-            return (
-              <div
-                key={note.id}
-                className={`rounded-xl border border-border/70 bg-secondary/30 p-3 space-y-2 ${
-                  isExpanded ? '' : 'h-20 overflow-hidden'
-                }`}
-              >
-              <div className="flex items-center justify-between text-[10px] uppercase tracking-[0.3em] text-muted-foreground">
-                <span className="flex items-center gap-2">
-                  <Bell className="h-3.5 w-3.5 text-primary" />
-                  System
-                </span>
-                </div>
-                <button
-                  type="button"
-                  className="text-sm text-foreground text-left w-full"
-                  onClick={() => setExpandedId((prev) => (prev === note.id ? null : note.id))}
-                >
-                  <span
-                    className={`block ${isExpanded ? 'whitespace-pre-wrap' : 'truncate'}`}
-                  >
-                    {displayMessage}
-                  </span>
-                </button>
-                {isLong && (
-                  <button
-                    type="button"
-                    className="flex w-full items-center justify-between text-[10px] uppercase tracking-[0.3em] text-muted-foreground hover:text-foreground"
-                    onClick={() => setExpandedId((prev) => (prev === note.id ? null : note.id))}
-                  >
-                    <span>{isExpanded ? 'Less' : 'More'}</span>
-                    {isExpanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
-                  </button>
-                )}
-                {isExpanded && (
-                  <button
-                    type="button"
-                    className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground hover:text-foreground"
-                  onClick={() =>
-                    setDismissedSystemIds((prev) => new Set([...Array.from(prev), note.id]))
-                  }
-                >
-                  Clear
-                </button>
-                )}
-              </div>
-            );
-          })}
-          {visibleSystem.length === 0 && visibleUser.length === 0 && (
+          {visibleUser.length === 0 && (
             <div className="rounded-xl border border-border/70 bg-secondary/20 p-3 text-sm text-muted-foreground">
               No notifications yet.
             </div>
