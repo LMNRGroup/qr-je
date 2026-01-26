@@ -1,4 +1,5 @@
 import { MapDots } from '@/components/MapDots';
+import { NavPageLayout } from '@/components/NavPageLayout';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ChevronDown } from 'lucide-react';
@@ -557,57 +558,46 @@ export function IntelPage({
   );
 
   return (
-    <section id="intel" className={`${isMobileV2 ? 'qrc-v2-section' : 'space-y-6'}`}>
+    <NavPageLayout
+      sectionLabel="Intel"
+      title="Live Intelligence"
+      isMobileV2={isMobileV2}
+      onTitleClick={() => setShowNavOverlay(true)}
+    >
       {isMobileV2 ? (
-        <>
-          {/* Clickable Header - OUTSIDE and ON TOP of container */}
-          <div className="mb-0 pb-2">
-            <p className="text-xs uppercase tracking-[0.4em] text-muted-foreground mb-1">Intel</p>
-            <h2 
-              className="text-lg font-semibold cursor-pointer hover:text-primary/80 transition-colors"
-              onClick={() => setShowNavOverlay(true)}
+        <div className="flex flex-col min-h-0 space-y-4">
+          {/* Export CSV - inside scrollable */}
+          <div className="relative">
+            <select
+              defaultValue=""
+              onChange={(event) => {
+                const value = event.target.value as 'day' | 'week' | 'month' | '';
+                if (!value) return;
+                handleExportCsv(value);
+                event.target.value = '';
+              }}
+              className="appearance-none rounded-xl border border-border bg-secondary/30 px-3 py-2 text-xs uppercase tracking-[0.3em] text-foreground pr-7 hover:bg-secondary/40 w-full"
             >
-              Live Intelligence
-            </h2>
+              <option value="" disabled>Export CSV</option>
+              <option value="day">Today</option>
+              <option value="week">This Week</option>
+              <option value="month">This Month</option>
+            </select>
+            <ChevronDown className="pointer-events-none absolute right-2 top-1/2 h-3 w-3 -translate-y-1/2 text-muted-foreground" />
           </div>
-          
-          <div className="glass-panel rounded-2xl p-4 flex flex-col overflow-hidden">
-            <ScrollArea className="qrc-v2-scroll-container qrc-no-scroll-x max-w-full w-full">
-              <div className="flex flex-col min-h-0 space-y-4">
-                {/* Export CSV - inside scrollable */}
-                <div className="relative">
-                  <select
-                    defaultValue=""
-                    onChange={(event) => {
-                      const value = event.target.value as 'day' | 'week' | 'month' | '';
-                      if (!value) return;
-                      handleExportCsv(value);
-                      event.target.value = '';
-                    }}
-                    className="appearance-none rounded-xl border border-border bg-secondary/30 px-3 py-2 text-xs uppercase tracking-[0.3em] text-foreground pr-7 hover:bg-secondary/40 w-full"
-                  >
-                    <option value="" disabled>Export CSV</option>
-                    <option value="day">Today</option>
-                    <option value="week">This Week</option>
-                    <option value="month">This Month</option>
-                  </select>
-                  <ChevronDown className="pointer-events-none absolute right-2 top-1/2 h-3 w-3 -translate-y-1/2 text-muted-foreground" />
-                </div>
 
-                {/* Tabs for Map/Snapshot */}
-                <Tabs defaultValue="map">
-                  <TabsList className="grid w-full grid-cols-2">
-                    <TabsTrigger value="map">Map</TabsTrigger>
-                    <TabsTrigger value="snapshot">Snapshot</TabsTrigger>
-                  </TabsList>
-                  <TabsContent value="map" className="mt-4">{intelMapPanel}</TabsContent>
-                  <TabsContent value="snapshot" className="mt-4">{intelSnapshotPanel}</TabsContent>
-                </Tabs>
-              </div>
-            </ScrollArea>
-          </div>
-        </>
+          {/* Tabs for Map/Snapshot */}
+          <Tabs defaultValue="map">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="map">Map</TabsTrigger>
+              <TabsTrigger value="snapshot">Snapshot</TabsTrigger>
+            </TabsList>
+            <TabsContent value="map" className="mt-4">{intelMapPanel}</TabsContent>
+            <TabsContent value="snapshot" className="mt-4">{intelSnapshotPanel}</TabsContent>
+          </Tabs>
+        </div>
       ) : (
+        <section id="intel" className="space-y-6">
         <div className="relative">
           <div className="space-y-6">
             <div className="flex flex-wrap items-start justify-between gap-2 sm:flex-nowrap sm:items-center">
@@ -646,7 +636,8 @@ export function IntelPage({
             </div>
           </div>
         </div>
+        </section>
       )}
-    </section>
+    </NavPageLayout>
   );
 }

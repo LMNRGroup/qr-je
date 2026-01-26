@@ -1,4 +1,5 @@
 import { Button } from '@/components/ui/button';
+import { NavPageLayout } from '@/components/NavPageLayout';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { motion } from 'framer-motion';
 import { User, Users, Info } from 'lucide-react';
@@ -20,21 +21,14 @@ export function UpgradePage({
   adaptiveGradientText,
 }: UpgradePageProps) {
   return (
-    <section id="upgrade" className={`${isMobileV2 ? 'qrc-v2-section' : 'space-y-10'}`}>
+    <NavPageLayout
+      sectionLabel="Upgrade"
+      title="Our Plans"
+      isMobileV2={isMobileV2}
+      onTitleClick={() => setShowNavOverlay(true)}
+    >
       {isMobileV2 ? (
-        <>
-          <div className="mb-0 pb-2">
-            <p className="text-xs uppercase tracking-[0.4em] text-muted-foreground mb-1">Upgrade</p>
-            <h2 
-              className="text-lg font-semibold cursor-pointer hover:text-primary/80 transition-colors"
-              onClick={() => setShowNavOverlay(true)}
-            >
-              Our Plans
-            </h2>
-          </div>
-          <div className="glass-panel rounded-2xl p-4 flex flex-col overflow-hidden">
-            <ScrollArea className="qrc-v2-scroll-container qrc-no-scroll-x max-w-full w-full">
-              <div className="flex flex-col min-h-0 space-y-3">
+        <div className="flex flex-col min-h-0 space-y-3">
                 <div className="text-center text-xs text-muted-foreground">
                   Current plan: <span className="text-foreground font-semibold">FREE FOREVER PLAN</span>
                 </div>
@@ -122,12 +116,9 @@ export function UpgradePage({
                     </div>
                   </div>
                 </div>
-              </div>
-            </ScrollArea>
-          </div>
-        </>
+        </div>
       ) : (
-        <>
+        <section id="upgrade" className="space-y-10">
           <div className="text-center space-y-3">
             <p className="text-xs uppercase tracking-[0.4em] text-muted-foreground">Upgrade</p>
             <h2 
@@ -373,7 +364,8 @@ export function UpgradePage({
             )}
           </motion.div>
         </div>
+        </section>
       )}
-    </section>
+    </NavPageLayout>
   );
 }
