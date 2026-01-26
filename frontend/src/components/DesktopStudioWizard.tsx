@@ -47,7 +47,7 @@ import type { QROptions } from '@/types/qr';
 interface DesktopStudioWizardProps {
   // State props
   qrMode: 'static' | 'dynamic' | null;
-  qrType: 'website' | 'vcard' | 'email' | 'phone' | 'file' | 'menu' | null;
+  qrType: 'website' | 'vcard' | 'email' | 'phone' | 'file' | 'menu' | 'social' | 'portal' | null;
   options: QROptions;
   websiteUrl: string;
   emailAddress: string;
@@ -75,7 +75,7 @@ interface DesktopStudioWizardProps {
   
   // Handlers
   onModeChange: (mode: 'static' | 'dynamic' | null) => void;
-  onTypeChange: (type: 'website' | 'vcard' | 'email' | 'phone' | 'file' | 'menu' | null) => void;
+  onTypeChange: (type: 'website' | 'vcard' | 'email' | 'phone' | 'file' | 'menu' | 'social' | 'portal' | null) => void;
   onQuickActionSelect: (action: string | null) => void;
   onWebsiteUrlChange: (url: string) => void;
   onEmailChange: (email: string) => void;

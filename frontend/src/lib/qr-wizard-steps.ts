@@ -14,7 +14,7 @@
 export type QRWizardStep = 1 | 2 | 3 | 4;
 
 export type QRMode = 'static' | 'dynamic' | null;
-export type QRType = 'website' | 'vcard' | 'email' | 'phone' | 'file' | 'menu' | null;
+export type QRType = 'website' | 'vcard' | 'email' | 'phone' | 'file' | 'menu' | 'social' | 'portal' | null;
 
 export interface QRWizardState {
   step: QRWizardStep;
@@ -30,11 +30,27 @@ export interface QRWizardState {
   vcardName: string;
   vcardSlug: string;
   menuFilesCount: number; // Number of menu files uploaded
+  socialPlatform: string; // 'instagram' | 'tiktok' | 'facebook' | 'whatsapp' | 'youtube' | 'x' | null
+  socialHandle: string; // Social media handle
+  portalLinks: Array<{ url: string; name: string }>; // Portal links (up to 3)
+  portalTitle: string; // Portal title (required)
+  portalDescription: string; // Portal description (optional)
+  portalTemplate: number; // Portal template (1, 2, or 3)
+  portalCustomization: {
+    backgroundColor: string;
+    backgroundImage?: string;
+    buttonColor: string;
+    buttonStyle: 'square' | 'rounded' | 'minimal';
+    fontFamily: string;
+    fontColor: string;
+  };
   // Touched states for validation
   websiteTouched: boolean;
   emailTouched: boolean;
   phoneTouched: boolean;
   fileTouched: boolean;
+  socialTouched: boolean;
+  portalTouched: boolean;
 }
 
 export interface StepConfig {
@@ -102,6 +118,16 @@ export function canProceedFromStep(step: QRWizardStep, state: QRWizardState): bo
           return Boolean(state.menuFilesCount > 0); // Menu files uploaded
         case 'vcard':
           return Boolean(state.vcardName); // Name is required
+        case 'social':
+          // Social requires platform selection and handle
+          return Boolean(state.socialPlatform && state.socialHandle.trim());
+        case 'portal':
+          // Portal requires title and at least one link with URL and name
+          return Boolean(
+            state.portalTitle.trim() &&
+            state.portalLinks.length > 0 &&
+            state.portalLinks.every(link => link.url.trim() && link.name.trim())
+          );
         default:
           return false;
       }

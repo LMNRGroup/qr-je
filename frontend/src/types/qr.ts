@@ -60,6 +60,19 @@ export interface QROptions {
   };
   // Adaptive QR Code configuration
   adaptive?: AdaptiveConfig;
+  // Portal configuration
+  portalLinks?: Array<{ url: string; name: string }>;
+  portalTitle?: string;
+  portalDescription?: string;
+  portalTemplate?: number;
+  portalCustomization?: {
+    backgroundColor: string;
+    backgroundImage?: string;
+    buttonColor: string;
+    buttonStyle: 'square' | 'rounded' | 'minimal';
+    fontFamily: string;
+    fontColor: string;
+  };
 }
 
 export interface QRHistoryItem {

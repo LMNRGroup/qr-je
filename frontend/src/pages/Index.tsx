@@ -12,6 +12,8 @@ import { SystemNotificationTab } from '@/components/SystemNotificationTab';
 import { DesktopStudioWizard } from '@/components/DesktopStudioWizard';
 import { AdaptiveQRCWizard } from '@/components/AdaptiveQRCWizard';
 import { AdaptiveQRCEditor } from '@/components/AdaptiveQRCEditor';
+import { SocialMediaSelector, type SocialPlatform } from '@/components/SocialMediaSelector';
+import { PortalEditor, type PortalLink, type PortalCustomization } from '@/components/PortalEditor';
 import { ArsenalPage } from './ArsenalPage';
 import { IntelPage } from './IntelPage';
 import { AdaptivePage } from './AdaptivePage';
@@ -145,7 +147,7 @@ const Index = () => {
   const dialMomentumLastAngleRef = useRef(0);
   const audioRef = useRef<AudioContext | null>(null);
   const [qrMode, setQrMode] = useState<'static' | 'dynamic' | null>(null);
-  const [qrType, setQrType] = useState<'website' | 'vcard' | 'email' | 'phone' | 'file' | 'menu' | null>(null);
+  const [qrType, setQrType] = useState<'website' | 'vcard' | 'email' | 'phone' | 'file' | 'menu' | 'social' | 'portal' | null>(null);
   const [websiteUrl, setWebsiteUrl] = useState('');
   const [websiteTouched, setWebsiteTouched] = useState(false);
   const [emailAddress, setEmailAddress] = useState('');
@@ -161,6 +163,23 @@ const Index = () => {
   const [fileUploadProgress, setFileUploadProgress] = useState<number>(0);
   const [fileUploading, setFileUploading] = useState(false);
   const [fileUploadError, setFileUploadError] = useState<string | null>(null);
+  // Social Media state
+  const [socialPlatform, setSocialPlatform] = useState<SocialPlatform>(null);
+  const [socialHandle, setSocialHandle] = useState('');
+  const [socialTouched, setSocialTouched] = useState(false);
+  // Portal state
+  const [portalLinks, setPortalLinks] = useState<PortalLink[]>([]);
+  const [portalTitle, setPortalTitle] = useState('');
+  const [portalDescription, setPortalDescription] = useState('');
+  const [portalTemplate, setPortalTemplate] = useState(1);
+  const [portalCustomization, setPortalCustomization] = useState<PortalCustomization>({
+    backgroundColor: '#3b82f6',
+    buttonColor: '#6366f1',
+    buttonStyle: 'rounded',
+    fontFamily: 'Inter, sans-serif',
+    fontColor: '#000000',
+  });
+  const [portalTouched, setPortalTouched] = useState(false);
   const [isBooting, setIsBooting] = useState(true);
   const [showIntroAd, setShowIntroAd] = useState(false);
   const [introStep, setIntroStep] = useState(0);
@@ -551,6 +570,20 @@ const Index = () => {
   const menuHasPdf = menuFiles.length === 1 && menuFiles[0]?.type === 'pdf';
   const menuHasFlip = menuFiles.length === 2 && menuFiles.every((file) => file.type === 'image');
   const menuHasCarousel = menuFiles.length >= 3 && menuFiles.every((file) => file.type === 'image');
+  // Social media URL builder
+  const socialUrl = useMemo(() => {
+    if (qrType !== 'social' || !socialPlatform || !socialHandle.trim()) return '';
+    const platforms: Record<Exclude<SocialPlatform, null>, string> = {
+      instagram: `https://instagram.com/${socialHandle.trim()}`,
+      tiktok: `https://tiktok.com/@${socialHandle.trim()}`,
+      facebook: `https://facebook.com/${socialHandle.trim()}`,
+      whatsapp: `https://wa.me/${socialHandle.trim().replace(/\D/g, '')}`,
+      youtube: `https://youtube.com/@${socialHandle.trim()}`,
+      x: `https://x.com/${socialHandle.trim()}`,
+    };
+    return platforms[socialPlatform] || '';
+  }, [qrType, socialPlatform, socialHandle]);
+
   const fallbackContent = qrType === 'website'
     ? (isWebsiteValid ? normalizedWebsiteUrl : '')
     : qrType === 'vcard'
@@ -563,7 +596,11 @@ const Index = () => {
             ? fileUrl
             : qrType === 'menu'
               ? menuPreviewUrl
-              : '';
+              : qrType === 'social'
+                ? socialUrl
+                : qrType === 'portal'
+                  ? `${appBaseUrl}/portal/${qrName.toLowerCase().replace(/\s+/g, '-')}`
+                  : '';
   const generatedContent = generatedShortUrl || fallbackContent;
   const longFormContent = qrType === 'vcard' ? (generatedLongUrl || vcardUrl) : generatedContent;
   const hasSelectedMode = qrMode !== null;
@@ -580,7 +617,11 @@ const Index = () => {
             ? (fileDataUrl || fileBlob || (fileUrl && fileUrl.length > 0)) && !fileUploading
           : qrType === 'menu'
             ? menuFiles.length > 0
-            : false);
+            : qrType === 'social'
+              ? Boolean(socialPlatform && socialHandle.trim())
+              : qrType === 'portal'
+                ? Boolean(portalTitle.trim() && portalLinks.length > 0 && portalLinks.every(link => link.url.trim() && link.name.trim()))
+                : false);
   const previewUrl = qrType === 'website'
     ? normalizedWebsiteUrl
     : qrType === 'menu'
@@ -1549,12 +1590,19 @@ const Index = () => {
           // Note: qrType can never be 'adaptive' in wizard flow, so kind will always follow pattern
           const qrKind = (qrType as string) === 'adaptive'
             ? 'adaptive'
-            : `${qrMode ?? 'static'}:${qrType === 'website' ? 'url' : qrType ?? 'url'}`;
+            : `${qrMode ?? 'static'}:${qrType === 'website' ? 'url' : qrType === 'social' ? 'url' : qrType === 'portal' ? 'portal' : qrType ?? 'url'}`;
+          
+          // Build portal URL if portal type
+          const portalUrl = qrType === 'portal'
+            ? `${appBaseUrl}/portal/${crypto.randomUUID()}`
+            : null;
           
           return generateQR(
           qrType === 'file' || qrType === 'menu'
             ? `${appBaseUrl}/pending/${crypto.randomUUID()}`
-            : longFormContent,
+            : qrType === 'portal'
+              ? (portalUrl || longFormContent)
+              : longFormContent,
           qrType === 'file'
             ? {
                 ...finalOptions,
@@ -1570,9 +1618,18 @@ const Index = () => {
                 menuLogoDataUrl,
                 menuSocials,
               }
-              : finalOptions,
+              : qrType === 'portal'
+                ? {
+                  ...finalOptions,
+                  portalLinks,
+                  portalTitle,
+                  portalDescription,
+                  portalTemplate,
+                  portalCustomization,
+                }
+                : finalOptions,
           qrKind,
-            name || (qrType === 'file' ? fileName || 'File QR' : null)
+            name || (qrType === 'file' ? fileName || 'File QR' : qrType === 'portal' ? portalTitle || 'Portal QR' : null)
         );
         })();
       if (response.success) {
@@ -1990,6 +2047,48 @@ const Index = () => {
     setPhoneTouched(false);
     setFileTouched(false);
     setSelectedQuickAction('menu');
+    setPendingCreateScroll(true);
+    if (isMobileV2) {
+      setMobileStudioStep(2);
+    }
+  };
+
+  const handleStartSocial = () => {
+    setQrMode(null);
+    setQrType('social');
+    setActiveTab('studio');
+    setSocialPlatform(null);
+    setSocialHandle('');
+    setSocialTouched(false);
+    setSelectedQuickAction('social');
+    setPendingCreateScroll(true);
+    if (isMobileV2) {
+      setMobileStudioStep(2);
+    }
+  };
+
+  const handleStartPortal = () => {
+    if (!user) {
+      toast.info('Create a free account to access these features no credit card required!');
+      navigate('/login?mode=signup');
+      return;
+    }
+    setQrMode(null);
+    setQrType('portal');
+    setActiveTab('studio');
+    setPortalLinks([]);
+    setPortalTitle('');
+    setPortalDescription('');
+    setPortalTemplate(1);
+    setPortalCustomization({
+      backgroundColor: '#3b82f6',
+      buttonColor: '#6366f1',
+      buttonStyle: 'rounded',
+      fontFamily: 'Inter, sans-serif',
+      fontColor: '#000000',
+    });
+    setPortalTouched(false);
+    setSelectedQuickAction('portal');
     setPendingCreateScroll(true);
     if (isMobileV2) {
       setMobileStudioStep(2);
@@ -7018,6 +7117,8 @@ const Index = () => {
                     { id: 'vcard', label: 'VCard', Icon: User, onClick: handleStartVcard },
                     { id: 'file', label: 'File', Icon: File, onClick: handleStartFile },
                     { id: 'menu', label: 'Menu', Icon: Utensils, onClick: handleStartMenu },
+                    { id: 'social', label: 'Social', Icon: Instagram, onClick: handleStartSocial },
+                    { id: 'portal', label: 'Portal', Icon: Globe, onClick: handleStartPortal },
                   ].map((action) => (
                     <button
                       key={action.id}
@@ -7041,6 +7142,15 @@ const Index = () => {
                 <p>1. Choose a quick action.</p>
                 <p>2. Fill the details.</p>
                 <p>3. Customize, generate, and export.</p>
+              </div>
+              <div className="pt-2 border-t border-border/50">
+                <p className="text-xs text-muted-foreground">
+                  Need help? Check out our{' '}
+                  <a href="/faq" className="text-primary hover:underline font-medium">
+                    FAQ
+                  </a>{' '}
+                  for answers to common questions.
+                </p>
               </div>
             </div>
           </section>
@@ -7098,6 +7208,20 @@ const Index = () => {
                 hint: 'Menu',
                 Icon: Utensils,
                 onClick: handleStartMenu,
+              },
+              {
+                id: 'social',
+                label: 'Social',
+                hint: 'Social Media',
+                Icon: Instagram,
+                onClick: handleStartSocial,
+              },
+              {
+                id: 'portal',
+                label: 'Portal',
+                hint: 'Portal',
+                Icon: Globe,
+                onClick: handleStartPortal,
               },
             ].map((action) => (
               <button
@@ -7316,6 +7440,15 @@ const Index = () => {
                     <p>3. Customize, generate, and export.</p>
                   </>
                 )}
+              </div>
+              <div className="pt-2 border-t border-border/50">
+                <p className="text-xs text-muted-foreground">
+                  Need help? Check out our{' '}
+                  <a href="/faq" className="text-primary hover:underline font-medium">
+                    FAQ
+                  </a>{' '}
+                  for answers to common questions.
+                </p>
               </div>
             </div>
           </div>
@@ -7950,6 +8083,81 @@ const Index = () => {
                             : 'No menu pages uploaded yet'}
                         </span>
                       </div>
+                    </div>
+                  ) : qrType === 'social' ? (
+                    <div className="space-y-4">
+                      <div className="flex items-center gap-3">
+                        <Instagram className="h-4 w-4 text-primary" />
+                        <h3 className="font-semibold">Step 3 · Social Media</h3>
+                      </div>
+                      <SocialMediaSelector
+                        platform={socialPlatform}
+                        handle={socialHandle}
+                        onPlatformChange={(platform) => {
+                          setSocialPlatform(platform);
+                          setSocialTouched(true);
+                        }}
+                        onHandleChange={(handle) => {
+                          setSocialHandle(handle);
+                          setSocialTouched(true);
+                        }}
+                        isMobileV2={isMobileV2}
+                      />
+                      {socialTouched && socialPlatform && socialHandle.trim() && (
+                        <Button
+                          type="button"
+                          size="lg"
+                          className="w-full gap-2 bg-gradient-primary hover:opacity-90 text-primary-foreground glow uppercase tracking-[0.2em] text-xs"
+                          onClick={() => setShowQrCustomizer(true)}
+                        >
+                          Continue
+                        </Button>
+                      )}
+                    </div>
+                  ) : qrType === 'portal' ? (
+                    <div className="space-y-4">
+                      <div className="flex items-center gap-3">
+                        <Globe className="h-4 w-4 text-primary" />
+                        <h3 className="font-semibold">Step 3 · Portal Editor</h3>
+                      </div>
+                      <PortalEditor
+                        links={portalLinks}
+                        onLinksChange={(links) => {
+                          setPortalLinks(links);
+                          setPortalTouched(true);
+                        }}
+                        title={portalTitle}
+                        onTitleChange={(title) => {
+                          setPortalTitle(title);
+                          setPortalTouched(true);
+                        }}
+                        description={portalDescription}
+                        onDescriptionChange={(description) => {
+                          setPortalDescription(description);
+                          setPortalTouched(true);
+                        }}
+                        template={portalTemplate}
+                        onTemplateChange={(template) => {
+                          setPortalTemplate(template);
+                          setPortalTouched(true);
+                        }}
+                        customization={portalCustomization}
+                        onCustomizationChange={(customization) => {
+                          setPortalCustomization(customization);
+                          setPortalTouched(true);
+                        }}
+                        isMobileV2={isMobileV2}
+                      />
+                      {portalTouched && portalTitle.trim() && portalLinks.length > 0 && portalLinks.every(link => link.url.trim() && link.name.trim()) && (
+                        <Button
+                          type="button"
+                          size="lg"
+                          className="w-full gap-2 bg-gradient-primary hover:opacity-90 text-primary-foreground glow uppercase tracking-[0.2em] text-xs"
+                          onClick={() => setShowQrCustomizer(true)}
+                        >
+                          Continue
+                        </Button>
+                      )}
                     </div>
                   ) : (
                     <div className="space-y-4">
