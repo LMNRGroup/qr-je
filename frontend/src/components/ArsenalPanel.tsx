@@ -336,6 +336,7 @@ export function ArsenalPanel({
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showBulkDelete, setShowBulkDelete] = useState(false);
   const [longPressTimer, setLongPressTimer] = useState<Record<string, NodeJS.Timeout>>({});
+  const [showDeleteX, setShowDeleteX] = useState<string | null>(null); // QR code ID that should show X button
   const [showUnsavedPrompt, setShowUnsavedPrompt] = useState(false);
   const [pendingAction, setPendingAction] = useState<
     | { type: 'select'; item: QRHistoryItem }
@@ -385,6 +386,40 @@ export function ArsenalPanel({
     window.addEventListener('resize', check);
     return () => window.removeEventListener('resize', check);
   }, [isMobileV2]);
+
+  // Hide delete X when clicking outside or on another QR code
+  useEffect(() => {
+    if (!isMobileV2 || !showDeleteX) return;
+    
+    const handleClickOutside = (e: MouseEvent | TouchEvent) => {
+      const target = e.target as HTMLElement;
+      // If clicking on a QR card (but not the X button), hide X
+      const qrCard = target.closest('[data-qr-card]');
+      if (qrCard) {
+        const cardId = qrCard.getAttribute('data-qr-card');
+        // If clicking on a different QR card, hide X
+        if (cardId && cardId !== showDeleteX) {
+          setShowDeleteX(null);
+        }
+      } else {
+        // If clicking outside any QR card, hide X
+        setShowDeleteX(null);
+      }
+    };
+    
+    // Also hide when selecting a different QR
+    if (selectedId && selectedId !== showDeleteX) {
+      setShowDeleteX(null);
+    }
+    
+    document.addEventListener('click', handleClickOutside, true);
+    document.addEventListener('touchstart', handleClickOutside, true);
+    
+    return () => {
+      document.removeEventListener('click', handleClickOutside, true);
+      document.removeEventListener('touchstart', handleClickOutside, true);
+    };
+  }, [showDeleteX, selectedId, isMobileV2]);
 
   const loadScanCounts = async (list: QRHistoryItem[], includeSummary = true) => {
     if (!list.length) {
@@ -1420,8 +1455,8 @@ export function ArsenalPanel({
                   const handleTouchStart = (e: React.TouchEvent) => {
                     if (!isMobileV2) return;
                     const timer = setTimeout(() => {
-                      // Long press detected - show delete option
-                      setDeleteTarget(item);
+                      // Long press detected - show X button instead of immediate delete dialog
+                      setShowDeleteX(item.id);
                       // Haptic feedback if available
                       if ('vibrate' in navigator) {
                         navigator.vibrate(50);
@@ -1456,39 +1491,57 @@ export function ArsenalPanel({
                     }
                   };
 
+                  // Handle X button click
+                  const handleDeleteXClick = (e: React.MouseEvent | React.TouchEvent) => {
+                    e.stopPropagation(); // Prevent triggering card click
+                    setDeleteTarget(item);
+                    setShowDeleteX(null); // Hide X when showing confirmation
+                  };
+
+                  // Check if this item should show X button
+                  const shouldShowDeleteX = isMobileV2 && showDeleteX === item.id;
+
                   return (
-                    <button
-                      key={item.id}
-                      type="button"
-                      onTouchStart={handleTouchStart}
-                      onTouchEnd={handleTouchEnd}
-                      onTouchCancel={handleTouchCancel}
-                      onClick={() => {
-                        // Clear any pending long press
-                        const timer = longPressTimer[item.id];
-                        if (timer) {
-                          clearTimeout(timer);
-                          setLongPressTimer((prev) => {
-                            const next = { ...prev };
-                            delete next[item.id];
-                            return next;
-                          });
-                          return; // Don't trigger click if long press was detected
-                        }
-                        if (isSelectMode) {
-                          setSelectedIds((prev) => {
-                            const next = new Set(prev);
-                            if (next.has(item.id)) {
-                              next.delete(item.id);
-                            } else {
-                              next.add(item.id);
-                            }
-                            return next;
-                          });
-                          return;
-                        }
-                        handleSelect(item);
-                      }}
+                    <div key={item.id} className="relative">
+                      <button
+                        type="button"
+                        onTouchStart={handleTouchStart}
+                        onTouchEnd={handleTouchEnd}
+                        onTouchCancel={handleTouchCancel}
+                        onClick={() => {
+                          // If clicking on the card itself (not the X), hide X and handle normal click
+                          if (shouldShowDeleteX) {
+                            setShowDeleteX(null);
+                            // Don't proceed with normal click if X was showing
+                            return;
+                          }
+                          
+                          // Clear any pending long press
+                          const timer = longPressTimer[item.id];
+                          if (timer) {
+                            clearTimeout(timer);
+                            setLongPressTimer((prev) => {
+                              const next = { ...prev };
+                              delete next[item.id];
+                              return next;
+                            });
+                            return; // Don't trigger click if long press was detected
+                          }
+                          if (isSelectMode) {
+                            setSelectedIds((prev) => {
+                              const next = new Set(prev);
+                              if (next.has(item.id)) {
+                                next.delete(item.id);
+                              } else {
+                                next.add(item.id);
+                              }
+                              return next;
+                            });
+                            return;
+                          }
+                          handleSelect(item);
+                        }}
+                        data-qr-card={item.id}
                       className={`group w-full rounded-2xl border text-left transition overflow-hidden min-w-0 max-w-full ${
                         isSelectMode && isChecked
                           ? 'border-amber-400/80 bg-amber-300/10 shadow-[0_0_18px_rgba(251,191,36,0.3)]'
@@ -1706,6 +1759,20 @@ export function ArsenalPanel({
                         </div>
                       )}
                     </button>
+                    
+                    {/* X Delete Button - shown on long press for mobile V2 */}
+                    {shouldShowDeleteX && (
+                      <button
+                        type="button"
+                        onClick={handleDeleteXClick}
+                        onTouchEnd={handleDeleteXClick}
+                        className="absolute top-2 right-2 z-20 h-7 w-7 flex items-center justify-center rounded-full bg-destructive/90 hover:bg-destructive text-destructive-foreground shadow-lg border border-destructive/50 transition-all animate-in fade-in zoom-in-95 duration-200"
+                        aria-label="Delete QR code"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    )}
+                  </div>
                   );
                 })}
                 </div>
@@ -1992,19 +2059,24 @@ export function ArsenalPanel({
       </AlertDialog>
 
       <AlertDialog open={Boolean(deleteTarget)} onOpenChange={(open) => !open && setDeleteTarget(null)}>
-        <AlertDialogContent className="bg-card border-border">
+        <AlertDialogContent className="glass-panel rounded-2xl border-border/50 p-6 max-w-md">
           <AlertDialogHeader>
-            <AlertDialogTitle>{t('Delete this QR code?', 'Eliminar este codigo QR?')}</AlertDialogTitle>
-            <AlertDialogDescription>
+            <AlertDialogTitle className="text-lg font-semibold text-foreground">
+              {t('Are you sure?', '¿Estás seguro?')}
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-sm text-muted-foreground mt-2">
               {t(
-                'This removes the QR code and its short URL permanently. This action cannot be undone.',
-                'Esto elimina permanentemente el codigo QR y su URL corta. Esta accion no se puede deshacer.'
+                'This will permanently delete this QR code and cannot be undone.',
+                'Esto eliminará permanentemente este código QR y no se puede deshacer.'
               )}
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setDeleteTarget(null)}>
-              {t('No, keep it', 'No, mantener')}
+          <AlertDialogFooter className="flex-row gap-3 mt-6 sm:justify-end">
+            <AlertDialogCancel 
+              onClick={() => setDeleteTarget(null)}
+              className="flex-1 sm:flex-initial border-border/60 hover:border-border"
+            >
+              {t('Cancel', 'Cancelar')}
             </AlertDialogCancel>
             <AlertDialogAction
               onClick={async () => {
@@ -2013,9 +2085,9 @@ export function ArsenalPanel({
                   setDeleteTarget(null);
                 }
               }}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              className="flex-1 sm:flex-initial bg-destructive text-destructive-foreground hover:bg-destructive/90 border-destructive/50"
             >
-              {t('Yes, delete', 'Si, eliminar')}
+              {t('Delete', 'Eliminar')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
