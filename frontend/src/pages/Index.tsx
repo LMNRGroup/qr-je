@@ -1582,7 +1582,9 @@ const Index = () => {
     const optionsSnapshot = { ...optionsRef.current };
     
     // Build adaptive configuration ONLY if QR type is 'adaptive'
-    const adaptiveConfig = qrType === 'adaptive' ? buildAdaptiveConfig() : undefined;
+    // Note: qrType can never be 'adaptive' in the wizard flow (Adaptive QRCs use separate handler),
+    // so this ensures adaptive config is NEVER built for wizard-created QRs
+    const adaptiveConfig = (qrType as string) === 'adaptive' ? buildAdaptiveConfig() : undefined;
     const isAdaptiveQR = Boolean(adaptiveConfig);
     
     // Merge adaptive config into options if enabled
@@ -1643,8 +1645,9 @@ const Index = () => {
             }
           }
           
-          // Determine kind field - ONLY set to 'adaptive' if qrType is explicitly 'adaptive'
-          const qrKind = qrType === 'adaptive'
+          // Determine kind field - NEVER set to 'adaptive' unless explicitly creating Adaptive QRC
+          // Note: qrType can never be 'adaptive' in wizard flow, so kind will always follow pattern
+          const qrKind = (qrType as string) === 'adaptive'
             ? 'adaptive'
             : `${qrMode ?? 'static'}:${qrType === 'website' ? 'url' : qrType ?? 'url'}`;
           
@@ -1741,8 +1744,9 @@ const Index = () => {
                     menuSocials,
                   };
               
-              // Determine kind field - ONLY set to 'adaptive' if qrType is explicitly 'adaptive'
-              const updateKind = qrType === 'adaptive'
+              // Determine kind field - NEVER set to 'adaptive' unless explicitly creating Adaptive QRC
+              // Note: qrType can never be 'adaptive' in wizard flow, so kind will always follow pattern
+              const updateKind = (qrType as string) === 'adaptive'
                 ? 'adaptive'
                 : `${qrMode ?? 'static'}:${qrType}`;
               
