@@ -29,11 +29,31 @@
   }
 
   html[data-mobile-ui="v2"] .qrc-arsenal-scroll {
-    max-height: calc(100dvh - 220px);
-    height: calc(100dvh - 220px);
+    max-height: calc(100dvh - 180px);
+    height: calc(100dvh - 180px);
     display: flex;
     flex-direction: column;
     overflow: hidden;
+  }
+  
+  /* Generic scrollable container for all nav pages */
+  html[data-mobile-ui="v2"] .qrc-v2-scroll-container {
+    max-height: calc(100dvh - 180px);
+    height: calc(100dvh - 180px);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  
+  html[data-mobile-ui="v2"] .qrc-v2-scroll-container [data-radix-scroll-area-viewport] {
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+    flex: 1;
+    min-height: 0;
+    max-height: 100%;
+    height: 100%;
   }
 
   html[data-mobile-ui="v2"] .qrc-arsenal-scroll [data-radix-scroll-area-viewport] {
@@ -173,8 +193,8 @@
   html[data-mobile-ui="v2"] .qrc-config-section {
     display: flex;
     flex-direction: column;
-    height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 140px);
-    max-height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 140px);
+    height: calc(100dvh - 180px);
+    max-height: calc(100dvh - 180px);
     overflow: hidden;
   }
 

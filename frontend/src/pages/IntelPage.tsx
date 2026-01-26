@@ -572,7 +572,7 @@ export function IntelPage({
           </div>
           
           <div className="glass-panel rounded-2xl p-4 flex flex-col overflow-hidden">
-            <ScrollArea className="qrc-arsenal-scroll qrc-no-scroll-x max-w-full w-full">
+            <ScrollArea className="qrc-v2-scroll-container qrc-no-scroll-x max-w-full w-full">
               <div className="flex flex-col min-h-0 space-y-6">
                 {/* Export CSV - inside scrollable */}
                 <div className="relative">

@@ -112,44 +112,7 @@ export function ArsenalPage({
           timeZone={userProfile?.timezone || profileForm.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone}
           cacheKey={user?.id ?? 'guest'}
           onAdaptiveEdit={handleAdaptiveEdit}
-          topContent={isMobileV2 && showAdaptiveBanner ? (
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="relative">
-                <button
-                  type="button"
-                  onClick={handleAdaptiveMockOpen}
-                  className="group text-left rounded-2xl border border-border/40 bg-black/90 p-4 shadow-none transition hover:border-amber-300 w-full"
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="inline-flex items-center gap-2 text-xs uppercase tracking-[0.3em]">
-                      <Star className="h-4 w-4 fill-amber-300 text-amber-300" />
-                      <span className={adaptiveGradientText}>Adaptive QRC™</span>
-                    </span>
-                    <span className="rounded-full border border-amber-300/50 px-2 py-1 text-[10px] uppercase tracking-[0.3em] text-amber-200">
-                      Adaptive QRC™
-                    </span>
-                  </div>
-                  <p className="mt-3 text-sm font-semibold text-white">
-                    <span className={adaptiveGradientText}>Adaptive QRC™</span> · Lunch Routing
-                  </p>
-                  <p className="mt-1 text-xs text-white/70">
-                    Routes by time, returning visitors, and admin IPs.
-                  </p>
-                </button>
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setShowAdaptiveBanner(false);
-                  }}
-                  className="absolute top-2 right-2 h-6 w-6 flex items-center justify-center rounded-full bg-background/80 hover:bg-background text-muted-foreground hover:text-foreground transition-colors z-10"
-                  aria-label="Close banner"
-                >
-                  <X className="h-3.5 w-3.5" />
-                </button>
-              </div>
-            </div>
-          ) : undefined}
+          topContent={undefined}
         />
       ) : (
         <div className="glass-panel rounded-2xl p-8 text-center space-y-4">

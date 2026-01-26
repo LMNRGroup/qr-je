@@ -1298,7 +1298,7 @@ export function ArsenalPanel({
   // Toolbar component for reuse
   const renderToolbar = () => (
     <div className={`flex w-full items-center justify-between gap-2 flex-nowrap qrc-arsenal-toolbar ${
-      isMobileV2 ? 'sticky top-0 z-10 bg-background/95 backdrop-blur-sm pb-2 pt-2' : ''
+      isMobileV2 ? 'sticky top-0 z-10 pb-2 pt-2' : ''
     }`}>
       <div className="flex min-w-0 flex-1 items-center gap-2">
         <Button

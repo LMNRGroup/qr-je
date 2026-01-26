@@ -1,4 +1,5 @@
 import { Button } from '@/components/ui/button';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { motion } from 'framer-motion';
 import { User, Users, Info } from 'lucide-react';
 import { useState } from 'react';
@@ -19,33 +20,128 @@ export function UpgradePage({
   adaptiveGradientText,
 }: UpgradePageProps) {
   return (
-    <section id="upgrade" className={`space-y-10 ${isMobileV2 ? 'qrc-v2-section' : ''}`}>
+    <section id="upgrade" className={`${isMobileV2 ? 'qrc-v2-section space-y-4' : 'space-y-10'}`}>
       {isMobileV2 ? (
-        <div className="mb-0 pb-3 text-center">
-          <p className="text-xs uppercase tracking-[0.4em] text-muted-foreground mb-1">Upgrade</p>
-          <h2 
-            className="text-lg font-semibold cursor-pointer hover:text-primary/80 transition-colors"
-            onClick={() => setShowNavOverlay(true)}
-          >
-            Our Plans
-          </h2>
-        </div>
+        <>
+          <div className="mb-0 pb-2">
+            <p className="text-xs uppercase tracking-[0.4em] text-muted-foreground mb-1">Upgrade</p>
+            <h2 
+              className="text-lg font-semibold cursor-pointer hover:text-primary/80 transition-colors"
+              onClick={() => setShowNavOverlay(true)}
+            >
+              Our Plans
+            </h2>
+          </div>
+          <div className="glass-panel rounded-2xl p-4 flex flex-col overflow-hidden">
+            <ScrollArea className="qrc-v2-scroll-container qrc-no-scroll-x max-w-full w-full">
+              <div className="flex flex-col min-h-0 space-y-4">
+                <div className="text-center text-xs text-muted-foreground">
+                  Current plan: <span className="text-foreground font-semibold">FREE FOREVER PLAN</span>
+                </div>
+                <div className="relative blur-sm pointer-events-none select-none">
+                  <div className="grid gap-4">
+                    <div className="glass-panel rounded-2xl p-4 space-y-4 border border-border/60">
+                      <div className="space-y-1">
+                        <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Free Forever</p>
+                        <h3 className="text-lg font-semibold">Free Forever</h3>
+                        <p className="text-xs text-primary uppercase tracking-[0.25em]">Free Forever – No Credit Card</p>
+                      </div>
+                      <div className="h-4" />
+                      <ul className="space-y-1.5 text-xs text-muted-foreground">
+                        <li><span className="font-semibold text-foreground">1</span> Dynamic QR Code</li>
+                        <li><span className="font-semibold text-foreground">Unlimited</span> Scans</li>
+                        <li className="flex items-center gap-2">
+                          <User className="h-3.5 w-3.5 text-muted-foreground" />
+                          <span className="font-semibold text-foreground">1</span> Seat
+                        </li>
+                        <li><span className="font-semibold text-foreground">Basic</span> Intel</li>
+                        <li><span className="font-semibold text-foreground">Standard</span> QR Styles</li>
+                        <li><span className="font-semibold text-foreground">Community</span> Support</li>
+                        <li><span className="font-semibold text-foreground">Watermark</span> Enabled</li>
+                        <li className="flex items-center gap-2">
+                          <span className="font-semibold text-foreground">1</span>
+                          <span className={adaptiveGradientText}>Adaptive QRC™</span>
+                          <span className="text-[9px] uppercase tracking-[0.3em] text-foreground">Autodestroy in 7 days</span>
+                        </li>
+                      </ul>
+                    </div>
+                    <div className="glass-panel rounded-2xl p-4 space-y-4 border-2 border-primary/80">
+                      <div className="flex items-center justify-between">
+                        <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Pro</p>
+                        <span className="rounded-full bg-primary/10 text-primary text-[9px] uppercase tracking-[0.35em] px-2 py-0.5">
+                          Most Popular
+                        </span>
+                      </div>
+                      <h3 className="text-lg font-semibold">Pro</h3>
+                      <div className="h-4" />
+                      <ul className="space-y-1.5 text-xs text-muted-foreground">
+                        <li><span className="font-semibold text-foreground">25</span> Dynamic QR Codes</li>
+                        <li><span className="font-semibold text-foreground">Unlimited</span> Scans</li>
+                        <li className="flex items-center gap-2">
+                          <User className="h-3.5 w-3.5 text-muted-foreground" />
+                          <span className="font-semibold text-foreground">1</span> Seat
+                        </li>
+                        <li><span className="font-semibold text-foreground">Full</span> Intel (analytics)</li>
+                        <li><span className="font-semibold text-foreground">Bulk</span> QR Creation</li>
+                        <li><span className="font-semibold text-foreground">Custom</span> Colors & Logos</li>
+                        <li><span className="font-semibold text-foreground">Preset</span> Loadouts</li>
+                        <li><span className="font-semibold text-foreground">Priority</span> Updates</li>
+                        <li><span className="font-semibold text-foreground">No</span> Watermark</li>
+                        <li><span className={adaptiveGradientText}>Adaptive QRC™</span> Unlimited Scans</li>
+                        <li><span className="font-semibold text-foreground">+ $3</span> per extra Adaptive QRC™</li>
+                      </ul>
+                    </div>
+                    <div className="glass-panel rounded-2xl p-4 space-y-4 border border-amber-400/50">
+                      <div className="flex items-center justify-between">
+                        <div className="space-y-1">
+                          <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Command</p>
+                          <h3 className="text-lg font-semibold">Command</h3>
+                        </div>
+                        <div className="text-amber-300 text-[10px] uppercase tracking-[0.3em] text-right">
+                          Business Plan
+                        </div>
+                      </div>
+                      <div className="h-4" />
+                      <ul className="space-y-1.5 text-xs text-muted-foreground">
+                        <li><span className="font-semibold text-foreground">Unlimited</span> Dynamic QR Codes</li>
+                        <li><span className="font-semibold text-foreground">Unlimited</span> Scans</li>
+                        <li className="flex items-center gap-2">
+                          <Users className="h-3.5 w-3.5 text-muted-foreground" />
+                          <span className="font-semibold text-foreground">5</span> Seats
+                        </li>
+                        <li><span className="font-semibold text-foreground">Advanced</span> Intel (reports & trends)</li>
+                        <li><span className="font-semibold text-foreground">Bulk</span> Creation (High-volume)</li>
+                        <li><span className="font-semibold text-foreground">API</span> Access</li>
+                        <li><span className="font-semibold text-foreground">Up to 5</span> Team Users</li>
+                        <li><span className="font-semibold text-foreground">Shared</span> Arsenal</li>
+                        <li><span className="font-semibold text-foreground">Priority</span> Support</li>
+                        <li><span className="font-semibold text-foreground">No</span> Watermark</li>
+                        <li><span className={adaptiveGradientText}>Adaptive QRC™</span> Unlimited Scans</li>
+                        <li><span className="font-semibold text-foreground">+ $2</span> per extra Adaptive QRC™</li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </ScrollArea>
+          </div>
+        </>
       ) : (
-        <div className="text-center space-y-3">
-          <p className="text-xs uppercase tracking-[0.4em] text-muted-foreground">Upgrade</p>
-          <h2 
-            className="text-2xl sm:text-3xl font-semibold tracking-tight cursor-pointer hover:text-primary/80 transition-colors inline-block"
-            onClick={() => setShowNavOverlay(true)}
-          >
-            Our Plans
-          </h2>
-          <p className="text-sm text-muted-foreground">Pricing comparison for every team size.</p>
-        </div>
-      )}
+        <>
+          <div className="text-center space-y-3">
+            <p className="text-xs uppercase tracking-[0.4em] text-muted-foreground">Upgrade</p>
+            <h2 
+              className="text-2xl sm:text-3xl font-semibold tracking-tight cursor-pointer hover:text-primary/80 transition-colors inline-block"
+              onClick={() => setShowNavOverlay(true)}
+            >
+              Our Plans
+            </h2>
+            <p className="text-sm text-muted-foreground">Pricing comparison for every team size.</p>
+          </div>
 
-      <div className="text-center text-sm text-muted-foreground">
-        Current plan: <span className="text-foreground font-semibold">FREE FOREVER PLAN</span>
-      </div>
+          <div className="text-center text-sm text-muted-foreground">
+            Current plan: <span className="text-foreground font-semibold">FREE FOREVER PLAN</span>
+          </div>
 
       <div className="relative blur-sm pointer-events-none select-none">
         <div className="grid gap-6 lg:grid-cols-3">
