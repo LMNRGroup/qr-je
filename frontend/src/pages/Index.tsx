@@ -1643,6 +1643,11 @@ const Index = () => {
             }
           }
           
+          // Determine kind field - ONLY set to 'adaptive' if qrType is explicitly 'adaptive'
+          const qrKind = qrType === 'adaptive'
+            ? 'adaptive'
+            : `${qrMode ?? 'static'}:${qrType === 'website' ? 'url' : qrType ?? 'url'}`;
+          
           return generateQR(
           qrType === 'file' || qrType === 'menu'
             ? `${appBaseUrl}/pending/${crypto.randomUUID()}`
@@ -1663,7 +1668,7 @@ const Index = () => {
                 menuSocials,
               }
               : finalOptions,
-          `${qrMode ?? 'static'}:${qrType === 'website' ? 'url' : qrType ?? 'url'}`,
+          qrKind,
             name || (qrType === 'file' ? fileName || 'File QR' : null)
         );
         })();
@@ -1720,7 +1725,7 @@ const Index = () => {
                 ? `${appBaseUrl}/file/${id}/${random}`
                 : `${appBaseUrl}/menu/${id}/${random}`;
               
-              // Build options with adaptive config if enabled
+              // Build options - NEVER include adaptive config unless qrType is 'adaptive'
               const updateOptions = qrType === 'file'
                 ? {
                     ...finalOptions,
@@ -1736,11 +1741,16 @@ const Index = () => {
                     menuSocials,
                   };
               
+              // Determine kind field - ONLY set to 'adaptive' if qrType is explicitly 'adaptive'
+              const updateKind = qrType === 'adaptive'
+                ? 'adaptive'
+                : `${qrMode ?? 'static'}:${qrType}`;
+              
               const updateResponse = await updateQR(id, {
                 targetUrl,
                 name: name || (qrType === 'file' ? fileName || 'File QR' : null),
                 options: updateOptions,
-                kind: `${qrMode ?? 'static'}:${qrType}`,
+                kind: updateKind,
               });
               if (updateResponse.success && updateResponse.data) {
                 nextItem = updateResponse.data;
