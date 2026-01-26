@@ -606,6 +606,8 @@ export function ArsenalPanel({
 
   useEffect(() => {
     if (!items.length) return;
+    // Only fetch scan counts when items actually change (not on page/selection change)
+    // This prevents unnecessary fetches when user navigates pages or selects items
     loadScanCounts(getCountTargets(items), false).then((countsResult) => {
       writeCache({
         items,
@@ -622,8 +624,9 @@ export function ArsenalPanel({
         viewMode,
       });
     });
+    // Only depend on items.length to avoid refetching on page/selection changes
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, selectedId, items]);
+  }, [items.length]);
 
   useEffect(() => {
     if (!items.length) return;

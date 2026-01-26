@@ -663,7 +663,7 @@ const Index = () => {
         : qrType === 'phone'
           ? isPhoneValid
           : qrType === 'file'
-            ? (fileDataUrl || fileBlob || fileUrl.length > 0)
+            ? (fileDataUrl || fileBlob || (fileUrl && fileUrl.length > 0)) && fileTouched && !fileUploading
           : qrType === 'menu'
             ? menuFiles.length > 0
             : false);
@@ -964,6 +964,8 @@ const Index = () => {
     const fetchSummary = async (showLoading: boolean) => {
       // Skip if tab is hidden to reduce egress
       if (typeof document !== 'undefined' && document.hidden && !showLoading) return;
+      // Skip if user has no QR codes - no need to fetch summary
+      if (arsenalStats.total === 0 && !showLoading) return;
       if (showLoading) setIntelLoading(true);
       try {
         // Use current values from state instead of closure values
@@ -999,9 +1001,9 @@ const Index = () => {
       cancelled = true;
       if (pollTimer) window.clearInterval(pollTimer);
     };
-    // Only depend on activeTab and isSessionReady - use refs for timezone/range to avoid restarting interval
+    // Only depend on activeTab and isSessionReady - use current values inside effect to avoid restarting interval
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab, isSessionReady, arsenalStats.total]);
+  }, [activeTab, isSessionReady]);
 
   useEffect(() => {
     if (!isSessionReady) return;
@@ -1032,7 +1034,12 @@ const Index = () => {
       days = 30;
     }
     
-    getScanTrends(days, timeZone)
+    // Use current timezone values inside effect instead of dependencies
+    const currentTimeZone = userProfile?.timezone ||
+      profileForm.timezone ||
+      Intl.DateTimeFormat().resolvedOptions().timeZone;
+    
+    getScanTrends(days, currentTimeZone)
       .then((points) => {
         if (cancelled) return;
         setIntelTrends(points);
@@ -1045,7 +1052,9 @@ const Index = () => {
     return () => {
       cancelled = true;
     };
-  }, [activeTab, intelRange, isSessionReady, profileForm.timezone, userProfile?.timezone, arsenalStats.total]);
+    // Only depend on activeTab, intelRange, and isSessionReady - use current timezone values inside effect
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, intelRange, isSessionReady]);
 
   useEffect(() => {
     if (!isSessionReady) return;
@@ -1085,7 +1094,9 @@ const Index = () => {
       cancelled = true;
       if (pollTimer) window.clearInterval(pollTimer);
     };
-  }, [activeTab, isSessionReady, arsenalStats.total]);
+    // Only depend on activeTab and isSessionReady - use current arsenalStats.total inside effect
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, isSessionReady]);
 
   useEffect(() => {
     if (!isSignalsMenuOpen) return;
