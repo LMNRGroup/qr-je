@@ -30,10 +30,10 @@ export function SystemNotificationTab() {
         id: 'system-welcome-2026-01',
         message:
           `Hey ${displayName}.\n\n` +
-          'Just a quick heads-up. We're early. We're building fast. And yeah — you might see a bug or two along the way.\n\n' +
-          'If something feels off, know this: it's being worked on, and you're part of why this thing is getting better every day.\n\n' +
-          'Thanks for being here this early. That actually means more than you think.\n\n' +
-          '— Erwin, Luminar Apps 🚀',
+          `Just a quick heads-up. We're early. We're building fast. And yeah — you might see a bug or two along the way.\n\n` +
+          `If something feels off, know this: it's being worked on, and you're part of why this thing is getting better every day.\n\n` +
+          `Thanks for being here this early. That actually means more than you think.\n\n` +
+          `— Erwin, Luminar Apps 🚀`,
         createdAt: new Date('2026-01-21T00:00:00Z').getTime(),
       },
     ],
@@ -73,8 +73,6 @@ export function SystemNotificationTab() {
   if (!user || visibleNotifications.length === 0) {
     return null;
   }
-
-  const currentNotification = visibleNotifications[0];
 
   return (
     <>
