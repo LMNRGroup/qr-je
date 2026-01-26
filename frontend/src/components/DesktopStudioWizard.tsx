@@ -33,6 +33,7 @@ import { CornerStylePicker } from '@/components/CornerStylePicker';
 import { ErrorCorrectionSelector } from '@/components/ErrorCorrectionSelector';
 import { LogoUpload } from '@/components/LogoUpload';
 import { SizeSlider } from '@/components/SizeSlider';
+import { SocialMediaSelector, type SocialPlatform } from '@/components/SocialMediaSelector';
 import {
   QRWizardStep,
   STEP_CONFIG,
@@ -72,6 +73,8 @@ interface DesktopStudioWizardProps {
   selectedQuickAction: string | null;
   previewContent: string;
   user: { id: string } | null;
+  socialPlatform: SocialPlatform;
+  socialHandle: string;
   
   // Handlers
   onModeChange: (mode: 'static' | 'dynamic' | null) => void;
@@ -88,6 +91,7 @@ interface DesktopStudioWizardProps {
   onEmailTouched: (touched: boolean) => void;
   onPhoneTouched: (touched: boolean) => void;
   onFileTouched: (touched: boolean) => void;
+  onSocialChange: (platform: SocialPlatform, handle: string) => void;
   navigate: (path: string) => void;
   toast: {
     error: (message: string) => void;
@@ -146,9 +150,12 @@ export function DesktopStudioWizard({
   onEmailTouched,
   onPhoneTouched,
   onFileTouched,
+  onSocialChange,
   fileUploading,
   fileUploadProgress,
   fileUploadError,
+  socialPlatform,
+  socialHandle,
   navigate,
   toast,
   onShowVcardCustomizer,
@@ -178,10 +185,25 @@ export function DesktopStudioWizard({
       vcardName,
       vcardSlug,
       menuFilesCount,
+      socialPlatform: socialPlatform || '',
+      socialHandle,
+      portalLinks: [],
+      portalTitle: '',
+      portalDescription: '',
+      portalTemplate: 1,
+      portalCustomization: {
+        backgroundColor: '',
+        buttonColor: '',
+        buttonStyle: 'square' as const,
+        fontFamily: '',
+        fontColor: '',
+      },
       websiteTouched,
       emailTouched,
       phoneTouched,
       fileTouched,
+      socialTouched: Boolean(socialPlatform || socialHandle),
+      portalTouched: false,
     }),
     [
       currentStep,
@@ -196,6 +218,8 @@ export function DesktopStudioWizard({
       vcardName,
       vcardSlug,
       menuFilesCount,
+      socialPlatform,
+      socialHandle,
       websiteTouched,
       emailTouched,
       phoneTouched,
@@ -509,12 +533,14 @@ export function DesktopStudioWizard({
                     {qrType === 'vcard' ? 'vCard Contents' : 
                      qrType === 'file' ? 'File Upload' :
                      qrType === 'menu' ? 'Menu Customization' :
+                     qrType === 'social' ? 'Social Media' :
                      STEP_CONFIG[3].title}
                   </h3>
                   <p className="text-sm text-muted-foreground">
                     {qrType === 'vcard' ? 'Enter your contact information' :
                      qrType === 'file' ? 'Upload a file to share via QR code' :
                      qrType === 'menu' ? 'Upload menu pages, add logo, and customize your menu' :
+                     qrType === 'social' ? 'Select a platform and enter your handle' :
                      STEP_CONFIG[3].description}
                   </p>
                 </div>
@@ -668,6 +694,17 @@ export function DesktopStudioWizard({
                         Upload File
                       </Button>
                     )}
+                  </div>
+                )}
+
+                {qrType === 'social' && (
+                  <div className="space-y-4">
+                    <SocialMediaSelector
+                      platform={socialPlatform}
+                      handle={socialHandle}
+                      onPlatformChange={(platform) => onSocialChange(platform, socialHandle)}
+                      onHandleChange={(handle) => onSocialChange(socialPlatform, handle)}
+                    />
                   </div>
                 )}
 

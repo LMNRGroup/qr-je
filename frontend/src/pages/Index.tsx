@@ -7053,9 +7053,15 @@ const Index = () => {
             onEmailTouched={setEmailTouched}
             onPhoneTouched={setPhoneTouched}
             onFileTouched={setFileTouched}
+            onSocialChange={(platform, handle) => {
+              setSocialPlatform(platform);
+              setSocialHandle(handle);
+            }}
             fileUploading={fileUploading}
             fileUploadProgress={fileUploadProgress}
             fileUploadError={fileUploadError}
+            socialPlatform={socialPlatform}
+            socialHandle={socialHandle}
             navigate={navigate}
             toast={toast}
             onShowVcardCustomizer={() => setShowVcardCustomizer(true)}
