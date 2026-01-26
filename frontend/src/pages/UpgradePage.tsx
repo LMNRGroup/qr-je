@@ -20,7 +20,7 @@ export function UpgradePage({
   adaptiveGradientText,
 }: UpgradePageProps) {
   return (
-    <section id="upgrade" className={`${isMobileV2 ? 'qrc-v2-section space-y-4' : 'space-y-10'}`}>
+    <section id="upgrade" className={`${isMobileV2 ? 'qrc-v2-section' : 'space-y-10'}`}>
       {isMobileV2 ? (
         <>
           <div className="mb-0 pb-2">
@@ -34,7 +34,7 @@ export function UpgradePage({
           </div>
           <div className="glass-panel rounded-2xl p-4 flex flex-col overflow-hidden">
             <ScrollArea className="qrc-v2-scroll-container qrc-no-scroll-x max-w-full w-full">
-              <div className="flex flex-col min-h-0 space-y-4">
+              <div className="flex flex-col min-h-0 space-y-3">
                 <div className="text-center text-xs text-muted-foreground">
                   Current plan: <span className="text-foreground font-semibold">FREE FOREVER PLAN</span>
                 </div>

@@ -16,7 +16,12 @@
   }
 
   html[data-mobile-ui="v2"] .qrc-v2-section {
-    margin-top: 12px;
+    margin-top: 8px;
+  }
+  
+  /* Reduce spacing in sections for mobile V2 */
+  html[data-mobile-ui="v2"] .qrc-v2-section.space-y-6 {
+    gap: 8px;
   }
 
   html[data-mobile-ui="v2"] .qrc-v2-card {
@@ -29,8 +34,8 @@
   }
 
   html[data-mobile-ui="v2"] .qrc-arsenal-scroll {
-    max-height: calc(100dvh - 180px);
-    height: calc(100dvh - 180px);
+    max-height: calc(100dvh - 140px);
+    height: calc(100dvh - 140px);
     display: flex;
     flex-direction: column;
     overflow: hidden;
@@ -38,8 +43,8 @@
   
   /* Generic scrollable container for all nav pages */
   html[data-mobile-ui="v2"] .qrc-v2-scroll-container {
-    max-height: calc(100dvh - 180px);
-    height: calc(100dvh - 180px);
+    max-height: calc(100dvh - 140px);
+    height: calc(100dvh - 140px);
     display: flex;
     flex-direction: column;
     overflow: hidden;
@@ -193,9 +198,20 @@
   html[data-mobile-ui="v2"] .qrc-config-section {
     display: flex;
     flex-direction: column;
-    height: calc(100dvh - 180px);
-    max-height: calc(100dvh - 180px);
+    height: calc(100dvh - 140px);
+    max-height: calc(100dvh - 140px);
     overflow: hidden;
+  }
+  
+  /* Reduce header padding on mobile V2 */
+  html[data-mobile-ui="v2"] .qrc-v2-section > div:first-child {
+    margin-bottom: 0 !important;
+    padding-bottom: 8px !important;
+  }
+  
+  /* Reduce glass panel padding on mobile V2 */
+  html[data-mobile-ui="v2"] .qrc-v2-section .glass-panel {
+    padding: 12px !important;
   }
 
   html[data-mobile-ui="v2"] .qrc-config-panel {

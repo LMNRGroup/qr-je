@@ -38,9 +38,9 @@ export function ArsenalPage({
   adaptiveGradientText,
 }: ArsenalPageProps) {
   return (
-    <section id="arsenal" className={`space-y-6 ${isMobileV2 ? 'qrc-v2-section' : ''}`}>
+    <section id="arsenal" className={`${isMobileV2 ? 'qrc-v2-section' : 'space-y-6'}`}>
       {isMobileV2 ? (
-        <div className="mb-0 pb-3">
+        <div className="mb-0 pb-2">
           <p className="text-xs uppercase tracking-[0.4em] text-muted-foreground mb-1">Arsenal</p>
           <h2 
             className="text-lg font-semibold cursor-pointer hover:text-primary/80 transition-colors"

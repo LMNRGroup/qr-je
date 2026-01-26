@@ -6,14 +6,14 @@ const Terms = () => {
   const navigate = useNavigate();
   
   return (
-    <div className="min-h-screen bg-background text-foreground">
-      <div className="container mx-auto px-4 py-12 space-y-8">
+  <div className="min-h-screen bg-background text-foreground">
+    <div className="container mx-auto px-4 py-12 space-y-8">
         <div className="flex items-start justify-between gap-4">
           <div className="flex-1">
-            <p className="text-xs uppercase tracking-[0.35em] text-muted-foreground">Legal</p>
-            <h1 className="text-3xl font-semibold tracking-tight">Terms & Conditions</h1>
-            <p className="text-sm text-muted-foreground mt-2">QR Code Studio by Luminar Apps</p>
-            <p className="text-sm text-muted-foreground">Last Updated: January 16, 2026</p>
+        <p className="text-xs uppercase tracking-[0.35em] text-muted-foreground">Legal</p>
+        <h1 className="text-3xl font-semibold tracking-tight">Terms & Conditions</h1>
+        <p className="text-sm text-muted-foreground mt-2">QR Code Studio by Luminar Apps</p>
+        <p className="text-sm text-muted-foreground">Last Updated: January 16, 2026</p>
           </div>
           <Button
             variant="ghost"
@@ -24,9 +24,9 @@ const Terms = () => {
           >
             <X className="h-5 w-5" />
           </Button>
-        </div>
+      </div>
 
-        <div className="glass-panel rounded-2xl p-6 space-y-6 text-sm text-muted-foreground">
+      <div className="glass-panel rounded-2xl p-6 space-y-6 text-sm text-muted-foreground">
         <div className="space-y-3">
           <h2 className="text-base font-semibold text-foreground">1. Agreement to Terms</h2>
           <p>
@@ -238,10 +238,10 @@ const Terms = () => {
           <p>Luminar Apps</p>
           <p>Email: support@luminarapps.com</p>
         </div>
-        </div>
       </div>
     </div>
-  );
+  </div>
+);
 };
 
 export default Terms;

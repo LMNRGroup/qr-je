@@ -557,11 +557,11 @@ export function IntelPage({
   );
 
   return (
-    <section id="intel" className={`space-y-6 ${isMobileV2 ? 'qrc-v2-section' : ''}`}>
+    <section id="intel" className={`${isMobileV2 ? 'qrc-v2-section' : 'space-y-6'}`}>
       {isMobileV2 ? (
-        <div className="space-y-4">
+        <>
           {/* Clickable Header - OUTSIDE and ON TOP of container */}
-          <div className="mb-0 pb-3">
+          <div className="mb-0 pb-2">
             <p className="text-xs uppercase tracking-[0.4em] text-muted-foreground mb-1">Intel</p>
             <h2 
               className="text-lg font-semibold cursor-pointer hover:text-primary/80 transition-colors"
@@ -573,7 +573,7 @@ export function IntelPage({
           
           <div className="glass-panel rounded-2xl p-4 flex flex-col overflow-hidden">
             <ScrollArea className="qrc-v2-scroll-container qrc-no-scroll-x max-w-full w-full">
-              <div className="flex flex-col min-h-0 space-y-6">
+              <div className="flex flex-col min-h-0 space-y-4">
                 {/* Export CSV - inside scrollable */}
                 <div className="relative">
                   <select
@@ -606,7 +606,7 @@ export function IntelPage({
               </div>
             </ScrollArea>
           </div>
-        </div>
+        </>
       ) : (
         <div className="relative">
           <div className="space-y-6">

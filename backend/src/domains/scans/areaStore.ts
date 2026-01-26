@@ -99,15 +99,15 @@ import type { AreaStorage } from './storage/area.interface'
 export const recordAreaScanForUser = async (
   areaStorage: AreaStorage,
   input: {
-    userId: string
-    ip: string | null
-    userAgent: string | null
-    city: string | null
-    region: string | null
-    countryCode: string | null
-    lat: number | null
-    lon: number | null
-    responseMs: number | null
+  userId: string
+  ip: string | null
+  userAgent: string | null
+  city: string | null
+  region: string | null
+  countryCode: string | null
+  lat: number | null
+  lon: number | null
+  responseMs: number | null
   }
 ) => {
   // ✅ FIX: Check both region and countryCode for PR detection

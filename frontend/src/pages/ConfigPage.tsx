@@ -123,9 +123,9 @@ export function ConfigPage({
   };
 
   return (
-    <section id="config" className={`space-y-6 ${isMobileV2 ? 'qrc-v2-section qrc-config-section' : ''}`}>
+    <section id="config" className={`${isMobileV2 ? 'qrc-v2-section qrc-config-section' : 'space-y-6'}`}>
       {isMobileV2 ? (
-        <div className="mb-0 pb-3">
+        <div className="mb-0 pb-2">
           <p className="text-xs uppercase tracking-[0.4em] text-muted-foreground mb-1">Config</p>
           <h2 
             className="text-lg font-semibold cursor-pointer hover:text-primary/80 transition-colors"

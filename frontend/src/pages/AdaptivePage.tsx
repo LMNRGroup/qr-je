@@ -27,11 +27,11 @@ export function AdaptivePage({
   const navigate = useNavigate();
 
   return (
-    <section id="adaptive" className={`space-y-10 ${isMobileV2 ? 'qrc-v2-section' : ''}`}>
+    <section id="adaptive" className={`${isMobileV2 ? 'qrc-v2-section' : 'space-y-10'}`}>
       {isMobileV2 ? (
-        <div className="space-y-4">
+        <>
           {/* Clickable Header - OUTSIDE and ON TOP of container */}
-          <div className="mb-0 pb-3">
+          <div className="mb-0 pb-2">
             <p className="text-xs uppercase tracking-[0.4em] text-muted-foreground mb-1">Rules Based QRC</p>
             <h2 
               className="text-lg font-semibold bg-gradient-to-r from-amber-400 via-amber-300 to-amber-400 bg-clip-text text-transparent cursor-pointer hover:opacity-80 transition-opacity"
@@ -43,7 +43,7 @@ export function AdaptivePage({
           
           <div className="glass-panel rounded-2xl p-4 flex flex-col overflow-hidden">
             <ScrollArea className="qrc-v2-scroll-container qrc-no-scroll-x max-w-full w-full">
-              <div className="flex flex-col min-h-0">
+              <div className="flex flex-col min-h-0 space-y-3">
 
               {/* Main Content */}
               {existingAdaptiveQRC ? (
@@ -271,7 +271,7 @@ export function AdaptivePage({
             </div>
           </ScrollArea>
           </div>
-        </div>
+        </>
       ) : (
         <>
           {/* Header */}

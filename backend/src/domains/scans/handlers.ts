@@ -202,16 +202,16 @@ export const getUserScanTrendsHandler = (scansService: ScansService) => {
         return c.json({ days: 1, points, hourly: true })
       } else {
         // Original day-based grouping
-        timestamps.forEach((timestamp) => {
-          const key = getDateKeyInZone(new Date(String(timestamp)), timeZone)
-          map.set(key, (map.get(key) ?? 0) + 1)
-        })
-        const points = Array.from({ length: days }, (_, index) => {
-          const date = new Date(startDate)
-          date.setUTCDate(startDate.getUTCDate() + index)
-          const key = getDateKeyInZone(date, timeZone)
-          return { date: date.toISOString(), count: map.get(key) ?? 0 }
-        })
+      timestamps.forEach((timestamp) => {
+        const key = getDateKeyInZone(new Date(String(timestamp)), timeZone)
+        map.set(key, (map.get(key) ?? 0) + 1)
+      })
+      const points = Array.from({ length: days }, (_, index) => {
+        const date = new Date(startDate)
+        date.setUTCDate(startDate.getUTCDate() + index)
+        const key = getDateKeyInZone(date, timeZone)
+        return { date: date.toISOString(), count: map.get(key) ?? 0 }
+      })
         return c.json({ days, points, hourly: false })
       }
     } catch (error) {
