@@ -4428,7 +4428,12 @@ const Index = () => {
       <div className="grid sm:grid-cols-2 gap-4">
         <div className="rounded-xl border border-border/60 bg-secondary/30 p-4 sm:col-span-2 lg:col-span-2">
           <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground mb-4">Signal Trends</p>
-          <div className="relative w-full" style={{ height: '200px' }}>
+          <div 
+            ref={graphContainerRef}
+            className="relative w-full" 
+            style={{ height: '200px' }}
+            onMouseLeave={() => !isMobile && setHoveredPointIndex(null)}
+          >
             {trendPoints.length > 0 ? (() => {
               // Calculate chart dimensions
               const max = Math.max(1, ...trendPoints.map((p) => p.count ?? 0));
@@ -4454,6 +4459,29 @@ const Index = () => {
                 return { x, y };
               };
               
+              // Format full time label for tooltip (desktop only)
+              const formatFullTimeLabel = (point: { date: Date; label: string; count: number }) => {
+                if (intelRange === 'today') {
+                  // For hourly data, show full time like "12:00 AM"
+                  const timeFormatter = new Intl.DateTimeFormat('en-US', {
+                    timeZone: trendTimeZone,
+                    hour: 'numeric',
+                    minute: '2-digit',
+                    hour12: true,
+                  });
+                  return timeFormatter.format(point.date);
+                } else {
+                  // For day-based data, show date and count
+                  const dateFormatter = new Intl.DateTimeFormat('en-US', {
+                    timeZone: trendTimeZone,
+                    month: 'short',
+                    day: 'numeric',
+                    year: intelRange === 'all' ? 'numeric' : undefined,
+                  });
+                  return `${dateFormatter.format(point.date)}: ${point.count} scans`;
+                }
+              };
+              
               const linePath = trendPoints.map((point, index) => {
                 const { x, y } = getPointCoords(index, point.count ?? 0);
                 return `${index === 0 ? 'M' : 'L'} ${x} ${y}`;
@@ -4461,12 +4489,19 @@ const Index = () => {
               
               const areaPath = `${linePath} L ${padding + chartWidth} ${padding + chartHeight} L ${padding} ${padding + chartHeight} Z`;
               
+              // Get hovered point coordinates for tooltip positioning (desktop only)
+              const hoveredPoint = !isMobile && hoveredPointIndex !== null ? trendPoints[hoveredPointIndex] : null;
+              const hoveredCoords = hoveredPoint && hoveredPointIndex !== null
+                ? getPointCoords(hoveredPointIndex, hoveredPoint.count ?? 0)
+                : null;
+              
               return (
-                <svg
-                  viewBox={`0 0 ${svgWidth} ${svgHeight}`}
-                  className="w-full h-full"
-                  preserveAspectRatio="xMidYMid meet"
-                >
+                <>
+                  <svg
+                    viewBox={`0 0 ${svgWidth} ${svgHeight}`}
+                    className="w-full h-full"
+                    preserveAspectRatio="xMidYMid meet"
+                  >
                   <defs>
                     <linearGradient id="lineGradient" x1="0%" y1="0%" x2="0%" y2="100%">
                       <stop offset="0%" stopColor="rgb(251, 191, 36)" stopOpacity="0.3" />
@@ -4531,16 +4566,38 @@ const Index = () => {
                   {/* Data points */}
                   {max > 0 && trendPoints.map((point, index) => {
                     const { x, y } = getPointCoords(index, point.count ?? 0);
+                    const isHovered = !isMobile && hoveredPointIndex === index;
+                    const radius = isHovered ? 8 : 4;
+                    
                     return (
-                      <g key={`point-${index}`}>
+                      <g 
+                        key={`point-${index}`}
+                        onMouseEnter={() => !isMobile && setHoveredPointIndex(index)}
+                        onMouseLeave={() => !isMobile && setHoveredPointIndex(null)}
+                        className={!isMobile ? "cursor-pointer" : ""}
+                      >
+                        {/* Larger transparent circle for easier hover target (desktop only) */}
+                        {!isMobile && (
+                          <circle
+                            cx={x}
+                            cy={y}
+                            r="12"
+                            fill="transparent"
+                            className="pointer-events-auto"
+                          />
+                        )}
                         <circle
                           cx={x}
                           cy={y}
-                          r="4"
+                          r={radius}
                           fill="rgb(251, 191, 36)"
                           stroke="hsl(var(--background))"
-                          strokeWidth="2"
-                          className="hover:r-5 transition-all cursor-pointer"
+                          strokeWidth={isHovered ? "3" : "2"}
+                          className={!isMobile ? "transition-all duration-200" : ""}
+                          style={!isMobile ? { 
+                            filter: isHovered ? 'drop-shadow(0 0 8px rgb(251, 191, 36))' : 'none',
+                            transform: isHovered ? 'scale(1.2)' : 'scale(1)',
+                          } : {}}
                         />
                         <title>{`${point.label}: ${point.count} scans`}</title>
                       </g>
@@ -4567,6 +4624,26 @@ const Index = () => {
                     );
                   })}
                 </svg>
+                
+                {/* Tooltip for hovered point (desktop only) */}
+                {!isMobile && hoveredPoint && hoveredCoords && graphContainerRef.current && (
+                  <div
+                    className="absolute pointer-events-none z-50 rounded-lg border border-amber-500/30 bg-card/95 backdrop-blur-sm px-3 py-2 shadow-lg"
+                    style={{
+                      left: `${(hoveredCoords.x / svgWidth) * 100}%`,
+                      top: `${(hoveredCoords.y / svgHeight) * 100}%`,
+                      transform: 'translate(-50%, -120%)',
+                    }}
+                  >
+                    <p className="text-xs font-semibold text-amber-300 whitespace-nowrap">
+                      {formatFullTimeLabel(hoveredPoint)}
+                    </p>
+                    <p className="text-[10px] text-muted-foreground mt-0.5">
+                      {hoveredPoint.count} {hoveredPoint.count === 1 ? 'scan' : 'scans'}
+                    </p>
+                  </div>
+                )}
+              </>
               );
             })() : (
               <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
