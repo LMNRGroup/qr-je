@@ -14,6 +14,7 @@ export function SystemNotificationTab() {
   const { user } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set());
+  const [readIds, setReadIds] = useState<Set<string>>(new Set());
 
   const displayName = useMemo(() => {
     if (!user) return 'there';
@@ -42,11 +43,16 @@ export function SystemNotificationTab() {
 
   useEffect(() => {
     if (!user?.id) return;
-    const key = `qrc.system.dismissed.${user.id}`;
+    const dismissedKey = `qrc.system.dismissed.${user.id}`;
+    const readKey = `qrc.system.read.${user.id}`;
     try {
-      const stored = window.localStorage.getItem(key);
-      if (stored) {
-        setDismissedIds(new Set(JSON.parse(stored)));
+      const dismissedStored = window.localStorage.getItem(dismissedKey);
+      if (dismissedStored) {
+        setDismissedIds(new Set(JSON.parse(dismissedStored)));
+      }
+      const readStored = window.localStorage.getItem(readKey);
+      if (readStored) {
+        setReadIds(new Set(JSON.parse(readStored)));
       }
     } catch {
       // ignore
@@ -54,6 +60,22 @@ export function SystemNotificationTab() {
   }, [user?.id]);
 
   const visibleNotifications = systemNotifications.filter((note) => !dismissedIds.has(note.id));
+  const unreadNotifications = visibleNotifications.filter((note) => !readIds.has(note.id));
+
+  const handleOpen = (open: boolean) => {
+    setIsOpen(open);
+    if (open && user?.id) {
+      // Mark all visible notifications as read when dialog opens
+      const newReadIds = new Set([...Array.from(readIds), ...visibleNotifications.map(n => n.id)]);
+      setReadIds(newReadIds);
+      try {
+        const readKey = `qrc.system.read.${user.id}`;
+        window.localStorage.setItem(readKey, JSON.stringify(Array.from(newReadIds)));
+      } catch {
+        // ignore
+      }
+    }
+  };
 
   const handleDismiss = (id: string) => {
     if (!user?.id) return;
@@ -79,21 +101,21 @@ export function SystemNotificationTab() {
       {/* Bottom-left tab */}
       <button
         type="button"
-        onClick={() => setIsOpen(true)}
+        onClick={() => handleOpen(true)}
         className="fixed bottom-4 left-4 z-40 flex items-center gap-2 rounded-full border border-border/60 bg-secondary/80 backdrop-blur-sm px-3 py-2 shadow-lg hover:bg-secondary transition-colors group"
         aria-label="System notifications"
       >
         <Bell className="h-4 w-4 text-primary" />
         <span className="text-xs font-medium text-foreground hidden sm:inline">System</span>
-        {visibleNotifications.length > 0 && (
+        {!isOpen && unreadNotifications.length > 0 && (
           <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-primary px-1.5 text-[10px] font-semibold text-primary-foreground">
-            {visibleNotifications.length}
+            {unreadNotifications.length}
           </span>
         )}
       </button>
 
       {/* Dialog for full notification */}
-      <Dialog open={isOpen} onOpenChange={setIsOpen}>
+      <Dialog open={isOpen} onOpenChange={handleOpen}>
         <DialogContent className="max-w-md rounded-2xl border border-border/60 bg-card/95 backdrop-blur-xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
