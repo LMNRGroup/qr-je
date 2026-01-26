@@ -7517,18 +7517,20 @@ const Index = () => {
                   </>
                 )}
               </div>
-              <div className="pt-2 border-t border-border/50">
-                <p className="text-xs text-muted-foreground">
-                  Need help? Check out our{' '}
-                  <a href="/faq" className="text-primary hover:underline font-medium">
-                    FAQ
-                  </a>{' '}
-                  for answers to common questions. Learn more about our{' '}
-                  <a href="/privacy" className="text-primary hover:underline font-medium">
-                    privacy policy
-                  </a>.
-                </p>
-              </div>
+              {!isMobileV2 && (
+                <div className="pt-2 border-t border-border/50">
+                  <p className="text-xs text-muted-foreground">
+                    Need help? Check out our{' '}
+                    <a href="/faq" className="text-primary hover:underline font-medium">
+                      FAQ
+                    </a>{' '}
+                    for answers to common questions. Learn more about our{' '}
+                    <a href="/privacy" className="text-primary hover:underline font-medium">
+                      privacy policy
+                    </a>.
+                  </p>
+                </div>
+              )}
             </div>
           </div>
         </section>

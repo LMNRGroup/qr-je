@@ -1502,7 +1502,7 @@ export function ArsenalPanel({
                   const shouldShowDeleteX = isMobileV2 && showDeleteX === item.id;
 
                   return (
-                    <div key={item.id} className="relative">
+                    <div key={item.id} className={`relative ${viewMode === 'grid' ? 'w-full' : 'w-full'}`}>
                       <button
                         type="button"
                         onTouchStart={handleTouchStart}
@@ -1542,7 +1542,7 @@ export function ArsenalPanel({
                           handleSelect(item);
                         }}
                         data-qr-card={item.id}
-                      className={`group w-full rounded-2xl border text-left transition overflow-hidden min-w-0 max-w-full ${
+                        className={`group w-full rounded-2xl border text-left transition overflow-hidden min-w-0 max-w-full ${
                         isSelectMode && isChecked
                           ? 'border-amber-400/80 bg-amber-300/10 shadow-[0_0_18px_rgba(251,191,36,0.3)]'
                           : isSelected
