@@ -602,16 +602,12 @@ const Login = () => {
                   </button>
                   {!isSignUp && (
                     <div className="space-y-2 flex flex-col items-center">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          // Placeholder for forgot password - do nothing until email flow is setup
-                          toast.info('Password reset feature coming soon');
-                        }}
+                      <Link
+                        to="/forgot-password"
                         className="text-xs text-muted-foreground hover:text-primary transition-colors"
                       >
                         Forgot my password
-                      </button>
+                      </Link>
                       <button
                         type="button"
                         onClick={() => navigate('/')}
