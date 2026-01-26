@@ -195,6 +195,8 @@ const Index = () => {
   const [isSignalsMenuOpen, setIsSignalsMenuOpen] = useState(false);
   const signalsCardRef = useRef<HTMLDivElement>(null);
   const [arsenalRefreshKey, setArsenalRefreshKey] = useState(0);
+  const [hoveredPointIndex, setHoveredPointIndex] = useState<number | null>(null);
+  const graphContainerRef = useRef<HTMLDivElement>(null);
   const [navHint, setNavHint] = useState('');
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [usernameStatus, setUsernameStatus] = useState<'idle' | 'checking' | 'available' | 'taken' | 'invalid'>('idle');
