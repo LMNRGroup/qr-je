@@ -1,6 +1,8 @@
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import { HelpCircle } from 'lucide-react';
+import { HelpCircle, ArrowLeft, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Button } from '@/components/ui/button';
 
 interface FAQItem {
   id: string;
@@ -11,6 +13,7 @@ interface FAQItem {
 }
 
 const FAQ = () => {
+  const navigate = useNavigate();
   const [faqData, setFaqData] = useState<FAQItem[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -56,13 +59,24 @@ const FAQ = () => {
   return (
     <div className="min-h-screen bg-background text-foreground">
       <div className="container mx-auto px-4 py-12 space-y-8 max-w-4xl">
-        <div>
-          <div className="flex items-center gap-3 mb-2">
-            <HelpCircle className="h-6 w-6 text-primary" />
-            <p className="text-xs uppercase tracking-[0.35em] text-muted-foreground">Help Center</p>
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex-1">
+            <div className="flex items-center gap-3 mb-2">
+              <HelpCircle className="h-6 w-6 text-primary" />
+              <p className="text-xs uppercase tracking-[0.35em] text-muted-foreground">Help Center</p>
+            </div>
+            <h1 className="text-3xl font-semibold tracking-tight">Frequently Asked Questions</h1>
+            <p className="text-sm text-muted-foreground mt-2">QR Code Studio by Luminar Apps</p>
           </div>
-          <h1 className="text-3xl font-semibold tracking-tight">Frequently Asked Questions</h1>
-          <p className="text-sm text-muted-foreground mt-2">QR Code Studio by Luminar Apps</p>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => navigate(-1)}
+            className="flex-shrink-0"
+            aria-label="Go back"
+          >
+            <X className="h-5 w-5" />
+          </Button>
         </div>
 
         <div className="space-y-6">
@@ -88,11 +102,7 @@ const FAQ = () => {
         <div className="glass-panel rounded-2xl p-6 text-center space-y-4">
           <h2 className="text-lg font-semibold text-foreground">Still have questions?</h2>
           <p className="text-sm text-muted-foreground">
-            Check out our{' '}
-            <a href="/support" className="text-primary hover:underline font-medium">
-              Support page
-            </a>{' '}
-            or contact us at{' '}
+            Contact us at{' '}
             <a href="mailto:support@luminarapps.com" className="text-primary hover:underline font-medium">
               support@luminarapps.com
             </a>

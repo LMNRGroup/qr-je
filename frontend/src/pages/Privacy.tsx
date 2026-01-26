@@ -1,12 +1,30 @@
-const Privacy = () => (
-  <div className="min-h-screen bg-background text-foreground">
-    <div className="container mx-auto px-4 py-12 space-y-8 max-w-4xl">
-      <div>
-        <p className="text-xs uppercase tracking-[0.35em] text-muted-foreground">Legal</p>
-        <h1 className="text-3xl font-semibold tracking-tight">Privacy Policy</h1>
-        <p className="text-sm text-muted-foreground mt-2">QR Code Studio by Luminar Apps</p>
-        <p className="text-sm text-muted-foreground">Last Updated: January 20, 2026</p>
-      </div>
+import { useNavigate } from 'react-router-dom';
+import { Button } from '@/components/ui/button';
+import { X } from 'lucide-react';
+
+const Privacy = () => {
+  const navigate = useNavigate();
+  
+  return (
+    <div className="min-h-screen bg-background text-foreground">
+      <div className="container mx-auto px-4 py-12 space-y-8 max-w-4xl">
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex-1">
+            <p className="text-xs uppercase tracking-[0.35em] text-muted-foreground">Legal</p>
+            <h1 className="text-3xl font-semibold tracking-tight">Privacy Policy</h1>
+            <p className="text-sm text-muted-foreground mt-2">QR Code Studio by Luminar Apps</p>
+            <p className="text-sm text-muted-foreground">Last Updated: January 20, 2026</p>
+          </div>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => navigate(-1)}
+            className="flex-shrink-0"
+            aria-label="Go back"
+          >
+            <X className="h-5 w-5" />
+          </Button>
+        </div>
 
       <div className="glass-panel rounded-2xl p-6 space-y-6 text-sm text-muted-foreground">
         <div className="space-y-3">
@@ -165,7 +183,7 @@ const Privacy = () => (
         </div>
       </div>
     </div>
-  </div>
-);
+  );
+};
 
 export default Privacy;

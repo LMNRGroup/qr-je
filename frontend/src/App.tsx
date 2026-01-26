@@ -63,13 +63,6 @@ const App = () => (
                 >
                   Privacy Policy
                 </a>
-                <span className="text-muted-foreground/30">•</span>
-                <a
-                  href="/support"
-                  className="text-muted-foreground/70 hover:text-muted-foreground transition"
-                >
-                  Support
-                </a>
               </div>
               <p className="mt-2">© {new Date().getFullYear()} GDev x Luminar Apps. Puerto Rico.</p>
             </footer>

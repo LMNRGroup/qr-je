@@ -4323,10 +4323,45 @@ const Index = () => {
     return () => window.clearTimeout(timer);
   }, [showGenerateSuccess]);
 
+  // Structured Data (JSON-LD) for SEO
+  const structuredData = {
+    '@context': 'https://schema.org',
+    '@graph': [
+      {
+        '@type': 'Organization',
+        '@id': 'https://qrcode.luminarapps.com/#organization',
+        name: 'Luminar Apps',
+        url: 'https://qrcode.luminarapps.com',
+        logo: 'https://qrcode.luminarapps.com/assets/QRC App Icon.png',
+        // TODO: Add contactPoint, address, and other organization details if available
+      },
+      {
+        '@type': 'SoftwareApplication',
+        '@id': 'https://qrcode.luminarapps.com/#software',
+        name: 'QR Code Studio',
+        applicationCategory: 'WebApplication',
+        operatingSystem: 'Web',
+        offers: {
+          '@type': 'Offer',
+          price: '0',
+          priceCurrency: 'USD',
+        },
+        description: 'Create dynamic QR menus, smart QR codes, and adaptive QR codes for restaurants, digital signage, and lead generation. Free QR code tools with analytics.',
+        url: 'https://qrcode.luminarapps.com',
+        // TODO: Add screenshot, featureList, and aggregateRating if available
+      },
+    ],
+  };
 
   return (
-    // Desktop: Allow natural height and scrolling. Mobile V2: Height handled by mobile-ui-v2.css
-    <div className="bg-background sm:min-h-screen lg:min-h-0" data-build={BUILD_STAMP}>
+    <>
+      {/* Structured Data for SEO */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
+      />
+      {/* Desktop: Allow natural height and scrolling. Mobile V2: Height handled by mobile-ui-v2.css */}
+      <div className="bg-background sm:min-h-screen lg:min-h-0" data-build={BUILD_STAMP}>
       <style>{`
         @keyframes radarSweep {
           0% { transform: rotate(0deg); opacity: 0.15; }
@@ -7057,7 +7092,7 @@ const Index = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs uppercase tracking-[0.4em] text-muted-foreground">Studio</p>
-                <h2 className="text-2xl sm:text-3xl font-semibold tracking-tight">Creative Workspace</h2>
+                <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight">QR Code Studio - Dynamic QR Menus & Smart QR Codes</h1>
               </div>
             </div>
 
@@ -7078,7 +7113,7 @@ const Index = () => {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Overview</p>
-                    <h3 className="text-lg font-semibold">Your QR Arsenal</h3>
+                    <h2 className="text-lg font-semibold">Your QR Arsenal</h2>
                   </div>
                 </div>
                 <div className="grid grid-cols-3 gap-4">
@@ -7107,7 +7142,7 @@ const Index = () => {
               <div className="glass-panel rounded-2xl p-6 space-y-4">
                 <div>
                   <p className="text-xs uppercase tracking-[0.4em] text-muted-foreground">Quick Actions</p>
-                  <h3 className="text-lg font-semibold">Jump into a new QR</h3>
+                  <h2 className="text-lg font-semibold">Jump into a new QR</h2>
                 </div>
                 <div className="grid grid-cols-3 gap-3">
                   {[
@@ -7137,7 +7172,7 @@ const Index = () => {
             {/* Studio Guide */}
             <div className="glass-panel rounded-2xl p-6 space-y-4">
               <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Studio Guide</p>
-              <h3 className="text-lg font-semibold">Your QR flow</h3>
+              <h2 className="text-lg font-semibold">Your QR flow</h2>
               <div className="space-y-1.5 text-sm text-muted-foreground">
                 <p>1. Choose a quick action.</p>
                 <p>2. Fill the details.</p>
@@ -7149,7 +7184,10 @@ const Index = () => {
                   <a href="/faq" className="text-primary hover:underline font-medium">
                     FAQ
                   </a>{' '}
-                  for answers to common questions.
+                  for answers to common questions. Learn more about our{' '}
+                  <a href="/privacy" className="text-primary hover:underline font-medium">
+                    privacy policy
+                  </a>.
                 </p>
               </div>
             </div>
@@ -7424,7 +7462,7 @@ const Index = () => {
               data-tour-id="studio-guide"
             >
               <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Studio Guide</p>
-              <h3 className="text-base sm:text-lg font-semibold">Your QR flow</h3>
+              <h2 className="text-base sm:text-lg font-semibold">Your QR flow</h2>
               <div className="space-y-1.5 text-xs sm:text-sm text-muted-foreground">
                 {isMobileV2 ? (
                   <>
@@ -7447,7 +7485,10 @@ const Index = () => {
                   <a href="/faq" className="text-primary hover:underline font-medium">
                     FAQ
                   </a>{' '}
-                  for answers to common questions.
+                  for answers to common questions. Learn more about our{' '}
+                  <a href="/privacy" className="text-primary hover:underline font-medium">
+                    privacy policy
+                  </a>.
                 </p>
               </div>
             </div>
@@ -9865,6 +9906,7 @@ const Index = () => {
       {/* System Notification Tab - Bottom Left */}
       <SystemNotificationTab />
     </div>
+    </>
   );
 };
 
