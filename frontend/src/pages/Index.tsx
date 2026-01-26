@@ -663,7 +663,7 @@ const Index = () => {
         : qrType === 'phone'
           ? isPhoneValid
           : qrType === 'file'
-            ? (fileDataUrl || fileBlob || (fileUrl && fileUrl.length > 0)) && fileTouched && !fileUploading
+            ? (fileDataUrl || fileBlob || (fileUrl && fileUrl.length > 0)) && !fileUploading
           : qrType === 'menu'
             ? menuFiles.length > 0
             : false);
