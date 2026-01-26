@@ -1,4 +1,10 @@
 @media (max-width: 768px) {
+  html[data-mobile-ui="v2"] {
+    --qrc-v2-header-h: 70px;
+    --qrc-v2-main-gap: 24px;
+    --qrc-footer-h: 80px;
+  }
+
   html[data-mobile-ui="v2"] body {
     min-height: auto;
     overflow-x: hidden;
@@ -34,8 +40,8 @@
   }
 
   html[data-mobile-ui="v2"] .qrc-arsenal-scroll {
-    max-height: calc(100dvh - 174px);
-    height: calc(100dvh - 174px);
+    max-height: calc(100dvh - var(--qrc-v2-header-h) - var(--qrc-footer-h) - var(--qrc-v2-main-gap));
+    height: calc(100dvh - var(--qrc-v2-header-h) - var(--qrc-footer-h) - var(--qrc-v2-main-gap));
     display: flex;
     flex-direction: column;
     overflow: hidden;
@@ -44,8 +50,8 @@
   /* Generic scrollable container for all nav pages */
   /* Height calculation: 100dvh - header (~70px) - footer (~80px) - main padding/gaps (~24px) */
   html[data-mobile-ui="v2"] .qrc-v2-scroll-container {
-    max-height: calc(100dvh - 174px);
-    height: calc(100dvh - 174px);
+    max-height: calc(100dvh - var(--qrc-v2-header-h) - var(--qrc-footer-h) - var(--qrc-v2-main-gap));
+    height: calc(100dvh - var(--qrc-v2-header-h) - var(--qrc-footer-h) - var(--qrc-v2-main-gap));
     display: flex;
     flex-direction: column;
     overflow: hidden;
@@ -65,7 +71,7 @@
   /* Scroll content padding to prevent footer overlap */
   /* Footer height (~80px) + safe-area-inset-bottom */
   html[data-mobile-ui="v2"] .qrc-v2-scroll-content {
-    padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px));
+    padding-bottom: calc(var(--qrc-footer-h) + env(safe-area-inset-bottom, 0px));
     min-height: 100%;
   }
 

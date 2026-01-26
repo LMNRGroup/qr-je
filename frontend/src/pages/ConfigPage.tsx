@@ -1,6 +1,7 @@
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ThemeToggle } from '@/components/ThemeToggle';
+import { NavPageLayout } from '@/components/NavPageLayout';
 import { UserProfile } from '@/lib/api';
 import { User } from '@supabase/supabase-js';
 import { useNavigate } from 'react-router-dom';
@@ -123,53 +124,37 @@ export function ConfigPage({
   };
 
   return (
-    <section id="config" className={`${isMobileV2 ? 'qrc-v2-section qrc-config-section' : 'space-y-6'}`}>
+    <NavPageLayout
+      sectionLabel="Config"
+      title="User Preferences"
+      isMobileV2={isMobileV2}
+      onTitleClick={() => setShowNavOverlay(true)}
+    >
       {isMobileV2 ? (
-        <div className="mb-0 pb-2">
-          <p className="text-xs uppercase tracking-[0.4em] text-muted-foreground mb-1">Config</p>
-          <h2 
-            className="text-lg font-semibold cursor-pointer hover:text-primary/80 transition-colors"
-            onClick={() => setShowNavOverlay(true)}
-          >
-            User Preferences
-          </h2>
-        </div>
-      ) : (
-        <div>
-          <p className="text-xs uppercase tracking-[0.4em] text-muted-foreground">Config</p>
-          <h2 
-            className="text-2xl sm:text-3xl font-semibold tracking-tight cursor-pointer hover:text-primary/80 transition-colors"
-            onClick={() => setShowNavOverlay(true)}
-          >
-            User Preferences
-          </h2>
-        </div>
-      )}
-      {!isLoggedIn ? (
-        <div className="glass-panel rounded-2xl p-6 text-sm text-muted-foreground space-y-4">
-          <p>From here you can customize your experience and preferences.</p>
-          <p>Please log in or create an account to unlock settings, exports, and team features.</p>
-          <div className="flex flex-col sm:flex-row gap-2 text-sm">
-            <button
-              type="button"
-              className="text-primary hover:text-primary/80 transition"
-              onClick={() => navigate('/login')}
-            >
-              Log In
-            </button>
-            <button
-              type="button"
-              className="text-primary hover:text-primary/80 transition"
-              onClick={() => navigate('/login')}
-            >
-              Sign Up
-            </button>
-          </div>
-        </div>
-      ) : (
-        <div className={`space-y-6 ${isMobileV2 ? 'qrc-config-panel' : ''}`}>
-          {isMobileV2 ? (
-            <div className={`glass-panel rounded-2xl p-6 text-sm text-muted-foreground space-y-6 qrc-config-content`} style={{ backgroundColor: 'transparent' }}>
+        <div className="flex flex-col min-h-0 space-y-6">
+          {!isLoggedIn ? (
+            <div className="glass-panel rounded-2xl p-6 text-sm text-muted-foreground space-y-4">
+              <p>From here you can customize your experience and preferences.</p>
+              <p>Please log in or create an account to unlock settings, exports, and team features.</p>
+              <div className="flex flex-col sm:flex-row gap-2 text-sm">
+                <button
+                  type="button"
+                  className="text-primary hover:text-primary/80 transition"
+                  onClick={() => navigate('/login')}
+                >
+                  Log In
+                </button>
+                <button
+                  type="button"
+                  className="text-primary hover:text-primary/80 transition"
+                  onClick={() => navigate('/login')}
+                >
+                  Sign Up
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="glass-panel rounded-2xl p-6 text-sm text-muted-foreground space-y-6">
               <div className="space-y-4">
                 <div className="space-y-2">
                   <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Theme</p>
@@ -450,8 +435,40 @@ export function ConfigPage({
               )}
             </div>
           ) : (
-            // Desktop Layout - Redesigned with centered profile icon
-            <div className="space-y-6">
+            <section id="config" className="space-y-6">
+              <div>
+                <p className="text-xs uppercase tracking-[0.4em] text-muted-foreground">Config</p>
+                <h2
+                  className="text-2xl sm:text-3xl font-semibold tracking-tight cursor-pointer hover:text-primary/80 transition-colors"
+                  onClick={() => setShowNavOverlay(true)}
+                >
+                  User Preferences
+                </h2>
+              </div>
+              {!isLoggedIn ? (
+                <div className="glass-panel rounded-2xl p-6 text-sm text-muted-foreground space-y-4">
+                  <p>From here you can customize your experience and preferences.</p>
+                  <p>Please log in or create an account to unlock settings, exports, and team features.</p>
+                  <div className="flex flex-col sm:flex-row gap-2 text-sm">
+                    <button
+                      type="button"
+                      className="text-primary hover:text-primary/80 transition"
+                      onClick={() => navigate('/login')}
+                    >
+                      Log In
+                    </button>
+                    <button
+                      type="button"
+                      className="text-primary hover:text-primary/80 transition"
+                      onClick={() => navigate('/login')}
+                    >
+                      Sign Up
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                // Desktop Layout - Redesigned with centered profile icon
+                <div className="space-y-6">
               {/* Profile Section - Centered */}
               <div className="glass-panel rounded-2xl p-8 space-y-6">
                 <div className="flex flex-col items-center space-y-4">
@@ -832,10 +849,10 @@ export function ConfigPage({
                   </Button>
                 </div>
               )}
-            </div>
+                </div>
+              )}
+            </section>
           )}
-        </div>
-      )}
-    </section>
+    </NavPageLayout>
   );
 }

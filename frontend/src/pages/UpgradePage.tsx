@@ -1,6 +1,5 @@
 import { Button } from '@/components/ui/button';
 import { NavPageLayout } from '@/components/NavPageLayout';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { motion } from 'framer-motion';
 import { User, Users, Info } from 'lucide-react';
 import { useState } from 'react';

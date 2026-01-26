@@ -32,10 +32,15 @@ export function NavPageLayout({
     return <>{children}</>;
   }
 
+  const showDebugMarker =
+    import.meta.env.DEV ||
+    (typeof window !== 'undefined' &&
+      window.localStorage.getItem('qrc.debug.mobileV2') === '1');
+
   return (
-    <section className="qrc-v2-section">
+    <section className="qrc-v2-section max-w-full relative">
       {/* Consistent Header Block - Always left-aligned */}
-      <div className="mb-0 pb-2">
+      <div className="mb-0 pb-3">
         <p className="text-xs uppercase tracking-[0.4em] text-muted-foreground mb-1">
           {sectionLabel}
         </p>
@@ -51,12 +56,17 @@ export function NavPageLayout({
         {subtitle && (
           <p className="text-xs text-muted-foreground mt-1">{subtitle}</p>
         )}
+        {showDebugMarker && (
+          <p className="mt-1 text-[9px] uppercase tracking-[0.3em] text-muted-foreground/50">
+            v2-layout-active
+          </p>
+        )}
       </div>
 
       {/* Scrollable Content Area */}
       <div className="glass-panel rounded-2xl p-4 flex flex-col overflow-hidden">
-        <ScrollArea className="qrc-v2-scroll-container qrc-no-scroll-x max-w-full w-full">
-          <div className="flex flex-col min-h-0 qrc-v2-scroll-content">
+        <ScrollArea className="qrc-v2-scroll-container qrc-no-scroll-x max-w-full w-full min-w-0">
+          <div className="flex flex-col min-h-0 qrc-v2-scroll-content min-w-0">
             {children}
           </div>
         </ScrollArea>
