@@ -64,7 +64,7 @@ const SOCIAL_PLATFORMS: Array<{
   },
   {
     id: 'x',
-    name: 'X (Former Twitter)',
+    name: 'X',
     icon: Twitter,
     baseUrl: 'https://x.com/',
     placeholder: 'username',

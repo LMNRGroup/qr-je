@@ -23,6 +23,8 @@ import {
   Check,
   ChevronRight,
   Paintbrush,
+  Sparkles,
+  Edit,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -350,15 +352,15 @@ export function DesktopStudioWizard({
   const getStepIcon = (step: QRWizardStep) => {
     switch (step) {
       case 1:
-        return LinkIcon;
+        return Sparkles; // Select Type
       case 2:
-        return QrCode;
+        return QrCode; // QR Mode
       case 3:
-        return File;
+        return Edit; // Enter Content
       case 4:
-        return Paintbrush;
+        return Paintbrush; // Customize QR
       default:
-        return LinkIcon;
+        return Sparkles;
     }
   };
 
@@ -375,7 +377,7 @@ export function DesktopStudioWizard({
         </div>
         
         {/* Step Progress Bar */}
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-2">
           {[1, 2, 3, 4].map((step) => {
             const StepIcon = getStepIcon(step as QRWizardStep);
             const isActive = currentStep === step;
@@ -388,30 +390,36 @@ export function DesktopStudioWizard({
                   type="button"
                   onClick={() => handleStepClick(step as QRWizardStep)}
                   disabled={!isComplete && !isActive}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-xl border transition ${
+                  className={`group flex items-center gap-2.5 px-4 py-3 rounded-xl border-2 transition-all duration-200 flex-1 justify-center min-w-0 ${
                     isActive
-                      ? 'border-primary/60 bg-primary/10 text-primary'
+                      ? 'border-primary bg-primary/10 text-primary shadow-lg shadow-primary/10'
                       : isComplete
-                        ? 'border-primary/30 bg-primary/5 text-primary/70 hover:border-primary/50 cursor-pointer'
-                        : 'border-border/60 bg-secondary/30 text-muted-foreground cursor-not-allowed'
+                        ? 'border-primary/40 bg-primary/5 text-primary/80 hover:border-primary/60 hover:bg-primary/10 hover:shadow-md cursor-pointer'
+                        : 'border-border/50 bg-secondary/40 text-muted-foreground cursor-not-allowed opacity-60'
                   }`}
                 >
-                  <div className={`flex items-center justify-center w-6 h-6 rounded-full ${
-                    isComplete ? 'bg-primary text-primary-foreground' : isActive ? 'bg-primary/20 text-primary' : 'bg-secondary text-muted-foreground'
+                  <div className={`flex items-center justify-center w-7 h-7 rounded-full transition-all ${
+                    isComplete 
+                      ? 'bg-primary text-primary-foreground shadow-md' 
+                      : isActive 
+                        ? 'bg-primary/20 text-primary ring-2 ring-primary/30' 
+                        : 'bg-secondary text-muted-foreground'
                   }`}>
                     {isComplete ? (
-                      <Check className="h-3.5 w-3.5" />
+                      <Check className="h-4 w-4" />
                     ) : (
-                      <StepIcon className="h-3.5 w-3.5" />
+                      <StepIcon className={`h-4 w-4 ${isActive ? 'animate-pulse' : ''}`} />
                     )}
                   </div>
-                  <span className="text-xs font-medium uppercase tracking-[0.2em] hidden sm:inline">
+                  <span className="text-xs font-semibold uppercase tracking-[0.15em] hidden lg:inline truncate">
                     {config.title}
                   </span>
                 </button>
-                  {step < 4 && (
-                    <ChevronRight className="h-4 w-4 text-muted-foreground/40 mx-0.5" />
-                  )}
+                {step < 4 && (
+                  <ChevronRight className={`h-4 w-4 mx-1 flex-shrink-0 transition-colors ${
+                    isComplete ? 'text-primary/40' : 'text-muted-foreground/30'
+                  }`} />
+                )}
               </div>
             );
           })}

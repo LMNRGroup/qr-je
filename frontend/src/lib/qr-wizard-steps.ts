@@ -187,7 +187,7 @@ export function getPreviousStep(currentStep: QRWizardStep, state: QRWizardState)
 export const STEP_CONFIG: Record<QRWizardStep, StepConfig> = {
   1: {
     id: 1,
-    title: 'Quick Actions',
+    title: 'Select Type',
     description: 'Pick the QR type you want to create.',
     canProceed: () => true, // Step 1 is optional
     canGoBack: () => false, // Can't go back from step 1
@@ -201,14 +201,14 @@ export const STEP_CONFIG: Record<QRWizardStep, StepConfig> = {
   },
   3: {
     id: 3,
-    title: 'Content & Customization',
-    description: 'Enter content or customize based on your QR type.',
+    title: 'Enter Content',
+    description: 'Enter the content for your QR code (URL, email, phone, etc.).',
     canProceed: (state) => canProceedFromStep(3, state),
     canGoBack: (step) => step > 1,
   },
   4: {
     id: 4,
-    title: 'QR Customization',
+    title: 'Customize QR',
     description: 'Customize colors, style, and logo for your QR code.',
     canProceed: () => true, // Customization is optional
     canGoBack: (step) => step > 1,

@@ -54,11 +54,15 @@ import {
   type UserProfile,
 } from '@/lib/api';
 import { QROptions, QRHistoryItem, defaultQROptions, AdaptiveConfig, AdaptiveSlot, AdaptiveRule } from '@/types/qr';
+import { STEP_CONFIG } from '@/lib/qr-wizard-steps';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   ChevronDown,
+  ChevronRight,
+  Check,
   Copy,
   Download,
+  Edit,
   File,
   Facebook,
   GraduationCap,
@@ -4100,6 +4104,22 @@ const Index = () => {
     }
   };
   const getStepIcon = (step: 1 | 2 | 3 | 4) => {
+    // Match desktop wizard icons for consistency
+    switch (step) {
+      case 1:
+        return Sparkles; // Select Type
+      case 2:
+        return QrCode; // QR Mode
+      case 3:
+        return Edit; // Enter Content
+      case 4:
+        return Paintbrush; // Customize QR
+      default:
+        return Sparkles;
+    }
+  };
+  
+  const getStepIconOld = (step: 1 | 2 | 3 | 4) => {
     if (step === 1) return QrCode;
     if (step === 2) return qrMode === 'dynamic' ? Zap : QrCode;
     if (step === 3) return getQrTypeIcon();
@@ -7625,35 +7645,60 @@ const Index = () => {
             <span className="text-xs uppercase tracking-[0.3em] text-primary">Step-by-step</span>
           </div>
           {isMobileV2 && (
-            <div className="mb-4 grid grid-cols-4 gap-2 text-xs uppercase tracking-[0.3em] text-muted-foreground">
-              {[1, 2, 3, 4].map((step) => (
-                <button
-                  key={step}
-                  type="button"
-                  disabled={step === 1 && Boolean(selectedQuickAction)}
-                  onClick={() => {
-                    if (step === 1) {
-                      if (selectedQuickAction) return;
-                      setSelectedQuickAction(null);
-                      setQrType(null);
-                    }
-                    setMobileStudioStep(step as 1 | 2 | 3 | 4);
-                  }}
-                  className={`rounded-xl border px-2 py-2 ${
-                    effectiveMobileStudioStep === step
-                      ? 'border-primary/60 text-primary'
-                      : 'border-border/60'
-                  } ${step === 1 && selectedQuickAction ? 'cursor-not-allowed opacity-60' : ''}`}
-                >
-                  <span className="flex items-center justify-center gap-1 text-[10px] uppercase tracking-[0.2em]">
-                    <span className="font-semibold">{step}</span>
-                    {(() => {
-                      const Icon = getStepIcon(step as 1 | 2 | 3 | 4);
-                      return <Icon className="h-3.5 w-3.5" />;
-                    })()}
-                  </span>
-                </button>
-              ))}
+            <div className="mb-6 flex items-center gap-2">
+              {[1, 2, 3, 4].map((step) => {
+                const StepIcon = getStepIcon(step as 1 | 2 | 3 | 4);
+                const isActive = effectiveMobileStudioStep === step;
+                const isComplete = effectiveMobileStudioStep > step;
+                const config = STEP_CONFIG[step as 1 | 2 | 3 | 4];
+                const isDisabled = step === 1 && Boolean(selectedQuickAction);
+                
+                return (
+                  <div key={step} className="flex items-center flex-1">
+                    <button
+                      type="button"
+                      disabled={isDisabled || (!isComplete && !isActive)}
+                      onClick={() => {
+                        if (step === 1) {
+                          if (selectedQuickAction) return;
+                          setSelectedQuickAction(null);
+                          setQrType(null);
+                        }
+                        setMobileStudioStep(step as 1 | 2 | 3 | 4);
+                      }}
+                      className={`group flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl border-2 transition-all duration-200 flex-1 min-w-0 ${
+                        isActive
+                          ? 'border-primary bg-primary/10 text-primary shadow-md shadow-primary/10'
+                          : isComplete
+                            ? 'border-primary/40 bg-primary/5 text-primary/80 hover:border-primary/60 hover:bg-primary/10 cursor-pointer'
+                            : 'border-border/50 bg-secondary/40 text-muted-foreground'
+                      } ${isDisabled ? 'cursor-not-allowed opacity-50' : ''}`}
+                    >
+                      <div className={`flex items-center justify-center w-6 h-6 rounded-full transition-all ${
+                        isComplete 
+                          ? 'bg-primary text-primary-foreground' 
+                          : isActive 
+                            ? 'bg-primary/20 text-primary ring-1 ring-primary/30' 
+                            : 'bg-secondary text-muted-foreground'
+                      }`}>
+                        {isComplete ? (
+                          <Check className="h-3.5 w-3.5" />
+                        ) : (
+                          <StepIcon className={`h-3.5 w-3.5 ${isActive ? 'animate-pulse' : ''}`} />
+                        )}
+                      </div>
+                      <span className="text-[10px] font-semibold uppercase tracking-[0.15em] hidden xs:inline truncate">
+                        {config.title}
+                      </span>
+                    </button>
+                    {step < 4 && (
+                      <ChevronRight className={`h-3 w-3 mx-0.5 flex-shrink-0 transition-colors ${
+                        isComplete ? 'text-primary/40' : 'text-muted-foreground/30'
+                      }`} />
+                    )}
+                  </div>
+                );
+              })}
             </div>
           )}
 
