@@ -3029,9 +3029,7 @@ const Index = () => {
       }
       
       clearInterval(progressInterval);
-      setFileUploadProgress(100);
-      await new Promise((resolve) => setTimeout(resolve, 300));
-
+      
       // Create a local preview URL for display (not uploaded to DB)
       if (compressed) {
         setFileUrl(compressed); // Use dataUrl as preview
@@ -3042,11 +3040,13 @@ const Index = () => {
       }
       setFileName(file.name);
       
-      // Mark file as touched and clear any previous errors
+      // Mark file as touched and clear any previous errors BEFORE completing upload
       setFileTouched(true);
       setFileUploadError(null);
       
-      // Keep progress at 100% to show upload completed (don't reset in finally)
+      // Set progress to 100% and mark upload as complete
+      setFileUploadProgress(100);
+      await new Promise((resolve) => setTimeout(resolve, 300));
       setFileUploading(false);
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to process file upload.';
