@@ -1575,8 +1575,8 @@ export function ArsenalPanel({
 
                     const shouldShowDeleteX = isMobileV2 && showDeleteX === item.id;
 
-                    return (
-                      <div key={item.id} className="relative w-full min-w-0">
+                  return (
+                    <div key={item.id} className="relative w-full min-w-0">
                         <button
                           type="button"
                           onTouchStart={handleTouchStart}
@@ -1709,6 +1709,7 @@ export function ArsenalPanel({
                 </div>
               </div>
             ) : (
+              <>
               <ScrollArea
                 ref={(node) => {
                   if (!node) return;
@@ -1794,8 +1795,8 @@ export function ArsenalPanel({
                   // Check if this item should show X button
                   const shouldShowDeleteX = isMobileV2 && showDeleteX === item.id;
 
-                  return (
-                    <div key={item.id} className={`relative ${viewMode === 'grid' ? 'w-full' : 'w-full'}`}>
+                    return (
+                      <div key={item.id} className={`relative ${viewMode === 'grid' ? 'w-full' : 'w-full'}`}>
                     <button
                       type="button"
                         onTouchStart={handleTouchStart}
@@ -2098,6 +2099,7 @@ export function ArsenalPanel({
                 </div>
               </div>
             )}
+            </>
           </div>
 
           <div className="glass-panel rounded-2xl p-6 space-y-6 min-w-0 hidden lg:block">
