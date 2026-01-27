@@ -2100,6 +2100,7 @@ export function ArsenalPanel({
               </div>
             )}
             </>
+            )}
           </div>
 
           <div className="glass-panel rounded-2xl p-6 space-y-6 min-w-0 hidden lg:block">
