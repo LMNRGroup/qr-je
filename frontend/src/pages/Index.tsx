@@ -2981,7 +2981,16 @@ const Index = () => {
     setFileUploading(true);
 
     try {
-      const isPdf = file.type === 'application/pdf';
+      const fileNameLower = file.name.toLowerCase();
+      const isPdf = file.type === 'application/pdf' || fileNameLower.endsWith('.pdf');
+      const isImage = file.type.startsWith('image/') || /\.(png|jpe?g|webp|gif|bmp|heic|heif)$/i.test(fileNameLower);
+      if (!isPdf && !isImage) {
+        const errorMsg = `Unsupported file type. Please upload an image (JPG, PNG, etc.) or a PDF file.`;
+        setFileUploadError(errorMsg);
+        toast.error(errorMsg);
+        setFileUploading(false);
+        return;
+      }
       if (file.size > MAX_FILE_BYTES && isPdf) {
         const sizeMB = (file.size / (1024 * 1024)).toFixed(1);
         const maxMB = (MAX_FILE_BYTES / (1024 * 1024)).toFixed(0);
@@ -2996,7 +3005,7 @@ const Index = () => {
       let compressed = '';
       let estimatedSize = file.size; // Default to original size for PDFs
       
-      if (file.type.startsWith('image/')) {
+      if (isImage) {
         toast.info('Compressing image...');
         compressed = await compressImageFile(file, { maxDimension: 2000, quality: 0.80 });
         // Get compressed size for storage check
@@ -3004,7 +3013,7 @@ const Index = () => {
           const compressedBlob = dataUrlToBlob(compressed);
           estimatedSize = compressedBlob.size;
         }
-      } else if (file.type === 'application/pdf') {
+      } else if (isPdf) {
         toast.info('Preparing PDF...');
         // PDFs can't be compressed client-side effectively, use original size
         estimatedSize = file.size;
@@ -3036,7 +3045,7 @@ const Index = () => {
         const compressedBlob = dataUrlToBlob(compressed);
         setFileBlob(compressedBlob);
         setFileSize(compressedBlob.size);
-      } else if (file.type === 'application/pdf') {
+      } else if (isPdf) {
         // For PDFs, store the file as blob
         setFileBlob(file);
         setFileSize(file.size);
@@ -3047,7 +3056,7 @@ const Index = () => {
       // Create a local preview URL for display (not uploaded to DB)
       if (compressed) {
         setFileUrl(compressed); // Use dataUrl as preview
-      } else if (file.type === 'application/pdf') {
+      } else if (isPdf) {
         // For PDFs, create object URL for preview
         const objectUrl = URL.createObjectURL(file);
         setFileUrl(objectUrl);
