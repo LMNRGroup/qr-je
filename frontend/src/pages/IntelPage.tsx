@@ -192,9 +192,11 @@ export function IntelPage({
         <button
           type="button"
           onClick={() => setActiveTab('codes')}
-          className="rounded-xl border border-border/60 bg-secondary/30 p-3 sm:p-4 text-center transition hover:border-primary/60 hover:bg-secondary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
+          className="rounded-xl border border-border/60 bg-secondary/30 p-3 sm:p-4 text-center transition hover:border-primary/60 hover:bg-secondary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 flex flex-col items-center justify-center"
         >
-          <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Active Nodes</p>
+          <p className="text-[clamp(10px,2.6vw,12px)] uppercase tracking-[0.22em] text-muted-foreground whitespace-nowrap leading-none text-center">
+            NODES
+          </p>
           <p className="text-lg sm:text-2xl font-semibold mt-2">{arsenalStats.total.toLocaleString()}</p>
         </button>
         <div
@@ -208,11 +210,11 @@ export function IntelPage({
               setIsSignalsMenuOpen((prev) => !prev);
             }
           }}
-          className="relative rounded-xl border border-border/60 bg-secondary/30 p-3 sm:p-4 text-center transition hover:border-primary/60 hover:bg-secondary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
+          className="relative rounded-xl border border-border/60 bg-secondary/30 p-3 sm:p-4 text-center transition hover:border-primary/60 hover:bg-secondary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 flex flex-col items-center justify-center"
         >
-          <div className="flex items-center justify-center">
-            <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Signals</p>
-          </div>
+          <p className="text-[clamp(10px,2.6vw,12px)] uppercase tracking-[0.22em] text-muted-foreground whitespace-nowrap leading-none text-center">
+            SIGNALS
+          </p>
           <p className="text-lg sm:text-2xl font-semibold mt-2">
             {intelLoading ? '...' : intelSummary.rangeTotal.toLocaleString()}
           </p>
@@ -245,8 +247,10 @@ export function IntelPage({
             </div>
           )}
         </div>
-        <div className="rounded-xl border border-border/60 bg-secondary/30 p-3 sm:p-4 text-center flex flex-col items-center">
-          <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Response Time</p>
+        <div className="rounded-xl border border-border/60 bg-secondary/30 p-3 sm:p-4 text-center flex flex-col items-center justify-center">
+          <p className="text-[clamp(10px,2.6vw,12px)] uppercase tracking-[0.22em] text-muted-foreground whitespace-nowrap leading-none text-center">
+            RESPONSE
+          </p>
           <p className="text-lg sm:text-2xl font-semibold mt-2">
             {intelLoading
               ? '...'
