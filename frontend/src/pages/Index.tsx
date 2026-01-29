@@ -2803,9 +2803,13 @@ const Index = () => {
     } else if (menuBuilderStep === 'socials') {
       // Menu is complete, close builder and go to step 4
       setShowMenuBuilder(false);
-    setMenuBuilderStep('menu'); // Reset step when closing
+      setMenuBuilderStep('menu'); // Reset step when closing
       setMobileStudioStep(4);
-      setMobileCustomizeStep(true);
+      if (isMobileV2) {
+        openQrCustomizer();
+      } else {
+        setMobileCustomizeStep(true);
+      }
     }
   };
 
@@ -3058,6 +3062,9 @@ const Index = () => {
       setFileUploadProgress(100);
       await new Promise((resolve) => setTimeout(resolve, 300));
       setFileUploading(false);
+      if (isMobileV2) {
+        openQrCustomizer();
+      }
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to process file upload.';
       setFileUploadError(message);
@@ -4085,6 +4092,12 @@ const Index = () => {
     isMobileV2 && selectedQuickAction ? Math.max(mobileStudioStep, 2) : mobileStudioStep;
   const showMobileCustomize =
     !isMobile || mobileCustomizeStep || (isMobileV2 && effectiveMobileStudioStep === 4);
+  const openQrCustomizer = useCallback(() => {
+    if (isMobileV2) {
+      setMobileStudioStep(4);
+    }
+    setShowQrCustomizer(true);
+  }, [isMobileV2]);
   const getQrTypeIcon = () => {
     switch (qrType) {
       case 'website':
@@ -5313,7 +5326,7 @@ const Index = () => {
                       // If we came from vCard contents overlay, open QR customizer
                       if (vcardFromContents) {
                         setVcardFromContents(false);
-                        setShowQrCustomizer(true);
+                        openQrCustomizer();
                       }
                     }}
                   >
@@ -6083,7 +6096,7 @@ const Index = () => {
                   disabled={!vcard.name}
                   onClick={() => {
                     setShowVcardContents(false);
-                    setShowQrCustomizer(true);
+                    openQrCustomizer();
                   }}
                 >
                   Continue
@@ -8026,7 +8039,7 @@ const Index = () => {
                           type="button"
                           size="lg"
                           className="w-full gap-2 bg-gradient-primary hover:opacity-90 text-primary-foreground glow uppercase tracking-[0.2em] text-xs"
-                          onClick={() => setShowQrCustomizer(true)}
+                          onClick={openQrCustomizer}
                         >
                           Continue
                         </Button>
@@ -8059,7 +8072,7 @@ const Index = () => {
                           type="button"
                           size="lg"
                           className="w-full gap-2 bg-gradient-primary hover:opacity-90 text-primary-foreground glow uppercase tracking-[0.2em] text-xs"
-                          onClick={() => setShowQrCustomizer(true)}
+                          onClick={openQrCustomizer}
                         >
                           Continue
                         </Button>
@@ -8092,7 +8105,7 @@ const Index = () => {
                           type="button"
                           size="lg"
                           className="w-full gap-2 bg-gradient-primary hover:opacity-90 text-primary-foreground glow uppercase tracking-[0.2em] text-xs"
-                          onClick={() => setShowQrCustomizer(true)}
+                          onClick={openQrCustomizer}
                         >
                           Continue
                         </Button>
@@ -8164,6 +8177,17 @@ const Index = () => {
                           Selected: {fileName}
                         </p>
                       ) : null}
+                      {isMobileV2 && fileUrl && !fileUploading && (
+                        <Button
+                          type="button"
+                          size="lg"
+                          className="w-full gap-2 bg-gradient-primary hover:opacity-90 text-primary-foreground glow uppercase tracking-[0.2em] text-xs"
+                          onClick={openQrCustomizer}
+                          disabled={!canGenerate}
+                        >
+                          Continue to Customization
+                        </Button>
+                      )}
                     </div>
                   ) : qrType === 'menu' ? (
                     <div className="space-y-4">
@@ -8189,6 +8213,17 @@ const Index = () => {
                             : 'No menu pages uploaded yet'}
                         </span>
                       </div>
+                      {isMobileV2 && menuFiles.length > 0 && (
+                        <Button
+                          type="button"
+                          size="lg"
+                          className="w-full gap-2 bg-gradient-primary hover:opacity-90 text-primary-foreground glow uppercase tracking-[0.2em] text-xs"
+                          onClick={openQrCustomizer}
+                          disabled={!canGenerate}
+                        >
+                          Continue to Customization
+                        </Button>
+                      )}
                     </div>
                   ) : qrType === 'social' ? (
                     <div className="space-y-4">
@@ -8214,7 +8249,7 @@ const Index = () => {
                           type="button"
                           size="lg"
                           className="w-full gap-2 bg-gradient-primary hover:opacity-90 text-primary-foreground glow uppercase tracking-[0.2em] text-xs"
-                          onClick={() => setShowQrCustomizer(true)}
+                          onClick={openQrCustomizer}
                         >
                           Continue
                         </Button>
@@ -8259,7 +8294,7 @@ const Index = () => {
                           type="button"
                           size="lg"
                           className="w-full gap-2 bg-gradient-primary hover:opacity-90 text-primary-foreground glow uppercase tracking-[0.2em] text-xs"
-                          onClick={() => setShowQrCustomizer(true)}
+                          onClick={openQrCustomizer}
                         >
                           Continue
                         </Button>
