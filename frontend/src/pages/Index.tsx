@@ -2991,6 +2991,16 @@ const Index = () => {
         setFileUploading(false);
         return;
       }
+      const inferredMime = isPdf
+        ? 'application/pdf'
+        : fileNameLower.endsWith('.png')
+          ? 'image/png'
+          : fileNameLower.endsWith('.webp')
+            ? 'image/webp'
+            : fileNameLower.endsWith('.gif')
+              ? 'image/gif'
+              : 'image/jpeg';
+      const uploadFile = file.type ? file : new File([file], file.name, { type: inferredMime });
       if (file.size > MAX_FILE_BYTES && isPdf) {
         const sizeMB = (file.size / (1024 * 1024)).toFixed(1);
         const maxMB = (MAX_FILE_BYTES / (1024 * 1024)).toFixed(0);
@@ -3042,34 +3052,23 @@ const Index = () => {
           return prev + Math.random() * 10;
         });
       }, 200);
-      
-      // Cache file locally (dataUrl for images, blob for PDFs) - don't upload to DB yet
-      if (compressed) {
-        setFileDataUrl(compressed);
-        const compressedBlob = dataUrlToBlob(compressed);
-        setFileBlob(compressedBlob);
-        setFileSize(compressedBlob.size);
-      } else if (isPdf) {
-        // For PDFs, store the file as blob
-        setFileBlob(file);
-        setFileSize(file.size);
-      } else {
-        // Image fallback: store original file and preview via object URL
-        setFileBlob(file);
-        setFileSize(file.size);
+
+      // Upload to storage now (same as menu upload flow)
+      const result = await uploadQrAsset(uploadFile, 'files', compressed || undefined);
+      if (!result?.url) {
+        throw new Error('Upload returned no URL.');
       }
-      
       clearInterval(progressInterval);
-      
-      // Create a local preview URL for display (not uploaded to DB)
-      if (compressed) {
-        setFileUrl(compressed); // Use dataUrl as preview
-      } else if (isPdf || isImage) {
-        // For PDFs, create object URL for preview
-        const objectUrl = URL.createObjectURL(file);
-        setFileUrl(objectUrl);
+
+      // Set uploaded URL and clear local cache to avoid re-upload on generate
+      if (fileUrl && fileUrl.startsWith('blob:')) {
+        URL.revokeObjectURL(fileUrl);
       }
+      setFileUrl(result.url);
       setFileName(file.name);
+      setFileSize(result.size);
+      setFileDataUrl('');
+      setFileBlob(null);
       
       // Mark file as touched and clear any previous errors BEFORE completing upload
       setFileTouched(true);
