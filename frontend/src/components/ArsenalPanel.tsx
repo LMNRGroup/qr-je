@@ -920,10 +920,31 @@ export function ArsenalPanel({
   const handleCopy = async () => {
     if (!selectedItem) return;
     const shareUrl = selectedItem.shortUrl ?? selectedItem.content;
+    const fallbackCopy = () => {
+      const textarea = document.createElement('textarea');
+      textarea.value = shareUrl;
+      textarea.setAttribute('readonly', '');
+      textarea.style.position = 'fixed';
+      textarea.style.top = '-9999px';
+      textarea.style.opacity = '0';
+      document.body.appendChild(textarea);
+      textarea.select();
+      const success = document.execCommand('copy');
+      document.body.removeChild(textarea);
+      return success;
+    };
     try {
-      await navigator.clipboard.writeText(shareUrl);
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(shareUrl);
+      } else if (!fallbackCopy()) {
+        throw new Error('Clipboard unavailable');
+      }
       toast.success('Link copied');
     } catch {
+      if (fallbackCopy()) {
+        toast.success('Link copied');
+        return;
+      }
       toast.error('Failed to copy link');
     }
   };
