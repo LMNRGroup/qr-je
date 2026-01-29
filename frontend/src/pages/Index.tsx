@@ -5164,28 +5164,6 @@ const Index = () => {
 
                 <div className="space-y-3">
                   <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">
-                    Texture
-                  </p>
-                  <div className="grid grid-cols-2 gap-2">
-                    {vcardTextureOptions.map((option) => (
-                      <button
-                        key={option.id}
-                        type="button"
-                        onClick={() => setVcardStyle((prev) => ({ ...prev, texture: option.id }))}
-                        className={`rounded-xl border px-3 py-2 text-xs uppercase tracking-[0.3em] transition ${
-                          vcardStyle.texture === option.id
-                            ? 'border-primary bg-secondary/50 text-foreground'
-                            : 'border-border/60 bg-secondary/30 text-muted-foreground hover:border-primary/60'
-                        }`}
-                      >
-                        {option.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="space-y-3">
-                  <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">
                     Corner Radius
                   </p>
                   <input
@@ -5203,101 +5181,173 @@ const Index = () => {
                   />
                 </div>
 
-                <div className="grid lg:grid-cols-2 gap-6">
-                  <div className="space-y-4">
-                    <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">
-                      Front Style
-                    </p>
-                    <ColorPicker
-                      label="Front Background"
-                      value={vcardStyle.frontColor}
-                      onChange={(value) => setVcardStyle((prev) => ({ ...prev, frontColor: value }))}
-                      presets={bgColorPresets}
-                    />
-                    <ColorPicker
-                      label="Front Font Color"
-                      value={vcardStyle.frontFontColor}
-                      onChange={(value) => setVcardStyle((prev) => ({ ...prev, frontFontColor: value }))}
-                      presets={fgColorPresets}
-                    />
-                    <div className="flex items-center gap-2">
-                      <input
-                        id="front-gradient"
-                        type="checkbox"
-                        checked={vcardStyle.frontUseGradient}
-                        onChange={(event) =>
-                          setVcardStyle((prev) => ({
-                            ...prev,
-                            frontUseGradient: event.target.checked,
-                          }))
-                        }
-                      />
-                      <label htmlFor="front-gradient" className="text-xs text-muted-foreground">
-                        Use gradient
-                      </label>
-                    </div>
-                    {vcardStyle.frontUseGradient && (
-                      <ColorPicker
-                        label="Front Gradient"
-                        value={vcardStyle.frontGradient}
-                        onChange={(value) =>
-                          setVcardStyle((prev) => ({
-                            ...prev,
-                            frontGradient: value,
-                          }))
-                        }
-                        presets={fgColorPresets}
-                      />
-                    )}
-                  </div>
+                <Accordion
+                  type="multiple"
+                  defaultValue={[
+                    'texture',
+                    'front-bg',
+                    'front-font',
+                    'front-gradient',
+                    'back-bg',
+                    'back-font',
+                    'back-gradient',
+                  ]}
+                  className="space-y-2"
+                >
+                  <AccordionItem value="texture" className="border-none">
+                    <AccordionTrigger className="py-3 px-4 rounded-lg hover:bg-secondary/50 hover:no-underline">
+                      <span className="text-sm font-medium">Textures</span>
+                    </AccordionTrigger>
+                    <AccordionContent className="px-4 pb-4 pt-2">
+                      <div className="grid grid-cols-2 gap-2">
+                        {vcardTextureOptions.map((option) => (
+                          <button
+                            key={option.id}
+                            type="button"
+                            onClick={() => setVcardStyle((prev) => ({ ...prev, texture: option.id }))}
+                            className={`rounded-xl border px-3 py-2 text-xs uppercase tracking-[0.3em] transition ${
+                              vcardStyle.texture === option.id
+                                ? 'border-primary bg-secondary/50 text-foreground'
+                                : 'border-border/60 bg-secondary/30 text-muted-foreground hover:border-primary/60'
+                            }`}
+                          >
+                            {option.label}
+                          </button>
+                        ))}
+                      </div>
+                    </AccordionContent>
+                  </AccordionItem>
 
-                  <div className="space-y-4">
-                    <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">
-                      Back Style
-                    </p>
-                    <ColorPicker
-                      label="Back Background"
-                      value={vcardStyle.backColor}
-                      onChange={(value) => setVcardStyle((prev) => ({ ...prev, backColor: value }))}
-                      presets={bgColorPresets}
-                    />
-                    <ColorPicker
-                      label="Back Font Color"
-                      value={vcardStyle.backFontColor}
-                      onChange={(value) => setVcardStyle((prev) => ({ ...prev, backFontColor: value }))}
-                      presets={fgColorPresets}
-                    />
-                    <div className="flex items-center gap-2">
-                      <input
-                        id="back-gradient"
-                        type="checkbox"
-                        checked={vcardStyle.backUseGradient}
-                        onChange={(event) =>
-                          setVcardStyle((prev) => ({
-                            ...prev,
-                            backUseGradient: event.target.checked,
-                          }))
-                        }
-                      />
-                      <label htmlFor="back-gradient" className="text-xs text-muted-foreground">
-                        Use gradient
-                      </label>
-                    </div>
-                    {vcardStyle.backUseGradient && (
+                  <AccordionItem value="front-bg" className="border-none">
+                    <AccordionTrigger className="py-3 px-4 rounded-lg hover:bg-secondary/50 hover:no-underline">
+                      <span className="text-sm font-medium">Front Background</span>
+                    </AccordionTrigger>
+                    <AccordionContent className="px-4 pb-4 pt-2">
                       <ColorPicker
-                        label="Back Gradient"
-                        value={vcardStyle.backGradient}
-                        onChange={(value) =>
-                          setVcardStyle((prev) => ({
-                            ...prev,
-                            backGradient: value,
-                          }))
-                        }
+                        label="Front Background"
+                        value={vcardStyle.frontColor}
+                        onChange={(value) => setVcardStyle((prev) => ({ ...prev, frontColor: value }))}
+                        presets={bgColorPresets}
+                      />
+                    </AccordionContent>
+                  </AccordionItem>
+
+                  <AccordionItem value="front-font" className="border-none">
+                    <AccordionTrigger className="py-3 px-4 rounded-lg hover:bg-secondary/50 hover:no-underline">
+                      <span className="text-sm font-medium">Front Font Color</span>
+                    </AccordionTrigger>
+                    <AccordionContent className="px-4 pb-4 pt-2">
+                      <ColorPicker
+                        label="Front Font Color"
+                        value={vcardStyle.frontFontColor}
+                        onChange={(value) => setVcardStyle((prev) => ({ ...prev, frontFontColor: value }))}
                         presets={fgColorPresets}
                       />
-                    )}
-                  </div>
-                </div>
+                    </AccordionContent>
+                  </AccordionItem>
+
+                  <AccordionItem value="front-gradient" className="border-none">
+                    <AccordionTrigger className="py-3 px-4 rounded-lg hover:bg-secondary/50 hover:no-underline">
+                      <span className="text-sm font-medium">Front Gradient</span>
+                    </AccordionTrigger>
+                    <AccordionContent className="px-4 pb-4 pt-2 space-y-3">
+                      <div className="flex items-center gap-2">
+                        <input
+                          id="front-gradient"
+                          type="checkbox"
+                          checked={vcardStyle.frontUseGradient}
+                          onChange={(event) =>
+                            setVcardStyle((prev) => ({
+                              ...prev,
+                              frontUseGradient: event.target.checked,
+                            }))
+                          }
+                        />
+                        <label htmlFor="front-gradient" className="text-xs text-muted-foreground">
+                          Use gradient
+                        </label>
+                      </div>
+                      {vcardStyle.frontUseGradient && (
+                        <ColorPicker
+                          label="Front Gradient"
+                          value={vcardStyle.frontGradient}
+                          onChange={(value) =>
+                            setVcardStyle((prev) => ({
+                              ...prev,
+                              frontGradient: value,
+                            }))
+                          }
+                          presets={fgColorPresets}
+                        />
+                      )}
+                    </AccordionContent>
+                  </AccordionItem>
+
+                  <AccordionItem value="back-bg" className="border-none">
+                    <AccordionTrigger className="py-3 px-4 rounded-lg hover:bg-secondary/50 hover:no-underline">
+                      <span className="text-sm font-medium">Back Background</span>
+                    </AccordionTrigger>
+                    <AccordionContent className="px-4 pb-4 pt-2">
+                      <ColorPicker
+                        label="Back Background"
+                        value={vcardStyle.backColor}
+                        onChange={(value) => setVcardStyle((prev) => ({ ...prev, backColor: value }))}
+                        presets={bgColorPresets}
+                      />
+                    </AccordionContent>
+                  </AccordionItem>
+
+                  <AccordionItem value="back-font" className="border-none">
+                    <AccordionTrigger className="py-3 px-4 rounded-lg hover:bg-secondary/50 hover:no-underline">
+                      <span className="text-sm font-medium">Back Font Color</span>
+                    </AccordionTrigger>
+                    <AccordionContent className="px-4 pb-4 pt-2">
+                      <ColorPicker
+                        label="Back Font Color"
+                        value={vcardStyle.backFontColor}
+                        onChange={(value) => setVcardStyle((prev) => ({ ...prev, backFontColor: value }))}
+                        presets={fgColorPresets}
+                      />
+                    </AccordionContent>
+                  </AccordionItem>
+
+                  <AccordionItem value="back-gradient" className="border-none">
+                    <AccordionTrigger className="py-3 px-4 rounded-lg hover:bg-secondary/50 hover:no-underline">
+                      <span className="text-sm font-medium">Back Gradient</span>
+                    </AccordionTrigger>
+                    <AccordionContent className="px-4 pb-4 pt-2 space-y-3">
+                      <div className="flex items-center gap-2">
+                        <input
+                          id="back-gradient"
+                          type="checkbox"
+                          checked={vcardStyle.backUseGradient}
+                          onChange={(event) =>
+                            setVcardStyle((prev) => ({
+                              ...prev,
+                              backUseGradient: event.target.checked,
+                            }))
+                          }
+                        />
+                        <label htmlFor="back-gradient" className="text-xs text-muted-foreground">
+                          Use gradient
+                        </label>
+                      </div>
+                      {vcardStyle.backUseGradient && (
+                        <ColorPicker
+                          label="Back Gradient"
+                          value={vcardStyle.backGradient}
+                          onChange={(value) =>
+                            setVcardStyle((prev) => ({
+                              ...prev,
+                              backGradient: value,
+                            }))
+                          }
+                          presets={fgColorPresets}
+                        />
+                      )}
+                    </AccordionContent>
+                  </AccordionItem>
+                </Accordion>
 
                 <div className="grid lg:grid-cols-2 gap-6">
                   <div className="space-y-3">
