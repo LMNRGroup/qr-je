@@ -3007,7 +3007,11 @@ const Index = () => {
       
       if (isImage) {
         toast.info('Compressing image...');
-        compressed = await compressImageFile(file, { maxDimension: 2000, quality: 0.80 });
+        try {
+          compressed = await compressImageFile(file, { maxDimension: 2000, quality: 0.80 });
+        } catch {
+          compressed = '';
+        }
         // Get compressed size for storage check
         if (compressed) {
           const compressedBlob = dataUrlToBlob(compressed);
@@ -3049,6 +3053,10 @@ const Index = () => {
         // For PDFs, store the file as blob
         setFileBlob(file);
         setFileSize(file.size);
+      } else {
+        // Image fallback: store original file and preview via object URL
+        setFileBlob(file);
+        setFileSize(file.size);
       }
       
       clearInterval(progressInterval);
@@ -3056,7 +3064,7 @@ const Index = () => {
       // Create a local preview URL for display (not uploaded to DB)
       if (compressed) {
         setFileUrl(compressed); // Use dataUrl as preview
-      } else if (isPdf) {
+      } else if (isPdf || isImage) {
         // For PDFs, create object URL for preview
         const objectUrl = URL.createObjectURL(file);
         setFileUrl(objectUrl);
@@ -8182,9 +8190,30 @@ const Index = () => {
                         </p>
                       )}
                       {fileName && !fileUploading ? (
-                        <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">
-                          Selected: {fileName}
-                        </p>
+                        <div className="flex items-center justify-between gap-3">
+                          <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">
+                            Selected: {fileName}
+                          </p>
+                          <button
+                            type="button"
+                            className="inline-flex items-center gap-1 text-xs uppercase tracking-[0.3em] text-muted-foreground hover:text-foreground transition"
+                            onClick={() => {
+                              if (fileUrl && fileUrl.startsWith('blob:')) {
+                                URL.revokeObjectURL(fileUrl);
+                              }
+                              setFileDataUrl('');
+                              setFileBlob(null);
+                              setFileUrl('');
+                              setFileName('');
+                              setFileSize(0);
+                              setFileTouched(false);
+                              setFileUploadError(null);
+                            }}
+                          >
+                            <X className="h-3.5 w-3.5" />
+                            Remove
+                          </button>
+                        </div>
                       ) : null}
                       {isMobileV2 && fileUrl && !fileUploading && (
                         <Button
