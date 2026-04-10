@@ -306,6 +306,7 @@ export function ArsenalPanel({
   cacheKey,
   topContent,
   onAdaptiveEdit,
+  onDynamicContentEdit,
 }: {
   refreshKey?: number;
   onStatsChange?: (stats: { total: number; dynamic: number }) => void;
@@ -316,6 +317,7 @@ export function ArsenalPanel({
   cacheKey?: string;
   topContent?: React.ReactNode;
   onAdaptiveEdit?: (item: QRHistoryItem) => void;
+  onDynamicContentEdit?: (item: QRHistoryItem) => void;
 }) {
   const [isDesktop, setIsDesktop] = useState(() => {
     if (typeof window === 'undefined') return true;
@@ -745,6 +747,11 @@ export function ArsenalPanel({
   const selectedDisplayName = selectedItem ? getDisplayName(selectedItem, sortedItems) : '';
   const selectedKind = parseKind(selectedItem?.kind ?? null);
   const isDynamic = selectedKind.mode === 'dynamic';
+  const canEditDynamicContent = Boolean(
+    selectedItem &&
+      isDynamic &&
+      (selectedKind.type === 'file' || selectedKind.type === 'menu')
+  );
   const hasUnsavedChanges = Boolean(
     selectedItem &&
       (editName.trim() !== (selectedItem.name?.trim() ?? '') ||
@@ -1236,6 +1243,17 @@ export function ArsenalPanel({
           <div className="flex flex-wrap items-center justify-end gap-2">
             {renderScanCount(selectedItem)}
             {renderCardBadge(selectedItem)}
+            {canEditDynamicContent && onDynamicContentEdit ? (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="border-primary/40 text-primary hover:bg-primary/10"
+                onClick={() => onDynamicContentEdit(selectedItem)}
+              >
+                Replace Content
+              </Button>
+            ) : null}
           </div>
         </div>
 
@@ -2216,6 +2234,17 @@ export function ArsenalPanel({
                     <div className="flex flex-wrap items-center gap-2 max-w-full">
                       {renderScanCount(selectedItem)}
                       {renderCardBadge(selectedItem)}
+                      {canEditDynamicContent && onDynamicContentEdit ? (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="border-primary/40 text-primary hover:bg-primary/10"
+                          onClick={() => onDynamicContentEdit(selectedItem)}
+                        >
+                          Replace Content
+                        </Button>
+                      ) : null}
                     </div>
                   </div>
 

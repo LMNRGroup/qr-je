@@ -462,6 +462,7 @@ const Index = () => {
   const [showAdaptiveWizard, setShowAdaptiveWizard] = useState(false);
   const [showAdaptiveEditor, setShowAdaptiveEditor] = useState(false);
   const [existingAdaptiveQRC, setExistingAdaptiveQRC] = useState<QRHistoryItem | null>(null);
+  const [editingDynamicContentQRC, setEditingDynamicContentQRC] = useState<QRHistoryItem | null>(null);
   const [isGeneratingAdaptive, setIsGeneratingAdaptive] = useState(false);
   const [showAdaptiveBanner, setShowAdaptiveBanner] = useState(true);
   const [qrHistory, setQrHistory] = useState<QRHistoryItem[]>([]);
@@ -1546,6 +1547,75 @@ const Index = () => {
     let finalFileSize = fileSize;
     
     try {
+      const editingKind = editingDynamicContentQRC ? parseKind(editingDynamicContentQRC.kind ?? null) : null;
+      const isEditingDynamicAsset =
+        Boolean(editingDynamicContentQRC) &&
+        qrMode === 'dynamic' &&
+        (qrType === 'file' || qrType === 'menu') &&
+        editingKind?.type === qrType;
+
+      if (isEditingDynamicAsset && editingDynamicContentQRC) {
+        const targetUrl = qrType === 'file'
+          ? `${appBaseUrl}/file/${editingDynamicContentQRC.id}/${editingDynamicContentQRC.random}`
+          : `${appBaseUrl}/menu/${editingDynamicContentQRC.id}/${editingDynamicContentQRC.random}`;
+        const updateOptions = qrType === 'file'
+          ? {
+              ...finalOptions,
+              fileName: fileName || 'File QR',
+              fileUrl,
+              fileSize,
+            }
+          : {
+              ...finalOptions,
+              menuFiles,
+              menuType,
+              menuLogoDataUrl,
+              menuSocials,
+            };
+
+        await updateQR(editingDynamicContentQRC.id, {
+          targetUrl,
+          name: name || (qrType === 'file' ? fileName || 'File QR' : editingDynamicContentQRC.name || 'Menu QR'),
+          options: updateOptions,
+          kind: `dynamic:${qrType}`,
+        });
+
+        if (qrType === 'file') {
+          const previousFileUrl = editingDynamicContentQRC.options.fileUrl;
+          if (previousFileUrl && previousFileUrl !== fileUrl) {
+            await deleteStorageAsset(previousFileUrl);
+          }
+        } else {
+          const previousFiles = editingDynamicContentQRC.options.menuFiles || [];
+          const nextFileUrls = new Set((menuFiles || []).map((file) => file.url));
+          for (const file of previousFiles) {
+            if (file?.url && !nextFileUrls.has(file.url)) {
+              await deleteStorageAsset(file.url);
+            }
+          }
+          const previousLogoUrl = editingDynamicContentQRC.options.menuLogoDataUrl;
+          if (
+            previousLogoUrl &&
+            previousLogoUrl !== menuLogoDataUrl &&
+            previousLogoUrl.includes('/storage/')
+          ) {
+            await deleteStorageAsset(previousLogoUrl);
+          }
+        }
+
+        setGeneratedShortUrl(editingDynamicContentQRC.shortUrl ?? '');
+        setGeneratedLongUrl(targetUrl);
+        setLastGeneratedContent(editingDynamicContentQRC.shortUrl ?? targetUrl);
+        toast.success('Dynamic QR content updated!');
+        setHasGenerated(true);
+        setArsenalRefreshKey((prev) => prev + 1);
+        setShowGenerateSuccess(true);
+        setShowNameOverlay(false);
+        setEditingDynamicContentQRC(null);
+        resetCreateFlow();
+        return;
+      }
+
       const response = qrType === 'vcard'
         ? await createVcard({
           slug: vcardSlug || null,
@@ -1793,6 +1863,7 @@ const Index = () => {
   };
 
   const resetCreateFlow = useCallback(() => {
+    setEditingDynamicContentQRC(null);
     setQrMode(null);
     setQrType(null);
     setSelectedQuickAction(null);
@@ -2813,6 +2884,72 @@ const Index = () => {
     }
   };
 
+  const deleteStorageAsset = useCallback(async (fileUrl?: string) => {
+    if (!fileUrl || (!fileUrl.includes('/storage/v1/object/public/') && !fileUrl.includes('/storage/v1/object/sign/'))) {
+      return;
+    }
+
+    try {
+      const separator = fileUrl.includes('/storage/v1/object/public/')
+        ? '/storage/v1/object/public/'
+        : '/storage/v1/object/sign/';
+      const [, pathWithQuery = ''] = fileUrl.split(separator);
+      const pathOnly = pathWithQuery.split('?')[0];
+      const pathParts = pathOnly.split('/');
+      if (pathParts.length < 3) return;
+      const bucket = pathParts[0];
+      const filePath = pathParts.slice(1).join('/');
+      const { error } = await supabase.storage.from(bucket).remove([filePath]);
+      if (error) {
+        console.warn('Failed to delete storage asset:', error);
+      }
+    } catch (error) {
+      console.warn('Failed to clean up storage asset:', error);
+    }
+  }, []);
+
+  const handleDynamicContentEdit = useCallback((item: QRHistoryItem) => {
+    const parsed = parseKind(item.kind ?? null);
+    if (parsed.mode !== 'dynamic' || (parsed.type !== 'file' && parsed.type !== 'menu')) {
+      return;
+    }
+
+    setEditingDynamicContentQRC(item);
+    setActiveTab('studio');
+    setPendingCreateScroll(true);
+    setQrMode('dynamic');
+    setQrType(parsed.type as 'file' | 'menu');
+    setOptions({
+      ...defaultQROptions,
+      ...(item.options ?? {}),
+    });
+
+    if (parsed.type === 'file') {
+      setFileUrl(item.options.fileUrl || '');
+      setFileName(item.options.fileName || item.name || 'File QR');
+      setFileSize(item.options.fileSize || 0);
+      setFileDataUrl('');
+      setFileBlob(null);
+      setFileTouched(true);
+      setShowMenuBuilder(false);
+      toast.info('Upload the replacement file, then click Done to update this dynamic QR.');
+      return;
+    }
+
+    setMenuFiles(item.options.menuFiles || []);
+    setMenuType(item.options.menuType || 'restaurant');
+    setMenuLogoDataUrl(item.options.menuLogoDataUrl || '');
+    setMenuSocials(item.options.menuSocials || {
+      instagram: '',
+      facebook: '',
+      tiktok: '',
+      website: '',
+    });
+    setShowMenuBuilder(true);
+    setMenuBuilderStep('menu');
+    toast.info('Update the menu content, then continue to save changes to this dynamic QR.');
+  }, [parseKind]);
+
   const handleMenuFilesChange = async (event: ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.target.files ?? []);
     event.target.value = '';
@@ -3484,7 +3621,7 @@ const Index = () => {
   };
 
   // Handle Adaptive QRC creation
-  const handleAdaptiveQRCCreate = async (config: AdaptiveConfig, name: string) => {
+  const handleAdaptiveQRCCreate = async (config: AdaptiveConfig, name: string, qrOptions: QROptions) => {
     if (!user) {
       toast.error('Please sign in to create Adaptive QRC™');
       return;
@@ -3508,12 +3645,9 @@ const Index = () => {
       const response = await generateQR(
         `${appBaseUrl}/pending/${crypto.randomUUID()}`,
         {
+          ...defaultQROptions,
+          ...qrOptions,
           content: `${appBaseUrl}/adaptive/preview`,
-          size: 256,
-          fgColor: '#D4AF37',
-          bgColor: '#1a1a1a',
-          errorCorrectionLevel: 'M',
-          cornerStyle: 'rounded',
           adaptive: config,
         },
         'adaptive',
@@ -3528,12 +3662,9 @@ const Index = () => {
         await updateQR(id, {
           targetUrl: adaptiveUrl,
           options: {
+            ...defaultQROptions,
+            ...qrOptions,
             content: adaptiveUrl,
-            size: 256,
-            fgColor: '#D4AF37',
-            bgColor: '#1a1a1a',
-            errorCorrectionLevel: 'M',
-            cornerStyle: 'rounded',
             adaptive: config,
           },
         });
@@ -3567,7 +3698,7 @@ const Index = () => {
   };
 
   // Handle Adaptive QRC update
-  const handleAdaptiveQRCUpdate = async (config: AdaptiveConfig, name: string) => {
+  const handleAdaptiveQRCUpdate = async (config: AdaptiveConfig, name: string, qrOptions: QROptions) => {
     if (!existingAdaptiveQRC) return;
 
     setIsGeneratingAdaptive(true);
@@ -3606,7 +3737,9 @@ const Index = () => {
       await updateQR(existingAdaptiveQRC.id, {
         name,
         options: {
+          ...defaultQROptions,
           ...existingAdaptiveQRC.options,
+          ...qrOptions,
           content: adaptiveUrl,
           adaptive: config,
         },
@@ -8788,6 +8921,7 @@ const Index = () => {
             setShowAdaptiveBanner={setShowAdaptiveBanner}
             handleAdaptiveMockOpen={handleAdaptiveMockOpen}
             handleAdaptiveEdit={handleAdaptiveEdit}
+            handleDynamicContentEdit={handleDynamicContentEdit}
             arsenalRefreshKey={arsenalRefreshKey}
             setArsenalRefreshKey={setArsenalRefreshKey}
             setArsenalStats={setArsenalStats}

@@ -4,6 +4,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { QRPreview, QRPreviewHandle } from '@/components/QRPreview';
+import { ColorPicker } from '@/components/ColorPicker';
+import { CornerStylePicker } from '@/components/CornerStylePicker';
+import { ErrorCorrectionSelector } from '@/components/ErrorCorrectionSelector';
+import { LogoUpload } from '@/components/LogoUpload';
+import { SizeSlider } from '@/components/SizeSlider';
 import { 
   X, 
   Loader2,
@@ -21,7 +26,8 @@ import {
   Plus
 } from 'lucide-react';
 import { toast } from 'sonner';
-import type { AdaptiveConfig } from '@/types/qr';
+import type { AdaptiveConfig, QROptions } from '@/types/qr';
+import { defaultQROptions } from '@/types/qr';
 import supabase, { isSupabaseConfigured } from '@/lib/supabase';
 
 interface AdaptiveContent {
@@ -61,7 +67,7 @@ type RuleType = 'time' | 'visit' | null;
 interface AdaptiveQRCEditorProps {
   adaptiveQRC: any;
   userProfile: any;
-  onSave: (config: AdaptiveConfig, qrName: string) => Promise<void>;
+  onSave: (config: AdaptiveConfig, qrName: string, qrOptions: QROptions) => Promise<void>;
   onClose: () => void;
   isMobile?: boolean;
   isMobileV2?: boolean;
@@ -83,6 +89,10 @@ export const AdaptiveQRCEditor = ({
   const [defaultContentId, setDefaultContentId] = useState<string>('');
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<'contents' | 'rules' | 'preview'>('contents');
+  const [qrOptions, setQrOptions] = useState<QROptions>(() => ({
+    ...defaultQROptions,
+    ...(adaptiveQRC?.options ?? {}),
+  }));
   const qrRef = useRef<QRPreviewHandle>(null);
   const contentFileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
@@ -247,6 +257,10 @@ export const AdaptiveQRCEditor = ({
   // Load existing config
   useEffect(() => {
     if (adaptiveQRC?.options?.adaptive) {
+      setQrOptions({
+        ...defaultQROptions,
+        ...(adaptiveQRC.options ?? {}),
+      });
       const adaptive = adaptiveQRC.options.adaptive;
       setQrName(adaptiveQRC.name || '');
       
@@ -301,6 +315,10 @@ export const AdaptiveQRCEditor = ({
       }
     }
   }, [adaptiveQRC]);
+
+  const updateQrOption = <K extends keyof QROptions>(key: K, value: QROptions[K]) => {
+    setQrOptions((prev) => ({ ...prev, [key]: value }));
+  };
 
   const handleContentChange = (id: string, field: 'url' | 'name' | 'inputType', value: string) => {
     setContents(contents.map(c => {
@@ -531,7 +549,10 @@ export const AdaptiveQRCEditor = ({
     setLoading(true);
     try {
       const config = buildAdaptiveConfig();
-      await onSave(config, qrName);
+      await onSave(config, qrName, {
+        ...qrOptions,
+        content: previewContent,
+      });
       toast.success('Adaptive QRC™ updated successfully!');
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to update Adaptive QRC™';
@@ -549,13 +570,11 @@ export const AdaptiveQRCEditor = ({
   }, [adaptiveQRC, appBaseUrl]);
 
   const previewOptions = useMemo(() => ({
+    ...defaultQROptions,
+    ...qrOptions,
     content: previewContent,
     size: 256,
-    fgColor: '#D4AF37',
-    bgColor: '#1a1a1a',
-    errorCorrectionLevel: 'M' as const,
-    cornerStyle: 'rounded' as const,
-  }), [previewContent]);
+  }), [previewContent, qrOptions]);
 
   const handleCopyUrl = () => {
     if (previewContent) {
@@ -565,7 +584,7 @@ export const AdaptiveQRCEditor = ({
   };
 
   const handleDownloadQR = () => {
-    qrRef.current?.download();
+    qrRef.current?.downloadPng();
   };
 
   return (
@@ -1029,7 +1048,6 @@ export const AdaptiveQRCEditor = ({
                         <div className="p-6 rounded-2xl bg-gradient-to-br from-amber-900/40 to-amber-800/20 border-2 border-amber-500/40 shadow-2xl shadow-amber-500/30">
                           <QRPreview
                             ref={qrRef}
-                            content={previewContent}
                             options={previewOptions}
                           />
                         </div>
@@ -1064,6 +1082,52 @@ export const AdaptiveQRCEditor = ({
                             <ExternalLink className="h-4 w-4 mr-2" />
                             Open
                           </Button>
+                        </div>
+                      </div>
+                      <div className="glass-panel rounded-2xl p-6 border border-amber-500/20 shadow-lg shadow-amber-500/10">
+                        <div className="mb-6">
+                          <h2 className="text-2xl font-bold text-amber-300 mb-2">QR Style</h2>
+                          <p className="text-sm text-amber-200/70">
+                            Customize colors, corners, and logo for this Adaptive QRC™.
+                          </p>
+                        </div>
+                        <div className="space-y-5">
+                          <ColorPicker
+                            label="Foreground Color"
+                            value={qrOptions.fgColor}
+                            onChange={(value) => updateQrOption('fgColor', value)}
+                          />
+                          <ColorPicker
+                            label="Background Color"
+                            value={qrOptions.bgColor}
+                            onChange={(value) => updateQrOption('bgColor', value)}
+                          />
+                          <CornerStylePicker
+                            value={qrOptions.cornerStyle}
+                            onChange={(value) => updateQrOption('cornerStyle', value)}
+                          />
+                          <ErrorCorrectionSelector
+                            value={qrOptions.errorCorrectionLevel}
+                            onChange={(value) => updateQrOption('errorCorrectionLevel', value)}
+                          />
+                          <LogoUpload
+                            logo={qrOptions.logo}
+                            maxLogoSize={Math.round((previewOptions.size - 32) * 0.22)}
+                            onLogoChange={(value, meta) => {
+                              updateQrOption('logo', value);
+                              updateQrOption('logoAspect', meta?.aspect);
+                              updateQrOption('logoWidth', meta?.width);
+                              updateQrOption('logoHeight', meta?.height);
+                            }}
+                          />
+                          {qrOptions.logo ? (
+                            <SizeSlider
+                              value={qrOptions.logoSize || 50}
+                              onChange={(value) => updateQrOption('logoSize', value)}
+                              min={20}
+                              max={100}
+                            />
+                          ) : null}
                         </div>
                       </div>
                     </div>

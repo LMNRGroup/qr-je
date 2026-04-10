@@ -4,6 +4,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { QRPreview, QRPreviewHandle } from '@/components/QRPreview';
+import { ColorPicker } from '@/components/ColorPicker';
+import { CornerStylePicker } from '@/components/CornerStylePicker';
+import { ErrorCorrectionSelector } from '@/components/ErrorCorrectionSelector';
+import { LogoUpload } from '@/components/LogoUpload';
+import { SizeSlider } from '@/components/SizeSlider';
 import supabase, { isSupabaseConfigured } from '@/lib/supabase';
 import { 
   ArrowRight, 
@@ -22,7 +27,8 @@ import {
   Link as LinkIcon
 } from 'lucide-react';
 import { toast } from 'sonner';
-import type { AdaptiveConfig } from '@/types/qr';
+import type { AdaptiveConfig, QROptions } from '@/types/qr';
+import { defaultQROptions } from '@/types/qr';
 
 interface AdaptiveContent {
   id: string;
@@ -61,7 +67,7 @@ type RuleType = 'time' | 'visit' | null;
 interface AdaptiveQRCWizardProps {
   user: any;
   userProfile: any;
-  onComplete: (config: AdaptiveConfig, qrName: string) => Promise<void>;
+  onComplete: (config: AdaptiveConfig, qrName: string, qrOptions: QROptions) => Promise<void>;
   onCancel: () => void;
   existingAdaptiveQRC?: any;
   isMobile?: boolean;
@@ -85,6 +91,10 @@ export const AdaptiveQRCWizard = ({
   const [visitRules, setVisitRules] = useState<VisitRule[]>([]);
   const [defaultContentId, setDefaultContentId] = useState<string>('');
   const [loading, setLoading] = useState(false);
+  const [qrOptions, setQrOptions] = useState<QROptions>(() => ({
+    ...defaultQROptions,
+    ...(existingAdaptiveQRC?.options ?? {}),
+  }));
   const qrRef = useRef<QRPreviewHandle>(null);
   const contentFileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
@@ -545,6 +555,10 @@ export const AdaptiveQRCWizard = ({
     }
   };
 
+  const updateQrOption = <K extends keyof QROptions>(key: K, value: QROptions[K]) => {
+    setQrOptions((prev) => ({ ...prev, [key]: value }));
+  };
+
   const buildAdaptiveConfig = (): AdaptiveConfig => {
     const validContents = contents.filter(c => 
       c.name.trim().length > 0 && 
@@ -604,7 +618,10 @@ export const AdaptiveQRCWizard = ({
     setLoading(true);
     try {
       const config = buildAdaptiveConfig();
-      await onComplete(config, qrName);
+      await onComplete(config, qrName, {
+        ...qrOptions,
+        content: previewContent,
+      });
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to create Adaptive QRC™';
       toast.error(message);
@@ -621,13 +638,11 @@ export const AdaptiveQRCWizard = ({
   }, [existingAdaptiveQRC, appBaseUrl]);
 
   const previewOptions = useMemo(() => ({
+    ...defaultQROptions,
+    ...qrOptions,
     content: previewContent,
     size: 256,
-    fgColor: '#D4AF37',
-    bgColor: '#1a1a1a',
-    errorCorrectionLevel: 'M' as const,
-    cornerStyle: 'rounded' as const,
-  }), [previewContent]);
+  }), [previewContent, qrOptions]);
 
   return (
     <div className="fixed inset-0 z-[100] bg-gradient-to-br from-[#0b0f14] via-[#1a1a1a] to-[#0b0f14] overflow-y-auto">
@@ -1328,9 +1343,46 @@ export const AdaptiveQRCWizard = ({
                            <div className="flex justify-center">
                              <QRPreview
                                ref={qrRef}
-                               content={previewContent}
                                options={previewOptions}
                              />
+                           </div>
+                           <div className="mt-6 space-y-5 border-t border-amber-500/20 pt-6">
+                             <ColorPicker
+                               label="Foreground Color"
+                               value={qrOptions.fgColor}
+                               onChange={(value) => updateQrOption('fgColor', value)}
+                             />
+                             <ColorPicker
+                               label="Background Color"
+                               value={qrOptions.bgColor}
+                               onChange={(value) => updateQrOption('bgColor', value)}
+                             />
+                             <CornerStylePicker
+                               value={qrOptions.cornerStyle}
+                               onChange={(value) => updateQrOption('cornerStyle', value)}
+                             />
+                             <ErrorCorrectionSelector
+                               value={qrOptions.errorCorrectionLevel}
+                               onChange={(value) => updateQrOption('errorCorrectionLevel', value)}
+                             />
+                             <LogoUpload
+                               logo={qrOptions.logo}
+                               maxLogoSize={Math.round((previewOptions.size - 32) * 0.22)}
+                               onLogoChange={(value, meta) => {
+                                 updateQrOption('logo', value);
+                                 updateQrOption('logoAspect', meta?.aspect);
+                                 updateQrOption('logoWidth', meta?.width);
+                                 updateQrOption('logoHeight', meta?.height);
+                               }}
+                             />
+                             {qrOptions.logo ? (
+                               <SizeSlider
+                                 value={qrOptions.logoSize || 50}
+                                 onChange={(value) => updateQrOption('logoSize', value)}
+                                 min={20}
+                                 max={100}
+                               />
+                             ) : null}
                            </div>
                          </div>
                        </div>
@@ -1342,9 +1394,46 @@ export const AdaptiveQRCWizard = ({
                        <div className="flex justify-center">
                          <QRPreview
                            ref={qrRef}
-                           content={previewContent}
                            options={{ ...previewOptions, size: 200 }}
                          />
+                       </div>
+                       <div className="mt-4 space-y-5 border-t border-amber-500/20 pt-4">
+                         <ColorPicker
+                           label="Foreground Color"
+                           value={qrOptions.fgColor}
+                           onChange={(value) => updateQrOption('fgColor', value)}
+                         />
+                         <ColorPicker
+                           label="Background Color"
+                           value={qrOptions.bgColor}
+                           onChange={(value) => updateQrOption('bgColor', value)}
+                         />
+                         <CornerStylePicker
+                           value={qrOptions.cornerStyle}
+                           onChange={(value) => updateQrOption('cornerStyle', value)}
+                         />
+                         <ErrorCorrectionSelector
+                           value={qrOptions.errorCorrectionLevel}
+                           onChange={(value) => updateQrOption('errorCorrectionLevel', value)}
+                         />
+                         <LogoUpload
+                           logo={qrOptions.logo}
+                           maxLogoSize={Math.round((200 - 32) * 0.22)}
+                           onLogoChange={(value, meta) => {
+                             updateQrOption('logo', value);
+                             updateQrOption('logoAspect', meta?.aspect);
+                             updateQrOption('logoWidth', meta?.width);
+                             updateQrOption('logoHeight', meta?.height);
+                           }}
+                         />
+                         {qrOptions.logo ? (
+                           <SizeSlider
+                             value={qrOptions.logoSize || 50}
+                             onChange={(value) => updateQrOption('logoSize', value)}
+                             min={20}
+                             max={100}
+                           />
+                         ) : null}
                        </div>
                      </div>
                    )}

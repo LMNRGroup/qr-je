@@ -13,6 +13,7 @@ interface ArsenalPageProps {
   setShowAdaptiveBanner: (show: boolean) => void;
   handleAdaptiveMockOpen: () => void;
   handleAdaptiveEdit: (item: QRHistoryItem) => void;
+  handleDynamicContentEdit: (item: QRHistoryItem) => void;
   arsenalRefreshKey: number;
   setArsenalRefreshKey: (fn: (prev: number) => number) => void;
   setArsenalStats: (stats: { total: number; dynamic: number }) => void;
@@ -30,6 +31,7 @@ export function ArsenalPage({
   setShowAdaptiveBanner,
   handleAdaptiveMockOpen,
   handleAdaptiveEdit,
+  handleDynamicContentEdit,
   arsenalRefreshKey,
   setArsenalRefreshKey,
   setArsenalStats,
@@ -61,6 +63,7 @@ export function ArsenalPage({
               timeZone={userProfile?.timezone || profileForm.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone}
               cacheKey={user?.id ?? 'guest'}
               onAdaptiveEdit={handleAdaptiveEdit}
+              onDynamicContentEdit={handleDynamicContentEdit}
               topContent={undefined}
             />
           ) : (
@@ -124,6 +127,7 @@ export function ArsenalPage({
               timeZone={userProfile?.timezone || profileForm.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone}
               cacheKey={user?.id ?? 'guest'}
               onAdaptiveEdit={handleAdaptiveEdit}
+              onDynamicContentEdit={handleDynamicContentEdit}
               topContent={undefined}
             />
           ) : (
