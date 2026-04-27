@@ -1,7 +1,6 @@
 import { useRef, useCallback, forwardRef, useImperativeHandle, useEffect, useId } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { motion } from 'framer-motion';
-import { toPng, toJpeg, toSvg } from 'html-to-image';
 import { jsPDF } from 'jspdf';
 import { Loader2 } from 'lucide-react';
 import { QROptions } from '@/types/qr';
@@ -24,9 +23,9 @@ export interface QRPreviewHandle {
 
 export const QRPreview = forwardRef<QRPreviewHandle, QRPreviewProps>(
   ({ options, isGenerating = false, contentOverride, showCaption = true, innerPadding = 16 }, ref) => {
-    const qrRef = useRef<HTMLDivElement>(null);
     const svgRef = useRef<SVGSVGElement>(null);
     const dotMaskId = useId().replace(/:/g, '');
+    const qrInnerSize = Math.max(64, options.size - innerPadding * 2);
 
     const getCornerRadius = () => {
       switch (options.cornerStyle) {
@@ -39,36 +38,124 @@ export const QRPreview = forwardRef<QRPreviewHandle, QRPreviewProps>(
       }
     };
 
-    const downloadPng = useCallback(async () => {
-      if (!qrRef.current) return;
-      const dataUrl = await toPng(qrRef.current, { quality: 1, pixelRatio: 3 });
+    const createDownloadLink = useCallback((url: string, filename: string) => {
       const link = document.createElement('a');
-      link.download = `qrcode-${Date.now()}.png`;
-      link.href = dataUrl;
+      link.download = filename;
+      link.href = url;
+      document.body.appendChild(link);
       link.click();
+      document.body.removeChild(link);
     }, []);
+
+    const downloadBlob = useCallback(
+      (blob: Blob, filename: string) => {
+        const url = URL.createObjectURL(blob);
+        createDownloadLink(url, filename);
+        window.setTimeout(() => URL.revokeObjectURL(url), 0);
+      },
+      [createDownloadLink]
+    );
+
+    const getExportSvgMarkup = useCallback(() => {
+      const svg = svgRef.current;
+      if (!svg) {
+        throw new Error('QR SVG is not ready');
+      }
+
+      const exportedSvg = svg.cloneNode(true) as SVGSVGElement;
+      exportedSvg.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+      exportedSvg.setAttribute('xmlns:xlink', 'http://www.w3.org/1999/xlink');
+      exportedSvg.setAttribute('width', String(qrInnerSize));
+      exportedSvg.setAttribute('height', String(qrInnerSize));
+      exportedSvg.setAttribute('x', String(innerPadding));
+      exportedSvg.setAttribute('y', String(innerPadding));
+      exportedSvg.style.backgroundColor = options.bgColor;
+
+      const serializedInnerSvg = new XMLSerializer().serializeToString(exportedSvg);
+
+      return [
+        '<?xml version="1.0" encoding="UTF-8"?>',
+        `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${options.size}" height="${options.size}" viewBox="0 0 ${options.size} ${options.size}">`,
+        `<rect width="${options.size}" height="${options.size}" fill="${options.bgColor}" rx="12" ry="12" />`,
+        serializedInnerSvg,
+        '</svg>',
+      ].join('');
+    }, [innerPadding, options.bgColor, options.size, qrInnerSize]);
+
+    const renderCanvasFromSvg = useCallback(async (mimeType: 'image/png' | 'image/jpeg') => {
+      const svgMarkup = getExportSvgMarkup();
+      const svgBlob = new Blob([svgMarkup], { type: 'image/svg+xml;charset=utf-8' });
+      const url = URL.createObjectURL(svgBlob);
+
+      try {
+        const image = new Image();
+        image.decoding = 'async';
+        const loadImage = new Promise<void>((resolve, reject) => {
+          image.onload = () => resolve();
+          image.onerror = () => reject(new Error('Failed to render QR image'));
+        });
+        image.src = url;
+        await loadImage;
+
+        const canvas = document.createElement('canvas');
+        const pixelRatio = 3;
+        canvas.width = options.size * pixelRatio;
+        canvas.height = options.size * pixelRatio;
+
+        const context = canvas.getContext('2d');
+        if (!context) {
+          throw new Error('Canvas context unavailable');
+        }
+
+        context.scale(pixelRatio, pixelRatio);
+        context.fillStyle = options.bgColor;
+        context.fillRect(0, 0, options.size, options.size);
+        context.drawImage(image, 0, 0, options.size, options.size);
+
+        const blob = await new Promise<Blob>((resolve, reject) => {
+          canvas.toBlob(
+            (value) => {
+              if (value) resolve(value);
+              else reject(new Error('Empty canvas export'));
+            },
+            mimeType,
+            mimeType === 'image/jpeg' ? 0.95 : 1
+          );
+        });
+
+        return blob;
+      } finally {
+        URL.revokeObjectURL(url);
+      }
+    }, [getExportSvgMarkup, options.bgColor, options.size]);
+
+    const downloadPng = useCallback(async () => {
+      const blob = await renderCanvasFromSvg('image/png');
+      downloadBlob(blob, `qrcode-${Date.now()}.png`);
+    }, [downloadBlob, renderCanvasFromSvg]);
 
     const downloadSvg = useCallback(async () => {
-      if (!qrRef.current) return;
-      const dataUrl = await toSvg(qrRef.current);
-      const link = document.createElement('a');
-      link.download = `qrcode-${Date.now()}.svg`;
-      link.href = dataUrl;
-      link.click();
-    }, []);
+      const svgMarkup = getExportSvgMarkup();
+      const blob = new Blob([svgMarkup], { type: 'image/svg+xml;charset=utf-8' });
+      downloadBlob(blob, `qrcode-${Date.now()}.svg`);
+    }, [downloadBlob, getExportSvgMarkup]);
 
     const downloadJpeg = useCallback(async () => {
-      if (!qrRef.current) return;
-      const dataUrl = await toJpeg(qrRef.current, { quality: 0.95 });
-      const link = document.createElement('a');
-      link.download = `qrcode-${Date.now()}.jpeg`;
-      link.href = dataUrl;
-      link.click();
-    }, []);
+      const blob = await renderCanvasFromSvg('image/jpeg');
+      downloadBlob(blob, `qrcode-${Date.now()}.jpeg`);
+    }, [downloadBlob, renderCanvasFromSvg]);
 
     const downloadPdf = useCallback(async () => {
-      if (!qrRef.current) return;
-      const dataUrl = await toPng(qrRef.current, { quality: 1, pixelRatio: 3 });
+      const pngBlob = await renderCanvasFromSvg('image/png');
+      const dataUrl = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          if (typeof reader.result === 'string') resolve(reader.result);
+          else reject(new Error('Failed to read PNG export'));
+        };
+        reader.onerror = () => reject(new Error('Failed to read PNG export'));
+        reader.readAsDataURL(pngBlob);
+      });
       const pdf = new jsPDF({
         orientation: 'portrait',
         unit: 'pt',
@@ -80,14 +167,11 @@ export const QRPreview = forwardRef<QRPreviewHandle, QRPreviewProps>(
       const y = (pdf.internal.pageSize.getHeight() - pdfHeight) / 2;
       pdf.addImage(dataUrl, 'PNG', 0, y, pdfWidth, pdfHeight);
       pdf.save(`qrcode-${Date.now()}.pdf`);
-    }, [options.size]);
+    }, [options.size, renderCanvasFromSvg]);
 
     const copyToClipboard = useCallback(async () => {
-      if (!qrRef.current) return false;
       try {
-        const dataUrl = await toPng(qrRef.current, { quality: 1, pixelRatio: 2 });
-        const response = await fetch(dataUrl);
-        const blob = await response.blob();
+        const blob = await renderCanvasFromSvg('image/png');
         await navigator.clipboard.write([
           new ClipboardItem({ 'image/png': blob }),
         ]);
@@ -95,7 +179,7 @@ export const QRPreview = forwardRef<QRPreviewHandle, QRPreviewProps>(
       } catch {
         return false;
       }
-    }, []);
+    }, [renderCanvasFromSvg]);
 
     useImperativeHandle(ref, () => ({
       downloadPng,
@@ -174,8 +258,6 @@ export const QRPreview = forwardRef<QRPreviewHandle, QRPreviewProps>(
       });
     }, [contentValue, dotMaskId, options.cornerStyle, options.size]);
 
-    const qrInnerSize = Math.max(64, options.size - innerPadding * 2);
-
     return (
       <div className="flex flex-col items-center gap-6">
         <motion.div
@@ -185,7 +267,6 @@ export const QRPreview = forwardRef<QRPreviewHandle, QRPreviewProps>(
           className="qr-container"
         >
           <div
-            ref={qrRef}
             className="relative flex items-center justify-center rounded-xl overflow-hidden"
             style={{
               width: options.size,
