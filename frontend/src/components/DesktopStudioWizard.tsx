@@ -48,10 +48,12 @@ import {
 } from '@/lib/qr-wizard-steps';
 import type { QROptions } from '@/types/qr';
 
+type QRType = 'website' | 'vcard' | 'email' | 'phone' | 'file' | 'menu' | 'social' | 'portal';
+
 interface DesktopStudioWizardProps {
   // State props
   qrMode: 'static' | 'dynamic' | null;
-  qrType: 'website' | 'vcard' | 'email' | 'phone' | 'file' | 'menu' | 'social' | 'portal' | null;
+  qrType: QRType | null;
   options: QROptions;
   websiteUrl: string;
   emailAddress: string;
@@ -86,7 +88,7 @@ interface DesktopStudioWizardProps {
   
   // Handlers
   onModeChange: (mode: 'static' | 'dynamic' | null) => void;
-  onTypeChange: (type: 'website' | 'vcard' | 'email' | 'phone' | 'file' | 'menu' | 'social' | 'portal' | null) => void;
+  onTypeChange: (type: QRType | null) => void;
   onQuickActionSelect: (action: string | null) => void;
   onWebsiteUrlChange: (url: string) => void;
   onEmailChange: (email: string) => void;
@@ -571,18 +573,18 @@ export function DesktopStudioWizard({
                   <div className="space-y-3">
                     <p className="text-sm font-medium">Select QR Type</p>
                     <div className="grid sm:grid-cols-2 gap-3">
-                      {[
+                      {([
                         { id: 'website', label: 'Website URL', desc: 'Open a URL' },
                         { id: 'vcard', label: 'Virtual Card', desc: 'Share your profile' },
                         { id: 'email', label: 'Email', desc: 'Send an email' },
                         { id: 'phone', label: 'Phone', desc: 'Call a number' },
                         { id: 'file', label: 'File', desc: 'Share a file' },
                         { id: 'menu', label: 'Menu', desc: 'Share a menu' },
-                      ].map((type) => (
+                      ] satisfies Array<{ id: QRType; label: string; desc: string }>).map((type) => (
                         <button
                           key={type.id}
                           type="button"
-                          onClick={() => onTypeChange(type.id as any)}
+                          onClick={() => onTypeChange(type.id)}
                           className={`p-4 rounded-xl border text-left transition ${
                             qrType === type.id
                               ? 'border-primary/70 bg-primary/10'

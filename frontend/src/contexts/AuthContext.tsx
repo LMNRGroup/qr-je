@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import supabase, { isSupabaseConfigured } from '@/lib/supabase';
 import { AuthError, Session, User } from '@supabase/supabase-js';
 import { createContext, ReactNode, useContext, useEffect, useState } from 'react';

@@ -1,8 +1,7 @@
 import { Button } from '@/components/ui/button';
 import { NavPageLayout } from '@/components/NavPageLayout';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { QRHistoryItem } from '@/types/qr';
-import { UserProfile } from '@/lib/api';
+import type { AdaptiveRule, AdaptiveSlot, QRHistoryItem } from '@/types/qr';
 import { User } from '@supabase/supabase-js';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -105,7 +104,7 @@ export function AdaptivePage({
                           {existingAdaptiveQRC.options.adaptive.firstReturn?.enabled && (
                             <>
                               {existingAdaptiveQRC.options.adaptive.firstReturn.firstSlot && (() => {
-                                const firstSlot = existingAdaptiveQRC.options.adaptive.slots?.find((s: any) => s.id === existingAdaptiveQRC.options.adaptive.firstReturn.firstSlot);
+                                const firstSlot = existingAdaptiveQRC.options.adaptive.slots?.find((s: AdaptiveSlot) => s.id === existingAdaptiveQRC.options.adaptive.firstReturn.firstSlot);
                                 return firstSlot ? (
                                   <div className="flex flex-col py-2 px-3 rounded-lg bg-secondary/40 border border-amber-500/20">
                                     <span className="text-xs font-medium text-muted-foreground mb-0.5">First Visit:</span>
@@ -114,7 +113,7 @@ export function AdaptivePage({
                                 ) : null;
                               })()}
                               {existingAdaptiveQRC.options.adaptive.firstReturn.returnSlot && (() => {
-                                const returnSlot = existingAdaptiveQRC.options.adaptive.slots?.find((s: any) => s.id === existingAdaptiveQRC.options.adaptive.firstReturn.returnSlot);
+                                const returnSlot = existingAdaptiveQRC.options.adaptive.slots?.find((s: AdaptiveSlot) => s.id === existingAdaptiveQRC.options.adaptive.firstReturn.returnSlot);
                                 return returnSlot ? (
                                   <div className="flex flex-col py-2 px-3 rounded-lg bg-secondary/40 border border-amber-500/20">
                                     <span className="text-xs font-medium text-muted-foreground mb-0.5">Returning Visit:</span>
@@ -125,8 +124,8 @@ export function AdaptivePage({
                             </>
                           )}
                           {existingAdaptiveQRC.options.adaptive.dateRules && existingAdaptiveQRC.options.adaptive.dateRules.length > 0 && (
-                            existingAdaptiveQRC.options.adaptive.dateRules.map((rule: any, index: number) => {
-                              const slot = existingAdaptiveQRC.options.adaptive.slots?.find((s: any) => s.id === rule.slot);
+                            existingAdaptiveQRC.options.adaptive.dateRules.map((rule: AdaptiveRule, index: number) => {
+                              const slot = existingAdaptiveQRC.options.adaptive.slots?.find((s: AdaptiveSlot) => s.id === rule.slot);
                               const timeRange = rule.startTime && rule.endTime 
                                 ? `${rule.startTime} - ${rule.endTime}`
                                 : rule.startTime || rule.endTime || 'All day';

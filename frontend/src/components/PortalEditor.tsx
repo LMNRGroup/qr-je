@@ -110,7 +110,10 @@ export function PortalEditor({
     onLinksChange(updated);
   };
 
-  const updateCustomization = (field: keyof PortalCustomization, value: any) => {
+  const updateCustomization = <Field extends keyof PortalCustomization>(
+    field: Field,
+    value: PortalCustomization[Field]
+  ) => {
     onCustomizationChange({ ...customization, [field]: value });
   };
 

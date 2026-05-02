@@ -27,7 +27,9 @@ import {
   Link as LinkIcon
 } from 'lucide-react';
 import { toast } from 'sonner';
-import type { AdaptiveConfig, QROptions } from '@/types/qr';
+import type { AdaptiveConfig, AdaptiveRule, AdaptiveSlot, QRHistoryItem, QROptions } from '@/types/qr';
+import type { User } from '@supabase/supabase-js';
+import type { UserProfile } from '@/lib/api';
 import { defaultQROptions } from '@/types/qr';
 
 interface AdaptiveContent {
@@ -64,12 +66,14 @@ interface VisitRule {
 
 type RuleType = 'time' | 'visit' | null;
 
+type AdaptiveQRCRecord = Pick<QRHistoryItem, 'name' | 'options'>;
+
 interface AdaptiveQRCWizardProps {
-  user: any;
-  userProfile: any;
+  user: User | null;
+  userProfile: Pick<UserProfile, 'timezone'> | null;
   onComplete: (config: AdaptiveConfig, qrName: string, qrOptions: QROptions) => Promise<void>;
   onCancel: () => void;
-  existingAdaptiveQRC?: any;
+  existingAdaptiveQRC?: AdaptiveQRCRecord | null;
   isMobile?: boolean;
   isMobileV2?: boolean;
 }
@@ -274,7 +278,7 @@ export const AdaptiveQRCWizard = ({
         { id: crypto.randomUUID(), name: 'Second Visit', url: '', inputType: 'url' },
       ]);
     }
-  }, [ruleType]);
+  }, [contents.length, ruleType]);
 
   // Load existing config if editing
   useEffect(() => {
@@ -283,7 +287,7 @@ export const AdaptiveQRCWizard = ({
       setQrName(existingAdaptiveQRC.name || 'My Adaptive QRC™');
       
       if (adaptive.slots && adaptive.slots.length > 0) {
-        const loadedContents = adaptive.slots.map((slot: any, index: number) => ({
+        const loadedContents = adaptive.slots.map((slot: AdaptiveSlot, index: number) => ({
           id: slot.id || crypto.randomUUID(),
           name: slot.name || `Content ${index + 1}`,
           url: slot.url || '',
@@ -301,7 +305,7 @@ export const AdaptiveQRCWizard = ({
       // Determine rule type
       if (adaptive.dateRules && adaptive.dateRules.length > 0) {
         setRuleType('time');
-        const loadedRules = adaptive.dateRules.map((rule: any) => ({
+        const loadedRules = adaptive.dateRules.map((rule: AdaptiveRule) => ({
           id: crypto.randomUUID(),
           contentId: rule.slot || '',
           startTime: rule.startTime,
@@ -460,7 +464,7 @@ export const AdaptiveQRCWizard = ({
       }, 200);
 
       let compressed = '';
-      let fileType: 'image' | 'pdf' = isPdf ? 'pdf' : 'image';
+      const fileType: 'image' | 'pdf' = isPdf ? 'pdf' : 'image';
       
       if (isImage) {
         toast.info('Compressing image...');
@@ -527,7 +531,11 @@ export const AdaptiveQRCWizard = ({
     setTimeRules(timeRules.filter(r => r.id !== id));
   };
 
-  const handleTimeRuleChange = (id: string, field: keyof TimeRule, value: any) => {
+  const handleTimeRuleChange = <Field extends keyof TimeRule>(
+    id: string,
+    field: Field,
+    value: TimeRule[Field]
+  ) => {
     setTimeRules(timeRules.map(r => 
       r.id === id ? { ...r, [field]: value } : r
     ));
@@ -565,7 +573,7 @@ export const AdaptiveQRCWizard = ({
       (c.url.trim().length > 0 || c.fileUrl || (c.file && c.inputType === 'file'))
     );
     const slots = validContents.map(c => {
-      const slot: any = {
+      const slot: AdaptiveSlot = {
         id: c.id,
         name: c.name.trim(),
       };

@@ -29,6 +29,7 @@ import {
 import { toast } from 'sonner';
 import { QRHistoryItem, QROptions } from '@/types/qr';
 import { deleteQRFromHistory, getQRHistory, getScanCounts, updateQR } from '@/lib/api';
+import supabase from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import {
   AlertDialog,
@@ -147,7 +148,6 @@ const deleteFileFromStorage = async (fileUrl: string) => {
     const filename = pathParts.slice(2).join('/');
     const filePath = `${folder}/${filename}`;
     
-    const supabase = (await import('@/lib/supabase')).default;
     const { error } = await supabase.storage.from(bucket).remove([filePath]);
     
     if (error) {
@@ -646,6 +646,9 @@ export function ArsenalPanel({
       }
     };
     loadHistory();
+  // Intentionally limited: this effect loads on mount, layout changes, and explicit refreshes.
+  // Including cache helpers/state setters here causes cache-reset loops and excess network traffic.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [refreshKey, isDesktop]);
 
   useEffect(() => {
@@ -681,7 +684,6 @@ export function ArsenalPanel({
       return !document.hidden;
     };
 
-    let interval: number | undefined;
     const pollScans = () => {
       if (!isVisible()) return; // Skip if tab is hidden
       // Skip if document is hidden to reduce egress
@@ -693,7 +695,7 @@ export function ArsenalPanel({
     pollScans();
 
     // Reduced from 45s to 120s to significantly reduce egress usage
-    interval = window.setInterval(pollScans, 120000);
+    const interval = window.setInterval(pollScans, 120000);
 
     // Debounced visibility change handler to reduce unnecessary fetches
     let visibilityDebounce: NodeJS.Timeout | undefined;

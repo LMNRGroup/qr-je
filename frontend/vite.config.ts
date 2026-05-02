@@ -13,6 +13,11 @@ export default defineConfig(({ mode }) => ({
     },
   },
   plugins: [react(), mode === "development" && componentTagger()].filter(Boolean),
+  build: {
+    // The home studio is intentionally feature-rich; route/component splitting keeps
+    // the initial app shell small while allowing this lazy chunk to stay under budget.
+    chunkSizeWarningLimit: 700,
+  },
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
