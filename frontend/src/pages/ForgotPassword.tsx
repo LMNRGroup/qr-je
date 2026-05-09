@@ -3,7 +3,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { motion } from 'framer-motion';
 import { ArrowLeft, ArrowRight, Loader2, Mail } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { FloatingParticles } from '@/components/FloatingParticles';
@@ -20,6 +20,10 @@ const ForgotPassword = () => {
       ? window.location.origin
       : import.meta.env.VITE_PUBLIC_APP_URL
   )?.replace(/\/$/, '') ?? 'https://qrcode.luminarapps.com';
+
+  useEffect(() => {
+    document.documentElement.classList.add('dark');
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
