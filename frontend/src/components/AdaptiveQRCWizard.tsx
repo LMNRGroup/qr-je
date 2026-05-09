@@ -68,6 +68,12 @@ type RuleType = 'time' | 'visit' | null;
 
 type AdaptiveQRCRecord = Pick<QRHistoryItem, 'name' | 'options' | 'shortUrl'>;
 
+const getSlotOrder = (slot: AdaptiveSlot, index: number) => {
+  if (typeof slot.order === 'number') return slot.order;
+  const namedOrder = slot.name?.match(/^Content\s+(\d+)$/i)?.[1];
+  return namedOrder ? Number(namedOrder) - 1 : index;
+};
+
 interface AdaptiveQRCWizardProps {
   user: User | null;
   userProfile: Pick<UserProfile, 'timezone'> | null;
@@ -287,7 +293,10 @@ export const AdaptiveQRCWizard = ({
       setQrName(existingAdaptiveQRC.name || 'My Adaptive QRC™');
       
       if (adaptive.slots && adaptive.slots.length > 0) {
-        const loadedContents: AdaptiveContent[] = adaptive.slots.map((slot: AdaptiveSlot, index: number) => ({
+        const orderedSlots = [...adaptive.slots].sort((a, b) =>
+          getSlotOrder(a, adaptive.slots!.indexOf(a)) - getSlotOrder(b, adaptive.slots!.indexOf(b))
+        );
+        const loadedContents: AdaptiveContent[] = orderedSlots.map((slot: AdaptiveSlot, index: number) => ({
           id: slot.id || crypto.randomUUID(),
           name: slot.name || `Content ${index + 1}`,
           url: slot.url || '',
@@ -577,9 +586,10 @@ export const AdaptiveQRCWizard = ({
       c.name.trim().length > 0 && 
       (c.url.trim().length > 0 || c.fileUrl || (c.file && c.inputType === 'file'))
     );
-    const slots = validContents.map(c => {
+    const slots = validContents.map((c, index) => {
       const slot: AdaptiveSlot = {
         id: c.id,
+        order: index,
         name: c.name.trim(),
       };
       if (c.fileUrl) {

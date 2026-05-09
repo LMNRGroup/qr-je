@@ -1,5 +1,6 @@
 export interface AdaptiveSlot {
   id: string;
+  order?: number;
   name?: string;
   url?: string;
   fileUrl?: string;

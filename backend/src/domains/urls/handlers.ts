@@ -106,6 +106,7 @@ const getNowMs = () => (typeof performance !== 'undefined' ? performance.now() :
 
 type AdaptiveSlot = {
   id: string
+  order?: number
   name?: string
   url?: string
   fileUrl?: string
