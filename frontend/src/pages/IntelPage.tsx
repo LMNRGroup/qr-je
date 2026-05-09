@@ -4,7 +4,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ChevronDown } from 'lucide-react';
 import { useMemo, useRef, useState } from 'react';
-import { ScanAreaSummary } from '@/lib/api';
+import { ScanAreaSummary, type ScanTrendSeries } from '@/lib/api';
 
 interface IntelPageProps {
   isMobileV2: boolean;
@@ -20,7 +20,7 @@ interface IntelPageProps {
     avgResponseMs: number | null;
   };
   intelLoading: boolean;
-  intelTrends: Array<{ date: string; count: number }>;
+  intelTrends: ScanTrendSeries;
   scanAreas: ScanAreaSummary[];
   radarLabel: string;
   arsenalStats: { total: number; dynamic: number };
@@ -63,7 +63,7 @@ export function IntelPage({
 
   const trendPoints = useMemo(() => {
     // Check if we're showing hourly data (for today)
-    const isHourly = (intelTrends as any)?.hourly === true || (intelTrends.length > 0 && intelRange === 'today');
+    const isHourly = intelTrends.hourly === true || (intelTrends.length > 0 && intelRange === 'today');
     
     if (isHourly && intelRange === 'today') {
       // Handle hourly data for today

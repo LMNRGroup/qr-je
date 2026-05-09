@@ -59,7 +59,7 @@ export const PDFViewer = ({
         setError(null);
         
         // Handle data URLs and regular URLs
-        let pdfUrl = url;
+        const pdfUrl = url;
         let loadingOptions: { url: string } | { data: Uint8Array } = { url: pdfUrl };
         
         // If it's a data URL, convert to Uint8Array for better compatibility

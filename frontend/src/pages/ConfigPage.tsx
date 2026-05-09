@@ -306,7 +306,7 @@ export function ConfigPage({
                                 : 'border-border/60 bg-secondary/20 text-muted-foreground hover:border-primary/60'
                             }`}
                             onClick={() => {
-                              setProfileForm((prev) => ({ ...prev, avatarType: option.id as any }));
+                              setProfileForm((prev) => ({ ...prev, avatarType: option.id }));
                               setAvatarDirty(true);
                             }}
                           >
@@ -813,7 +813,7 @@ export function ConfigPage({
                           : 'border-border/60 bg-secondary/20 text-muted-foreground hover:border-primary/60'
                       }`}
                       onClick={() => {
-                        setProfileForm((prev) => ({ ...prev, avatarType: option.id as any }));
+                        setProfileForm((prev) => ({ ...prev, avatarType: option.id }));
                         setAvatarDirty(true);
                       }}
                     >

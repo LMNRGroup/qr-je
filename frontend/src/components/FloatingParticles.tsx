@@ -91,7 +91,7 @@ const FloatingParticlesComponent = ({
     });
 
     setParticles(generatedParticles);
-  }, []); // Empty deps - only run once on mount
+  }, [count, opacityRange, sizeRange, speed]);
 
   if (reducedMotion) {
     // Return static particles if reduced motion is preferred

@@ -26,7 +26,8 @@ import {
   Plus
 } from 'lucide-react';
 import { toast } from 'sonner';
-import type { AdaptiveConfig, QROptions } from '@/types/qr';
+import type { AdaptiveConfig, AdaptiveRule, AdaptiveSlot, QRHistoryItem, QROptions } from '@/types/qr';
+import type { UserProfile } from '@/lib/api';
 import { defaultQROptions } from '@/types/qr';
 import supabase, { isSupabaseConfigured } from '@/lib/supabase';
 
@@ -64,9 +65,13 @@ interface VisitRule {
 
 type RuleType = 'time' | 'visit' | null;
 
+type AdaptiveQRCEditorTab = 'contents' | 'rules' | 'preview';
+
+type AdaptiveQRCRecord = Pick<QRHistoryItem, 'name' | 'options'>;
+
 interface AdaptiveQRCEditorProps {
-  adaptiveQRC: any;
-  userProfile: any;
+  adaptiveQRC: AdaptiveQRCRecord | null;
+  userProfile: Pick<UserProfile, 'timezone'> | null;
   onSave: (config: AdaptiveConfig, qrName: string, qrOptions: QROptions) => Promise<void>;
   onClose: () => void;
   isMobile?: boolean;
@@ -88,7 +93,7 @@ export const AdaptiveQRCEditor = ({
   const [visitRules, setVisitRules] = useState<VisitRule[]>([]);
   const [defaultContentId, setDefaultContentId] = useState<string>('');
   const [loading, setLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState<'contents' | 'rules' | 'preview'>('contents');
+  const [activeTab, setActiveTab] = useState<AdaptiveQRCEditorTab>('contents');
   const [qrOptions, setQrOptions] = useState<QROptions>(() => ({
     ...defaultQROptions,
     ...(adaptiveQRC?.options ?? {}),
@@ -265,7 +270,7 @@ export const AdaptiveQRCEditor = ({
       setQrName(adaptiveQRC.name || '');
       
       if (adaptive.slots && adaptive.slots.length > 0) {
-        const loadedContents = adaptive.slots.map((slot: any, index: number) => ({
+        const loadedContents = adaptive.slots.map((slot: AdaptiveSlot, index: number) => ({
           id: slot.id || crypto.randomUUID(),
           name: slot.name || `Content ${index + 1}`,
           url: slot.url || '',
@@ -284,7 +289,7 @@ export const AdaptiveQRCEditor = ({
       // Determine rule type
       if (adaptive.dateRules && adaptive.dateRules.length > 0) {
         setRuleType('time');
-        const loadedRules = adaptive.dateRules.map((rule: any) => ({
+        const loadedRules = adaptive.dateRules.map((rule: AdaptiveRule) => ({
           id: crypto.randomUUID(),
           contentId: rule.slot || '',
           startTime: rule.startTime,
@@ -377,7 +382,7 @@ export const AdaptiveQRCEditor = ({
       }, 200);
 
       let compressed = '';
-      let fileType: 'image' | 'pdf' = isPdf ? 'pdf' : 'image';
+      const fileType: 'image' | 'pdf' = isPdf ? 'pdf' : 'image';
       
       if (isImage) {
         toast.info('Compressing image...');
@@ -465,7 +470,11 @@ export const AdaptiveQRCEditor = ({
     setTimeRules(timeRules.filter(r => r.id !== id));
   };
 
-  const handleTimeRuleChange = (id: string, field: keyof TimeRule, value: any) => {
+  const handleTimeRuleChange = <Field extends keyof TimeRule>(
+    id: string,
+    field: Field,
+    value: TimeRule[Field]
+  ) => {
     setTimeRules(timeRules.map(r => 
       r.id === id ? { ...r, [field]: value } : r
     ));
@@ -499,7 +508,7 @@ export const AdaptiveQRCEditor = ({
       (c.url.trim().length > 0 || c.fileUrl || (c.file && c.inputType === 'file'))
     );
     const slots = validContents.map(c => {
-      const slot: any = {
+      const slot: AdaptiveSlot = {
         id: c.id,
         name: c.name.trim(),
       };
@@ -636,7 +645,7 @@ export const AdaptiveQRCEditor = ({
                   <button
                     key={tab.id}
                     type="button"
-                    onClick={() => setActiveTab(tab.id as any)}
+                    onClick={() => setActiveTab(tab.id as AdaptiveQRCEditorTab)}
                     className={`flex items-center gap-2 px-6 py-3 border-b-2 transition-all ${
                       activeTab === tab.id
                         ? 'border-amber-400 text-amber-300 bg-amber-500/10'
