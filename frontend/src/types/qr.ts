@@ -25,6 +25,10 @@ export interface AdaptiveConfig {
     firstSlot?: string;
     returnSlot?: string;
   };
+  manualOverride?: {
+    enabled?: boolean;
+    slot?: string;
+  };
   admin?: {
     enabled?: boolean;
     ips?: string[];

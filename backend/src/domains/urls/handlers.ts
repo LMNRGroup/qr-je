@@ -128,6 +128,7 @@ type AdaptiveOptions = {
     defaultSlot?: string
     dateRules?: AdaptiveRule[]
     firstReturn?: { enabled?: boolean; firstSlot?: string; returnSlot?: string }
+    manualOverride?: { enabled?: boolean; slot?: string }
     admin?: { enabled?: boolean; ips?: string[]; slot?: string }
     timezone?: string
   }
@@ -212,6 +213,11 @@ const resolveAdaptiveTarget = (options: AdaptiveOptions, ip: string | null, isRe
   const { year, month, day, hour, minute, weekday } = getZonedNow(timezone)
   const nowDate = new Date(Date.UTC(year, month - 1, day, hour, minute))
   const nowMinutes = hour * 60 + minute
+
+  if (adaptive.manualOverride?.enabled) {
+    const target = resolveAdaptiveSlotUrl(options, adaptive.manualOverride.slot)
+    if (target) return target
+  }
 
   const adminEnabled = adaptive.admin?.enabled ?? options.adaptiveAdminEnabled ?? false
   const adminIps = adaptive.admin?.ips ?? options.adaptiveAdminIps ?? []
