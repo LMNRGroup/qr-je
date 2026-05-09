@@ -15,9 +15,11 @@ const ForgotPassword = () => {
   const [success, setSuccess] = useState(false);
   const navigate = useNavigate();
 
-  const appBaseUrl = typeof window !== 'undefined'
-    ? window.location.origin
-    : (import.meta.env.VITE_PUBLIC_APP_URL ?? 'https://qrcode.luminarapps.com');
+  const appBaseUrl = (
+    import.meta.env.DEV && typeof window !== 'undefined'
+      ? window.location.origin
+      : import.meta.env.VITE_PUBLIC_APP_URL
+  )?.replace(/\/$/, '') ?? 'https://qrcode.luminarapps.com';
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

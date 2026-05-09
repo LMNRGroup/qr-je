@@ -205,11 +205,6 @@
     margin-bottom: 8px;
   }
 
-  /* Fix Android banner blocking header - Android only */
-  html[data-mobile-ui="v2"] body.android .qrc-header-with-banner {
-    padding-top: 48px;
-  }
-
   /* Config page - single page with scrollable content */
   html[data-mobile-ui="v2"] .qrc-config-section {
     display: flex;

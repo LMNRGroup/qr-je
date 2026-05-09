@@ -318,7 +318,7 @@ const Login = () => {
   };
 
   return (
-    <div className="h-full bg-[#0b0f14] text-foreground flex items-center justify-center p-4 relative overflow-hidden">
+    <div className="h-full lg:h-[calc(100dvh-var(--qrc-footer-h,0px))] min-h-0 bg-[#0b0f14] text-foreground relative overflow-y-auto overflow-x-hidden px-4">
       {/* Static background - base gradient */}
       <div className="fixed inset-0 -z-20 overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-[#0b0f14] via-[#1a1f2e] to-[#0b0f14]" />
@@ -336,7 +336,7 @@ const Login = () => {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
-        className="w-full max-w-md relative z-10 max-h-full overflow-y-auto py-4"
+        className="w-full max-w-md min-h-full relative z-10 mx-auto flex flex-col justify-center py-6 sm:py-8"
       >
         {/* Logo */}
         <div className="flex flex-col items-center mb-6 sm:mb-8">

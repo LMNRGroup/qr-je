@@ -200,12 +200,6 @@ const Index = () => {
   const [goodbyeHeadline, setGoodbyeHeadline] = useState('');
   const [goodbyeSubline, setGoodbyeSubline] = useState('');
   const welcomeShownRef = useRef<string | null>(null);
-  const easterEggEmail = (import.meta.env.VITE_EASTER_EGG_EMAIL ?? '').toLowerCase().trim();
-  const easterEggUserId = (import.meta.env.VITE_EASTER_EGG_USER_ID ?? '').trim();
-  const showEasterEggBanner = Boolean(
-    (easterEggEmail && user?.email && user.email.toLowerCase() === easterEggEmail) ||
-    (easterEggUserId && user?.id === easterEggUserId)
-  );
   const [quickActionHover, setQuickActionHover] = useState<string | null>(null);
   const [selectedQuickAction, setSelectedQuickAction] = useState<string | null>(null);
   const [arsenalStats, setArsenalStats] = useState({ total: 0, dynamic: 0 });
@@ -4897,14 +4891,6 @@ const Index = () => {
         </div>
       )}
 
-      {showEasterEggBanner ? (
-        <div className="fixed top-0 left-0 right-0 z-[70] flex justify-center px-4 pt-4">
-          <div className="rounded-full border border-amber-200/40 bg-amber-200/10 px-4 py-2 text-[11px] uppercase tracking-[0.3em] text-amber-200 shadow-lg">
-            Le Machine carried the frontend + backend 😮‍💨
-          </div>
-        </div>
-      ) : null}
-
       {showAccountModal && (
         <div
           className="fixed inset-0 z-[70] flex items-center justify-center bg-background/70 backdrop-blur-md px-4"
@@ -6468,7 +6454,7 @@ const Index = () => {
       <header
         className={`sticky top-0 z-30 glass-panel border-b border-border/50 transition ${
           showGuestWelcome || isBooting ? 'blur-md pointer-events-none select-none' : ''
-        } ${showEasterEggBanner ? 'qrc-header-with-banner' : ''}`}
+        }`}
       >
         <div className="container mx-auto px-4 py-3 sm:py-4 flex items-center justify-between overflow-visible">
           <button
