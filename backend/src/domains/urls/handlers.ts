@@ -106,6 +106,7 @@ const getNowMs = () => (typeof performance !== 'undefined' ? performance.now() :
 
 type AdaptiveSlot = {
   id: string
+  order?: number
   name?: string
   url?: string
   fileUrl?: string
@@ -128,6 +129,7 @@ type AdaptiveOptions = {
     defaultSlot?: string
     dateRules?: AdaptiveRule[]
     firstReturn?: { enabled?: boolean; firstSlot?: string; returnSlot?: string }
+    manualOverride?: { enabled?: boolean; slot?: string }
     admin?: { enabled?: boolean; ips?: string[]; slot?: string }
     timezone?: string
   }
@@ -212,6 +214,11 @@ const resolveAdaptiveTarget = (options: AdaptiveOptions, ip: string | null, isRe
   const { year, month, day, hour, minute, weekday } = getZonedNow(timezone)
   const nowDate = new Date(Date.UTC(year, month - 1, day, hour, minute))
   const nowMinutes = hour * 60 + minute
+
+  if (adaptive.manualOverride?.enabled) {
+    const target = resolveAdaptiveSlotUrl(options, adaptive.manualOverride.slot)
+    if (target) return target
+  }
 
   const adminEnabled = adaptive.admin?.enabled ?? options.adaptiveAdminEnabled ?? false
   const adminIps = adaptive.admin?.ips ?? options.adaptiveAdminIps ?? []
@@ -566,6 +573,154 @@ const buildAdaptiveInfoPage = (url: any, options: AdaptiveOptions, currentTarget
 </html>`
 }
 
+const buildAdaptiveLimitReachedPage = (url: any, scansUsed: number, limit: number) => {
+  const qrName = url.name || 'Adaptive QRC™'
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${qrName} - Scan Limit Reached</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      color: #f8fafc;
+      background:
+        radial-gradient(circle at top left, rgba(251, 191, 36, 0.22), transparent 34%),
+        radial-gradient(circle at bottom right, rgba(120, 53, 15, 0.36), transparent 30%),
+        linear-gradient(135deg, #070a0f 0%, #111827 48%, #070a0f 100%);
+    }
+    .card {
+      width: 100%;
+      max-width: 560px;
+      padding: 34px;
+      border-radius: 28px;
+      border: 1px solid rgba(251, 191, 36, 0.28);
+      background: rgba(15, 23, 42, 0.86);
+      box-shadow: 0 28px 90px rgba(0, 0, 0, 0.55), 0 0 40px rgba(251, 191, 36, 0.12);
+      backdrop-filter: blur(18px);
+      text-align: center;
+    }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 68px;
+      height: 68px;
+      margin-bottom: 22px;
+      border-radius: 22px;
+      border: 1px solid rgba(251, 191, 36, 0.38);
+      background: linear-gradient(135deg, rgba(251, 191, 36, 0.18), rgba(180, 83, 9, 0.14));
+      color: #fbbf24;
+      font-size: 34px;
+      font-weight: 800;
+    }
+    .eyebrow {
+      margin-bottom: 10px;
+      color: rgba(252, 211, 77, 0.86);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.34em;
+      text-transform: uppercase;
+    }
+    h1 {
+      margin-bottom: 14px;
+      font-size: clamp(30px, 7vw, 44px);
+      line-height: 1;
+      letter-spacing: -0.05em;
+      background: linear-gradient(135deg, #fde68a 0%, #fbbf24 48%, #d97706 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .message {
+      margin: 0 auto 24px;
+      max-width: 420px;
+      color: rgba(226, 232, 240, 0.78);
+      font-size: 16px;
+      line-height: 1.6;
+    }
+    .meter {
+      margin: 26px 0;
+      padding: 16px;
+      border-radius: 18px;
+      border: 1px solid rgba(251, 191, 36, 0.2);
+      background: rgba(2, 6, 23, 0.48);
+      text-align: left;
+    }
+    .meter-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 10px;
+      color: rgba(226, 232, 240, 0.72);
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+    .bar {
+      height: 10px;
+      overflow: hidden;
+      border-radius: 999px;
+      background: rgba(148, 163, 184, 0.22);
+    }
+    .fill {
+      width: 100%;
+      height: 100%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, #f59e0b, #fbbf24, #fde68a);
+      box-shadow: 0 0 22px rgba(251, 191, 36, 0.42);
+    }
+    .owner-note {
+      margin-top: 22px;
+      padding-top: 22px;
+      border-top: 1px solid rgba(251, 191, 36, 0.18);
+      color: rgba(226, 232, 240, 0.64);
+      font-size: 13px;
+      line-height: 1.55;
+    }
+    .brand {
+      margin-top: 18px;
+      color: rgba(252, 211, 77, 0.64);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.28em;
+      text-transform: uppercase;
+    }
+  </style>
+</head>
+<body>
+  <main class="card" role="main" aria-labelledby="limit-title">
+    <div class="badge" aria-hidden="true">!</div>
+    <div class="eyebrow">Adaptive QRC™</div>
+    <h1 id="limit-title">Scan Limit Reached</h1>
+    <p class="message">
+      This Adaptive QRC™ has reached its monthly scan limit. Please upgrade your account to keep this QR code active.
+    </p>
+    <div class="meter" aria-label="Monthly scan usage">
+      <div class="meter-row">
+        <span>Monthly scans</span>
+        <span>${scansUsed}/${limit}</span>
+      </div>
+      <div class="bar"><div class="fill"></div></div>
+    </div>
+    <p class="owner-note">
+      If you own this QR code, upgrade your plan or wait until the monthly limit resets. The QR code itself does not need to be reprinted.
+    </p>
+    <div class="brand">QR Code Studio</div>
+  </main>
+</body>
+</html>`
+}
+
 export const adaptiveResolveHandler = (service: UrlsService, scansService?: ScansService, areaStorage?: AreaStorage) => {
   return async (c: Context<AppBindings>) => {
     const startedAt = getNowMs()
@@ -593,13 +748,7 @@ export const adaptiveResolveHandler = (service: UrlsService, scansService?: Scan
         )
         
         if (scanCount >= 500) {
-          // Return error - limit exceeded
-          return c.json({ 
-            message: 'Adaptive QRC™ monthly scan limit reached (500 scans). Please upgrade your plan or wait until next month.',
-            limitExceeded: true,
-            scansUsed: scanCount,
-            limit: 500
-          }, 429)
+          return c.html(buildAdaptiveLimitReachedPage(url, scanCount, 500), 429)
         }
       }
       

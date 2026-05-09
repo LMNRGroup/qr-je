@@ -1,5 +1,6 @@
 export interface AdaptiveSlot {
   id: string;
+  order?: number;
   name?: string;
   url?: string;
   fileUrl?: string;
@@ -24,6 +25,10 @@ export interface AdaptiveConfig {
     enabled?: boolean;
     firstSlot?: string;
     returnSlot?: string;
+  };
+  manualOverride?: {
+    enabled?: boolean;
+    slot?: string;
   };
   admin?: {
     enabled?: boolean;

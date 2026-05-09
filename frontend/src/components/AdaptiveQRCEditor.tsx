@@ -67,7 +67,13 @@ type RuleType = 'time' | 'visit' | null;
 
 type AdaptiveQRCEditorTab = 'contents' | 'rules' | 'preview';
 
-type AdaptiveQRCRecord = Pick<QRHistoryItem, 'name' | 'options'>;
+type AdaptiveQRCRecord = Pick<QRHistoryItem, 'name' | 'options' | 'shortUrl'>;
+
+const getSlotOrder = (slot: AdaptiveSlot, index: number) => {
+  if (typeof slot.order === 'number') return slot.order;
+  const namedOrder = slot.name?.match(/^Content\s+(\d+)$/i)?.[1];
+  return namedOrder ? Number(namedOrder) - 1 : index;
+};
 
 interface AdaptiveQRCEditorProps {
   adaptiveQRC: AdaptiveQRCRecord | null;
@@ -92,6 +98,8 @@ export const AdaptiveQRCEditor = ({
   const [timeRules, setTimeRules] = useState<TimeRule[]>([]);
   const [visitRules, setVisitRules] = useState<VisitRule[]>([]);
   const [defaultContentId, setDefaultContentId] = useState<string>('');
+  const [manualOverrideEnabled, setManualOverrideEnabled] = useState(false);
+  const [manualOverrideSlot, setManualOverrideSlot] = useState<string>('');
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<AdaptiveQRCEditorTab>('contents');
   const [qrOptions, setQrOptions] = useState<QROptions>(() => ({
@@ -270,7 +278,10 @@ export const AdaptiveQRCEditor = ({
       setQrName(adaptiveQRC.name || '');
       
       if (adaptive.slots && adaptive.slots.length > 0) {
-        const loadedContents = adaptive.slots.map((slot: AdaptiveSlot, index: number) => ({
+        const orderedSlots = [...adaptive.slots].sort((a, b) =>
+          getSlotOrder(a, adaptive.slots!.indexOf(a)) - getSlotOrder(b, adaptive.slots!.indexOf(b))
+        );
+        const loadedContents: AdaptiveContent[] = orderedSlots.map((slot: AdaptiveSlot, index: number) => ({
           id: slot.id || crypto.randomUUID(),
           name: slot.name || `Content ${index + 1}`,
           url: slot.url || '',
@@ -285,6 +296,9 @@ export const AdaptiveQRCEditor = ({
           setDefaultContentId(adaptive.defaultSlot);
         }
       }
+
+      setManualOverrideEnabled(Boolean(adaptive.manualOverride?.enabled));
+      setManualOverrideSlot(adaptive.manualOverride?.slot || '');
 
       // Determine rule type
       if (adaptive.dateRules && adaptive.dateRules.length > 0) {
@@ -320,6 +334,11 @@ export const AdaptiveQRCEditor = ({
       }
     }
   }, [adaptiveQRC]);
+
+  const validContents = useMemo(() => contents.filter(c =>
+    c.name.trim().length > 0 &&
+    (c.url.trim().length > 0 || c.fileUrl || (c.file && c.inputType === 'file'))
+  ), [contents]);
 
   const updateQrOption = <K extends keyof QROptions>(key: K, value: QROptions[K]) => {
     setQrOptions((prev) => ({ ...prev, [key]: value }));
@@ -447,6 +466,9 @@ export const AdaptiveQRCEditor = ({
       if (defaultContentId === id) {
         setDefaultContentId('');
       }
+      if (manualOverrideSlot === id) {
+        setManualOverrideSlot('');
+      }
     }
   };
 
@@ -507,9 +529,10 @@ export const AdaptiveQRCEditor = ({
       c.name.trim().length > 0 && 
       (c.url.trim().length > 0 || c.fileUrl || (c.file && c.inputType === 'file'))
     );
-    const slots = validContents.map(c => {
+    const slots = validContents.map((c, index) => {
       const slot: AdaptiveSlot = {
         id: c.id,
+        order: index,
         name: c.name.trim(),
       };
       if (c.fileUrl) {
@@ -527,6 +550,13 @@ export const AdaptiveQRCEditor = ({
       slots,
       defaultSlot: defaultContentId || validContents[0]?.id || '',
     };
+
+    if (manualOverrideEnabled && manualOverrideSlot) {
+      config.manualOverride = {
+        enabled: true,
+        slot: manualOverrideSlot,
+      };
+    }
 
     if (ruleType === 'time') {
       config.dateRules = timeRules.map(rule => ({
@@ -868,6 +898,73 @@ export const AdaptiveQRCEditor = ({
                     exit={{ opacity: 0, y: -20 }}
                     className="space-y-4"
                   >
+                    <div className="glass-panel rounded-2xl p-6 border border-amber-500/20 shadow-lg shadow-amber-500/10">
+                      <div className="mb-6">
+                        <h2 className="text-2xl font-bold bg-gradient-to-r from-amber-400 via-amber-300 to-amber-400 bg-clip-text text-transparent mb-2">Routing Controls</h2>
+                        <p className="text-sm text-muted-foreground">
+                          Choose fallback content or temporarily force this QR to one destination.
+                        </p>
+                      </div>
+
+                      <div className="grid md:grid-cols-2 gap-4">
+                        <div>
+                          <Label className="text-sm font-medium mb-2 block">Default fallback</Label>
+                          <select
+                            value={defaultContentId}
+                            onChange={(e) => setDefaultContentId(e.target.value)}
+                            className="w-full h-11 rounded-xl border border-amber-500/30 bg-secondary/40 px-3"
+                          >
+                            <option value="">First available content</option>
+                            {validContents.map(c => (
+                              <option key={c.id} value={c.id}>
+                                {c.name} {c.fileUrl ? '(File)' : '(URL)'}
+                              </option>
+                            ))}
+                          </select>
+                          <p className="mt-2 text-xs text-muted-foreground">
+                            Used when no time or visit rule matches.
+                          </p>
+                        </div>
+
+                        <div>
+                          <Label className="text-sm font-medium mb-2 block">Manual override</Label>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const nextEnabled = !manualOverrideEnabled;
+                              setManualOverrideEnabled(nextEnabled);
+                              if (nextEnabled && !manualOverrideSlot) {
+                                setManualOverrideSlot(defaultContentId || validContents[0]?.id || '');
+                              }
+                            }}
+                            className={`w-full h-11 rounded-xl border px-4 text-left transition ${
+                              manualOverrideEnabled
+                                ? 'border-amber-400 bg-amber-500/10 text-amber-300'
+                                : 'border-amber-500/30 bg-secondary/40 text-muted-foreground hover:text-amber-300'
+                            }`}
+                          >
+                            {manualOverrideEnabled ? 'Override is on' : 'Override is off'}
+                          </button>
+                          <select
+                            value={manualOverrideSlot}
+                            onChange={(e) => setManualOverrideSlot(e.target.value)}
+                            disabled={!manualOverrideEnabled}
+                            className="mt-3 w-full h-11 rounded-xl border border-amber-500/30 bg-secondary/40 px-3 disabled:cursor-not-allowed disabled:opacity-50"
+                          >
+                            <option value="">Select content...</option>
+                            {validContents.map(c => (
+                              <option key={c.id} value={c.id}>
+                                {c.name} {c.fileUrl ? '(File)' : '(URL)'}
+                              </option>
+                            ))}
+                          </select>
+                          <p className="mt-2 text-xs text-muted-foreground">
+                            When enabled, this wins over all time and visit rules.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
                     {ruleType === 'time' && (
                       <div className="glass-panel rounded-2xl p-6 border border-amber-500/20 shadow-lg shadow-amber-500/10">
                         <div className="flex items-center justify-between mb-6">
@@ -1166,7 +1263,7 @@ export const AdaptiveQRCEditor = ({
                 <div className="space-y-3">
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-amber-200/70">Contents</span>
-                    <span className="text-lg font-bold text-amber-300">{contents.filter(c => c.url.trim()).length}</span>
+                    <span className="text-lg font-bold text-amber-300">{validContents.length}</span>
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-amber-200/70">Rule Type</span>

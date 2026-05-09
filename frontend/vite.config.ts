@@ -11,6 +11,11 @@ export default defineConfig(({ mode }) => ({
     hmr: {
       overlay: false,
     },
+    proxy: {
+      "/adaptive": "http://localhost:3000",
+      "/r": "http://localhost:3000",
+      "/public": "http://localhost:3000",
+    },
   },
   plugins: [react(), mode === "development" && componentTagger()].filter(Boolean),
   build: {

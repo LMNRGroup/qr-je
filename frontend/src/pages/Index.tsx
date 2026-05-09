@@ -7893,6 +7893,34 @@ const Index = () => {
           </motion.div>
         </div>
       )}
+
+      {showAdaptiveWizard && (
+        <Suspense fallback={null}>
+          <AdaptiveQRCWizard
+            user={user}
+            userProfile={userProfile}
+            onComplete={handleAdaptiveQRCCreate}
+            onCancel={() => setShowAdaptiveWizard(false)}
+            existingAdaptiveQRC={existingAdaptiveQRC}
+            isMobile={isMobile}
+            isMobileV2={isMobileV2}
+          />
+        </Suspense>
+      )}
+
+      {showAdaptiveEditor && (
+        <Suspense fallback={null}>
+          <AdaptiveQRCEditor
+            adaptiveQRC={existingAdaptiveQRC}
+            userProfile={userProfile}
+            onSave={handleAdaptiveQRCUpdate}
+            onClose={() => setShowAdaptiveEditor(false)}
+            isMobile={isMobile}
+            isMobileV2={isMobileV2}
+          />
+        </Suspense>
+      )}
+
       {/* System Notification Tab - Bottom Left */}
       <SystemNotificationTab />
     </div>

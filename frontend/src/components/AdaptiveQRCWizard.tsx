@@ -66,7 +66,13 @@ interface VisitRule {
 
 type RuleType = 'time' | 'visit' | null;
 
-type AdaptiveQRCRecord = Pick<QRHistoryItem, 'name' | 'options'>;
+type AdaptiveQRCRecord = Pick<QRHistoryItem, 'name' | 'options' | 'shortUrl'>;
+
+const getSlotOrder = (slot: AdaptiveSlot, index: number) => {
+  if (typeof slot.order === 'number') return slot.order;
+  const namedOrder = slot.name?.match(/^Content\s+(\d+)$/i)?.[1];
+  return namedOrder ? Number(namedOrder) - 1 : index;
+};
 
 interface AdaptiveQRCWizardProps {
   user: User | null;
@@ -287,7 +293,10 @@ export const AdaptiveQRCWizard = ({
       setQrName(existingAdaptiveQRC.name || 'My Adaptive QRC™');
       
       if (adaptive.slots && adaptive.slots.length > 0) {
-        const loadedContents = adaptive.slots.map((slot: AdaptiveSlot, index: number) => ({
+        const orderedSlots = [...adaptive.slots].sort((a, b) =>
+          getSlotOrder(a, adaptive.slots!.indexOf(a)) - getSlotOrder(b, adaptive.slots!.indexOf(b))
+        );
+        const loadedContents: AdaptiveContent[] = orderedSlots.map((slot: AdaptiveSlot, index: number) => ({
           id: slot.id || crypto.randomUUID(),
           name: slot.name || `Content ${index + 1}`,
           url: slot.url || '',
@@ -336,6 +345,11 @@ export const AdaptiveQRCWizard = ({
       }
     }
   }, [existingAdaptiveQRC]);
+
+  const validContents = useMemo(() => contents.filter(c =>
+    c.name.trim().length > 0 &&
+    (c.url.trim().length > 0 || c.fileUrl || (c.file && c.inputType === 'file'))
+  ), [contents]);
 
   const canProceed = useMemo(() => {
     if (step === 1) return qrName.trim().length > 0;
@@ -572,9 +586,10 @@ export const AdaptiveQRCWizard = ({
       c.name.trim().length > 0 && 
       (c.url.trim().length > 0 || c.fileUrl || (c.file && c.inputType === 'file'))
     );
-    const slots = validContents.map(c => {
+    const slots = validContents.map((c, index) => {
       const slot: AdaptiveSlot = {
         id: c.id,
+        order: index,
         name: c.name.trim(),
       };
       if (c.fileUrl) {
@@ -1171,6 +1186,24 @@ export const AdaptiveQRCWizard = ({
                         <Plus className="h-4 w-4 mr-2" />
                         Add Time Rule
                       </Button>
+                      <div className="glass-panel rounded-2xl p-6 border border-amber-500/20">
+                        <Label className="text-sm mb-2 block">Default fallback content</Label>
+                        <select
+                          value={defaultContentId}
+                          onChange={(e) => setDefaultContentId(e.target.value)}
+                          className="w-full h-11 rounded-xl border border-amber-500/30 bg-secondary/40 px-3"
+                        >
+                          <option value="">First available content</option>
+                          {validContents.map(c => (
+                            <option key={c.id} value={c.id}>
+                              {c.name} {c.fileUrl ? '(File)' : '(URL)'}
+                            </option>
+                          ))}
+                        </select>
+                        <p className="mt-2 text-xs text-muted-foreground">
+                          Used when no time rule matches the scan time.
+                        </p>
+                      </div>
                     </div>
                   </motion.div>
                 )}
@@ -1227,6 +1260,24 @@ export const AdaptiveQRCWizard = ({
                           </div>
                         );
                       })}
+                      <div className="glass-panel rounded-2xl p-6 border border-amber-500/20">
+                        <Label className="text-sm mb-2 block">Default fallback content</Label>
+                        <select
+                          value={defaultContentId}
+                          onChange={(e) => setDefaultContentId(e.target.value)}
+                          className="w-full h-11 rounded-xl border border-amber-500/30 bg-secondary/40 px-3"
+                        >
+                          <option value="">First available content</option>
+                          {validContents.map(c => (
+                            <option key={c.id} value={c.id}>
+                              {c.name} {c.fileUrl ? '(File)' : '(URL)'}
+                            </option>
+                          ))}
+                        </select>
+                        <p className="mt-2 text-xs text-muted-foreground">
+                          Used if visit rules cannot resolve a destination.
+                        </p>
+                      </div>
                     </div>
                   </motion.div>
                 )}
@@ -1256,6 +1307,12 @@ export const AdaptiveQRCWizard = ({
                       <div>
                         <Label className="text-sm text-muted-foreground">Rule Type</Label>
                         <p className="text-lg font-semibold capitalize">{ruleType}</p>
+                      </div>
+                      <div>
+                        <Label className="text-sm text-muted-foreground">Default Fallback</Label>
+                        <p className="text-lg font-semibold">
+                          {validContents.find(c => c.id === defaultContentId)?.name || validContents[0]?.name || 'Not set'}
+                        </p>
                       </div>
                       <div>
                         <Label className="text-sm text-muted-foreground">Contents</Label>
