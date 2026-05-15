@@ -2,34 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { getPublicVcard } from '@/lib/api';
-
-type VcardProfile = {
-  name?: string;
-  company?: string;
-  phone?: string;
-  email?: string;
-  website?: string;
-  about?: string;
-};
-
-type VcardTexture = 'matte' | 'metallic' | 'glossy' | 'paper';
-
-type VcardStyle = {
-  fontFamily: string;
-  radius: number;
-  texture?: VcardTexture;
-  frontColor: string;
-  frontGradient: string;
-  frontUseGradient: boolean;
-  backColor: string;
-  backGradient: string;
-  backUseGradient: boolean;
-  logoDataUrl?: string | null;
-  profilePhotoDataUrl?: string | null;
-  photoZoom: number;
-  photoX: number;
-  photoY: number;
-};
+import { VcardProfile, VcardStyle, VcardTexture } from '@/types/qr';
 
 const makeGradient = (from: string, to: string) => `linear-gradient(135deg, ${from}, ${to})`;
 const makeBase = (useGradient: boolean, color: string, gradient: string) =>
@@ -129,6 +102,14 @@ const VCard = () => {
     } as React.CSSProperties;
   }, [style]);
 
+  const name = profile?.name?.trim() || 'Digital Card';
+  const company = profile?.company?.trim() || '';
+  const about = profile?.about?.trim() || '';
+  const contactLines = [profile?.phone?.trim(), profile?.email?.trim(), profile?.website?.trim()].filter(Boolean);
+  const frontFontColor = style?.frontFontColor ?? '#F8FAFC';
+  const backFontColor = style?.backFontColor ?? '#F8FAFC';
+  const initial = name.charAt(0).toUpperCase() || 'Q';
+
   return (
     <div className="min-h-screen bg-background text-foreground flex items-center justify-center px-6 py-16">
       <div className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_top,rgba(253,224,71,0.12),transparent_50%),radial-gradient(circle_at_bottom,rgba(59,130,246,0.15),transparent_45%)]" />
@@ -145,7 +126,7 @@ const VCard = () => {
         <div className="flex flex-col items-center gap-6">
           <div className="text-center space-y-2">
             <p className="text-xs uppercase tracking-[0.4em] text-muted-foreground">VCard</p>
-            <h1 className="text-2xl font-semibold">{profile?.name ?? 'Digital Card'}</h1>
+            <h1 className="text-2xl font-semibold">{name}</h1>
             <p className="text-sm text-muted-foreground">Tap to flip</p>
           </div>
 
@@ -168,12 +149,17 @@ const VCard = () => {
                 <div className="flex items-center justify-between">
                   <div className="space-y-1">
                     <p className="text-xs uppercase tracking-[0.3em] text-white/70">VCard</p>
-                    <h2 className="text-2xl font-semibold">{profile?.name ?? 'Your Name'}</h2>
-                    <p className="text-sm text-white/80">{profile?.company ?? 'Your Company'}</p>
+                    <h2 className="text-2xl font-semibold" style={{ color: frontFontColor }}>{name}</h2>
+                    {company ? (
+                      <p className="text-sm text-white/80" style={{ color: frontFontColor, opacity: 0.8 }}>
+                        {company}
+                      </p>
+                    ) : null}
                   </div>
                   <div
-                    className="h-16 w-16 rounded-full border border-white/30 bg-white/10"
+                    className="flex h-16 w-16 items-center justify-center rounded-full border border-white/30 bg-white/10 text-lg font-semibold"
                     style={{
+                      color: frontFontColor,
                       backgroundImage: style?.profilePhotoDataUrl
                         ? `url(${style.profilePhotoDataUrl})`
                         : undefined,
@@ -181,13 +167,26 @@ const VCard = () => {
                       backgroundPosition: `${style?.photoX ?? 50}% ${style?.photoY ?? 50}%`,
                       backgroundRepeat: 'no-repeat',
                     }}
-                  />
+                  >
+                    {!style?.profilePhotoDataUrl ? initial : null}
+                  </div>
                 </div>
-                <div className="space-y-2 text-sm text-white/90">
-                  <p>{profile?.phone ?? '+1 (555) 123-4567'}</p>
-                  <p>{profile?.email ?? 'you@example.com'}</p>
-                  <p>{profile?.website ?? 'qrcodestudio.app'}</p>
-                </div>
+                {contactLines.length > 0 ? (
+                  <div className="space-y-2 text-sm text-white/90" style={{ color: frontFontColor, opacity: 0.92 }}>
+                    {contactLines.map((line) => (
+                      <p key={line}>{line}</p>
+                    ))}
+                  </div>
+                ) : null}
+                {style?.frontLogoDataUrl ? (
+                  <div className="flex justify-end">
+                    <img
+                      src={style.frontLogoDataUrl}
+                      alt="VCard logo"
+                      className="h-10 w-10 rounded-lg object-cover border border-white/20"
+                    />
+                  </div>
+                ) : null}
                 <p className="text-[11px] uppercase tracking-[0.4em] text-white/70">
                   Tap to flip
                 </p>
@@ -201,19 +200,19 @@ const VCard = () => {
                   backfaceVisibility: 'hidden',
                 }}
               >
-                {style?.logoDataUrl ? (
+                {style?.backLogoDataUrl ? (
                   <img
-                    src={style.logoDataUrl}
+                    src={style.backLogoDataUrl}
                     alt="VCard logo"
                     className="h-20 w-20 rounded-xl object-cover border border-white/20"
                   />
-                ) : (
-                  <div className="h-20 w-20 rounded-xl border border-white/20 flex items-center justify-center text-xs text-white/70">
-                    Logo
-                  </div>
-                )}
-                <div className="text-center text-xs uppercase tracking-[0.4em] text-white/70 space-y-2">
-                  <p>{profile?.about ?? 'Tap again to return to the front.'}</p>
+                ) : null}
+                {about ? (
+                  <p className="text-center text-sm leading-relaxed" style={{ color: backFontColor, opacity: 0.9 }}>
+                    {about}
+                  </p>
+                ) : null}
+                <div className="text-center text-xs uppercase tracking-[0.4em] text-white/70">
                   <p>Tap to flip</p>
                 </div>
               </div>

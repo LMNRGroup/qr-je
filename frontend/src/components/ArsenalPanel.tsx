@@ -207,7 +207,7 @@ const isWebUrl = (value: string) => /^https?:\/\//i.test(value);
 
 const parseKind = (kind?: string | null) => {
   if (!kind) return { mode: 'static', type: 'url' };
-  if (kind === 'vcard') return { mode: 'static', type: 'vcard' };
+  if (kind === 'vcard') return { mode: 'dynamic', type: 'vcard' };
   if (kind === 'adaptive') return { mode: 'dynamic', type: 'adaptive' };
   if (kind === 'dynamic' || kind === 'static') return { mode: kind, type: 'url' };
   if (kind.includes(':')) {
@@ -307,6 +307,7 @@ export function ArsenalPanel({
   topContent,
   onAdaptiveEdit,
   onDynamicContentEdit,
+  onVcardEdit,
 }: {
   refreshKey?: number;
   onStatsChange?: (stats: { total: number; dynamic: number }) => void;
@@ -318,6 +319,7 @@ export function ArsenalPanel({
   topContent?: React.ReactNode;
   onAdaptiveEdit?: (item: QRHistoryItem) => void;
   onDynamicContentEdit?: (item: QRHistoryItem) => void;
+  onVcardEdit?: (item: QRHistoryItem) => void;
 }) {
   const [isDesktop, setIsDesktop] = useState(() => {
     if (typeof window === 'undefined') return true;
@@ -749,6 +751,8 @@ export function ArsenalPanel({
   const selectedDisplayName = selectedItem ? getDisplayName(selectedItem, sortedItems) : '';
   const selectedKind = parseKind(selectedItem?.kind ?? null);
   const isDynamic = selectedKind.mode === 'dynamic';
+  const isVcard = selectedKind.type === 'vcard';
+  const canEditTargetUrl = isDynamic && !isVcard;
   const canEditDynamicContent = Boolean(
     selectedItem &&
       isDynamic &&
@@ -757,7 +761,7 @@ export function ArsenalPanel({
   const hasUnsavedChanges = Boolean(
     selectedItem &&
       (editName.trim() !== (selectedItem.name?.trim() ?? '') ||
-        (isDynamic && editContent.trim() !== selectedItem.content))
+        (canEditTargetUrl && editContent.trim() !== selectedItem.content))
   );
 
   // Scan counts load once per refresh to avoid constant re-renders.
@@ -902,7 +906,7 @@ export function ArsenalPanel({
     if (desiredName !== currentName) {
       payload.name = desiredName.length ? desiredName : null;
     }
-    if (isDynamic && editContent.trim() && editContent.trim() !== selectedItem.content) {
+    if (canEditTargetUrl && editContent.trim() && editContent.trim() !== selectedItem.content) {
       payload.targetUrl = editContent.trim();
     }
     if (Object.keys(payload).length === 0) {
@@ -1245,6 +1249,17 @@ export function ArsenalPanel({
           <div className="flex flex-wrap items-center justify-end gap-2">
             {renderScanCount(selectedItem)}
             {renderCardBadge(selectedItem)}
+            {isVcard && onVcardEdit ? (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="border-primary/40 text-primary hover:bg-primary/10"
+                onClick={() => onVcardEdit(selectedItem)}
+              >
+                {t('Edit VCard', 'Editar VCard')}
+              </Button>
+            ) : null}
             {canEditDynamicContent && onDynamicContentEdit ? (
               <Button
                 type="button"
@@ -1287,7 +1302,7 @@ export function ArsenalPanel({
 
         <div className="space-y-3">
           <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">
-            {isDynamic ? t('Dynamic URL', 'URL dinamica') : t('QR Destination', 'Destino del QR')}
+            {canEditTargetUrl ? t('Dynamic URL', 'URL dinamica') : t('QR Destination', 'Destino del QR')}
           </p>
           <button
             type="button"
@@ -1298,15 +1313,20 @@ export function ArsenalPanel({
               value={editContent}
               onChange={(event) => setEditContent(event.target.value)}
               className="bg-secondary/40 border-border pr-14 cursor-pointer transition group-hover:bg-secondary/60"
-              readOnly={!isDynamic}
+              readOnly={!canEditTargetUrl}
             />
             <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[10px] uppercase tracking-[0.35em] text-muted-foreground opacity-0 transition group-hover:opacity-100">
               {t('Copy', 'Copiar')}
             </span>
           </button>
-          {!isDynamic && (
+          {!canEditTargetUrl && (
             <p className="text-[11px] uppercase tracking-[0.3em] text-muted-foreground">
-              {t('Static QR destinations are read-only.', 'Los destinos QR estaticos son de solo lectura.')}
+              {isVcard
+                ? t(
+                    'VCard destinations stay fixed. Use Edit VCard to update the card itself.',
+                    'Los destinos de VCard permanecen fijos. Usa Edit VCard para actualizar la tarjeta.'
+                  )
+                : t('Static QR destinations are read-only.', 'Los destinos QR estaticos son de solo lectura.')}
             </p>
           )}
         </div>
@@ -2236,6 +2256,17 @@ export function ArsenalPanel({
                     <div className="flex flex-wrap items-center gap-2 max-w-full">
                       {renderScanCount(selectedItem)}
                       {renderCardBadge(selectedItem)}
+                      {isVcard && onVcardEdit ? (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="border-primary/40 text-primary hover:bg-primary/10"
+                          onClick={() => onVcardEdit(selectedItem)}
+                        >
+                          {t('Edit VCard', 'Editar VCard')}
+                        </Button>
+                      ) : null}
                       {canEditDynamicContent && onDynamicContentEdit ? (
                         <Button
                           type="button"
@@ -2278,7 +2309,7 @@ export function ArsenalPanel({
 
                 <div className="space-y-3">
                   <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">
-                    {isDynamic ? t('Dynamic URL', 'URL dinamica') : t('QR Destination', 'Destino del QR')}
+                    {canEditTargetUrl ? t('Dynamic URL', 'URL dinamica') : t('QR Destination', 'Destino del QR')}
                   </p>
                   <button
                     type="button"
@@ -2289,15 +2320,20 @@ export function ArsenalPanel({
                       value={editContent}
                       onChange={(event) => setEditContent(event.target.value)}
                       className="bg-secondary/40 border-border pr-14 cursor-pointer transition group-hover:bg-secondary/60"
-                      readOnly={!isDynamic}
+                      readOnly={!canEditTargetUrl}
                     />
                     <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[10px] uppercase tracking-[0.35em] text-muted-foreground opacity-0 transition group-hover:opacity-100">
                       {t('Copy', 'Copiar')}
                     </span>
                   </button>
-                  {!isDynamic && (
+                  {!canEditTargetUrl && (
                     <p className="text-[11px] uppercase tracking-[0.3em] text-muted-foreground">
-                      {t('Static QR destinations are read-only.', 'Los destinos QR estaticos son de solo lectura.')}
+                      {isVcard
+                        ? t(
+                            'VCard destinations stay fixed. Use Edit VCard to update the card itself.',
+                            'Los destinos de VCard permanecen fijos. Usa Edit VCard para actualizar la tarjeta.'
+                          )
+                        : t('Static QR destinations are read-only.', 'Los destinos QR estaticos son de solo lectura.')}
                     </p>
                   )}
                 </div>

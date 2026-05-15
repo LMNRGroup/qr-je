@@ -38,6 +38,43 @@ export interface AdaptiveConfig {
   timezone?: string;
 }
 
+export type VcardTexture = 'matte' | 'metallic' | 'glossy' | 'paper';
+
+export interface VcardProfile {
+  name?: string;
+  phone?: string;
+  email?: string;
+  website?: string;
+  company?: string;
+  about?: string;
+  slug?: string;
+}
+
+export interface VcardStyle {
+  fontFamily: string;
+  radius: number;
+  texture: VcardTexture;
+  frontColor: string;
+  frontGradient: string;
+  frontUseGradient: boolean;
+  frontFontColor: string;
+  backColor: string;
+  backGradient: string;
+  backUseGradient: boolean;
+  backFontColor: string;
+  frontLogoDataUrl?: string | null;
+  backLogoDataUrl?: string | null;
+  profilePhotoDataUrl?: string | null;
+  photoZoom: number;
+  photoX: number;
+  photoY: number;
+}
+
+export interface VcardData {
+  profile?: VcardProfile;
+  style?: VcardStyle;
+}
+
 export interface QROptions {
   content: string;
   size: number;
@@ -78,6 +115,10 @@ export interface QROptions {
     fontFamily: string;
     fontColor: string;
   };
+  vcardId?: string;
+  vcardSlug?: string;
+  vcardPublicUrl?: string;
+  vcardData?: VcardData;
 }
 
 export interface QRHistoryItem {

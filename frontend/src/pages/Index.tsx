@@ -39,11 +39,23 @@ import {
   getScanTrends,
   getUserProfile,
   updateQR,
+  updateVcard,
   updateUserProfile,
   type ScanAreaSummary,
   type UserProfile,
 } from '@/lib/api';
-import { QROptions, QRHistoryItem, defaultQROptions, AdaptiveConfig, AdaptiveSlot, AdaptiveRule } from '@/types/qr';
+import {
+  QROptions,
+  QRHistoryItem,
+  defaultQROptions,
+  AdaptiveConfig,
+  AdaptiveSlot,
+  AdaptiveRule,
+  VcardData,
+  VcardProfile,
+  VcardStyle,
+  VcardTexture,
+} from '@/types/qr';
 import { STEP_CONFIG } from '@/lib/qr-wizard-steps';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
@@ -109,6 +121,60 @@ const MAX_MENU_FILES = 15;
 const MAX_VCARD_PHOTO_BYTES = 10 * 1024 * 1024; // 10MB before compression
 const MAX_FILE_BYTES = 10 * 1024 * 1024; // 10MB before compression
 const MAX_STORAGE_BYTES = 25 * 1024 * 1024; // 25MB total storage limit (compressed size)
+
+const createEmptyVcardProfile = (): VcardProfile => ({
+  name: '',
+  phone: '',
+  email: '',
+  website: '',
+  company: '',
+  about: '',
+  slug: '',
+});
+
+const createDefaultVcardStyle = (): VcardStyle => ({
+  fontFamily: 'Arial, sans-serif',
+  radius: 18,
+  texture: 'matte',
+  frontColor: '#111827',
+  frontGradient: '#2563eb',
+  frontUseGradient: true,
+  frontFontColor: '#F8FAFC',
+  backColor: '#0f172a',
+  backGradient: '#4f46e5',
+  backUseGradient: true,
+  backFontColor: '#F8FAFC',
+  frontLogoDataUrl: '',
+  backLogoDataUrl: '',
+  profilePhotoDataUrl: '',
+  photoZoom: 110,
+  photoX: 50,
+  photoY: 50,
+});
+
+const normalizeVcardText = (value?: string | null) => value?.trim() ?? '';
+
+const buildVcardData = (profile: VcardProfile, style: VcardStyle): VcardData => ({
+  profile: {
+    name: normalizeVcardText(profile.name),
+    phone: normalizeVcardText(profile.phone),
+    email: normalizeVcardText(profile.email),
+    website: normalizeVcardText(profile.website),
+    company: normalizeVcardText(profile.company),
+    about: normalizeVcardText(profile.about),
+  },
+  style: {
+    ...style,
+    frontLogoDataUrl: style.frontLogoDataUrl ?? '',
+    backLogoDataUrl: style.backLogoDataUrl ?? '',
+    profilePhotoDataUrl: style.profilePhotoDataUrl ?? '',
+  },
+});
+
+const stripVcardOptionMetadata = (options: QROptions): QROptions => {
+  const { vcardId: _vcardId, vcardSlug: _vcardSlug, vcardPublicUrl: _vcardPublicUrl, vcardData: _vcardData, ...rest } = options;
+  return rest as QROptions;
+};
 const STORAGE_KEY = 'qrc.storage.usage'; // localStorage key for tracking storage
 
 const Index = () => {
@@ -377,35 +443,8 @@ const Index = () => {
     ],
     []
   );
-  type VcardTexture = 'matte' | 'metallic' | 'glossy' | 'paper';
-  const [vcard, setVcard] = useState({
-    name: '',
-    phone: '',
-    email: '',
-    website: '',
-    company: '',
-    about: '',
-    slug: '',
-  });
-  const [vcardStyle, setVcardStyle] = useState({
-    fontFamily: 'Arial, sans-serif',
-    radius: 18,
-    texture: 'matte' as VcardTexture,
-    frontColor: '#111827',
-    frontGradient: '#2563eb',
-    frontUseGradient: true,
-    frontFontColor: '#F8FAFC',
-    backColor: '#0f172a',
-    backGradient: '#4f46e5',
-    backUseGradient: true,
-    backFontColor: '#F8FAFC',
-    frontLogoDataUrl: '',
-    backLogoDataUrl: '',
-    profilePhotoDataUrl: '',
-    photoZoom: 110,
-    photoX: 50,
-    photoY: 50,
-  });
+  const [vcard, setVcard] = useState<VcardProfile>(() => createEmptyVcardProfile());
+  const [vcardStyle, setVcardStyle] = useState<VcardStyle>(() => createDefaultVcardStyle());
   const [vcardPhotoUploadProgress, setVcardPhotoUploadProgress] = useState<number>(0);
   const [vcardPhotoUploading, setVcardPhotoUploading] = useState(false);
   const [vcardPhotoUploadError, setVcardPhotoUploadError] = useState<string | null>(null);
@@ -458,6 +497,7 @@ const Index = () => {
   const [showAdaptiveEditor, setShowAdaptiveEditor] = useState(false);
   const [existingAdaptiveQRC, setExistingAdaptiveQRC] = useState<QRHistoryItem | null>(null);
   const [editingDynamicContentQRC, setEditingDynamicContentQRC] = useState<QRHistoryItem | null>(null);
+  const [editingVcardQRC, setEditingVcardQRC] = useState<QRHistoryItem | null>(null);
   const [isGeneratingAdaptive, setIsGeneratingAdaptive] = useState(false);
   const [showAdaptiveBanner, setShowAdaptiveBanner] = useState(true);
   const [qrHistory, setQrHistory] = useState<QRHistoryItem[]>([]);
@@ -558,6 +598,10 @@ const Index = () => {
   );
   const isEmailValid = useMemo(() => isValidEmail(emailAddress), [emailAddress, isValidEmail]);
   const isPhoneValid = useMemo(() => isValidPhone(phoneNumber), [isValidPhone, phoneNumber]);
+  const normalizedVcard = useMemo(
+    () => buildVcardData(vcard, vcardStyle).profile ?? createEmptyVcardProfile(),
+    [vcard, vcardStyle]
+  );
   const vcardSlug = useMemo(
     () => (vcard.slug ? slugify(vcard.slug) : slugify(vcard.name)),
     [slugify, vcard.slug, vcard.name]
@@ -589,6 +633,12 @@ const Index = () => {
     };
     return platforms[socialPlatform] || '';
   }, [qrType, socialPlatform, socialHandle]);
+
+  useEffect(() => {
+    if (qrType === 'vcard' && qrMode === null) {
+      setQrMode('dynamic');
+    }
+  }, [qrMode, qrType]);
 
   const fallbackContent = qrType === 'website'
     ? (isWebsiteValid ? normalizedWebsiteUrl : '')
@@ -643,7 +693,7 @@ const Index = () => {
 
   const parseKind = useCallback((kind?: string | null) => {
     if (!kind) return { mode: 'static', type: 'url' };
-    if (kind === 'vcard') return { mode: 'static', type: 'vcard' };
+    if (kind === 'vcard') return { mode: 'dynamic', type: 'vcard' };
     if (kind === 'dynamic' || kind === 'static') return { mode: kind, type: 'url' };
     if (kind.includes(':')) {
       const [mode, type] = kind.split(':');
@@ -1537,6 +1587,7 @@ const Index = () => {
           adaptive: adaptiveConfig,
         }
       : optionsSnapshot;
+    const normalizedVcardData = buildVcardData(vcard, vcardStyle);
     
     setIsGenerating(true);
     // Declare file variables outside IIFE for use in adaptive logic
@@ -1613,18 +1664,54 @@ const Index = () => {
         return;
       }
 
+      const isEditingVcard =
+        Boolean(editingVcardQRC) &&
+        qrType === 'vcard' &&
+        editingVcardQRC?.options?.vcardId;
+
+      if (isEditingVcard && editingVcardQRC?.options.vcardId) {
+        const vcardMode = qrMode === 'static' ? 'static' : 'dynamic';
+        const response = await updateVcard(editingVcardQRC.options.vcardId, {
+          data: normalizedVcardData as Record<string, unknown>,
+          options: {
+            ...stripVcardOptionMetadata(finalOptions),
+            content: vcardUrl,
+          },
+          name: name || editingVcardQRC.name || normalizedVcard.name || 'VCard',
+          kind: `${vcardMode}:vcard`,
+        });
+
+        if (response.success && response.url) {
+          const qrContent = vcardMode === 'dynamic'
+            ? response.url.shortUrl
+            : response.url.targetUrl;
+          setGeneratedShortUrl(response.url.shortUrl);
+          setGeneratedLongUrl(response.url.targetUrl);
+          setLastGeneratedContent(qrContent);
+          toast.success('VCard updated!');
+          setHasGenerated(true);
+          setArsenalRefreshKey((prev) => prev + 1);
+          setShowGenerateSuccess(true);
+          setShowNameOverlay(false);
+          setEditingVcardQRC(null);
+          resetCreateFlow();
+          return;
+        }
+
+        toast.error('Failed to update VCard');
+        return;
+      }
+
       const response = qrType === 'vcard'
         ? await createVcard({
           slug: vcardSlug || null,
           publicUrl: vcardUrl,
-          data: {
-            profile: vcard,
-            style: vcardStyle,
-          },
+          data: normalizedVcardData as Record<string, unknown>,
           options: {
-            ...finalOptions,
+            ...stripVcardOptionMetadata(finalOptions),
             content: vcardUrl,
           },
+          kind: `${qrMode === 'static' ? 'static' : 'dynamic'}:vcard`,
         })
         : await (async () => {
           // For file QR, upload file to DB now (only when generating)
@@ -1705,18 +1792,12 @@ const Index = () => {
         })();
       if (response.success) {
         if ('url' in response && response.url) {
-          // For vCard, update the URL with the name and adaptive config if provided
+          // For vCard, update the URL name after creation if provided.
           if (qrType === 'vcard' && response.url.id) {
             try {
-              const updatePayload: { name?: string; options?: Record<string, unknown> } = {};
+              const updatePayload: { name?: string } = {};
               if (name) {
                 updatePayload.name = name;
-              }
-              if (isAdaptiveQR && adaptiveConfig) {
-                updatePayload.options = {
-                  ...finalOptions,
-                  content: vcardUrl,
-                };
               }
               if (Object.keys(updatePayload).length > 0) {
                 await updateQR(response.url.id, updatePayload);
@@ -1727,7 +1808,10 @@ const Index = () => {
           }
           
           // For adaptive QR codes, convert /r/ URL to /adaptive/ URL
-          let qrContent = response.url.shortUrl;
+          let qrContent =
+            qrType === 'vcard' && qrMode === 'static'
+              ? response.url.targetUrl
+              : response.url.shortUrl;
           if (isAdaptiveQR && response.url.id && response.url.random) {
             qrContent = `${appBaseUrl}/adaptive/${response.url.id}/${response.url.random}`;
             // Update the QR code content in the database to point to adaptive endpoint
@@ -1861,6 +1945,7 @@ const Index = () => {
 
   const resetCreateFlow = useCallback(() => {
     setEditingDynamicContentQRC(null);
+    setEditingVcardQRC(null);
     setQrMode(null);
     setQrType(null);
     setSelectedQuickAction(null);
@@ -1932,34 +2017,8 @@ const Index = () => {
     setAdaptiveAdminIpInput('');
     setMenuFlip(false);
     setMenuCarouselIndex(0);
-    setVcard({
-      name: '',
-      phone: '',
-      email: '',
-      website: '',
-      company: '',
-      about: '',
-      slug: '',
-    });
-    setVcardStyle({
-      fontFamily: 'Arial, sans-serif',
-      radius: 18,
-      texture: 'matte' as VcardTexture,
-      frontColor: '#111827',
-      frontGradient: '#2563eb',
-      frontUseGradient: true,
-      frontFontColor: '#F8FAFC',
-      backColor: '#0f172a',
-      backGradient: '#4f46e5',
-      backUseGradient: true,
-      backFontColor: '#F8FAFC',
-      frontLogoDataUrl: '',
-      backLogoDataUrl: '',
-      profilePhotoDataUrl: '',
-      photoZoom: 110,
-      photoX: 50,
-      photoY: 50,
-    });
+    setVcard(createEmptyVcardProfile());
+    setVcardStyle(createDefaultVcardStyle());
     setVcardPreviewSide('front');
     setShowVcardCustomizer(false);
     setShowVcardPreview(false);
@@ -2906,6 +2965,47 @@ const Index = () => {
     }
   }, []);
 
+  const handleVcardEdit = useCallback((item: QRHistoryItem) => {
+    const parsed = parseKind(item.kind ?? null);
+    if (parsed.type !== 'vcard') {
+      return;
+    }
+
+    const payload = item.options?.vcardData;
+    const vcardId = item.options?.vcardId;
+    if (!payload || !vcardId) {
+      toast.error('Unable to load this VCard for editing.');
+      return;
+    }
+
+    setEditingVcardQRC(item);
+    setEditingDynamicContentQRC(null);
+    setActiveTab('studio');
+    setPendingCreateScroll(true);
+    setSelectedQuickAction('vcard');
+    setQrMode(parsed.mode);
+    setQrType('vcard');
+    setQrName(item.name || normalizeVcardText(payload.profile?.name) || 'VCard');
+    setOptions({
+      ...defaultQROptions,
+      ...stripVcardOptionMetadata(item.options),
+    });
+    setVcard({
+      ...createEmptyVcardProfile(),
+      ...(payload.profile ?? {}),
+      slug: item.options?.vcardSlug ?? payload.profile?.slug ?? '',
+    });
+    setVcardStyle({
+      ...createDefaultVcardStyle(),
+      ...(payload.style ?? {}),
+    });
+    setShowVcardContents(true);
+    setShowVcardCustomizer(false);
+    setShowQrCustomizer(false);
+    setVcardPreviewSide('front');
+    toast.info('Update the VCard details, then continue to save your changes.');
+  }, [parseKind]);
+
   const handleDynamicContentEdit = useCallback((item: QRHistoryItem) => {
     const parsed = parseKind(item.kind ?? null);
     if (parsed.mode !== 'dynamic' || (parsed.type !== 'file' && parsed.type !== 'menu')) {
@@ -3329,6 +3429,11 @@ const Index = () => {
   );
   const vcardFrontTexture = getVcardTextureStyle(vcardStyle.texture, vcardFrontBase);
   const vcardBackTexture = getVcardTextureStyle(vcardStyle.texture, vcardBackBase);
+  const vcardNameDisplay = normalizedVcard.name || 'Your Name';
+  const vcardCompanyDisplay = normalizedVcard.company;
+  const vcardAboutDisplay = normalizedVcard.about;
+  const vcardContactLines = [normalizedVcard.phone, normalizedVcard.email, normalizedVcard.website].filter(Boolean);
+  const vcardInitial = (normalizedVcard.name || 'Q').charAt(0).toUpperCase();
   const vcardPreviewBase = isMobile
     ? { width: 260, height: 420 }
     : { width: 280, height: 460 };
@@ -4677,7 +4782,9 @@ const Index = () => {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between">
-              <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Name Your QR Code</p>
+              <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">
+                {editingVcardQRC ? 'Update Your VCard' : 'Name Your QR Code'}
+              </p>
               <button
                 type="button"
                 className="text-xs uppercase tracking-[0.3em] text-muted-foreground hover:text-foreground transition"
@@ -4719,12 +4826,12 @@ const Index = () => {
                 {isGenerating ? (
                   <>
                     <Loader2 className="h-4 w-4 animate-spin" />
-                    Generating
+                    {editingVcardQRC ? 'Saving' : 'Generating'}
                   </>
                 ) : (
                   <>
                     <Rocket className="h-4 w-4" />
-                    Generate
+                    {editingVcardQRC ? 'Save' : 'Generate'}
                   </>
                 )}
               </Button>
@@ -5095,15 +5202,18 @@ const Index = () => {
                         <div className="space-y-1">
                           <p className="text-xs uppercase tracking-[0.3em]" style={{ color: vcardStyle.frontFontColor, opacity: 0.7 }}>VCard</p>
                           <h3 className="text-2xl font-semibold" style={{ color: vcardStyle.frontFontColor }}>
-                            {vcard.name || 'Your Name'}
+                            {vcardNameDisplay}
                           </h3>
-                          <p className="text-sm" style={{ color: vcardStyle.frontFontColor, opacity: 0.85 }}>
-                            {vcard.company || 'Your Company'}
-                          </p>
+                          {vcardCompanyDisplay ? (
+                            <p className="text-sm" style={{ color: vcardStyle.frontFontColor, opacity: 0.85 }}>
+                              {vcardCompanyDisplay}
+                            </p>
+                          ) : null}
                         </div>
                         <div
-                          className="h-16 w-16 rounded-full border border-white/30 bg-white/10"
+                          className="flex h-16 w-16 items-center justify-center rounded-full border border-white/30 bg-white/10 text-lg font-semibold"
                           style={{
+                            color: vcardStyle.frontFontColor,
                             backgroundImage: vcardStyle.profilePhotoDataUrl
                               ? `url(${vcardStyle.profilePhotoDataUrl})`
                               : undefined,
@@ -5111,13 +5221,17 @@ const Index = () => {
                             backgroundPosition: `${vcardStyle.photoX}% ${vcardStyle.photoY}%`,
                             backgroundRepeat: 'no-repeat',
                           }}
-                        />
+                        >
+                          {!vcardStyle.profilePhotoDataUrl ? vcardInitial : null}
+                        </div>
                       </div>
-                      <div className="space-y-2 text-sm" style={{ color: vcardStyle.frontFontColor, opacity: 0.9 }}>
-                        <p>{vcard.phone || '+1 (555) 123-4567'}</p>
-                        <p>{vcard.email || 'you@example.com'}</p>
-                        <p>{vcard.website || 'qrcodestudio.app'}</p>
-                      </div>
+                      {vcardContactLines.length > 0 ? (
+                        <div className="space-y-2 text-sm" style={{ color: vcardStyle.frontFontColor, opacity: 0.9 }}>
+                          {vcardContactLines.map((line) => (
+                            <p key={line}>{line}</p>
+                          ))}
+                        </div>
+                      ) : null}
                       {vcardStyle.frontLogoDataUrl && (
                         <div className="flex justify-end">
                           <img
@@ -5146,11 +5260,12 @@ const Index = () => {
                           alt="VCard logo"
                           className="h-20 w-20 rounded-xl object-cover border border-white/20"
                         />
-                      ) : (
-                        <div className="h-20 w-20 rounded-xl border border-white/20 flex items-center justify-center text-xs text-white/70">
-                          Logo
+                      ) : null}
+                      {vcardAboutDisplay ? (
+                        <div className="space-y-2 text-sm text-center" style={{ color: vcardStyle.backFontColor, opacity: 0.9 }}>
+                          <p>{vcardAboutDisplay}</p>
                         </div>
-                      )}
+                      ) : null}
                       <p className="text-xs uppercase tracking-[0.4em]" style={{ color: vcardStyle.backFontColor, opacity: 0.7 }}>
                         Tap to flip
                       </p>
@@ -5563,15 +5678,18 @@ const Index = () => {
                     <div className="space-y-1">
                       <p className="text-xs uppercase tracking-[0.3em] text-white/70">VCard</p>
                       <h3 className="text-2xl font-semibold">
-                        {vcard.name || 'Your Name'}
+                        {vcardNameDisplay}
                       </h3>
-                      <p className="text-sm text-white/80">
-                        {vcard.company || 'Your Company'}
-                      </p>
+                      {vcardCompanyDisplay ? (
+                        <p className="text-sm text-white/80">
+                          {vcardCompanyDisplay}
+                        </p>
+                      ) : null}
                     </div>
                     <div
-                      className="h-16 w-16 rounded-full border border-white/30 bg-white/10"
+                      className="flex h-16 w-16 items-center justify-center rounded-full border border-white/30 bg-white/10 text-lg font-semibold"
                       style={{
+                        color: vcardStyle.frontFontColor,
                         backgroundImage: vcardStyle.profilePhotoDataUrl
                           ? `url(${vcardStyle.profilePhotoDataUrl})`
                           : undefined,
@@ -5579,13 +5697,17 @@ const Index = () => {
                         backgroundPosition: `${vcardStyle.photoX}% ${vcardStyle.photoY}%`,
                         backgroundRepeat: 'no-repeat',
                       }}
-                    />
+                    >
+                      {!vcardStyle.profilePhotoDataUrl ? vcardInitial : null}
+                    </div>
                   </div>
-                  <div className="space-y-2 text-sm" style={{ color: vcardStyle.frontFontColor, opacity: 0.9 }}>
-                    <p>{vcard.phone || '+1 (555) 123-4567'}</p>
-                    <p>{vcard.email || 'you@example.com'}</p>
-                    <p>{vcard.website || 'qrcodestudio.app'}</p>
-                  </div>
+                  {vcardContactLines.length > 0 ? (
+                    <div className="space-y-2 text-sm" style={{ color: vcardStyle.frontFontColor, opacity: 0.9 }}>
+                      {vcardContactLines.map((line) => (
+                        <p key={line}>{line}</p>
+                      ))}
+                    </div>
+                  ) : null}
                   {vcardStyle.frontLogoDataUrl && (
                     <div className="flex justify-end">
                       <img
@@ -5614,14 +5736,12 @@ const Index = () => {
                       alt="VCard logo"
                       className="h-20 w-20 rounded-xl object-cover border border-white/20"
                     />
-                  ) : (
-                    <div className="h-20 w-20 rounded-xl border border-white/20 flex items-center justify-center text-xs text-white/70">
-                      Logo
+                  ) : null}
+                  {vcardAboutDisplay ? (
+                    <div className="space-y-2 text-sm text-center" style={{ color: vcardStyle.backFontColor, opacity: 0.9 }}>
+                      <p>{vcardAboutDisplay}</p>
                     </div>
-                  )}
-                  <div className="space-y-2 text-sm text-center" style={{ color: vcardStyle.backFontColor, opacity: 0.9 }}>
-                    <p>{vcard.about || 'A short brand statement goes here.'}</p>
-                  </div>
+                  ) : null}
                 </div>
               </div>
             </button>
@@ -6241,6 +6361,7 @@ const Index = () => {
                   value={vcard.slug}
                   onChange={(e) => setVcard((prev) => ({ ...prev, slug: e.target.value }))}
                   placeholder="Profile Slug (optional)"
+                  readOnly={Boolean(editingVcardQRC)}
                   className="bg-secondary/50 border-border"
                 />
               </div>
@@ -6253,7 +6374,11 @@ const Index = () => {
                   className="bg-secondary/50 border-border"
                 />
                 <div className="flex items-center justify-between text-xs text-muted-foreground">
-                  <span>Virtual card hosted at QR Code Studio</span>
+                  <span>
+                    {editingVcardQRC
+                      ? 'Public VCard link stays fixed after creation'
+                      : 'Virtual card hosted at QR Code Studio'}
+                  </span>
                   <span>{vcard.about.length}/250</span>
                 </div>
                 <Input
@@ -7748,6 +7873,7 @@ const Index = () => {
             handleAdaptiveMockOpen={handleAdaptiveMockOpen}
             handleAdaptiveEdit={handleAdaptiveEdit}
             handleDynamicContentEdit={handleDynamicContentEdit}
+            handleVcardEdit={handleVcardEdit}
             arsenalRefreshKey={arsenalRefreshKey}
             setArsenalRefreshKey={setArsenalRefreshKey}
             setArsenalStats={setArsenalStats}

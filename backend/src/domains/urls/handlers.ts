@@ -5,6 +5,9 @@ import { UrlConflictError, UrlNotFoundError, UrlValidationError } from './errors
 import { UrlsService } from './service'
 import type { ScansService } from '../scans/service'
 import type { VcardsService } from '../vcards/service'
+import type { Vcard } from '../vcards/models'
+import { buildUrlResponse } from '../vcards/response'
+import { isVcardKind, normalizeVcardKind } from '../vcards/kind'
 import { recordAreaScanForUser } from '../scans/areaStore'
 import { lookupGeo } from '../scans/geo'
 import type { AreaStorage } from '../scans/storage/area.interface'
@@ -856,7 +859,7 @@ export const publicUrlDetailsHandler = (service: UrlsService) => {
   }
 }
 
-export const listUrlsHandler = (service: UrlsService) => {
+export const listUrlsHandler = (service: UrlsService, vcardsService?: VcardsService) => {
   return async (c: Context<AppBindings>) => {
     const userId = c.get('userId')
 
@@ -866,17 +869,33 @@ export const listUrlsHandler = (service: UrlsService) => {
 
     const urls = await service.getUrlsForUser(userId)
     const summary = c.req.query('summary') === '1' || c.req.query('summary') === 'true'
+    const vcardMap = new Map<string, Vcard | null>()
+
+    if (!summary && vcardsService) {
+      const vcardUrls = urls.filter((url) => isVcardKind(url.kind))
+      const vcardEntries = await Promise.all(
+        vcardUrls.map(async (url) => [url.id, await vcardsService.getByShortId(url.id)] as const)
+      )
+      for (const [shortId, vcard] of vcardEntries) {
+        vcardMap.set(shortId, vcard)
+      }
+    }
+
     return c.json(
-      urls.map((url) => ({
-        id: url.id,
-        random: url.random,
-        targetUrl: url.targetUrl,
-        name: url.name ?? null,
-        shortUrl: buildShortUrl(url.id, url.random),
-        createdAt: url.createdAt,
-        options: summary ? null : url.options ?? null,
-        kind: url.kind ?? null
-      }))
+      urls.map((url) =>
+        summary
+          ? {
+              id: url.id,
+              random: url.random,
+              targetUrl: url.targetUrl,
+              name: url.name ?? null,
+              shortUrl: buildShortUrl(url.id, url.random),
+              createdAt: url.createdAt,
+              options: null,
+              kind: isVcardKind(url.kind) ? normalizeVcardKind(url.kind) : url.kind ?? null
+            }
+          : buildUrlResponse(url, vcardMap.get(url.id) ?? null)
+      )
     )
   }
 }
@@ -1033,7 +1052,7 @@ export const deleteUrlHandler = (
     }
 
     // If this is a vCard QR, delete the associated vCard record
-    if (url.kind === 'vcard' && vcardsService) {
+    if (isVcardKind(url.kind) && vcardsService) {
       try {
         const vcard = await vcardsService.getByShortId(id)
         if (vcard) {

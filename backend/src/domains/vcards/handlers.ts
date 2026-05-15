@@ -1,12 +1,12 @@
 import type { Context } from 'hono'
 
-import { buildShortUrl } from '../../config/env'
 import { UrlValidationError } from '../urls/errors'
 import type { AppBindings } from '../../shared/http/types'
 import type { UrlsService } from '../urls/service'
-import { parseCreateVcardInput } from './validators'
+import { parseCreateVcardInput, parseUpdateVcardInput } from './validators'
 import type { VcardsService } from './service'
 import { Vcard } from './models'
+import { buildUrlResponse } from './response'
 
 const MAX_SLUG_ATTEMPTS = 20
 
@@ -28,7 +28,7 @@ export const createVcardHandler = (vcardsService: VcardsService, urlsService: Ur
         userId,
         targetUrl: input.publicUrl,
         options: input.options ?? null,
-        kind: 'vcard'
+        kind: input.kind
       })
 
       const vcard: Vcard = {
@@ -46,16 +46,7 @@ export const createVcardHandler = (vcardsService: VcardsService, urlsService: Ur
         const saved = await vcardsService.createVcard(vcard)
         return c.json({
           vcard: saved,
-          url: {
-            id: url.id,
-            random: url.random,
-            targetUrl: url.targetUrl,
-            name: url.name ?? null,
-            shortUrl: buildShortUrl(url.id, url.random),
-            createdAt: url.createdAt,
-            options: url.options ?? null,
-            kind: url.kind ?? null
-          }
+          url: buildUrlResponse(url, saved)
         }, 201)
       } catch (error) {
         await urlsService.deleteUrl(url.id)
@@ -70,6 +61,61 @@ export const createVcardHandler = (vcardsService: VcardsService, urlsService: Ur
       const message = error instanceof Error ? error.message : 'Failed to create vcard'
       console.error('[vcards] create failed', message)
       return c.json({ message: 'Failed to create vcard', reason: message }, 500)
+    }
+  }
+}
+
+export const updateVcardHandler = (vcardsService: VcardsService, urlsService: UrlsService) => {
+  return async (c: Context<AppBindings>) => {
+    try {
+      const userId = c.get('userId')
+      if (!userId) {
+        return c.json({ message: 'Unauthorized' }, 401)
+      }
+
+      const id = c.req.param('id')
+      if (!id) {
+        return c.json({ message: 'id is required' }, 400)
+      }
+
+      const record = await vcardsService.getById(id)
+      if (!record || record.userId !== userId) {
+        return c.json({ message: 'Not found' }, 404)
+      }
+
+      const payload = await c.req.json()
+      const input = parseUpdateVcardInput(payload)
+
+      const saved = await vcardsService.updateVcard(id, input.data)
+      if (!saved) {
+        return c.json({ message: 'Not found' }, 404)
+      }
+
+      let url = await urlsService.getById(record.shortId)
+      if (!url || url.userId !== userId) {
+        return c.json({ message: 'Short url not found' }, 404)
+      }
+
+      if (input.name !== undefined || input.options !== undefined || input.kind !== undefined) {
+        url = await urlsService.updateUrl(record.shortId, userId, {
+          name: input.name,
+          options: input.options,
+          kind: input.kind
+        })
+      }
+
+      return c.json({
+        vcard: saved,
+        url: buildUrlResponse(url, saved)
+      })
+    } catch (error) {
+      if (error instanceof UrlValidationError) {
+        return c.json({ message: error.message }, 400)
+      }
+
+      const message = error instanceof Error ? error.message : 'Failed to update vcard'
+      console.error('[vcards] update failed', message)
+      return c.json({ message: 'Failed to update vcard', reason: message }, 500)
     }
   }
 }
