@@ -78,6 +78,28 @@ const getDisplayName = (item: QRHistoryItem, list: QRHistoryItem[] = []) => {
   return `Untitled QRC`;
 };
 
+const normalizeShareText = (value?: string | null) => value?.trim() ?? '';
+
+const getVcardSharePayload = (item: QRHistoryItem) => {
+  const profile = item.options?.vcardData?.profile;
+  const fullName = normalizeShareText(profile?.name) || normalizeShareText(item.name) || 'Someone';
+  const firstName = fullName.split(/\s+/)[0] || fullName;
+  const company = normalizeShareText(profile?.company);
+  const title = normalizeShareText(profile?.title);
+  const roleSummary = [title, company].filter(Boolean).join(' at ');
+
+  return {
+    title:
+      fullName === 'Someone'
+        ? 'A virtual card has been shared with you'
+        : `${firstName} wants to share a virtual card with you`,
+    text:
+      fullName === 'Someone'
+        ? 'Open this virtual card to view contact details and save them in one tap.'
+        : `Open ${fullName}'s virtual card${roleSummary ? `, ${roleSummary},` : ''} and save their contact details in one tap.`,
+  };
+};
+
 // Calculate total storage used by a QR code's files
 const calculateQRStorageSize = (item: QRHistoryItem): number => {
   let total = 0;
@@ -943,7 +965,11 @@ export function ArsenalPanel({
 
   const handleCopy = async () => {
     if (!selectedItem) return;
-    const shareUrl = selectedItem.shortUrl ?? selectedItem.content;
+    const parsed = parseKind(selectedItem.kind ?? null);
+    const shareUrl =
+      parsed.type === 'vcard'
+        ? selectedItem.publicUrl ?? selectedItem.shortUrl ?? selectedItem.content
+        : selectedItem.shortUrl ?? selectedItem.content;
     const fallbackCopy = () => {
       const textarea = document.createElement('textarea');
       textarea.value = shareUrl;
@@ -975,13 +1001,23 @@ export function ArsenalPanel({
 
   const handleShare = async () => {
     if (!selectedItem) return;
-    const shareUrl = selectedItem.shortUrl ?? selectedItem.content;
-    const shareTitle = getDisplayName(selectedItem, sortedItems);
+    const parsed = parseKind(selectedItem.kind ?? null);
+    const isVcardShare = parsed.type === 'vcard';
+    const shareUrl = isVcardShare
+      ? selectedItem.publicUrl ?? selectedItem.shortUrl ?? selectedItem.content
+      : selectedItem.shortUrl ?? selectedItem.content;
+    const defaultShareTitle = getDisplayName(selectedItem, sortedItems);
+    const sharePayload = isVcardShare
+      ? getVcardSharePayload(selectedItem)
+      : {
+          title: defaultShareTitle,
+          text: defaultShareTitle,
+        };
     try {
       if (navigator.share) {
         await navigator.share({
-          title: shareTitle,
-          text: shareTitle,
+          title: sharePayload.title,
+          text: sharePayload.text,
           url: shareUrl,
         });
         return;
@@ -1031,6 +1067,14 @@ export function ArsenalPanel({
         </span>
       </div>
     );
+  };
+
+  const getDisplayedLink = (item: QRHistoryItem) => {
+    const parsed = parseKind(item.kind ?? null);
+    if (parsed.type === 'vcard' && item.publicUrl) {
+      return item.publicUrl;
+    }
+    return item.shortUrl ?? item.content;
   };
 
   const getScanCountValue = (item: QRHistoryItem) => scanCounts[item.id] ?? 0;
@@ -1305,9 +1349,9 @@ export function ArsenalPanel({
           type="button"
           onClick={handleCopy}
           className="group relative w-full text-center text-xs text-muted-foreground truncate hover:text-primary transition"
-          title={selectedItem.shortUrl ?? selectedItem.content}
+          title={getDisplayedLink(selectedItem)}
         >
-          {selectedItem.shortUrl ?? selectedItem.content}
+          {getDisplayedLink(selectedItem)}
           <span className="pointer-events-none absolute -bottom-5 left-1/2 -translate-x-1/2 text-[10px] uppercase tracking-[0.35em] text-muted-foreground opacity-0 transition group-hover:opacity-100">
             {t('Copy', 'Copiar')}
           </span>
@@ -2314,9 +2358,9 @@ export function ArsenalPanel({
                   type="button"
                   onClick={handleCopy}
                   className="group relative w-full text-center text-xs text-muted-foreground truncate hover:text-primary transition"
-                  title={selectedItem.shortUrl ?? selectedItem.content}
+                  title={getDisplayedLink(selectedItem)}
                 >
-                  {selectedItem.shortUrl ?? selectedItem.content}
+                  {getDisplayedLink(selectedItem)}
                   <span className="pointer-events-none absolute -bottom-5 left-1/2 -translate-x-1/2 text-[10px] uppercase tracking-[0.35em] text-muted-foreground opacity-0 transition group-hover:opacity-100">
                     {t('Copy', 'Copiar')}
                   </span>

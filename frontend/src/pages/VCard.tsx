@@ -13,6 +13,16 @@ type ViewportMetrics = {
   height: number;
 };
 
+const META_TAGS = [
+  { selector: 'meta[name="description"]', attr: 'name', key: 'description' },
+  { selector: 'meta[property="og:title"]', attr: 'property', key: 'og:title' },
+  { selector: 'meta[property="og:description"]', attr: 'property', key: 'og:description' },
+  { selector: 'meta[property="og:url"]', attr: 'property', key: 'og:url' },
+  { selector: 'meta[name="twitter:title"]', attr: 'name', key: 'twitter:title' },
+  { selector: 'meta[name="twitter:description"]', attr: 'name', key: 'twitter:description' },
+  { selector: 'meta[name="twitter:url"]', attr: 'name', key: 'twitter:url' },
+] as const;
+
 const getViewportMetrics = (): ViewportMetrics => {
   if (typeof window === 'undefined') {
     return { width: MOBILE_BREAKPOINT, height: 0 };
@@ -22,6 +32,48 @@ const getViewportMetrics = (): ViewportMetrics => {
     width: Math.round(window.visualViewport?.width ?? window.innerWidth),
     height: Math.round(window.visualViewport?.height ?? window.innerHeight),
   };
+};
+
+const normalizeText = (value?: string | null) => value?.trim() ?? '';
+
+const getFirstName = (value?: string | null) => {
+  const normalized = normalizeText(value);
+  return normalized.split(/\s+/)[0] || normalized;
+};
+
+const buildVcardShareMetadata = (profile: VcardProfile | null, shareUrl: string) => {
+  const fullName = normalizeText(profile?.name) || 'Someone';
+  const firstName = getFirstName(fullName) || 'Someone';
+  const company = normalizeText(profile?.company);
+  const title = normalizeText(profile?.title);
+
+  const shareTitle =
+    fullName === 'Someone'
+      ? 'A virtual card has been shared with you'
+      : `${firstName} wants to share a virtual card with you`;
+
+  const roleSummary = [title, company].filter(Boolean).join(' at ');
+  const shareDescription =
+    fullName === 'Someone'
+      ? 'Open this virtual card to view contact details and save them in one tap.'
+      : `Open ${fullName}'s virtual card${roleSummary ? `, ${roleSummary},` : ''} and save their contact details in one tap.`;
+
+  return {
+    title: shareTitle,
+    description: shareDescription,
+    url: shareUrl,
+  };
+};
+
+const setMetaTag = (selector: string, attr: 'name' | 'property', key: string, content: string) => {
+  if (typeof document === 'undefined') return;
+  let tag = document.querySelector<HTMLMetaElement>(selector);
+  if (!tag) {
+    tag = document.createElement('meta');
+    tag.setAttribute(attr, key);
+    document.head.appendChild(tag);
+  }
+  tag.setAttribute('content', content);
 };
 
 const fallbackStyle: VcardStyle = {
@@ -57,6 +109,7 @@ const VCard = () => {
   const [error, setError] = useState<string | null>(null);
   const [profile, setProfile] = useState<VcardProfile | null>(null);
   const [style, setStyle] = useState<VcardStyle | null>(null);
+  const [publicUrl, setPublicUrl] = useState('');
   const frameRef = useRef<HTMLDivElement | null>(null);
   const cardRef = useRef<HTMLDivElement | null>(null);
   const [mobileScale, setMobileScale] = useState(1);
@@ -73,6 +126,7 @@ const VCard = () => {
   useEffect(() => {
     if (!slug) {
       setError('Missing vcard slug.');
+      setPublicUrl('');
       setIsLoading(false);
       return;
     }
@@ -84,9 +138,11 @@ const VCard = () => {
         const payload = data.data as { profile?: VcardProfile; style?: VcardStyle };
         setProfile(payload.profile ?? null);
         setStyle(payload.style ?? null);
+        setPublicUrl(data.publicUrl ?? '');
         setError(null);
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Unable to load vcard.';
+        setPublicUrl('');
         setError(message);
       } finally {
         setIsLoading(false);
@@ -95,6 +151,13 @@ const VCard = () => {
 
     load();
   }, [slug]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || !publicUrl) return;
+    const next = new URL(publicUrl, window.location.origin);
+    if (window.location.pathname === next.pathname) return;
+    window.history.replaceState(window.history.state, '', next.pathname);
+  }, [publicUrl]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -174,6 +237,52 @@ const VCard = () => {
       window.removeEventListener('orientationchange', updateScale);
     };
   }, [isMobileViewport, profile, style, viewport.height, viewport.width]);
+
+  useEffect(() => {
+    if (typeof document === 'undefined' || !slug || !profile) return;
+
+    const canonicalLink = document.querySelector<HTMLLinkElement>('link[rel="canonical"]');
+    const previousTitle = document.title;
+    const previousCanonicalHref = canonicalLink?.getAttribute('href') ?? null;
+    const previousMeta = META_TAGS.map((tag) => ({
+      ...tag,
+      content: document.querySelector<HTMLMetaElement>(tag.selector)?.getAttribute('content') ?? null,
+    }));
+
+    const currentUrl =
+      publicUrl ||
+      (typeof window !== 'undefined' ? window.location.href : `/v/${slug}`);
+    const shareMeta = buildVcardShareMetadata(profile, currentUrl);
+
+    document.title = shareMeta.title;
+    if (canonicalLink) {
+      canonicalLink.setAttribute('href', shareMeta.url);
+    }
+    for (const tag of META_TAGS) {
+      const content =
+        tag.key === 'description' || tag.key.endsWith(':description')
+          ? shareMeta.description
+          : tag.key.endsWith(':url')
+            ? shareMeta.url
+            : shareMeta.title;
+      setMetaTag(tag.selector, tag.attr, tag.key, content);
+    }
+
+    return () => {
+      document.title = previousTitle;
+      if (canonicalLink) {
+        if (previousCanonicalHref) {
+          canonicalLink.setAttribute('href', previousCanonicalHref);
+        } else {
+          canonicalLink.removeAttribute('href');
+        }
+      }
+      for (const tag of previousMeta) {
+        if (tag.content === null) continue;
+        setMetaTag(tag.selector, tag.attr, tag.key, tag.content);
+      }
+    };
+  }, [profile, publicUrl, slug]);
 
   return (
     <div

@@ -9,6 +9,7 @@ import {
   redirectUrlHandler,
   updateUrlHandler
 } from './handlers'
+import { publicAliasPageHandler } from './public-links'
 import {
   getScanAreasHandler,
   getScanCountHandler,
@@ -34,6 +35,9 @@ export const registerUrlsRoutes = (
   app.get('/r/:id/:random', redirectUrlHandler(service, scansService, areaStorage))
   app.get('/adaptive/:id/:random', adaptiveResolveHandler(service, scansService, areaStorage))
   app.get('/public/urls/:id/:random', publicUrlDetailsHandler(service))
+  if (vcardsService) {
+    app.get('/public/pages/:owner/:slug', publicAliasPageHandler(service, vcardsService))
+  }
   app.get('/urls/:id/:random/scans/count', getScanCountHandler(scansService, service))
   app.get('/urls/:id/:random/scans', listScansHandler(scansService, service))
   app.get('/scans/summary', getUserScanSummaryHandler(scansService))

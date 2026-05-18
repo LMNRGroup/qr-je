@@ -1804,7 +1804,7 @@ const Index = () => {
             ? response.url.shortUrl
             : response.url.targetUrl;
           setGeneratedShortUrl(response.url.shortUrl);
-          setGeneratedLongUrl(response.url.targetUrl);
+          setGeneratedLongUrl(response.url.publicUrl ?? response.url.targetUrl);
           setLastGeneratedContent(qrContent);
           toast.success('VCard updated!');
           if (editBehavior === 'stay') {
@@ -1947,7 +1947,7 @@ const Index = () => {
           }
           
           setGeneratedShortUrl(response.url.shortUrl);
-          setGeneratedLongUrl(response.url.targetUrl);
+          setGeneratedLongUrl(response.url.publicUrl ?? response.url.targetUrl);
           setLastGeneratedContent(qrContent);
         } else if ('data' in response && response.data) {
           let nextItem = response.data;

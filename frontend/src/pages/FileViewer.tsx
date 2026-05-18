@@ -39,6 +39,12 @@ const FileViewer = () => {
     setIsLoading(true);
     getPublicUrlDetails(id, random)
       .then((data) => {
+        if (typeof window !== 'undefined' && data.publicUrl) {
+          const next = new URL(data.publicUrl, window.location.origin);
+          if (window.location.pathname !== next.pathname) {
+            window.history.replaceState(window.history.state, '', next.pathname);
+          }
+        }
         const options = (data.options ?? {}) as FileOptions;
         const dataUrl = options.fileDataUrl ?? '';
         const url = options.fileUrl ?? '';

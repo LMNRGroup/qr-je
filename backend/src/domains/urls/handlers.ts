@@ -8,6 +8,7 @@ import type { VcardsService } from '../vcards/service'
 import type { Vcard } from '../vcards/models'
 import { buildUrlResponse } from '../vcards/response'
 import { isVcardKind, normalizeVcardKind } from '../vcards/kind'
+import { buildPublicUrlForUrl, withStoredPublicSlug } from './public-links'
 import { recordAreaScanForUser } from '../scans/areaStore'
 import { lookupGeo } from '../scans/geo'
 import type { AreaStorage } from '../scans/storage/area.interface'
@@ -48,7 +49,19 @@ export const createUrlHandler = (service: UrlsService) => {
         }
       }
 
-      const url = await service.createUrl({ ...input, userId })
+      const userUrls = await service.getUrlsForUser(userId)
+      const options = withStoredPublicSlug(
+        {
+          id: '',
+          userId,
+          targetUrl: input.targetUrl,
+          name: input.name ?? null,
+          kind: input.kind ?? null,
+          options: input.options ?? null,
+        },
+        userUrls
+      )
+      const url = await service.createUrl({ ...input, userId, options })
 
       return c.json(
         {
@@ -58,6 +71,7 @@ export const createUrlHandler = (service: UrlsService) => {
           name: url.name ?? null,
           virtualCardId: url.virtualCardId ?? null,
           shortUrl: buildShortUrl(url.id, url.random),
+          publicUrl: buildPublicUrlForUrl(url),
           createdAt: url.createdAt,
           options: url.options ?? null,
           kind: url.kind ?? null
@@ -841,6 +855,7 @@ export const publicUrlDetailsHandler = (service: UrlsService) => {
         targetUrl: url.targetUrl,
         name: url.name ?? null,
         shortUrl: buildShortUrl(url.id, url.random),
+        publicUrl: buildPublicUrlForUrl(url),
         createdAt: url.createdAt,
         options: url.options ?? null,
         kind: url.kind ?? null
@@ -890,6 +905,7 @@ export const listUrlsHandler = (service: UrlsService, vcardsService?: VcardsServ
               targetUrl: url.targetUrl,
               name: url.name ?? null,
               shortUrl: buildShortUrl(url.id, url.random),
+              publicUrl: buildPublicUrlForUrl(url),
               createdAt: url.createdAt,
               options: null,
               kind: isVcardKind(url.kind) ? normalizeVcardKind(url.kind) : url.kind ?? null
@@ -914,9 +930,30 @@ export const updateUrlHandler = (service: UrlsService) => {
         return c.json({ message: 'id is required' }, 400)
       }
 
+      const existing = await service.getById(id)
+      if (!existing || existing.userId !== userId) {
+        return c.json({ message: 'Short url not found' }, 404)
+      }
+
       const payload = await c.req.json()
       const updates = parseUpdateUrlInput(payload)
-      const url = await service.updateUrl(id, userId, updates)
+      const userUrls = await service.getUrlsForUser(userId)
+      const nextOptions = updates.options === undefined
+        ? existing.options ?? null
+        : updates.options
+      const options = withStoredPublicSlug(
+        {
+          id: existing.id,
+          userId,
+          targetUrl: updates.targetUrl ?? existing.targetUrl,
+          name: updates.name ?? existing.name ?? null,
+          kind: updates.kind ?? existing.kind ?? null,
+          options: nextOptions,
+        },
+        userUrls,
+        existing.id
+      )
+      const url = await service.updateUrl(id, userId, { ...updates, options })
 
       return c.json({
         id: url.id,
@@ -924,6 +961,7 @@ export const updateUrlHandler = (service: UrlsService) => {
         targetUrl: url.targetUrl,
         name: url.name ?? null,
         shortUrl: buildShortUrl(url.id, url.random),
+        publicUrl: buildPublicUrlForUrl(url),
         createdAt: url.createdAt,
         options: url.options ?? null,
         kind: url.kind ?? null

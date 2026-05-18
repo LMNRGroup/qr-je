@@ -3,6 +3,7 @@ import type { Context } from 'hono'
 import { UrlValidationError } from '../urls/errors'
 import type { AppBindings } from '../../shared/http/types'
 import type { UrlsService } from '../urls/service'
+import { buildVcardPublicUrl } from '../urls/public-links'
 import { parseCreateVcardInput, parseUpdateVcardInput } from './validators'
 import type { VcardsService } from './service'
 import { Vcard } from './models'
@@ -35,7 +36,7 @@ export const createVcardHandler = (vcardsService: VcardsService, urlsService: Ur
         id: crypto.randomUUID(),
         userId,
         slug,
-        publicUrl: input.publicUrl,
+        publicUrl: buildVcardPublicUrl({ userId, slug }),
         shortId: url.id,
         shortRandom: url.random,
         data: input.data,
@@ -144,7 +145,10 @@ export const publicVcardHandler = (vcardsService: VcardsService) => {
       return c.json({ message: 'Not found' }, 404)
     }
 
-    return c.json(vcard)
+    return c.json({
+      ...vcard,
+      publicUrl: buildVcardPublicUrl(vcard)
+    })
   }
 }
 

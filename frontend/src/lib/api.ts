@@ -9,6 +9,7 @@ type UrlResponse = {
   random: string;
   targetUrl: string;
   shortUrl: string;
+  publicUrl?: string | null;
   createdAt: string;
   options?: Record<string, unknown> | null;
   kind?: string | null;
@@ -214,6 +215,7 @@ const toHistoryItem = (entry: UrlResponse): QRHistoryItem => {
     } as QROptions,
     createdAt: entry.createdAt,
     shortUrl: entry.shortUrl,
+    publicUrl: entry.publicUrl ?? null,
     name: entry.name ?? null,
     kind: entry.kind ?? null,
   };

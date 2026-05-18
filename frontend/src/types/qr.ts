@@ -151,6 +151,7 @@ export interface QRHistoryItem {
   options: QROptions;
   createdAt: string;
   shortUrl?: string;
+  publicUrl?: string | null;
   name?: string | null;
   kind?: string | null;
   thumbnail?: string;
