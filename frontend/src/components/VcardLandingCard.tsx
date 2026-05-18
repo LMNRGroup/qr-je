@@ -2,11 +2,15 @@ import type { CSSProperties, ReactNode } from 'react';
 import {
   ArrowUpRight,
   Building2,
+  Facebook,
   Globe,
+  Instagram,
   Mail,
   MapPin,
   MessageCircle,
+  Music2,
   Phone,
+  Youtube,
 } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
@@ -40,6 +44,13 @@ const CTA_ICONS: Record<VcardCtaType, typeof Phone> = {
   whatsapp: MessageCircle,
   website: Globe,
 };
+
+const SOCIAL_ICONS = {
+  instagram: Instagram,
+  facebook: Facebook,
+  youtube: Youtube,
+  tiktok: Music2,
+} as const;
 
 const PROFILE_ALIGNMENTS: Record<VcardProfileAlign, string> = {
   left: 'left-5 translate-x-0 md:left-8',
@@ -178,6 +189,12 @@ export function VcardLandingCard({
   const coverZoom = style.coverZoom ?? 100;
   const coverX = style.coverX ?? 50;
   const coverY = style.coverY ?? 50;
+  const socialLinks = [
+    { key: 'instagram', label: 'Instagram', value: profile.socials?.instagram?.trim() || '' },
+    { key: 'facebook', label: 'Facebook', value: profile.socials?.facebook?.trim() || '' },
+    { key: 'youtube', label: 'YouTube', value: profile.socials?.youtube?.trim() || '' },
+    { key: 'tiktok', label: 'TikTok', value: profile.socials?.tiktok?.trim() || '' },
+  ].filter((link) => link.value);
 
   const infoRows = [
     {
@@ -317,6 +334,41 @@ export function VcardLandingCard({
                 <p className={cn(isPreview ? 'text-sm' : 'text-base')} style={{ color: frontFontColor, opacity: 0.72 }}>
                   {company}
                 </p>
+              ) : null}
+              {socialLinks.length > 0 ? (
+                <div className="flex flex-wrap items-center gap-2 pt-1">
+                  {socialLinks.map((link) => {
+                    const Icon = SOCIAL_ICONS[link.key as keyof typeof SOCIAL_ICONS];
+                    const href = normalizeUrl(link.value);
+                    const sharedClassName =
+                      'flex h-10 w-10 items-center justify-center rounded-full border border-white/12 bg-white/8 text-white/90 backdrop-blur-sm transition hover:border-white/20 hover:bg-white/14';
+                    if (interactive) {
+                      return (
+                        <a
+                          key={link.key}
+                          href={href}
+                          target="_blank"
+                          rel="noreferrer"
+                          aria-label={link.label}
+                          title={link.label}
+                          className={sharedClassName}
+                        >
+                          <Icon className="h-4 w-4" />
+                        </a>
+                      );
+                    }
+                    return (
+                      <div
+                        key={link.key}
+                        aria-label={link.label}
+                        title={link.label}
+                        className={sharedClassName}
+                      >
+                        <Icon className="h-4 w-4" />
+                      </div>
+                    );
+                  })}
+                </div>
               ) : null}
             </div>
 

@@ -25,6 +25,10 @@ import {
   Paintbrush,
   Sparkles,
   Edit,
+  Facebook,
+  Instagram,
+  Music2,
+  Youtube,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -839,6 +843,84 @@ export function DesktopStudioWizard({
                           placeholder="A brief description about yourself"
                           rows={3}
                         />
+                      </div>
+                      <div className="space-y-3 rounded-xl border border-border/60 bg-secondary/20 p-4">
+                        <div>
+                          <label className="text-sm font-medium">Social Links</label>
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            Add only the profiles you want to show on the VCard.
+                          </p>
+                        </div>
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          <div className="flex items-center gap-3">
+                            <Instagram className="h-4 w-4 text-primary" />
+                            <Input
+                              value={vcard.socials?.instagram ?? ''}
+                              onChange={(e) =>
+                                onVcardChange({
+                                  socials: {
+                                    instagram: e.target.value,
+                                    facebook: vcard.socials?.facebook ?? '',
+                                    youtube: vcard.socials?.youtube ?? '',
+                                    tiktok: vcard.socials?.tiktok ?? '',
+                                  },
+                                })
+                              }
+                              placeholder="Instagram URL"
+                            />
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <Facebook className="h-4 w-4 text-primary" />
+                            <Input
+                              value={vcard.socials?.facebook ?? ''}
+                              onChange={(e) =>
+                                onVcardChange({
+                                  socials: {
+                                    instagram: vcard.socials?.instagram ?? '',
+                                    facebook: e.target.value,
+                                    youtube: vcard.socials?.youtube ?? '',
+                                    tiktok: vcard.socials?.tiktok ?? '',
+                                  },
+                                })
+                              }
+                              placeholder="Facebook URL"
+                            />
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <Youtube className="h-4 w-4 text-primary" />
+                            <Input
+                              value={vcard.socials?.youtube ?? ''}
+                              onChange={(e) =>
+                                onVcardChange({
+                                  socials: {
+                                    instagram: vcard.socials?.instagram ?? '',
+                                    facebook: vcard.socials?.facebook ?? '',
+                                    youtube: e.target.value,
+                                    tiktok: vcard.socials?.tiktok ?? '',
+                                  },
+                                })
+                              }
+                              placeholder="YouTube URL"
+                            />
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <Music2 className="h-4 w-4 text-primary" />
+                            <Input
+                              value={vcard.socials?.tiktok ?? ''}
+                              onChange={(e) =>
+                                onVcardChange({
+                                  socials: {
+                                    instagram: vcard.socials?.instagram ?? '',
+                                    facebook: vcard.socials?.facebook ?? '',
+                                    youtube: vcard.socials?.youtube ?? '',
+                                    tiktok: e.target.value,
+                                  },
+                                })
+                              }
+                              placeholder="TikTok URL"
+                            />
+                          </div>
+                        </div>
                       </div>
                       <div className="space-y-2">
                         <label className="text-sm font-medium">Action Button</label>

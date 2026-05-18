@@ -41,6 +41,14 @@ export interface AdaptiveConfig {
 export type VcardTexture = 'matte' | 'metallic' | 'glossy' | 'paper';
 export type VcardCtaType = 'call' | 'email' | 'whatsapp' | 'website';
 export type VcardProfileAlign = 'left' | 'center' | 'right';
+export type VcardSocialPlatform = 'instagram' | 'facebook' | 'youtube' | 'tiktok';
+
+export interface VcardSocials {
+  instagram?: string;
+  facebook?: string;
+  youtube?: string;
+  tiktok?: string;
+}
 
 export interface VcardProfile {
   name?: string;
@@ -52,6 +60,7 @@ export interface VcardProfile {
   company?: string;
   about?: string;
   slug?: string;
+  socials?: VcardSocials;
   ctaType?: VcardCtaType | '';
   ctaLabel?: string;
   ctaValue?: string;

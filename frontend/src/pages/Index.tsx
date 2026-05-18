@@ -95,6 +95,7 @@ import {
   User,
   UserRound,
   Users,
+  Youtube,
   Zap,
   X,
 } from 'lucide-react';
@@ -136,6 +137,12 @@ const createEmptyVcardProfile = (): VcardProfile => ({
   company: '',
   about: '',
   slug: '',
+  socials: {
+    instagram: '',
+    facebook: '',
+    youtube: '',
+    tiktok: '',
+  },
   ctaType: '',
   ctaLabel: '',
   ctaValue: '',
@@ -195,6 +202,12 @@ const buildVcardData = (profile: VcardProfile, style: VcardStyle): VcardData => 
     company: normalizeVcardText(profile.company),
     about: normalizeVcardText(profile.about),
     slug: normalizeVcardText(profile.slug),
+    socials: {
+      instagram: normalizeVcardText(profile.socials?.instagram),
+      facebook: normalizeVcardText(profile.socials?.facebook),
+      youtube: normalizeVcardText(profile.socials?.youtube),
+      tiktok: normalizeVcardText(profile.socials?.tiktok),
+    },
     ctaType: profile.ctaType ?? '',
     ctaLabel: normalizeVcardText(profile.ctaLabel),
     ctaValue: normalizeVcardText(profile.ctaValue),
@@ -673,6 +686,19 @@ const Index = () => {
   const updateVcardProfile = useCallback((patch: Partial<VcardProfile>) => {
     setVcard((prev) => ({ ...prev, ...patch }));
   }, []);
+  const updateVcardSocial = useCallback(
+    (platform: 'instagram' | 'facebook' | 'youtube' | 'tiktok', value: string) => {
+      setVcard((prev) => ({
+        ...prev,
+        socials: {
+          ...createEmptyVcardProfile().socials,
+          ...(prev.socials ?? {}),
+          [platform]: value,
+        },
+      }));
+    },
+    []
+  );
   const vcardSlug = useMemo(
     () => (vcard.slug ? slugify(vcard.slug) : slugify(vcard.name)),
     [slugify, vcard.slug, vcard.name]
@@ -5366,28 +5392,34 @@ const Index = () => {
           onClick={() => setShowVcardCustomizer(false)}
         >
           <div
-            className="glass-panel rounded-3xl p-6 sm:p-8 w-full max-w-6xl mx-auto my-auto space-y-6 relative max-h-[90dvh] overflow-y-auto overscroll-contain"
+            className="glass-panel relative mx-auto my-auto flex max-h-[90dvh] w-full max-w-6xl flex-col overflow-hidden rounded-3xl"
             onClick={(event) => event.stopPropagation()}
           >
-            <button
-              type="button"
-              className="absolute right-4 top-4 text-xs uppercase tracking-[0.3em] text-muted-foreground transition hover:text-foreground"
-              onClick={handleCancelCreateFlow}
-              disabled={isCreateFlowBusy}
-            >
-              Cancel
-            </button>
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-              <div>
-                <p className="text-xs uppercase tracking-[0.35em] text-muted-foreground">VCard</p>
-                <h2 className="text-2xl font-semibold">Customize your landing page</h2>
-                <p className="text-sm text-muted-foreground">
-                  Build a one-page VCard with a wide cover photo, branded styling, and a clear action button.
-                </p>
+            <div className="sticky top-0 z-20 border-b border-border/50 bg-background/95 px-6 py-4 backdrop-blur-md sm:px-8 sm:py-5">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <p className="text-xs uppercase tracking-[0.35em] text-muted-foreground">VCard</p>
+                  <h2 className="text-2xl font-semibold">Customize your landing page</h2>
+                  <p className="text-sm text-muted-foreground">
+                    Build a one-page VCard with a wide cover photo, branded styling, and a clear action button.
+                  </p>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  className="h-10 w-10 shrink-0 border-border"
+                  onClick={handleCancelCreateFlow}
+                  disabled={isCreateFlowBusy}
+                  aria-label="Close vcard customizer"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
               </div>
             </div>
 
-            <div className="grid lg:grid-cols-[0.85fr_1.15fr] gap-6">
+            <div className="flex-1 overflow-y-auto overscroll-contain px-6 pb-6 pt-4 sm:px-8 sm:pb-8">
+              <div className="grid gap-6 lg:grid-cols-[0.85fr_1.15fr]">
               <div className="flex flex-col items-center gap-4">
                 <button
                   type="button"
@@ -5648,12 +5680,6 @@ const Index = () => {
 
                 <Accordion
                   type="multiple"
-                  defaultValue={[
-                    'texture',
-                    'page-style',
-                    'button-style',
-                    'brand-mark',
-                  ]}
                   className="space-y-2"
                 >
                   <AccordionItem value="texture" className="border-none">
@@ -5801,35 +5827,38 @@ const Index = () => {
                     </AccordionContent>
                   </AccordionItem>
                 </Accordion>
+              </div>
+            </div>
+            </div>
 
-                <div className="flex flex-col sm:flex-row gap-3">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="sm:flex-1 border-border uppercase tracking-[0.2em] text-xs"
-                    onClick={handleCancelCreateFlow}
-                    disabled={isCreateFlowBusy}
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    type="button"
-                    className="bg-gradient-primary text-primary-foreground uppercase tracking-[0.2em] text-xs"
-                    disabled={isCreateFlowBusy}
-                    onClick={handleApplyVcardCustomization}
-                  >
-                    Apply Changes
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="border-border uppercase tracking-[0.2em] text-xs"
-                    disabled={isCreateFlowBusy}
-                    onClick={handleFinishVcardCustomization}
-                  >
-                    {editingVcardQRC ? 'Save & Exit' : vcardFromContents ? 'Continue' : 'Done'}
-                  </Button>
-                </div>
+            <div className="sticky bottom-0 z-20 border-t border-border/50 bg-background/95 px-6 py-4 backdrop-blur-md sm:px-8">
+              <div className="flex flex-col gap-3 sm:flex-row">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="sm:flex-1 border-border uppercase tracking-[0.2em] text-xs"
+                  onClick={handleCancelCreateFlow}
+                  disabled={isCreateFlowBusy}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="button"
+                  className="sm:flex-1 bg-gradient-primary text-primary-foreground uppercase tracking-[0.2em] text-xs"
+                  disabled={isCreateFlowBusy}
+                  onClick={handleApplyVcardCustomization}
+                >
+                  Apply Changes
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="sm:flex-1 border-border uppercase tracking-[0.2em] text-xs"
+                  disabled={isCreateFlowBusy}
+                  onClick={handleFinishVcardCustomization}
+                >
+                  {editingVcardQRC ? 'Save & Exit' : vcardFromContents ? 'Continue' : 'Done'}
+                </Button>
               </div>
             </div>
           </div>
@@ -6526,6 +6555,52 @@ const Index = () => {
                   readOnly
                   className="bg-secondary/40 border-border text-xs text-muted-foreground"
                 />
+              </div>
+              <div className="rounded-2xl border border-border/60 bg-secondary/20 p-4 space-y-4">
+                <div className="space-y-1">
+                  <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Social Links</p>
+                  <p className="text-xs text-muted-foreground">
+                    Add only the profiles you want to show. Empty links stay hidden on the landing page.
+                  </p>
+                </div>
+                <div className="grid sm:grid-cols-2 gap-4">
+                  <div className="flex items-center gap-3">
+                    <Instagram className="h-4 w-4 text-primary" />
+                    <Input
+                      value={vcard.socials?.instagram ?? ''}
+                      onChange={(e) => updateVcardSocial('instagram', e.target.value)}
+                      placeholder="Instagram URL"
+                      className="bg-secondary/50 border-border"
+                    />
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <Facebook className="h-4 w-4 text-primary" />
+                    <Input
+                      value={vcard.socials?.facebook ?? ''}
+                      onChange={(e) => updateVcardSocial('facebook', e.target.value)}
+                      placeholder="Facebook URL"
+                      className="bg-secondary/50 border-border"
+                    />
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <Youtube className="h-4 w-4 text-primary" />
+                    <Input
+                      value={vcard.socials?.youtube ?? ''}
+                      onChange={(e) => updateVcardSocial('youtube', e.target.value)}
+                      placeholder="YouTube URL"
+                      className="bg-secondary/50 border-border"
+                    />
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <Music2 className="h-4 w-4 text-primary" />
+                    <Input
+                      value={vcard.socials?.tiktok ?? ''}
+                      onChange={(e) => updateVcardSocial('tiktok', e.target.value)}
+                      placeholder="TikTok URL"
+                      className="bg-secondary/50 border-border"
+                    />
+                  </div>
+                </div>
               </div>
               <div className="rounded-2xl border border-border/60 bg-secondary/20 p-4 space-y-4">
                 <div className="space-y-1">
