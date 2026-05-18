@@ -315,23 +315,23 @@ export function VcardLandingCard({
 
       <div
         className={cn(
-          'space-y-6 px-5 pb-5 pt-16 md:px-8 md:pb-8',
-          isPreview ? 'pt-16' : 'pt-20 md:pt-24'
+          'px-4 pb-4 pt-16 sm:px-5 sm:pb-5 md:px-8 md:pb-8',
+          isPreview ? 'space-y-6 pt-16' : 'space-y-5 pt-[4.75rem] sm:space-y-6 sm:pt-20 md:pt-24'
         )}
       >
-        <div className={cn('space-y-6', isPreview ? '' : 'lg:grid lg:grid-cols-[minmax(0,1fr)_320px] lg:gap-8 lg:space-y-0')}>
-          <div className="space-y-4">
+        <div className={cn('space-y-5', isPreview ? '' : 'lg:grid lg:grid-cols-[minmax(0,1fr)_320px] lg:gap-8 lg:space-y-0')}>
+          <div className="space-y-3 sm:space-y-4">
             <div className="space-y-2">
-              <h1 className={cn('font-semibold tracking-tight', isPreview ? 'text-2xl' : 'text-3xl md:text-4xl')}>
+              <h1 className={cn('font-semibold tracking-tight', isPreview ? 'text-2xl' : 'text-2xl sm:text-3xl md:text-4xl')}>
                 {name}
               </h1>
               {title ? (
-                <p className={cn('font-medium', isPreview ? 'text-sm' : 'text-base md:text-lg')} style={{ color: frontFontColor, opacity: 0.92 }}>
+                <p className={cn('font-medium', isPreview ? 'text-sm' : 'text-sm sm:text-base md:text-lg')} style={{ color: frontFontColor, opacity: 0.92 }}>
                   {title}
                 </p>
               ) : null}
               {company ? (
-                <p className={cn(isPreview ? 'text-sm' : 'text-base')} style={{ color: frontFontColor, opacity: 0.72 }}>
+                <p className={cn(isPreview ? 'text-sm' : 'text-sm sm:text-base')} style={{ color: frontFontColor, opacity: 0.72 }}>
                   {company}
                 </p>
               ) : null}
@@ -341,7 +341,7 @@ export function VcardLandingCard({
                     const Icon = SOCIAL_ICONS[link.key as keyof typeof SOCIAL_ICONS];
                     const href = normalizeUrl(link.value);
                     const sharedClassName =
-                      'flex h-10 w-10 items-center justify-center rounded-full border border-white/12 bg-white/8 text-white/90 backdrop-blur-sm transition hover:border-white/20 hover:bg-white/14';
+                      'flex h-9 w-9 items-center justify-center rounded-full border border-white/12 bg-white/8 text-white/90 backdrop-blur-sm transition hover:border-white/20 hover:bg-white/14';
                     if (interactive) {
                       return (
                         <a
@@ -379,18 +379,18 @@ export function VcardLandingCard({
             ) : null}
           </div>
 
-          <div className="space-y-4">
+          <div className="space-y-3 sm:space-y-4">
             {infoRows.length > 0 ? (
-              <div className="space-y-3">
+              <div className="space-y-2.5 sm:space-y-3">
                 {infoRows.map((row) =>
                   renderMaybeLink(
                     row.key,
                     interactive,
                     row.href,
                     row.external,
-                    'group flex items-start gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 backdrop-blur-sm transition hover:border-white/20 hover:bg-white/10',
+                    'group flex items-start gap-3 rounded-2xl border border-white/10 bg-white/5 px-3 py-2.5 backdrop-blur-sm transition hover:border-white/20 hover:bg-white/10 sm:px-4 sm:py-3',
                     <>
-                      <div className="mt-0.5 flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-white/10 text-white/85">
+                      <div className="mt-0.5 flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-white/10 text-white/85 sm:h-10 sm:w-10">
                         <row.Icon className="h-4 w-4" />
                       </div>
                       <div className="min-w-0 space-y-1">
@@ -416,7 +416,7 @@ export function VcardLandingCard({
                   href={actionConfig.href}
                   target={actionConfig.external ? '_blank' : undefined}
                   rel={actionConfig.external ? 'noreferrer' : undefined}
-                  className="flex w-full items-center justify-center gap-2 rounded-2xl px-5 py-4 text-center font-semibold transition hover:opacity-92"
+                  className="flex w-full items-center justify-center gap-2 rounded-2xl px-4 py-3.5 text-center text-sm font-semibold transition hover:opacity-92 sm:px-5 sm:py-4 sm:text-base"
                   style={{
                     backgroundColor: buttonColor,
                     color: buttonTextColor,
@@ -427,7 +427,7 @@ export function VcardLandingCard({
                 </a>
               ) : (
                 <div
-                  className="flex w-full items-center justify-center gap-2 rounded-2xl px-5 py-4 text-center font-semibold"
+                  className="flex w-full items-center justify-center gap-2 rounded-2xl px-4 py-3.5 text-center text-sm font-semibold sm:px-5 sm:py-4 sm:text-base"
                   style={{
                     backgroundColor: buttonColor,
                     color: buttonTextColor,
