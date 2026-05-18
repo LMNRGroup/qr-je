@@ -17,6 +17,7 @@ import {
   List,
   Loader2,
   Mail,
+  Pencil,
   Phone,
   QrCode,
   Send,
@@ -1161,6 +1162,19 @@ export function ArsenalPanel({
           </button>
         )}
         <div className="flex flex-wrap items-center gap-2 overflow-visible">
+          {isVcard && onVcardEdit ? (
+            <Button
+              size="icon"
+              variant="outline"
+              className="group relative border-primary/40 text-primary hover:bg-primary/10"
+              onClick={() => onVcardEdit(selectedItem)}
+            >
+              <Pencil className="h-4 w-4" />
+              <span className="pointer-events-none absolute -bottom-6 left-1/2 -translate-x-1/2 whitespace-nowrap text-[10px] uppercase tracking-[0.35em] text-muted-foreground opacity-0 transition group-hover:opacity-100">
+                {t('Edit VCard', 'Editar VCard')}
+              </span>
+            </Button>
+          ) : null}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
@@ -1249,17 +1263,6 @@ export function ArsenalPanel({
           <div className="flex flex-wrap items-center justify-end gap-2">
             {renderScanCount(selectedItem)}
             {renderCardBadge(selectedItem)}
-            {isVcard && onVcardEdit ? (
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="border-primary/40 text-primary hover:bg-primary/10"
-                onClick={() => onVcardEdit(selectedItem)}
-              >
-                {t('Edit VCard', 'Editar VCard')}
-              </Button>
-            ) : null}
             {canEditDynamicContent && onDynamicContentEdit ? (
               <Button
                 type="button"
@@ -2168,6 +2171,19 @@ export function ArsenalPanel({
             {selectedItem ? (
               <>
                 <div className="flex flex-wrap items-center gap-2 overflow-visible">
+                  {isVcard && onVcardEdit ? (
+                    <Button
+                      size="icon"
+                      variant="outline"
+                      className="group relative border-primary/40 text-primary hover:bg-primary/10"
+                      onClick={() => onVcardEdit(selectedItem)}
+                    >
+                      <Pencil className="h-4 w-4" />
+                      <span className="pointer-events-none absolute -bottom-6 left-1/2 -translate-x-1/2 whitespace-nowrap text-[10px] uppercase tracking-[0.35em] text-muted-foreground opacity-0 transition group-hover:opacity-100">
+                        {t('Edit VCard', 'Editar VCard')}
+                      </span>
+                    </Button>
+                  ) : null}
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button
@@ -2256,17 +2272,6 @@ export function ArsenalPanel({
                     <div className="flex flex-wrap items-center gap-2 max-w-full">
                       {renderScanCount(selectedItem)}
                       {renderCardBadge(selectedItem)}
-                      {isVcard && onVcardEdit ? (
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          className="border-primary/40 text-primary hover:bg-primary/10"
-                          onClick={() => onVcardEdit(selectedItem)}
-                        >
-                          {t('Edit VCard', 'Editar VCard')}
-                        </Button>
-                      ) : null}
                       {canEditDynamicContent && onDynamicContentEdit ? (
                         <Button
                           type="button"

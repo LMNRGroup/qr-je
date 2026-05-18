@@ -39,15 +39,22 @@ export interface AdaptiveConfig {
 }
 
 export type VcardTexture = 'matte' | 'metallic' | 'glossy' | 'paper';
+export type VcardCtaType = 'call' | 'email' | 'whatsapp' | 'website';
+export type VcardProfileAlign = 'left' | 'center' | 'right';
 
 export interface VcardProfile {
   name?: string;
+  title?: string;
   phone?: string;
   email?: string;
   website?: string;
+  location?: string;
   company?: string;
   about?: string;
   slug?: string;
+  ctaType?: VcardCtaType | '';
+  ctaLabel?: string;
+  ctaValue?: string;
 }
 
 export interface VcardStyle {
@@ -64,7 +71,11 @@ export interface VcardStyle {
   backFontColor: string;
   frontLogoDataUrl?: string | null;
   backLogoDataUrl?: string | null;
+  coverPhotoDataUrl?: string | null;
   profilePhotoDataUrl?: string | null;
+  profileAlign?: VcardProfileAlign;
+  buttonColor?: string;
+  buttonTextColor?: string;
   photoZoom: number;
   photoX: number;
   photoY: number;

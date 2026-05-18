@@ -9,6 +9,7 @@ import { ThemeToggle } from '@/components/ThemeToggle';
 import { UserMenu } from '@/components/UserMenu';
 import { SocialMediaSelector, type SocialPlatform } from '@/components/SocialMediaSelector';
 import { PortalEditor, type PortalLink, type PortalCustomization } from '@/components/PortalEditor';
+import { VcardLandingCard } from '@/components/VcardLandingCard';
 import {
   Accordion,
   AccordionContent,
@@ -52,7 +53,9 @@ import {
   AdaptiveSlot,
   AdaptiveRule,
   VcardData,
+  VcardCtaType,
   VcardProfile,
+  VcardProfileAlign,
   VcardStyle,
   VcardTexture,
 } from '@/types/qr';
@@ -119,17 +122,23 @@ const MAX_MENU_PDF_BYTES = 10 * 1024 * 1024; // 10MB for PDFs (before compressio
 const MAX_MENU_TOTAL_BYTES = 10 * 1024 * 1024; // 10MB total for menu (before compression)
 const MAX_MENU_FILES = 15;
 const MAX_VCARD_PHOTO_BYTES = 10 * 1024 * 1024; // 10MB before compression
+const MAX_VCARD_COVER_BYTES = 10 * 1024 * 1024; // 10MB before compression
 const MAX_FILE_BYTES = 10 * 1024 * 1024; // 10MB before compression
 const MAX_STORAGE_BYTES = 25 * 1024 * 1024; // 25MB total storage limit (compressed size)
 
 const createEmptyVcardProfile = (): VcardProfile => ({
   name: '',
+  title: '',
   phone: '',
   email: '',
   website: '',
+  location: '',
   company: '',
   about: '',
   slug: '',
+  ctaType: '',
+  ctaLabel: '',
+  ctaValue: '',
 });
 
 const createDefaultVcardStyle = (): VcardStyle => ({
@@ -146,28 +155,56 @@ const createDefaultVcardStyle = (): VcardStyle => ({
   backFontColor: '#F8FAFC',
   frontLogoDataUrl: '',
   backLogoDataUrl: '',
+  coverPhotoDataUrl: '',
   profilePhotoDataUrl: '',
+  profileAlign: 'left',
+  buttonColor: '#F3E7D0',
+  buttonTextColor: '#34164B',
   photoZoom: 110,
   photoX: 50,
   photoY: 50,
 });
 
 const normalizeVcardText = (value?: string | null) => value?.trim() ?? '';
+const getDefaultVcardCtaLabel = (type?: VcardCtaType | '') => {
+  switch (type) {
+    case 'call':
+      return 'Call Me';
+    case 'email':
+      return 'Email Me';
+    case 'whatsapp':
+      return 'WhatsApp Me';
+    case 'website':
+      return 'Visit My Website';
+    default:
+      return '';
+  }
+};
 
 const buildVcardData = (profile: VcardProfile, style: VcardStyle): VcardData => ({
   profile: {
     name: normalizeVcardText(profile.name),
+    title: normalizeVcardText(profile.title),
     phone: normalizeVcardText(profile.phone),
     email: normalizeVcardText(profile.email),
     website: normalizeVcardText(profile.website),
+    location: normalizeVcardText(profile.location),
     company: normalizeVcardText(profile.company),
     about: normalizeVcardText(profile.about),
+    slug: normalizeVcardText(profile.slug),
+    ctaType: profile.ctaType ?? '',
+    ctaLabel: normalizeVcardText(profile.ctaLabel),
+    ctaValue: normalizeVcardText(profile.ctaValue),
   },
   style: {
     ...style,
     frontLogoDataUrl: style.frontLogoDataUrl ?? '',
     backLogoDataUrl: style.backLogoDataUrl ?? '',
+    coverPhotoDataUrl: style.coverPhotoDataUrl ?? '',
     profilePhotoDataUrl: style.profilePhotoDataUrl ?? '',
+    profileAlign: style.profileAlign ?? 'left',
+    buttonColor: style.buttonColor ?? style.frontGradient,
+    buttonTextColor: style.buttonTextColor ?? '#0F172A',
   },
 });
 
@@ -322,7 +359,6 @@ const Index = () => {
   const [showVcardContents, setShowVcardContents] = useState(false);
   const [showVcardPreview, setShowVcardPreview] = useState(false);
   const [vcardFromContents, setVcardFromContents] = useState(false);
-  const [vcardPreviewSide, setVcardPreviewSide] = useState<'front' | 'back'>('front');
   const [showStudioBoot, setShowStudioBoot] = useState(false);
   const [showAccountModal, setShowAccountModal] = useState(false);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
@@ -448,6 +484,9 @@ const Index = () => {
   const [vcardPhotoUploadProgress, setVcardPhotoUploadProgress] = useState<number>(0);
   const [vcardPhotoUploading, setVcardPhotoUploading] = useState(false);
   const [vcardPhotoUploadError, setVcardPhotoUploadError] = useState<string | null>(null);
+  const [vcardCoverUploadProgress, setVcardCoverUploadProgress] = useState<number>(0);
+  const [vcardCoverUploading, setVcardCoverUploading] = useState(false);
+  const [vcardCoverUploadError, setVcardCoverUploadError] = useState<string | null>(null);
   const [adaptiveSlotCount, setAdaptiveSlotCount] = useState(2);
   const [adaptiveSlots, setAdaptiveSlots] = useState([
     {
@@ -602,6 +641,9 @@ const Index = () => {
     () => buildVcardData(vcard, vcardStyle).profile ?? createEmptyVcardProfile(),
     [vcard, vcardStyle]
   );
+  const updateVcardProfile = useCallback((patch: Partial<VcardProfile>) => {
+    setVcard((prev) => ({ ...prev, ...patch }));
+  }, []);
   const vcardSlug = useMemo(
     () => (vcard.slug ? slugify(vcard.slug) : slugify(vcard.name)),
     [slugify, vcard.slug, vcard.name]
@@ -689,6 +731,20 @@ const Index = () => {
     : hasSelectedType
       ? 'https://preview.qrcodestudio.app'
       : '';
+  const resolveEditedVcardQrName = useCallback(() => {
+    if (!editingVcardQRC) {
+      return normalizedVcard.name || 'VCard';
+    }
+    const currentName = editingVcardQRC.name?.trim() ?? '';
+    const previousName =
+      typeof editingVcardQRC.options?.vcardData === 'object' && editingVcardQRC.options.vcardData
+        ? normalizeVcardText((editingVcardQRC.options.vcardData as VcardData).profile?.name)
+        : '';
+    if (!currentName || currentName === previousName || /^vcard$/i.test(currentName) || /^untitled/i.test(currentName)) {
+      return normalizedVcard.name || 'VCard';
+    }
+    return currentName;
+  }, [editingVcardQRC, normalizedVcard.name]);
   const isSessionReady = isLoggedIn;
 
   const parseKind = useCallback((kind?: string | null) => {
@@ -1949,6 +2005,7 @@ const Index = () => {
     setQrMode(null);
     setQrType(null);
     setSelectedQuickAction(null);
+    setQrName('QRC Untitled 1');
     setWebsiteUrl('');
     setWebsiteTouched(false);
     setEmailAddress('');
@@ -1961,6 +2018,9 @@ const Index = () => {
     setFileDataUrl('');
     setFileBlob(null);
     setFileTouched(false);
+    setFileUploadProgress(0);
+    setFileUploading(false);
+    setFileUploadError(null);
     setMenuFiles([]);
     setMenuType('restaurant');
     setMenuLogoDataUrl('');
@@ -1995,6 +2055,12 @@ const Index = () => {
         note: 'Internal staff dashboard',
       },
     ]);
+    setMenuUploadProgress(0);
+    setMenuUploading(false);
+    setMenuUploadError(null);
+    setMenuLogoUploadProgress(0);
+    setMenuLogoUploading(false);
+    setMenuLogoUploadError(null);
     setAdaptiveDateRulesEnabled(true);
     setAdaptiveDateRules([
       {
@@ -2019,19 +2085,54 @@ const Index = () => {
     setMenuCarouselIndex(0);
     setVcard(createEmptyVcardProfile());
     setVcardStyle(createDefaultVcardStyle());
-    setVcardPreviewSide('front');
+    setVcardPhotoUploadProgress(0);
+    setVcardPhotoUploading(false);
+    setVcardPhotoUploadError(null);
+    setVcardCoverUploadProgress(0);
+    setVcardCoverUploading(false);
+    setVcardCoverUploadError(null);
     setShowVcardCustomizer(false);
     setShowVcardPreview(false);
+    setShowVcardContents(false);
     setShowMenuBuilder(false);
+    setShowMenuOrganize(false);
     setMenuBuilderStep('menu'); // Reset step when closing
+    setShowNameOverlay(false);
+    setVcardFromContents(false);
     setOptions({ ...defaultQROptions });
     setGeneratedShortUrl('');
     setGeneratedLongUrl('');
     setLastGeneratedContent('');
     setHasGenerated(false);
     setIsGenerating(false);
+    setPendingCreateScroll(false);
     setMobileCustomizeStep(false);
+    setMobileStudioStep(1);
   }, []);
+
+  const isCreateFlowBusy =
+    isGenerating ||
+    fileUploading ||
+    menuUploading ||
+    menuLogoUploading ||
+    vcardPhotoUploading ||
+    vcardCoverUploading;
+
+  const handleCancelCreateFlow = useCallback(() => {
+    if (isCreateFlowBusy) return;
+    setActiveTab('studio');
+    resetCreateFlow();
+  }, [isCreateFlowBusy, resetCreateFlow]);
+
+  const handleCompleteQrCustomization = () => {
+    if (editingVcardQRC && qrType === 'vcard') {
+      void handleGenerate(resolveEditedVcardQrName());
+      return;
+    }
+    const defaultName = qrType === 'file' ? fileName || 'File QR' : 'QRC Untitled 1';
+    setQrName(defaultName);
+    setShowNameOverlay(true);
+  };
 
   const handleDownload = async (format: 'png' | 'svg' | 'jpeg' | 'pdf') => {
     if (!qrRef.current) return;
@@ -2520,49 +2621,6 @@ const Index = () => {
     return currentTourStep.target;
   }, [currentTourStep, isDialOpen]);
 
-  const makeVcardGradient = (from: string, to: string) => `linear-gradient(135deg, ${from}, ${to})`;
-  const makeVcardBase = (useGradient: boolean, color: string, gradient: string) =>
-    useGradient ? makeVcardGradient(color, gradient) : `linear-gradient(0deg, ${color}, ${color})`;
-  const getVcardTextureStyle = (texture: VcardTexture, base: string) => {
-    switch (texture) {
-      case 'metallic':
-        return {
-          backgroundImage:
-            'linear-gradient(120deg, rgba(255,255,255,0.55) 0%, rgba(255,255,255,0.12) 35%, rgba(0,0,0,0.25) 70%, rgba(255,255,255,0.25) 100%), repeating-linear-gradient(90deg, rgba(255,255,255,0.18) 0px, rgba(255,255,255,0.18) 2px, rgba(0,0,0,0.08) 3px, rgba(0,0,0,0.08) 6px), ' +
-            base,
-          backgroundBlendMode: 'screen, overlay, normal',
-          boxShadow:
-            'inset 0 1px 1px rgba(255,255,255,0.35), inset 0 -6px 10px rgba(0,0,0,0.35)',
-        };
-      case 'glossy':
-        return {
-          backgroundImage:
-            'radial-gradient(circle at 20% 10%, rgba(255,255,255,0.7), rgba(255,255,255,0) 55%), linear-gradient(180deg, rgba(255,255,255,0.18), rgba(0,0,0,0.2)), ' +
-            base,
-          backgroundBlendMode: 'screen, overlay, normal',
-          boxShadow:
-            'inset 0 12px 24px rgba(255,255,255,0.2), inset 0 -10px 16px rgba(0,0,0,0.3)',
-        };
-      case 'paper':
-        return {
-          backgroundImage:
-            'radial-gradient(circle at 30% 20%, rgba(255,255,255,0.3), rgba(255,255,255,0) 60%), repeating-linear-gradient(45deg, rgba(255,255,255,0.08) 0px, rgba(255,255,255,0.08) 2px, rgba(0,0,0,0.06) 2px, rgba(0,0,0,0.06) 4px), ' +
-            base,
-          backgroundBlendMode: 'soft-light, overlay, normal',
-          filter: 'saturate(0.95)',
-        };
-      case 'matte':
-      default:
-        return {
-          backgroundImage:
-            'linear-gradient(0deg, rgba(0,0,0,0.2), rgba(0,0,0,0.2)), repeating-linear-gradient(135deg, rgba(255,255,255,0.04) 0px, rgba(255,255,255,0.04) 1px, rgba(0,0,0,0.04) 1px, rgba(0,0,0,0.04) 2px), ' +
-            base,
-          backgroundBlendMode: 'soft-light, overlay, normal',
-          filter: 'saturate(0.9)',
-        };
-    }
-  };
-
   const dataUrlToBlob = (dataUrl: string) => {
     const [header, data] = dataUrl.split(',');
     const mime = header.match(/data:(.*?);base64/)?.[1] || 'application/octet-stream';
@@ -2572,6 +2630,15 @@ const Index = () => {
       bytes[i] = binary.charCodeAt(i);
     }
     return new Blob([bytes], { type: mime });
+  };
+
+  const getDataUrlSize = (dataUrl?: string | null) => {
+    if (!dataUrl) return 0;
+    try {
+      return dataUrlToBlob(dataUrl).size;
+    } catch {
+      return 0;
+    }
   };
 
   // Get current storage usage (compressed sizes)
@@ -2721,6 +2788,13 @@ const Index = () => {
         setVcardPhotoUploading(false);
         return;
       }
+      if (file.size > MAX_VCARD_PHOTO_BYTES) {
+        const errorMsg = `Photo is too large. Please upload an image under ${Math.round(MAX_VCARD_PHOTO_BYTES / (1024 * 1024))}MB.`;
+        setVcardPhotoUploadError(errorMsg);
+        toast.error(errorMsg);
+        setVcardPhotoUploading(false);
+        return;
+      }
 
       // Simulate progress
       const progressInterval = setInterval(() => {
@@ -2750,6 +2824,10 @@ const Index = () => {
 
       // Track storage (we'll add it when we upload, but for vCard we store locally)
       // For vCard, we store the dataUrl locally, so we track it
+      const previousPhotoSize = getDataUrlSize(vcardStyle.profilePhotoDataUrl);
+      if (previousPhotoSize > 0) {
+        removeStorageUsage(previousPhotoSize);
+      }
       addStorageUsage(compressedBlob.size);
 
       clearInterval(progressInterval);
@@ -2771,6 +2849,78 @@ const Index = () => {
     } finally {
       setVcardPhotoUploading(false);
       setVcardPhotoUploadProgress(0);
+    }
+  };
+
+  const handleVcardCoverChange = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    event.target.value = '';
+
+    setVcardCoverUploadError(null);
+    setVcardCoverUploadProgress(0);
+    setVcardCoverUploading(true);
+
+    try {
+      if (!file.type.startsWith('image/')) {
+        const errorMsg = `"${file.name}" is not an image file. Please upload a JPG or PNG cover photo.`;
+        setVcardCoverUploadError(errorMsg);
+        toast.error(errorMsg);
+        setVcardCoverUploading(false);
+        return;
+      }
+      if (file.size > MAX_VCARD_COVER_BYTES) {
+        const errorMsg = `Cover photo is too large. Please upload an image under ${Math.round(MAX_VCARD_COVER_BYTES / (1024 * 1024))}MB.`;
+        setVcardCoverUploadError(errorMsg);
+        toast.error(errorMsg);
+        setVcardCoverUploading(false);
+        return;
+      }
+
+      const progressInterval = setInterval(() => {
+        setVcardCoverUploadProgress((prev) => {
+          if (prev >= 90) return prev;
+          return prev + Math.random() * 10;
+        });
+      }, 200);
+
+      toast.info('Preparing cover photo...');
+      const compressedDataUrl = await compressImageFile(file, { targetSize: 1600, quality: 0.82 });
+      const compressedBlob = dataUrlToBlob(compressedDataUrl);
+      const storageCheck = checkStorageLimit(compressedBlob.size);
+      if (!storageCheck.allowed) {
+        const availableMB = (storageCheck.available / (1024 * 1024)).toFixed(1);
+        const neededMB = (compressedBlob.size / (1024 * 1024)).toFixed(1);
+        clearInterval(progressInterval);
+        const errorMsg = `Storage limit exceeded. You have ${availableMB}MB available, but need ${neededMB}MB.`;
+        setVcardCoverUploadError(errorMsg);
+        toast.error(errorMsg);
+        setVcardCoverUploading(false);
+        return;
+      }
+
+      const previousCoverSize = getDataUrlSize(vcardStyle.coverPhotoDataUrl);
+      if (previousCoverSize > 0) {
+        removeStorageUsage(previousCoverSize);
+      }
+      addStorageUsage(compressedBlob.size);
+
+      clearInterval(progressInterval);
+      setVcardCoverUploadProgress(100);
+      await new Promise((resolve) => setTimeout(resolve, 300));
+
+      setVcardStyle((prev) => ({
+        ...prev,
+        coverPhotoDataUrl: compressedDataUrl,
+      }));
+      toast.success('Cover photo updated!');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to process cover photo.';
+      setVcardCoverUploadError(message);
+      toast.error(`Upload failed: ${message}`);
+    } finally {
+      setVcardCoverUploading(false);
+      setVcardCoverUploadProgress(0);
     }
   };
 
@@ -3002,8 +3152,7 @@ const Index = () => {
     setShowVcardContents(true);
     setShowVcardCustomizer(false);
     setShowQrCustomizer(false);
-    setVcardPreviewSide('front');
-    toast.info('Update the VCard details, then continue to save your changes.');
+    toast.info('Update the VCard details or landing-page design, then save your changes.');
   }, [parseKind]);
 
   const handleDynamicContentEdit = useCallback((item: QRHistoryItem) => {
@@ -3416,74 +3565,6 @@ const Index = () => {
 
     return <span>{display}</span>;
   };
-
-  const vcardFrontBase = makeVcardBase(
-    vcardStyle.frontUseGradient,
-    vcardStyle.frontColor,
-    vcardStyle.frontGradient
-  );
-  const vcardBackBase = makeVcardBase(
-    vcardStyle.backUseGradient,
-    vcardStyle.backColor,
-    vcardStyle.backGradient
-  );
-  const vcardFrontTexture = getVcardTextureStyle(vcardStyle.texture, vcardFrontBase);
-  const vcardBackTexture = getVcardTextureStyle(vcardStyle.texture, vcardBackBase);
-  const vcardNameDisplay = normalizedVcard.name || 'Your Name';
-  const vcardCompanyDisplay = normalizedVcard.company;
-  const vcardAboutDisplay = normalizedVcard.about;
-  const vcardContactLines = [normalizedVcard.phone, normalizedVcard.email, normalizedVcard.website].filter(Boolean);
-  const vcardInitial = (normalizedVcard.name || 'Q').charAt(0).toUpperCase();
-  const vcardPreviewBase = isMobile
-    ? { width: 260, height: 420 }
-    : { width: 280, height: 460 };
-  
-  // Make vCard preview responsive - larger on bigger screens
-  // Calculate scale based on viewport height, reactive to window resize
-  const [vcardPreviewScale, setVcardPreviewScale] = useState(() => {
-    if (isMobile) return 0.65;
-    if (typeof window === 'undefined') return 0.8;
-    const vh = window.innerHeight;
-    const baseScale = 0.8;
-    const maxScale = 1.2;
-    // Scale from 0.8 at 600px height to 1.2 at 1200px+ height
-    const scale = Math.min(maxScale, baseScale + ((vh - 600) / 600) * 0.4);
-    return Math.max(0.8, scale);
-  });
-
-  useEffect(() => {
-    if (isMobile) return;
-    const updateScale = () => {
-      if (typeof window === 'undefined') return;
-      const vh = window.innerHeight;
-      const baseScale = 0.8;
-      const maxScale = 1.2;
-      const scale = Math.min(maxScale, baseScale + ((vh - 600) / 600) * 0.4);
-      setVcardPreviewScale(Math.max(0.8, scale));
-    };
-    updateScale();
-    window.addEventListener('resize', updateScale);
-    return () => window.removeEventListener('resize', updateScale);
-  }, [isMobile]);
-
-  const vcardPreviewScaled = {
-    width: vcardPreviewBase.width * vcardPreviewScale,
-    height: vcardPreviewBase.height * vcardPreviewScale,
-  };
-  const vcardFrontStyle = {
-    fontFamily: vcardStyle.fontFamily,
-    borderRadius: `${vcardStyle.radius}px`,
-    backgroundColor: vcardStyle.frontColor,
-    ...vcardFrontTexture,
-  };
-
-  const vcardBackStyle = {
-    fontFamily: vcardStyle.fontFamily,
-    borderRadius: `${vcardStyle.radius}px`,
-    backgroundColor: vcardStyle.backColor,
-    ...vcardBackTexture,
-  };
-
   const adaptiveGradientText =
     'bg-gradient-to-r from-amber-200 via-yellow-400 to-amber-500 text-transparent bg-clip-text';
   const adaptiveGlowText = 'font-semibold text-transparent bg-clip-text bg-gradient-to-r from-amber-200 via-yellow-400 to-amber-500 drop-shadow-[0_0_10px_rgba(251,191,36,0.35)]';
@@ -4788,9 +4869,10 @@ const Index = () => {
               <button
                 type="button"
                 className="text-xs uppercase tracking-[0.3em] text-muted-foreground hover:text-foreground transition"
-                onClick={() => setShowNameOverlay(false)}
+                onClick={handleCancelCreateFlow}
+                disabled={isCreateFlowBusy}
               >
-                <X className="h-4 w-4" />
+                Cancel
               </button>
             </div>
             <div className="space-y-3">
@@ -4817,24 +4899,36 @@ const Index = () => {
                   {qrName.length}/25 characters
                 </p>
               </div>
-              <Button
-                size="lg"
-                className="w-full gap-2 bg-gradient-primary hover:opacity-90 text-primary-foreground glow uppercase tracking-[0.2em] text-xs"
-                disabled={!canGenerate || isGenerating || !qrName.trim()}
-                onClick={() => handleGenerate(qrName.trim() || null)}
-              >
-                {isGenerating ? (
-                  <>
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    {editingVcardQRC ? 'Saving' : 'Generating'}
-                  </>
-                ) : (
-                  <>
-                    <Rocket className="h-4 w-4" />
-                    {editingVcardQRC ? 'Save' : 'Generate'}
-                  </>
-                )}
-              </Button>
+              <div className="flex flex-col gap-3 sm:flex-row">
+                <Button
+                  type="button"
+                  size="lg"
+                  variant="outline"
+                  className="sm:flex-1 uppercase tracking-[0.2em] text-xs"
+                  disabled={isCreateFlowBusy}
+                  onClick={handleCancelCreateFlow}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  size="lg"
+                  className="sm:flex-1 gap-2 bg-gradient-primary hover:opacity-90 text-primary-foreground glow uppercase tracking-[0.2em] text-xs"
+                  disabled={!canGenerate || isGenerating || !qrName.trim()}
+                  onClick={() => handleGenerate(qrName.trim() || null)}
+                >
+                  {isGenerating ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      {editingVcardQRC ? 'Saving' : 'Generating'}
+                    </>
+                  ) : (
+                    <>
+                      <Rocket className="h-4 w-4" />
+                      {editingVcardQRC ? 'Save' : 'Generate'}
+                    </>
+                  )}
+                </Button>
+              </div>
             </div>
           </div>
         </div>
@@ -5146,145 +5240,116 @@ const Index = () => {
             <button
               type="button"
               className="absolute right-4 top-4 text-xs uppercase tracking-[0.3em] text-muted-foreground transition hover:text-foreground"
-              onClick={() => setShowVcardCustomizer(false)}
+              onClick={handleCancelCreateFlow}
+              disabled={isCreateFlowBusy}
             >
-              X
+              Cancel
             </button>
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
               <div>
                 <p className="text-xs uppercase tracking-[0.35em] text-muted-foreground">VCard</p>
-                <h2 className="text-2xl font-semibold">Customize your card</h2>
+                <h2 className="text-2xl font-semibold">Customize your landing page</h2>
                 <p className="text-sm text-muted-foreground">
-                  Tap the preview to flip between front and back.
+                  Build a one-page VCard with a wide cover photo, branded styling, and a clear action button.
                 </p>
               </div>
             </div>
 
-            <div className="grid lg:grid-cols-[0.9fr_1.1fr] gap-6">
+            <div className="grid lg:grid-cols-[0.85fr_1.15fr] gap-6">
               <div className="flex flex-col items-center gap-4">
                 <button
                   type="button"
-                  className="relative"
-                  style={{
-                    width: `${vcardPreviewScaled.width}px`,
-                    height: `${vcardPreviewScaled.height}px`,
-                  }}
+                  className="w-full max-w-[360px] transition hover:scale-[1.01]"
                   onClick={() => {
                     if (isMobile) {
                       setShowVcardPreview(true);
-                      return;
                     }
-                    setVcardPreviewSide((prev) => (prev === 'front' ? 'back' : 'front'));
                   }}
-                  aria-label={isMobile ? 'Open vcard preview' : 'Flip vcard preview'}
+                  aria-label="Open vcard preview"
                 >
-                  <div
-                    className="absolute inset-0"
-                    style={{
-                      width: `${vcardPreviewBase.width}px`,
-                      height: `${vcardPreviewBase.height}px`,
-                      transform: `scale(${vcardPreviewScale})`,
-                      transformOrigin: 'top left',
-                    }}
-                  >
-                    <div
-                      className="absolute inset-0 transition-transform duration-500"
-                      style={{
-                        transformStyle: 'preserve-3d',
-                        transform: vcardPreviewSide === 'back' ? 'rotateY(180deg)' : 'rotateY(0deg)',
-                      }}
-                    >
-                    <div
-                      className="absolute inset-0 flex flex-col justify-between p-6 text-left text-white shadow-xl"
-                      style={{ ...vcardFrontStyle, backfaceVisibility: 'hidden' }}
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="space-y-1">
-                          <p className="text-xs uppercase tracking-[0.3em]" style={{ color: vcardStyle.frontFontColor, opacity: 0.7 }}>VCard</p>
-                          <h3 className="text-2xl font-semibold" style={{ color: vcardStyle.frontFontColor }}>
-                            {vcardNameDisplay}
-                          </h3>
-                          {vcardCompanyDisplay ? (
-                            <p className="text-sm" style={{ color: vcardStyle.frontFontColor, opacity: 0.85 }}>
-                              {vcardCompanyDisplay}
-                            </p>
-                          ) : null}
-                        </div>
-                        <div
-                          className="flex h-16 w-16 items-center justify-center rounded-full border border-white/30 bg-white/10 text-lg font-semibold"
-                          style={{
-                            color: vcardStyle.frontFontColor,
-                            backgroundImage: vcardStyle.profilePhotoDataUrl
-                              ? `url(${vcardStyle.profilePhotoDataUrl})`
-                              : undefined,
-                            backgroundSize: `${vcardStyle.photoZoom}%`,
-                            backgroundPosition: `${vcardStyle.photoX}% ${vcardStyle.photoY}%`,
-                            backgroundRepeat: 'no-repeat',
-                          }}
-                        >
-                          {!vcardStyle.profilePhotoDataUrl ? vcardInitial : null}
-                        </div>
-                      </div>
-                      {vcardContactLines.length > 0 ? (
-                        <div className="space-y-2 text-sm" style={{ color: vcardStyle.frontFontColor, opacity: 0.9 }}>
-                          {vcardContactLines.map((line) => (
-                            <p key={line}>{line}</p>
-                          ))}
-                        </div>
-                      ) : null}
-                      {vcardStyle.frontLogoDataUrl && (
-                        <div className="flex justify-end">
-                          <img
-                            src={vcardStyle.frontLogoDataUrl}
-                            alt="Front logo"
-                            className="h-10 w-10 rounded-lg object-cover border border-white/20"
-                          />
-                        </div>
-                      )}
-                      <p className="text-[11px] uppercase tracking-[0.4em]" style={{ color: vcardStyle.frontFontColor, opacity: 0.7 }}>
-                        Tap to flip
-                      </p>
-                    </div>
-
-                    <div
-                      className="absolute inset-0 flex flex-col items-center justify-center gap-4 p-6 text-white shadow-xl"
-                      style={{
-                        ...vcardBackStyle,
-                        transform: 'rotateY(180deg)',
-                        backfaceVisibility: 'hidden',
-                      }}
-                    >
-                      {vcardStyle.backLogoDataUrl ? (
-                        <img
-                          src={vcardStyle.backLogoDataUrl}
-                          alt="VCard logo"
-                          className="h-20 w-20 rounded-xl object-cover border border-white/20"
-                        />
-                      ) : null}
-                      {vcardAboutDisplay ? (
-                        <div className="space-y-2 text-sm text-center" style={{ color: vcardStyle.backFontColor, opacity: 0.9 }}>
-                          <p>{vcardAboutDisplay}</p>
-                        </div>
-                      ) : null}
-                      <p className="text-xs uppercase tracking-[0.4em]" style={{ color: vcardStyle.backFontColor, opacity: 0.7 }}>
-                        Tap to flip
-                      </p>
-                    </div>
-                    </div>
-                  </div>
+                  <VcardLandingCard
+                    profile={normalizedVcard}
+                    style={vcardStyle}
+                    mode="preview"
+                    interactive={false}
+                    showFooter
+                  />
                 </button>
                 <p className="text-xs text-muted-foreground">
-                  {isMobile ? 'Tap to expand preview.' : 'Tap to flip preview.'}
+                  {isMobile ? 'Tap to expand preview.' : 'Live landing-page preview.'}
                 </p>
               </div>
 
-                <div className="space-y-6">
+              <div className="space-y-6">
+                <div className="glass-panel rounded-2xl p-4 space-y-4">
+                  <div className="space-y-1">
+                    <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">
+                      Cover Photo
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Recommended upload: 1600 x 640 px at a 5:2 ratio for the cleanest wide banner crop.
+                    </p>
+                  </div>
+                  {vcardCoverUploading ? (
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-muted-foreground">Uploading cover...</span>
+                        <span className="font-semibold text-foreground">{Math.round(vcardCoverUploadProgress)}%</span>
+                      </div>
+                      <div className="relative h-2 w-full overflow-hidden rounded-full bg-secondary/30">
+                        <div
+                          className="h-full rounded-full bg-gradient-to-r from-primary via-amber-400 to-amber-300 transition-all duration-300 ease-out"
+                          style={{ width: `${vcardCoverUploadProgress}%` }}
+                        />
+                      </div>
+                    </div>
+                  ) : null}
+                  {vcardCoverUploadError ? (
+                    <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-3">
+                      <p className="text-sm font-semibold text-destructive">Upload Failed</p>
+                      <p className="mt-1 text-xs text-destructive/80">{vcardCoverUploadError}</p>
+                    </div>
+                  ) : null}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleVcardCoverChange}
+                    className="text-xs text-muted-foreground"
+                  />
+                  {vcardStyle.coverPhotoDataUrl ? (
+                    <div className="space-y-3">
+                      <img
+                        src={vcardStyle.coverPhotoDataUrl}
+                        alt="Cover preview"
+                        className="aspect-[5/2] w-full rounded-2xl object-cover"
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="w-full uppercase tracking-[0.2em] text-xs"
+                        onClick={() => {
+                          const previousCoverSize = getDataUrlSize(vcardStyle.coverPhotoDataUrl);
+                          if (previousCoverSize > 0) {
+                            removeStorageUsage(previousCoverSize);
+                          }
+                          setVcardStyle((prev) => ({
+                            ...prev,
+                            coverPhotoDataUrl: '',
+                          }));
+                        }}
+                      >
+                        Remove Cover
+                      </Button>
+                    </div>
+                  ) : null}
+                </div>
+
                 <div className="space-y-4">
                   <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">
-                    Contact Photo
+                    Profile Photo
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    Use a professional selfie for services/freelancers or your business logo for a company card.
+                    Use a professional headshot or logo, then fine-tune the crop and landing-page position.
                   </p>
                   {vcardPhotoUploading ? (
                     <div className="space-y-2">
@@ -5375,58 +5440,40 @@ const Index = () => {
                           className="w-full"
                         />
                       </div>
+                      <div className="space-y-2">
+                        <p className="text-[11px] uppercase tracking-[0.3em] text-muted-foreground">
+                          Avatar Position
+                        </p>
+                        <div className="grid grid-cols-3 gap-2">
+                          {(['left', 'center', 'right'] as VcardProfileAlign[]).map((position) => (
+                            <Button
+                              key={position}
+                              type="button"
+                              variant={vcardStyle.profileAlign === position ? 'default' : 'outline'}
+                              className="uppercase tracking-[0.2em] text-xs"
+                              onClick={() =>
+                                setVcardStyle((prev) => ({
+                                  ...prev,
+                                  profileAlign: position,
+                                }))
+                              }
+                            >
+                              {position}
+                            </Button>
+                          ))}
+                        </div>
+                      </div>
                     </div>
                   </div>
-                </div>
-
-                <div className="space-y-3">
-                  <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">
-                    Typography
-                  </p>
-                  <select
-                    className="w-full h-11 rounded-xl border border-border bg-secondary/40 px-3 text-sm"
-                    value={vcardStyle.fontFamily}
-                    onChange={(event) =>
-                      setVcardStyle((prev) => ({ ...prev, fontFamily: event.target.value }))
-                    }
-                  >
-                    {vcardFontOptions.map((font) => (
-                      <option key={font.label} value={font.value}>
-                        {font.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="space-y-3">
-                  <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">
-                    Corner Radius
-                  </p>
-                  <input
-                    type="range"
-                    min={8}
-                    max={32}
-                    value={vcardStyle.radius}
-                    onChange={(event) =>
-                      setVcardStyle((prev) => ({
-                        ...prev,
-                        radius: Number(event.target.value),
-                      }))
-                    }
-                    className="w-full"
-                  />
                 </div>
 
                 <Accordion
                   type="multiple"
                   defaultValue={[
                     'texture',
-                    'front-bg',
-                    'front-font',
-                    'front-gradient',
-                    'back-bg',
-                    'back-font',
-                    'back-gradient',
+                    'page-style',
+                    'button-style',
+                    'brand-mark',
                   ]}
                   className="space-y-2"
                 >
@@ -5454,39 +5501,41 @@ const Index = () => {
                     </AccordionContent>
                   </AccordionItem>
 
-                  <AccordionItem value="front-bg" className="border-none">
+                  <AccordionItem value="page-style" className="border-none">
                     <AccordionTrigger className="py-3 px-4 rounded-lg hover:bg-secondary/50 hover:no-underline">
-                      <span className="text-sm font-medium">Front Background</span>
+                      <span className="text-sm font-medium">Page Style</span>
                     </AccordionTrigger>
-                    <AccordionContent className="px-4 pb-4 pt-2">
+                    <AccordionContent className="px-4 pb-4 pt-2 space-y-5">
+                      <div className="space-y-3">
+                        <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">
+                          Typography
+                        </p>
+                        <select
+                          className="w-full h-11 rounded-xl border border-border bg-secondary/40 px-3 text-sm"
+                          value={vcardStyle.fontFamily}
+                          onChange={(event) =>
+                            setVcardStyle((prev) => ({ ...prev, fontFamily: event.target.value }))
+                          }
+                        >
+                          {vcardFontOptions.map((font) => (
+                            <option key={font.label} value={font.value}>
+                              {font.label}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
                       <ColorPicker
-                        label="Front Background"
+                        label="Background"
                         value={vcardStyle.frontColor}
                         onChange={(value) => setVcardStyle((prev) => ({ ...prev, frontColor: value }))}
                         presets={bgColorPresets}
                       />
-                    </AccordionContent>
-                  </AccordionItem>
-
-                  <AccordionItem value="front-font" className="border-none">
-                    <AccordionTrigger className="py-3 px-4 rounded-lg hover:bg-secondary/50 hover:no-underline">
-                      <span className="text-sm font-medium">Front Font Color</span>
-                    </AccordionTrigger>
-                    <AccordionContent className="px-4 pb-4 pt-2">
                       <ColorPicker
-                        label="Front Font Color"
+                        label="Text Color"
                         value={vcardStyle.frontFontColor}
                         onChange={(value) => setVcardStyle((prev) => ({ ...prev, frontFontColor: value }))}
                         presets={fgColorPresets}
                       />
-                    </AccordionContent>
-                  </AccordionItem>
-
-                  <AccordionItem value="front-gradient" className="border-none">
-                    <AccordionTrigger className="py-3 px-4 rounded-lg hover:bg-secondary/50 hover:no-underline">
-                      <span className="text-sm font-medium">Front Gradient</span>
-                    </AccordionTrigger>
-                    <AccordionContent className="px-4 pb-4 pt-2 space-y-3">
                       <div className="flex items-center gap-2">
                         <input
                           id="front-gradient"
@@ -5500,12 +5549,12 @@ const Index = () => {
                           }
                         />
                         <label htmlFor="front-gradient" className="text-xs text-muted-foreground">
-                          Use gradient
+                          Use accent gradient
                         </label>
                       </div>
                       {vcardStyle.frontUseGradient && (
                         <ColorPicker
-                          label="Front Gradient"
+                          label="Accent Gradient"
                           value={vcardStyle.frontGradient}
                           onChange={(value) =>
                             setVcardStyle((prev) => ({
@@ -5516,114 +5565,85 @@ const Index = () => {
                           presets={fgColorPresets}
                         />
                       )}
+                      <div className="space-y-3">
+                        <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">
+                          Corner Radius
+                        </p>
+                        <input
+                          type="range"
+                          min={8}
+                          max={32}
+                          value={vcardStyle.radius}
+                          onChange={(event) =>
+                            setVcardStyle((prev) => ({
+                              ...prev,
+                              radius: Number(event.target.value),
+                            }))
+                          }
+                          className="w-full"
+                        />
+                      </div>
                     </AccordionContent>
                   </AccordionItem>
 
-                  <AccordionItem value="back-bg" className="border-none">
+                  <AccordionItem value="button-style" className="border-none">
                     <AccordionTrigger className="py-3 px-4 rounded-lg hover:bg-secondary/50 hover:no-underline">
-                      <span className="text-sm font-medium">Back Background</span>
+                      <span className="text-sm font-medium">Action Button</span>
                     </AccordionTrigger>
-                    <AccordionContent className="px-4 pb-4 pt-2">
+                    <AccordionContent className="px-4 pb-4 pt-2 space-y-5">
                       <ColorPicker
-                        label="Back Background"
-                        value={vcardStyle.backColor}
-                        onChange={(value) => setVcardStyle((prev) => ({ ...prev, backColor: value }))}
+                        label="Button Background"
+                        value={vcardStyle.buttonColor || '#F3E7D0'}
+                        onChange={(value) => setVcardStyle((prev) => ({ ...prev, buttonColor: value }))}
                         presets={bgColorPresets}
                       />
-                    </AccordionContent>
-                  </AccordionItem>
-
-                  <AccordionItem value="back-font" className="border-none">
-                    <AccordionTrigger className="py-3 px-4 rounded-lg hover:bg-secondary/50 hover:no-underline">
-                      <span className="text-sm font-medium">Back Font Color</span>
-                    </AccordionTrigger>
-                    <AccordionContent className="px-4 pb-4 pt-2">
                       <ColorPicker
-                        label="Back Font Color"
-                        value={vcardStyle.backFontColor}
-                        onChange={(value) => setVcardStyle((prev) => ({ ...prev, backFontColor: value }))}
+                        label="Button Text"
+                        value={vcardStyle.buttonTextColor || '#34164B'}
+                        onChange={(value) => setVcardStyle((prev) => ({ ...prev, buttonTextColor: value }))}
                         presets={fgColorPresets}
                       />
                     </AccordionContent>
                   </AccordionItem>
 
-                  <AccordionItem value="back-gradient" className="border-none">
+                  <AccordionItem value="brand-mark" className="border-none">
                     <AccordionTrigger className="py-3 px-4 rounded-lg hover:bg-secondary/50 hover:no-underline">
-                      <span className="text-sm font-medium">Back Gradient</span>
+                      <span className="text-sm font-medium">Brand Mark</span>
                     </AccordionTrigger>
-                    <AccordionContent className="px-4 pb-4 pt-2 space-y-3">
-                      <div className="flex items-center gap-2">
-                        <input
-                          id="back-gradient"
-                          type="checkbox"
-                          checked={vcardStyle.backUseGradient}
-                          onChange={(event) =>
-                            setVcardStyle((prev) => ({
-                              ...prev,
-                              backUseGradient: event.target.checked,
-                            }))
-                          }
-                        />
-                        <label htmlFor="back-gradient" className="text-xs text-muted-foreground">
-                          Use gradient
-                        </label>
-                      </div>
-                      {vcardStyle.backUseGradient && (
-                        <ColorPicker
-                          label="Back Gradient"
-                          value={vcardStyle.backGradient}
-                          onChange={(value) =>
-                            setVcardStyle((prev) => ({
-                              ...prev,
-                              backGradient: value,
-                            }))
-                          }
-                          presets={fgColorPresets}
-                        />
-                      )}
+                    <AccordionContent className="px-4 pb-4 pt-2">
+                      <LogoUpload
+                        logo={vcardStyle.frontLogoDataUrl || undefined}
+                        maxLogoSize={180}
+                        onLogoChange={(value) =>
+                          setVcardStyle((prev) => ({ ...prev, frontLogoDataUrl: value }))
+                        }
+                      />
                     </AccordionContent>
                   </AccordionItem>
                 </Accordion>
 
-                <div className="grid lg:grid-cols-2 gap-6">
-                  <div className="space-y-3">
-                    <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">
-                      Front Logo
-                    </p>
-                    <LogoUpload
-                      logo={vcardStyle.frontLogoDataUrl || undefined}
-                      maxLogoSize={180}
-                      onLogoChange={(value) =>
-                        setVcardStyle((prev) => ({ ...prev, frontLogoDataUrl: value }))
-                      }
-                    />
-                  </div>
-                  <div className="space-y-3">
-                    <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">
-                      Back Logo
-                    </p>
-                    <LogoUpload
-                      logo={vcardStyle.backLogoDataUrl || undefined}
-                      maxLogoSize={220}
-                      onLogoChange={(value) =>
-                        setVcardStyle((prev) => ({ ...prev, backLogoDataUrl: value }))
-                      }
-                    />
-                  </div>
-                </div>
-
                 <div className="flex flex-col sm:flex-row gap-3">
                   <Button
+                    type="button"
+                    variant="outline"
+                    className="sm:flex-1 border-border uppercase tracking-[0.2em] text-xs"
+                    onClick={handleCancelCreateFlow}
+                    disabled={isCreateFlowBusy}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    type="button"
                     className="bg-gradient-primary text-primary-foreground uppercase tracking-[0.2em] text-xs"
                     onClick={() => setShowVcardCustomizer(false)}
                   >
-                    Save Customization
+                    Apply Changes
                   </Button>
                   <Button
+                    type="button"
                     variant="outline"
                     className="border-border uppercase tracking-[0.2em] text-xs"
                     onClick={() => {
-                      setVcardPreviewSide('front');
                       setShowVcardCustomizer(false);
                       // If we came from vCard contents overlay, open QR customizer
                       if (vcardFromContents) {
@@ -5632,7 +5652,7 @@ const Index = () => {
                       }
                     }}
                   >
-                    Done
+                    {vcardFromContents ? 'Continue' : 'Done'}
                   </Button>
                 </div>
               </div>
@@ -5644,7 +5664,7 @@ const Index = () => {
       {showVcardPreview && isMobile && (
         <div className="fixed inset-0 z-[80] flex items-center justify-center bg-background/80 backdrop-blur-md px-4">
           <motion.div
-            className="relative"
+            className="relative w-full max-w-[390px]"
             initial={{ opacity: 0, scale: 0.92 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.25, ease: 'easeOut' }}
@@ -5657,94 +5677,13 @@ const Index = () => {
             >
               X
             </button>
-            <button
-              type="button"
-              onClick={() => setVcardPreviewSide((prev) => (prev === 'front' ? 'back' : 'front'))}
-              className="relative h-[420px] w-[260px] sm:h-[460px] sm:w-[280px]"
-              aria-label="Flip vcard preview"
-            >
-              <div
-                className="absolute inset-0 transition-transform duration-500"
-                style={{
-                  transformStyle: 'preserve-3d',
-                  transform: vcardPreviewSide === 'back' ? 'rotateY(180deg)' : 'rotateY(0deg)',
-                }}
-              >
-                <div
-                  className="absolute inset-0 flex flex-col justify-between p-6 text-left text-white shadow-xl"
-                  style={{ ...vcardFrontStyle, backfaceVisibility: 'hidden' }}
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="space-y-1">
-                      <p className="text-xs uppercase tracking-[0.3em] text-white/70">VCard</p>
-                      <h3 className="text-2xl font-semibold">
-                        {vcardNameDisplay}
-                      </h3>
-                      {vcardCompanyDisplay ? (
-                        <p className="text-sm text-white/80">
-                          {vcardCompanyDisplay}
-                        </p>
-                      ) : null}
-                    </div>
-                    <div
-                      className="flex h-16 w-16 items-center justify-center rounded-full border border-white/30 bg-white/10 text-lg font-semibold"
-                      style={{
-                        color: vcardStyle.frontFontColor,
-                        backgroundImage: vcardStyle.profilePhotoDataUrl
-                          ? `url(${vcardStyle.profilePhotoDataUrl})`
-                          : undefined,
-                        backgroundSize: `${vcardStyle.photoZoom}%`,
-                        backgroundPosition: `${vcardStyle.photoX}% ${vcardStyle.photoY}%`,
-                        backgroundRepeat: 'no-repeat',
-                      }}
-                    >
-                      {!vcardStyle.profilePhotoDataUrl ? vcardInitial : null}
-                    </div>
-                  </div>
-                  {vcardContactLines.length > 0 ? (
-                    <div className="space-y-2 text-sm" style={{ color: vcardStyle.frontFontColor, opacity: 0.9 }}>
-                      {vcardContactLines.map((line) => (
-                        <p key={line}>{line}</p>
-                      ))}
-                    </div>
-                  ) : null}
-                  {vcardStyle.frontLogoDataUrl && (
-                    <div className="flex justify-end">
-                      <img
-                        src={vcardStyle.frontLogoDataUrl}
-                        alt="Front logo"
-                        className="h-10 w-10 rounded-lg object-cover border border-white/20"
-                      />
-                    </div>
-                  )}
-                  <p className="text-[11px] uppercase tracking-[0.4em]" style={{ color: vcardStyle.frontFontColor, opacity: 0.7 }}>
-                    Tap to flip
-                  </p>
-                </div>
-
-                <div
-                  className="absolute inset-0 flex flex-col items-center justify-center gap-4 p-6 text-white shadow-xl"
-                  style={{
-                    ...vcardBackStyle,
-                    transform: 'rotateY(180deg)',
-                    backfaceVisibility: 'hidden',
-                  }}
-                >
-                  {vcardStyle.backLogoDataUrl ? (
-                    <img
-                      src={vcardStyle.backLogoDataUrl}
-                      alt="VCard logo"
-                      className="h-20 w-20 rounded-xl object-cover border border-white/20"
-                    />
-                  ) : null}
-                  {vcardAboutDisplay ? (
-                    <div className="space-y-2 text-sm text-center" style={{ color: vcardStyle.backFontColor, opacity: 0.9 }}>
-                      <p>{vcardAboutDisplay}</p>
-                    </div>
-                  ) : null}
-                </div>
-              </div>
-            </button>
+            <VcardLandingCard
+              profile={normalizedVcard}
+              style={vcardStyle}
+              mode="preview"
+              interactive={false}
+              showFooter
+            />
           </motion.div>
         </div>
       )}
@@ -5768,9 +5707,10 @@ const Index = () => {
             <button
               type="button"
               className="absolute right-4 top-4 text-xs uppercase tracking-[0.3em] text-muted-foreground transition hover:text-foreground z-10"
-              onClick={() => setShowMenuBuilder(false)}
+              onClick={handleCancelCreateFlow}
+              disabled={isCreateFlowBusy}
             >
-              X
+              Cancel
             </button>
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
               <div>
@@ -6234,6 +6174,18 @@ const Index = () => {
                 )}
               </div>
             </div>
+
+            <div className="flex justify-end border-t border-border/50 pt-4">
+              <Button
+                type="button"
+                variant="outline"
+                className="uppercase tracking-[0.2em] text-xs"
+                onClick={handleCancelCreateFlow}
+                disabled={isCreateFlowBusy}
+              >
+                Cancel
+              </Button>
+            </div>
           </div>
         </div>
       )}
@@ -6310,9 +6262,10 @@ const Index = () => {
             <button
               type="button"
               className="absolute right-4 top-4 text-xs uppercase tracking-[0.3em] text-muted-foreground transition hover:text-foreground z-10"
-              onClick={() => setShowVcardContents(false)}
+              onClick={handleCancelCreateFlow}
+              disabled={isCreateFlowBusy}
             >
-              X
+              Cancel
             </button>
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
               <div>
@@ -6327,39 +6280,51 @@ const Index = () => {
             <div className="space-y-6">
               <div className="grid sm:grid-cols-2 gap-4">
                 <Input
-                  value={vcard.name}
-                  onChange={(e) => setVcard((prev) => ({ ...prev, name: e.target.value }))}
+                  value={vcard.name ?? ''}
+                  onChange={(e) => updateVcardProfile({ name: e.target.value })}
                   placeholder="Full Name"
                   className="bg-secondary/50 border-border"
                 />
                 <Input
-                  value={vcard.company}
-                  onChange={(e) => setVcard((prev) => ({ ...prev, company: e.target.value }))}
+                  value={vcard.title ?? ''}
+                  onChange={(e) => updateVcardProfile({ title: e.target.value })}
+                  placeholder="Title / Role"
+                  className="bg-secondary/50 border-border"
+                />
+                <Input
+                  value={vcard.company ?? ''}
+                  onChange={(e) => updateVcardProfile({ company: e.target.value })}
                   placeholder="Company"
                   className="bg-secondary/50 border-border"
                 />
                 <Input
-                  value={vcard.phone}
-                  onChange={(e) => setVcard((prev) => ({ ...prev, phone: e.target.value }))}
+                  value={vcard.phone ?? ''}
+                  onChange={(e) => updateVcardProfile({ phone: e.target.value })}
                   placeholder="Phone"
                   className="bg-secondary/50 border-border"
                 />
                 <Input
-                  value={vcard.email}
-                  onChange={(e) => setVcard((prev) => ({ ...prev, email: e.target.value }))}
+                  value={vcard.email ?? ''}
+                  onChange={(e) => updateVcardProfile({ email: e.target.value })}
                   placeholder="Email"
                   type="email"
                   className="bg-secondary/50 border-border"
                 />
                 <Input
-                  value={vcard.website}
-                  onChange={(e) => setVcard((prev) => ({ ...prev, website: e.target.value }))}
+                  value={vcard.website ?? ''}
+                  onChange={(e) => updateVcardProfile({ website: e.target.value })}
                   placeholder="Website"
                   className="bg-secondary/50 border-border"
                 />
                 <Input
-                  value={vcard.slug}
-                  onChange={(e) => setVcard((prev) => ({ ...prev, slug: e.target.value }))}
+                  value={vcard.location ?? ''}
+                  onChange={(e) => updateVcardProfile({ location: e.target.value })}
+                  placeholder="Location"
+                  className="bg-secondary/50 border-border"
+                />
+                <Input
+                  value={vcard.slug ?? ''}
+                  onChange={(e) => updateVcardProfile({ slug: e.target.value })}
                   placeholder="Profile Slug (optional)"
                   readOnly={Boolean(editingVcardQRC)}
                   className="bg-secondary/50 border-border"
@@ -6367,8 +6332,8 @@ const Index = () => {
               </div>
               <div className="space-y-2">
                 <Textarea
-                  value={vcard.about}
-                  onChange={(e) => setVcard((prev) => ({ ...prev, about: e.target.value }))}
+                  value={vcard.about ?? ''}
+                  onChange={(e) => updateVcardProfile({ about: e.target.value })}
                   placeholder="About Me (max 250 characters)"
                   maxLength={250}
                   className="bg-secondary/50 border-border"
@@ -6379,7 +6344,7 @@ const Index = () => {
                       ? 'Public VCard link stays fixed after creation'
                       : 'Virtual card hosted at QR Code Studio'}
                   </span>
-                  <span>{vcard.about.length}/250</span>
+                  <span>{(vcard.about ?? '').length}/250</span>
                 </div>
                 <Input
                   value={vcardUrl || 'https://qrcode.luminarapps.com/your-handle'}
@@ -6387,7 +6352,67 @@ const Index = () => {
                   className="bg-secondary/40 border-border text-xs text-muted-foreground"
                 />
               </div>
+              <div className="rounded-2xl border border-border/60 bg-secondary/20 p-4 space-y-4">
+                <div className="space-y-1">
+                  <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Action Button</p>
+                  <p className="text-xs text-muted-foreground">
+                    Choose one primary action visitors can tap immediately from your VCard landing page.
+                  </p>
+                </div>
+                <div className="grid sm:grid-cols-2 gap-4">
+                  <select
+                    className="w-full h-11 rounded-xl border border-border bg-secondary/40 px-3 text-sm"
+                    value={vcard.ctaType ?? ''}
+                    onChange={(e) =>
+                      updateVcardProfile({
+                        ctaType: e.target.value as VcardProfile['ctaType'],
+                        ctaLabel: e.target.value ? getDefaultVcardCtaLabel(e.target.value as VcardCtaType) : '',
+                        ctaValue: '',
+                      })
+                    }
+                  >
+                    <option value="">No action button</option>
+                    <option value="call">Call Me</option>
+                    <option value="email">Email Me</option>
+                    <option value="whatsapp">WhatsApp Me</option>
+                    <option value="website">Visit My Website</option>
+                  </select>
+                  {vcard.ctaType ? (
+                    <Input
+                    value={vcard.ctaLabel ?? ''}
+                      onChange={(e) => updateVcardProfile({ ctaLabel: e.target.value })}
+                      placeholder={getDefaultVcardCtaLabel(vcard.ctaType as VcardCtaType)}
+                      className="bg-secondary/50 border-border"
+                    />
+                  ) : null}
+                </div>
+                {vcard.ctaType ? (
+                  <Input
+                    value={vcard.ctaValue ?? ''}
+                    onChange={(e) => updateVcardProfile({ ctaValue: e.target.value })}
+                    placeholder={
+                      vcard.ctaType === 'call'
+                        ? 'Phone number for the button'
+                        : vcard.ctaType === 'email'
+                          ? 'Email address for the button'
+                          : vcard.ctaType === 'whatsapp'
+                            ? 'WhatsApp number for the button'
+                            : 'Website URL for the button'
+                    }
+                    className="bg-secondary/50 border-border"
+                  />
+                ) : null}
+              </div>
               <div className="flex flex-col sm:flex-row gap-3">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="flex-1 uppercase tracking-[0.2em] text-xs"
+                  onClick={handleCancelCreateFlow}
+                  disabled={isCreateFlowBusy}
+                >
+                  Cancel
+                </Button>
                 <Button
                   type="button"
                   variant="outline"
@@ -6396,7 +6421,6 @@ const Index = () => {
                     setShowVcardContents(false);
                     setVcardFromContents(true);
                     setShowVcardCustomizer(true);
-                    setVcardPreviewSide('front');
                   }}
                 >
                   Customize VCard
@@ -6432,9 +6456,10 @@ const Index = () => {
             <button
               type="button"
               className="absolute right-4 top-4 text-xs uppercase tracking-[0.3em] text-muted-foreground transition hover:text-foreground z-10"
-              onClick={() => setShowQrCustomizer(false)}
+              onClick={handleCancelCreateFlow}
+              disabled={isCreateFlowBusy}
             >
-              X
+              Cancel
             </button>
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
               <div>
@@ -6547,20 +6572,27 @@ const Index = () => {
                   </AccordionContent>
                 </AccordionItem>
               </Accordion>
-              <div className="px-4 pb-4 pt-2 space-y-3">
+              <div className="px-4 pb-4 pt-2 flex flex-col gap-3 sm:flex-row">
+                <Button
+                  type="button"
+                  size="lg"
+                  variant="outline"
+                  className="sm:flex-1 uppercase tracking-[0.2em] text-xs"
+                  disabled={isCreateFlowBusy}
+                  onClick={handleCancelCreateFlow}
+                >
+                  Cancel
+                </Button>
                 <Button
                   size="lg"
-                  className="w-full gap-2 bg-gradient-primary hover:opacity-90 text-primary-foreground glow uppercase tracking-[0.2em] text-xs"
+                  className="sm:flex-1 gap-2 bg-gradient-primary hover:opacity-90 text-primary-foreground glow uppercase tracking-[0.2em] text-xs"
                   disabled={!canGenerate}
                   onClick={() => {
                     setShowQrCustomizer(false);
-                    // Reset name to default if needed
-                    const defaultName = qrType === 'file' ? fileName || 'File QR' : 'QRC Untitled 1';
-                    setQrName(defaultName);
-                    setShowNameOverlay(true);
+                    handleCompleteQrCustomization();
                   }}
                 >
-                  Done
+                  {editingVcardQRC && qrType === 'vcard' ? 'Save VCard' : 'Done'}
                 </Button>
               </div>
             </div>
@@ -7349,13 +7381,7 @@ const Index = () => {
             phoneNumber={phoneNumber}
             fileUrl={fileUrl}
             fileName={fileName}
-            vcardName={vcard.name}
-            vcardSlug={vcardSlug}
-            vcardPhone={vcard.phone}
-            vcardEmail={vcard.email}
-            vcardWebsite={vcard.website}
-            vcardCompany={vcard.company}
-            vcardAbout={vcard.about}
+            vcard={vcard}
             menuFilesCount={menuFiles.length}
             websiteTouched={websiteTouched}
             emailTouched={emailTouched}
@@ -7374,26 +7400,12 @@ const Index = () => {
               setFileUrl(url);
               setFileName(name);
             }}
-            onVcardChange={(name, slug, phone, email, website, company, about) => {
-              setVcard((prev) => ({
-                ...prev,
-                name: name || prev.name,
-                slug: slug || prev.slug,
-                phone: phone !== undefined ? phone : prev.phone,
-                email: email !== undefined ? email : prev.email,
-                website: website !== undefined ? website : prev.website,
-                company: company !== undefined ? company : prev.company,
-                about: about !== undefined ? about : prev.about,
-              }));
-            }}
+            onVcardChange={updateVcardProfile}
             onOptionChange={(key, value) => {
               setOptions((prev) => ({ ...prev, [key]: value }));
             }}
-            onDone={() => {
-              const defaultName = qrType === 'file' ? fileName || 'File QR' : 'QRC Untitled 1';
-              setQrName(defaultName);
-              setShowNameOverlay(true);
-            }}
+            onDone={handleCompleteQrCustomization}
+            onCancel={handleCancelCreateFlow}
             onWebsiteTouched={setWebsiteTouched}
             onEmailTouched={setEmailTouched}
             onPhoneTouched={setPhoneTouched}
@@ -7421,6 +7433,7 @@ const Index = () => {
             }}
             navigate={navigate}
             toast={toast}
+            cancelDisabled={isCreateFlowBusy}
             onShowVcardCustomizer={() => setShowVcardCustomizer(true)}
             onShowMenuBuilder={() => setShowMenuBuilder(true)}
             onShowFileUpload={() => fileInputRef.current?.click()}
