@@ -5,6 +5,25 @@ import { VcardLandingCard } from '@/components/VcardLandingCard';
 import { getPublicVcard } from '@/lib/api';
 import { VcardProfile, VcardStyle } from '@/types/qr';
 
+const MOBILE_BREAKPOINT = 768;
+const MOBILE_FIT_BUFFER = 12;
+
+type ViewportMetrics = {
+  width: number;
+  height: number;
+};
+
+const getViewportMetrics = (): ViewportMetrics => {
+  if (typeof window === 'undefined') {
+    return { width: MOBILE_BREAKPOINT, height: 0 };
+  }
+
+  return {
+    width: Math.round(window.visualViewport?.width ?? window.innerWidth),
+    height: Math.round(window.visualViewport?.height ?? window.innerHeight),
+  };
+};
+
 const fallbackStyle: VcardStyle = {
   fontFamily: 'Arial, sans-serif',
   radius: 24,
@@ -41,6 +60,15 @@ const VCard = () => {
   const frameRef = useRef<HTMLDivElement | null>(null);
   const cardRef = useRef<HTMLDivElement | null>(null);
   const [mobileScale, setMobileScale] = useState(1);
+  const [viewport, setViewport] = useState<ViewportMetrics>(() => getViewportMetrics());
+  const isMobileViewport = viewport.width < MOBILE_BREAKPOINT;
+  const mobileViewportStyle =
+    isMobileViewport && viewport.height > 0
+      ? {
+          height: `${viewport.height}px`,
+          minHeight: `${viewport.height}px`,
+        }
+      : undefined;
 
   useEffect(() => {
     if (!slug) {
@@ -69,9 +97,32 @@ const VCard = () => {
   }, [slug]);
 
   useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const updateViewport = () => {
+      setViewport(getViewportMetrics());
+    };
+
+    updateViewport();
+
+    const visualViewport = window.visualViewport;
+    visualViewport?.addEventListener('resize', updateViewport);
+    visualViewport?.addEventListener('scroll', updateViewport);
+    window.addEventListener('resize', updateViewport);
+    window.addEventListener('orientationchange', updateViewport);
+
+    return () => {
+      visualViewport?.removeEventListener('resize', updateViewport);
+      visualViewport?.removeEventListener('scroll', updateViewport);
+      window.removeEventListener('resize', updateViewport);
+      window.removeEventListener('orientationchange', updateViewport);
+    };
+  }, []);
+
+  useEffect(() => {
     const updateScale = () => {
       if (typeof window === 'undefined') return;
-      if (window.innerWidth >= 768) {
+      if (!isMobileViewport) {
         setMobileScale(1);
         return;
       }
@@ -80,14 +131,31 @@ const VCard = () => {
       const card = cardRef.current;
       if (!frame || !card) return;
 
-      const availableHeight = frame.clientHeight;
+      const frameStyles = window.getComputedStyle(frame);
+      const paddingTop = parseFloat(frameStyles.paddingTop) || 0;
+      const paddingRight = parseFloat(frameStyles.paddingRight) || 0;
+      const paddingBottom = parseFloat(frameStyles.paddingBottom) || 0;
+      const paddingLeft = parseFloat(frameStyles.paddingLeft) || 0;
+      const viewportHeight = window.visualViewport?.height ?? viewport.height ?? window.innerHeight;
+      const viewportWidth = window.visualViewport?.width ?? viewport.width ?? window.innerWidth;
+      const availableHeight = Math.max(
+        0,
+        Math.min(frame.clientHeight, viewportHeight) - paddingTop - paddingBottom - MOBILE_FIT_BUFFER
+      );
+      const availableWidth = Math.max(
+        0,
+        Math.min(frame.clientWidth, viewportWidth) - paddingLeft - paddingRight
+      );
       const naturalHeight = card.offsetHeight;
-      if (!availableHeight || !naturalHeight) {
+      const naturalWidth = card.offsetWidth;
+      if (!availableHeight || !availableWidth || !naturalHeight || !naturalWidth) {
         setMobileScale(1);
         return;
       }
 
-      setMobileScale(Math.min(1, availableHeight / naturalHeight));
+      setMobileScale(
+        Math.min(1, availableHeight / naturalHeight, availableWidth / naturalWidth)
+      );
     };
 
     const runUpdate = () => window.requestAnimationFrame(updateScale);
@@ -105,18 +173,21 @@ const VCard = () => {
       window.removeEventListener('resize', updateScale);
       window.removeEventListener('orientationchange', updateScale);
     };
-  }, [profile, style]);
+  }, [isMobileViewport, profile, style, viewport.height, viewport.width]);
 
   return (
-    <div className="min-h-[100dvh] overflow-hidden bg-[#f6f1ff] text-foreground">
+    <div
+      className="relative min-h-[100svh] overflow-hidden bg-[#f6f1ff] text-foreground md:min-h-[100dvh]"
+      style={mobileViewportStyle}
+    >
       <div className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_top,rgba(168,85,247,0.18),transparent_35%),radial-gradient(circle_at_bottom,rgba(56,189,248,0.14),transparent_30%)]" />
 
       {isLoading ? (
-        <div className="flex min-h-[100dvh] items-center justify-center px-4 text-sm uppercase tracking-[0.4em] text-muted-foreground">
+        <div className="flex h-full min-h-[100svh] items-center justify-center px-4 text-sm uppercase tracking-[0.4em] text-muted-foreground md:min-h-[100dvh]">
           Loading VCard...
         </div>
       ) : error ? (
-        <div className="flex min-h-[100dvh] items-center justify-center px-4">
+        <div className="flex h-full min-h-[100svh] items-center justify-center px-4 md:min-h-[100dvh]">
           <div className="space-y-3 text-center">
             <p className="text-sm uppercase tracking-[0.4em] text-muted-foreground">VCard</p>
             <h1 className="text-2xl font-semibold">Unable to load</h1>
@@ -126,7 +197,15 @@ const VCard = () => {
       ) : (
         <div
           ref={frameRef}
-          className="mx-auto flex min-h-[100dvh] items-start justify-center overflow-hidden px-3 py-3 md:min-h-[70vh] md:items-center md:px-8 md:py-12"
+          className="mx-auto flex h-full min-h-[100svh] items-start justify-center overflow-hidden px-3 md:min-h-[70vh] md:items-center md:px-8 md:py-12"
+          style={
+            isMobileViewport
+              ? {
+                  paddingTop: 'calc(env(safe-area-inset-top, 0px) + 12px)',
+                  paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 16px)',
+                }
+              : undefined
+          }
         >
           <div
             className="w-full origin-top transition-transform duration-200 ease-out md:origin-center"
