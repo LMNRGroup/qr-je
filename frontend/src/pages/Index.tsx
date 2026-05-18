@@ -160,6 +160,9 @@ const createDefaultVcardStyle = (): VcardStyle => ({
   profileAlign: 'left',
   buttonColor: '#F3E7D0',
   buttonTextColor: '#34164B',
+  coverZoom: 100,
+  coverX: 50,
+  coverY: 50,
   photoZoom: 110,
   photoX: 50,
   photoY: 50,
@@ -205,11 +208,25 @@ const buildVcardData = (profile: VcardProfile, style: VcardStyle): VcardData => 
     profileAlign: style.profileAlign ?? 'left',
     buttonColor: style.buttonColor ?? style.frontGradient,
     buttonTextColor: style.buttonTextColor ?? '#0F172A',
+    coverZoom: style.coverZoom ?? 100,
+    coverX: style.coverX ?? 50,
+    coverY: style.coverY ?? 50,
   },
 });
 
 const stripVcardOptionMetadata = (options: QROptions): QROptions => {
-  const { vcardId: _vcardId, vcardSlug: _vcardSlug, vcardPublicUrl: _vcardPublicUrl, vcardData: _vcardData, ...rest } = options;
+  const {
+    vcardId: _vcardId,
+    vcardSlug: _vcardSlug,
+    vcardPublicUrl: _vcardPublicUrl,
+    vcardData: _vcardData,
+    logo: _logo,
+    logoSize: _logoSize,
+    logoWidth: _logoWidth,
+    logoHeight: _logoHeight,
+    logoAspect: _logoAspect,
+    ...rest
+  } = options;
   return rest as QROptions;
 };
 const STORAGE_KEY = 'qrc.storage.usage'; // localStorage key for tracking storage
@@ -319,6 +336,7 @@ const Index = () => {
   const [scanAreas, setScanAreas] = useState<ScanAreaSummary[]>([]);
   const [radarLabel, setRadarLabel] = useState('LOOKING FOR SIGNALS');
   const [arsenalRefreshKey, setArsenalRefreshKey] = useState(0);
+  const [arsenalPreferredSelectedId, setArsenalPreferredSelectedId] = useState<string | null>(null);
   const [navHint, setNavHint] = useState('');
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [usernameStatus, setUsernameStatus] = useState<'idle' | 'checking' | 'available' | 'taken' | 'invalid'>('idle');
@@ -385,8 +403,17 @@ const Index = () => {
     () => ({
       ...options,
       size: Math.max(180, Math.round(options.size * 0.75)),
+      ...(qrType === 'vcard'
+        ? {
+            logo: undefined,
+            logoSize: undefined,
+            logoWidth: undefined,
+            logoHeight: undefined,
+            logoAspect: undefined,
+          }
+        : {}),
     }),
-    [options]
+    [options, qrType]
   );
   const productionStages = useMemo(
     () => [
@@ -540,6 +567,8 @@ const Index = () => {
   const [isGeneratingAdaptive, setIsGeneratingAdaptive] = useState(false);
   const [showAdaptiveBanner, setShowAdaptiveBanner] = useState(true);
   const [qrHistory, setQrHistory] = useState<QRHistoryItem[]>([]);
+  const coverDragRef = useRef<HTMLDivElement>(null);
+  const coverDragState = useRef({ dragging: false, startX: 0, startY: 0, startCoverX: 50, startCoverY: 50 });
   const photoDragRef = useRef<HTMLDivElement>(null);
   const photoDragState = useRef({ dragging: false, startX: 0, startY: 0, startPhotoX: 50, startPhotoY: 50 });
   const [showMenuBuilder, setShowMenuBuilder] = useState(false);
@@ -745,6 +774,12 @@ const Index = () => {
     }
     return currentName;
   }, [editingVcardQRC, normalizedVcard.name]);
+  const resolveEditedDynamicQrName = useCallback(() => {
+    if (qrType === 'file') {
+      return fileName || editingDynamicContentQRC?.options.fileName || editingDynamicContentQRC?.name || 'File QR';
+    }
+    return editingDynamicContentQRC?.name || 'Menu QR';
+  }, [editingDynamicContentQRC, fileName, qrType]);
   const isSessionReady = isLoggedIn;
 
   const parseKind = useCallback((kind?: string | null) => {
@@ -1598,7 +1633,7 @@ const Index = () => {
     return () => window.clearTimeout(timer);
   }, [activeTab, pendingCreateScroll]);
 
-  const handleGenerate = async (name?: string | null) => {
+  const handleGenerate = async (name?: string | null, editBehavior: 'stay' | 'arsenal' = 'arsenal') => {
     if (!hasSelectedMode) {
       toast.error('Choose Static or Dynamic to continue');
       return;
@@ -1711,12 +1746,13 @@ const Index = () => {
         setGeneratedLongUrl(targetUrl);
         setLastGeneratedContent(editingDynamicContentQRC.shortUrl ?? targetUrl);
         toast.success('Dynamic QR content updated!');
-        setHasGenerated(true);
-        setArsenalRefreshKey((prev) => prev + 1);
-        setShowGenerateSuccess(true);
-        setShowNameOverlay(false);
-        setEditingDynamicContentQRC(null);
-        resetCreateFlow();
+        if (editBehavior === 'stay') {
+          setArsenalPreferredSelectedId(editingDynamicContentQRC.id);
+          setArsenalRefreshKey((prev) => prev + 1);
+          setShowNameOverlay(false);
+          return;
+        }
+        returnToArsenalAfterEdit(editingDynamicContentQRC.id);
         return;
       }
 
@@ -1745,12 +1781,13 @@ const Index = () => {
           setGeneratedLongUrl(response.url.targetUrl);
           setLastGeneratedContent(qrContent);
           toast.success('VCard updated!');
-          setHasGenerated(true);
-          setArsenalRefreshKey((prev) => prev + 1);
-          setShowGenerateSuccess(true);
-          setShowNameOverlay(false);
-          setEditingVcardQRC(null);
-          resetCreateFlow();
+          if (editBehavior === 'stay') {
+            setArsenalPreferredSelectedId(editingVcardQRC.id);
+            setArsenalRefreshKey((prev) => prev + 1);
+            setShowNameOverlay(false);
+            return;
+          }
+          returnToArsenalAfterEdit(editingVcardQRC.id);
           return;
         }
 
@@ -1975,6 +2012,7 @@ const Index = () => {
         }
         toast.success('QR code generated!');
         setHasGenerated(true);
+        setArsenalPreferredSelectedId(null);
         setArsenalRefreshKey((prev) => prev + 1);
         // refreshArsenalStats() will handle storage recalculation internally
         setShowGenerateSuccess(true);
@@ -2124,14 +2162,47 @@ const Index = () => {
     resetCreateFlow();
   }, [isCreateFlowBusy, resetCreateFlow]);
 
+  const returnToArsenalAfterEdit = useCallback((itemId: string) => {
+    setArsenalPreferredSelectedId(itemId);
+    setShowGenerateSuccess(false);
+    setShowNameOverlay(false);
+    setArsenalRefreshKey((prev) => prev + 1);
+    resetCreateFlow();
+    setActiveTab('codes');
+  }, [resetCreateFlow]);
+
   const handleCompleteQrCustomization = () => {
     if (editingVcardQRC && qrType === 'vcard') {
-      void handleGenerate(resolveEditedVcardQrName());
+      void handleGenerate(resolveEditedVcardQrName(), 'arsenal');
+      return;
+    }
+    if (editingDynamicContentQRC && (qrType === 'file' || qrType === 'menu')) {
+      void handleGenerate(resolveEditedDynamicQrName(), 'arsenal');
       return;
     }
     const defaultName = qrType === 'file' ? fileName || 'File QR' : 'QRC Untitled 1';
     setQrName(defaultName);
     setShowNameOverlay(true);
+  };
+
+  const handleApplyVcardCustomization = () => {
+    if (editingVcardQRC && qrType === 'vcard') {
+      void handleGenerate(resolveEditedVcardQrName(), 'stay');
+      return;
+    }
+    setShowVcardCustomizer(false);
+  };
+
+  const handleFinishVcardCustomization = () => {
+    if (editingVcardQRC && qrType === 'vcard') {
+      void handleGenerate(resolveEditedVcardQrName(), 'arsenal');
+      return;
+    }
+    setShowVcardCustomizer(false);
+    if (vcardFromContents) {
+      setVcardFromContents(false);
+      openQrCustomizer();
+    }
   };
 
   const handleDownload = async (format: 'png' | 'svg' | 'jpeg' | 'pdf') => {
@@ -2885,7 +2956,12 @@ const Index = () => {
       }, 200);
 
       toast.info('Preparing cover photo...');
-      const compressedDataUrl = await compressImageFile(file, { targetSize: 1600, quality: 0.82 });
+      const preserveAlpha = file.type === 'image/png' || file.type === 'image/webp';
+      const compressedDataUrl = await compressImageFile(file, {
+        targetSize: 1600,
+        quality: 0.82,
+        preserveAlpha,
+      });
       const compressedBlob = dataUrlToBlob(compressedDataUrl);
       const storageCheck = checkStorageLimit(compressedBlob.size);
       if (!storageCheck.allowed) {
@@ -2912,6 +2988,9 @@ const Index = () => {
       setVcardStyle((prev) => ({
         ...prev,
         coverPhotoDataUrl: compressedDataUrl,
+        coverZoom: 100,
+        coverX: 50,
+        coverY: 50,
       }));
       toast.success('Cover photo updated!');
     } catch (error) {
@@ -2954,6 +3033,36 @@ const Index = () => {
     photoDragState.current.dragging = false;
   };
 
+  const handleCoverPointerDown = (event: PointerEvent<HTMLDivElement>) => {
+    if (!coverDragRef.current || !vcardStyle.coverPhotoDataUrl) return;
+    coverDragRef.current.setPointerCapture(event.pointerId);
+    coverDragState.current = {
+      dragging: true,
+      startX: event.clientX,
+      startY: event.clientY,
+      startCoverX: vcardStyle.coverX ?? 50,
+      startCoverY: vcardStyle.coverY ?? 50,
+    };
+  };
+
+  const handleCoverPointerMove = (event: PointerEvent<HTMLDivElement>) => {
+    if (!coverDragState.current.dragging || !coverDragRef.current || !vcardStyle.coverPhotoDataUrl) return;
+    const rect = coverDragRef.current.getBoundingClientRect();
+    const deltaX = ((event.clientX - coverDragState.current.startX) / rect.width) * 100;
+    const deltaY = ((event.clientY - coverDragState.current.startY) / rect.height) * 100;
+    setVcardStyle((prev) => ({
+      ...prev,
+      coverX: Math.min(100, Math.max(0, coverDragState.current.startCoverX + deltaX)),
+      coverY: Math.min(100, Math.max(0, coverDragState.current.startCoverY + deltaY)),
+    }));
+  };
+
+  const handleCoverPointerUp = (event: PointerEvent<HTMLDivElement>) => {
+    if (!coverDragRef.current) return;
+    coverDragRef.current.releasePointerCapture(event.pointerId);
+    coverDragState.current.dragging = false;
+  };
+
   const readAsDataUrl = (file: File) => {
     return new Promise<string>((resolve, reject) => {
       const reader = new FileReader();
@@ -2971,7 +3080,17 @@ const Index = () => {
 
   const compressImageFile = async (
     file: File,
-    { maxDimension = 2000, quality = 0.80, targetSize = 250 }: { maxDimension?: number; quality?: number; targetSize?: number } = {}
+    {
+      maxDimension = 2000,
+      quality = 0.80,
+      targetSize = 250,
+      preserveAlpha = false,
+    }: {
+      maxDimension?: number;
+      quality?: number;
+      targetSize?: number;
+      preserveAlpha?: boolean;
+    } = {}
   ) => {
     const dataUrl = await readAsDataUrl(file);
     const image = new Image();
@@ -2996,10 +3115,23 @@ const Index = () => {
     ctx.imageSmoothingQuality = 'high';
     ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
     
+    if (preserveAlpha) {
+      try {
+        const webpDataUrl = canvas.toDataURL('image/webp', quality);
+        if (webpDataUrl.startsWith('data:image/webp')) {
+          return webpDataUrl;
+        }
+      } catch {
+        // fall through to PNG
+      }
+
+      return canvas.toDataURL('image/png');
+    }
+
     // Use WebP if supported, otherwise JPEG
     const mimeType = 'image/jpeg';
     const finalQuality = quality;
-    
+
     // Try WebP for better compression
     try {
       const webpDataUrl = canvas.toDataURL('image/webp', quality);
@@ -3009,7 +3141,7 @@ const Index = () => {
     } catch {
       // WebP not supported, fall back to JPEG
     }
-    
+
     return canvas.toDataURL(mimeType, finalQuality);
   };
 
@@ -5318,11 +5450,55 @@ const Index = () => {
                   />
                   {vcardStyle.coverPhotoDataUrl ? (
                     <div className="space-y-3">
-                      <img
-                        src={vcardStyle.coverPhotoDataUrl}
-                        alt="Cover preview"
-                        className="aspect-[5/2] w-full rounded-2xl object-cover"
-                      />
+                      <div
+                        ref={coverDragRef}
+                        className="relative aspect-[5/2] w-full overflow-hidden rounded-2xl border border-border/60 bg-secondary/20 cursor-grab active:cursor-grabbing"
+                        onPointerDown={handleCoverPointerDown}
+                        onPointerMove={handleCoverPointerMove}
+                        onPointerUp={handleCoverPointerUp}
+                        style={{ touchAction: 'none' }}
+                      >
+                        <div
+                          className="absolute inset-0"
+                          style={{
+                            background: vcardStyle.frontUseGradient
+                              ? `linear-gradient(135deg, ${vcardStyle.frontColor}, ${vcardStyle.frontGradient})`
+                              : `linear-gradient(0deg, ${vcardStyle.frontColor}, ${vcardStyle.frontColor})`,
+                          }}
+                        />
+                        <div
+                          className="absolute inset-0"
+                          style={{
+                            backgroundImage: `url(${vcardStyle.coverPhotoDataUrl})`,
+                            backgroundSize: `${vcardStyle.coverZoom ?? 100}%`,
+                            backgroundPosition: `${vcardStyle.coverX ?? 50}% ${vcardStyle.coverY ?? 50}%`,
+                            backgroundRepeat: 'no-repeat',
+                          }}
+                        />
+                        <div className="pointer-events-none absolute inset-0 border border-white/10" />
+                      </div>
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between text-[11px] uppercase tracking-[0.3em] text-muted-foreground">
+                          <span>Cover Zoom</span>
+                          <span>{Math.round(vcardStyle.coverZoom ?? 100)}%</span>
+                        </div>
+                        <input
+                          type="range"
+                          min={100}
+                          max={180}
+                          value={vcardStyle.coverZoom ?? 100}
+                          onChange={(event) =>
+                            setVcardStyle((prev) => ({
+                              ...prev,
+                              coverZoom: Number(event.target.value),
+                            }))
+                          }
+                          className="w-full"
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          Drag inside the banner to reposition the crop. Transparent PNG areas blend into your selected page background.
+                        </p>
+                      </div>
                       <Button
                         type="button"
                         variant="outline"
@@ -5335,6 +5511,9 @@ const Index = () => {
                           setVcardStyle((prev) => ({
                             ...prev,
                             coverPhotoDataUrl: '',
+                            coverZoom: 100,
+                            coverX: 50,
+                            coverY: 50,
                           }));
                         }}
                       >
@@ -5614,6 +5793,7 @@ const Index = () => {
                       <LogoUpload
                         logo={vcardStyle.frontLogoDataUrl || undefined}
                         maxLogoSize={180}
+                        hideLabel
                         onLogoChange={(value) =>
                           setVcardStyle((prev) => ({ ...prev, frontLogoDataUrl: value }))
                         }
@@ -5635,7 +5815,8 @@ const Index = () => {
                   <Button
                     type="button"
                     className="bg-gradient-primary text-primary-foreground uppercase tracking-[0.2em] text-xs"
-                    onClick={() => setShowVcardCustomizer(false)}
+                    disabled={isCreateFlowBusy}
+                    onClick={handleApplyVcardCustomization}
                   >
                     Apply Changes
                   </Button>
@@ -5643,16 +5824,10 @@ const Index = () => {
                     type="button"
                     variant="outline"
                     className="border-border uppercase tracking-[0.2em] text-xs"
-                    onClick={() => {
-                      setShowVcardCustomizer(false);
-                      // If we came from vCard contents overlay, open QR customizer
-                      if (vcardFromContents) {
-                        setVcardFromContents(false);
-                        openQrCustomizer();
-                      }
-                    }}
+                    disabled={isCreateFlowBusy}
+                    onClick={handleFinishVcardCustomization}
                   >
-                    {vcardFromContents ? 'Continue' : 'Done'}
+                    {editingVcardQRC ? 'Save & Exit' : vcardFromContents ? 'Continue' : 'Done'}
                   </Button>
                 </div>
               </div>
@@ -6537,40 +6712,42 @@ const Index = () => {
                   </AccordionContent>
                 </AccordionItem>
 
-                <AccordionItem value="logo" className="border-none">
-                  <AccordionTrigger
-                    className="py-3 px-4 rounded-lg hover:bg-secondary/50 hover:no-underline"
-                    onClick={() => {
-                      window.setTimeout(() => scrollToRef(logoSectionRef, 'start'), 30);
-                    }}
-                  >
-                    <span className="text-sm font-medium">Logo</span>
-                  </AccordionTrigger>
-                  <AccordionContent className="px-4 pb-4 pt-2">
-                    <div ref={logoSectionRef} className="space-y-4">
-                      <LogoUpload
-                        logo={options.logo}
-                        maxLogoSize={Math.round((options.size - 32) * 0.22)}
-                        onLogoChange={(v, meta) => {
-                          updateOption('logo', v);
-                          updateOption('logoAspect', meta?.aspect);
-                          updateOption('logoWidth', meta?.width);
-                          updateOption('logoHeight', meta?.height);
-                        }}
-                      />
-                      {options.logo && (
-                        <div>
-                          <SizeSlider
-                            value={options.logoSize || 50}
-                            onChange={(v) => updateOption('logoSize', v)}
-                            min={20}
-                            max={100}
-                          />
-                        </div>
-                      )}
-                    </div>
-                  </AccordionContent>
-                </AccordionItem>
+                {qrType !== 'vcard' ? (
+                  <AccordionItem value="logo" className="border-none">
+                    <AccordionTrigger
+                      className="py-3 px-4 rounded-lg hover:bg-secondary/50 hover:no-underline"
+                      onClick={() => {
+                        window.setTimeout(() => scrollToRef(logoSectionRef, 'start'), 30);
+                      }}
+                    >
+                      <span className="text-sm font-medium">Logo</span>
+                    </AccordionTrigger>
+                    <AccordionContent className="px-4 pb-4 pt-2">
+                      <div ref={logoSectionRef} className="space-y-4">
+                        <LogoUpload
+                          logo={options.logo}
+                          maxLogoSize={Math.round((options.size - 32) * 0.22)}
+                          onLogoChange={(v, meta) => {
+                            updateOption('logo', v);
+                            updateOption('logoAspect', meta?.aspect);
+                            updateOption('logoWidth', meta?.width);
+                            updateOption('logoHeight', meta?.height);
+                          }}
+                        />
+                        {options.logo && (
+                          <div>
+                            <SizeSlider
+                              value={options.logoSize || 50}
+                              onChange={(v) => updateOption('logoSize', v)}
+                              min={20}
+                              max={100}
+                            />
+                          </div>
+                        )}
+                      </div>
+                    </AccordionContent>
+                  </AccordionItem>
+                ) : null}
               </Accordion>
               <div className="px-4 pb-4 pt-2 flex flex-col gap-3 sm:flex-row">
                 <Button
@@ -7888,6 +8065,7 @@ const Index = () => {
             handleDynamicContentEdit={handleDynamicContentEdit}
             handleVcardEdit={handleVcardEdit}
             arsenalRefreshKey={arsenalRefreshKey}
+            preferredSelectedId={arsenalPreferredSelectedId}
             setArsenalRefreshKey={setArsenalRefreshKey}
             setArsenalStats={setArsenalStats}
             userProfile={userProfile}

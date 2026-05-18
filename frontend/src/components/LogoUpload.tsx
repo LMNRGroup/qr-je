@@ -7,13 +7,21 @@ import { toast } from 'sonner';
 interface LogoUploadProps {
   logo?: string;
   maxLogoSize: number;
+  label?: string;
+  hideLabel?: boolean;
   onLogoChange: (
     logo: string | undefined,
     meta?: { width: number; height: number; aspect: number }
   ) => void;
 }
 
-export function LogoUpload({ logo, maxLogoSize, onLogoChange }: LogoUploadProps) {
+export function LogoUpload({
+  logo,
+  maxLogoSize,
+  label = 'Center Logo',
+  hideLabel = false,
+  onLogoChange,
+}: LogoUploadProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -91,7 +99,7 @@ export function LogoUpload({ logo, maxLogoSize, onLogoChange }: LogoUploadProps)
 
   return (
     <div className="space-y-3">
-      <label className="text-sm font-medium text-foreground">Center Logo</label>
+      {!hideLabel ? <label className="text-sm font-medium text-foreground">{label}</label> : null}
       {error && (
         <div className="rounded-md border border-destructive/40 bg-destructive/10 px-2 py-1 text-xs text-destructive">
           {error}

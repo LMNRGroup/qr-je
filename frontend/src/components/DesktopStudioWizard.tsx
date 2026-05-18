@@ -987,29 +987,31 @@ export function DesktopStudioWizard({
                     />
                   </div>
 
-                  <div className="space-y-4">
-                    <p className="text-sm font-medium">Logo</p>
-                    <LogoUpload
-                      logo={options.logo}
-                      maxLogoSize={Math.round((options.size - 32) * 0.22)}
-                      onLogoChange={(v, meta) => {
-                        onOptionChange('logo', v);
-                        if (meta) {
-                          onOptionChange('logoAspect', meta.aspect);
-                          onOptionChange('logoWidth', meta.width);
-                          onOptionChange('logoHeight', meta.height);
-                        }
-                      }}
-                    />
-                    {options.logo && (
-                      <SizeSlider
-                        value={options.logoSize || 50}
-                        onChange={(v) => onOptionChange('logoSize', v)}
-                        min={20}
-                        max={100}
+                  {qrType !== 'vcard' ? (
+                    <div className="space-y-4">
+                      <p className="text-sm font-medium">Logo</p>
+                      <LogoUpload
+                        logo={options.logo}
+                        maxLogoSize={Math.round((options.size - 32) * 0.22)}
+                        onLogoChange={(v, meta) => {
+                          onOptionChange('logo', v);
+                          if (meta) {
+                            onOptionChange('logoAspect', meta.aspect);
+                            onOptionChange('logoWidth', meta.width);
+                            onOptionChange('logoHeight', meta.height);
+                          }
+                        }}
                       />
-                    )}
-                  </div>
+                      {options.logo && (
+                        <SizeSlider
+                          value={options.logoSize || 50}
+                          onChange={(v) => onOptionChange('logoSize', v)}
+                          min={20}
+                          max={100}
+                        />
+                      )}
+                    </div>
+                  ) : null}
                 </div>
               </motion.div>
             )}

@@ -175,6 +175,9 @@ export function VcardLandingCard({
   const ActionIcon = profile.ctaType ? CTA_ICONS[profile.ctaType] : null;
   const cardBase = makeBase(style.frontUseGradient, style.frontColor, style.frontGradient);
   const cardStyle = getTextureStyle(texture, cardBase);
+  const coverZoom = style.coverZoom ?? 100;
+  const coverX = style.coverX ?? 50;
+  const coverY = style.coverY ?? 50;
 
   const infoRows = [
     {
@@ -235,22 +238,26 @@ export function VcardLandingCard({
     >
       <div className="relative">
         <div className={cn('relative overflow-hidden', isPreview ? 'aspect-[5/2]' : 'aspect-[5/2] md:aspect-[16/5]')}>
+          <div
+            className="absolute inset-0"
+            style={{
+              background: cardBase,
+            }}
+          />
           {style.coverPhotoDataUrl ? (
-            <img
-              src={style.coverPhotoDataUrl}
-              alt="VCard cover"
-              className="absolute inset-0 h-full w-full object-cover"
-            />
-          ) : (
             <div
+              aria-label="VCard cover"
               className="absolute inset-0"
               style={{
-                background: makeBase(true, style.frontColor, style.frontGradient),
+                backgroundImage: `url(${style.coverPhotoDataUrl})`,
+                backgroundSize: `${coverZoom}%`,
+                backgroundPosition: `${coverX}% ${coverY}%`,
+                backgroundRepeat: 'no-repeat',
               }}
             />
-          )}
-          <div className="absolute inset-0 bg-gradient-to-br from-black/35 via-black/10 to-black/45" />
-          <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/35 to-transparent" />
+          ) : null}
+          <div className="absolute inset-0 bg-gradient-to-br from-black/18 via-black/8 to-black/24" />
+          <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/24 to-transparent" />
           {style.frontLogoDataUrl ? (
             <div className="absolute right-4 top-4 flex items-center justify-center rounded-2xl border border-white/15 bg-black/15 p-2 backdrop-blur-sm md:right-6 md:top-6">
               <img

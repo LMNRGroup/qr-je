@@ -309,6 +309,7 @@ export function ArsenalPanel({
   onAdaptiveEdit,
   onDynamicContentEdit,
   onVcardEdit,
+  preferredSelectedId,
 }: {
   refreshKey?: number;
   onStatsChange?: (stats: { total: number; dynamic: number }) => void;
@@ -321,6 +322,7 @@ export function ArsenalPanel({
   onAdaptiveEdit?: (item: QRHistoryItem) => void;
   onDynamicContentEdit?: (item: QRHistoryItem) => void;
   onVcardEdit?: (item: QRHistoryItem) => void;
+  preferredSelectedId?: string | null;
 }) {
   const [isDesktop, setIsDesktop] = useState(() => {
     if (typeof window === 'undefined') return true;
@@ -603,10 +605,15 @@ export function ArsenalPanel({
           setViewMode(cached.viewMode ?? 'grid');
           lastTodayRef.current = cached.today ?? 0;
           onScansChange?.(cached.today ?? 0);
-          if (cached.items?.length && isDesktop) {
-            const fallback = cached.items[0];
+          if (cached.items?.length) {
+            const preferredItem = preferredSelectedId
+              ? cached.items.find((item) => item.id === preferredSelectedId) ?? null
+              : null;
+            const fallback = preferredItem ?? cached.items[0];
             const cachedSelected =
-              cached.items.find((item) => item.id === cached.selectedId) ?? fallback;
+              preferredItem ??
+              cached.items.find((item) => item.id === cached.selectedId) ??
+              (isDesktop ? fallback : null);
             if (cachedSelected) {
               setSelectedId(cachedSelected.id);
               setEditName(cachedSelected.name?.trim() ?? '');
@@ -619,11 +626,14 @@ export function ArsenalPanel({
         const response = await getQRHistory();
         if (response.success) {
           setItems(response.data);
-          if (response.data.length > 0 && isDesktop) {
-            const first = response.data[0];
-            setSelectedId(first.id);
-            setEditName(first.name?.trim() ?? '');
-            setEditContent(first.content);
+          const preferredItem = preferredSelectedId
+            ? response.data.find((item) => item.id === preferredSelectedId) ?? null
+            : null;
+          const initialSelection = preferredItem ?? (isDesktop ? response.data[0] : null);
+          if (initialSelection) {
+            setSelectedId(initialSelection.id);
+            setEditName(initialSelection.name?.trim() ?? '');
+            setEditContent(initialSelection.content);
           }
           // Only fetch scan counts if user has QR codes (optimize for users with no QRs)
           const countsResult = response.data.length > 0
@@ -632,9 +642,9 @@ export function ArsenalPanel({
           writeCache({
             items: response.data,
             scanCounts: countsResult.counts,
-            selectedId: response.data[0]?.id ?? null,
-            editName: response.data[0]?.name?.trim() ?? '',
-            editContent: response.data[0]?.content ?? '',
+            selectedId: initialSelection?.id ?? null,
+            editName: initialSelection?.name?.trim() ?? '',
+            editContent: initialSelection?.content ?? '',
             today: countsResult.today,
             page: 1,
             sortMode,
@@ -652,7 +662,7 @@ export function ArsenalPanel({
   // Intentionally limited: this effect loads on mount, layout changes, and explicit refreshes.
   // Including cache helpers/state setters here causes cache-reset loops and excess network traffic.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [refreshKey, isDesktop]);
+  }, [refreshKey, isDesktop, preferredSelectedId]);
 
   useEffect(() => {
     if (!items.length) return;

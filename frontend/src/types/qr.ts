@@ -76,6 +76,9 @@ export interface VcardStyle {
   profileAlign?: VcardProfileAlign;
   buttonColor?: string;
   buttonTextColor?: string;
+  coverZoom?: number;
+  coverX?: number;
+  coverY?: number;
   photoZoom: number;
   photoX: number;
   photoY: number;
