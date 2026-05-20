@@ -1,16 +1,11 @@
-import type { CSSProperties, ReactNode } from 'react';
+import type { CSSProperties, ComponentType, ReactNode } from 'react';
 import {
   ArrowUpRight,
-  Building2,
-  Facebook,
   Globe,
-  Instagram,
   Mail,
   MapPin,
   MessageCircle,
-  Music2,
   Phone,
-  Youtube,
 } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
@@ -18,6 +13,7 @@ import type {
   VcardCtaType,
   VcardProfile,
   VcardProfileAlign,
+  VcardSocialPlatform,
   VcardStyle,
   VcardTexture,
 } from '@/types/qr';
@@ -45,12 +41,49 @@ const CTA_ICONS: Record<VcardCtaType, typeof Phone> = {
   website: Globe,
 };
 
-const SOCIAL_ICONS = {
-  instagram: Instagram,
-  facebook: Facebook,
-  youtube: Youtube,
-  tiktok: Music2,
-} as const;
+type SocialIconProps = {
+  className?: string;
+};
+
+const InstagramLogo = ({ className }: SocialIconProps) => (
+  <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <rect x="3.75" y="3.75" width="16.5" height="16.5" rx="5.25" />
+    <circle cx="12" cy="12" r="4.1" />
+    <circle cx="17.35" cy="6.65" r="1.15" fill="currentColor" stroke="none" />
+  </svg>
+);
+
+const FacebookLogo = ({ className }: SocialIconProps) => (
+  <svg viewBox="0 0 24 24" className={className} fill="currentColor" aria-hidden="true">
+    <path d="M13.25 21v-6.7h2.27l.34-2.77h-2.61V9.76c0-.8.22-1.35 1.38-1.35H16V5.96c-.24-.03-1.07-.1-2.04-.1-2.02 0-3.4 1.24-3.4 3.5v2.17H8.28v2.77h2.28V21h2.69Z" />
+  </svg>
+);
+
+const YoutubeLogo = ({ className }: SocialIconProps) => (
+  <svg viewBox="0 0 24 24" className={className} fill="currentColor" aria-hidden="true">
+    <path d="M21.56 7.3a2.85 2.85 0 0 0-2-2.02C17.78 4.8 12 4.8 12 4.8s-5.78 0-7.56.48a2.85 2.85 0 0 0-2 2.02A29.7 29.7 0 0 0 2 12a29.7 29.7 0 0 0 .44 4.7 2.85 2.85 0 0 0 2 2.02c1.78.48 7.56.48 7.56.48s5.78 0 7.56-.48a2.85 2.85 0 0 0 2-2.02A29.7 29.7 0 0 0 22 12a29.7 29.7 0 0 0-.44-4.7ZM10.25 15.2V8.8L15.85 12l-5.6 3.2Z" />
+  </svg>
+);
+
+const TiktokLogo = ({ className }: SocialIconProps) => (
+  <svg viewBox="0 0 24 24" className={className} fill="currentColor" aria-hidden="true">
+    <path d="M14.2 3c.35 1.7 1.3 3.02 2.86 3.95.8.48 1.7.77 2.64.83v2.78a7.58 7.58 0 0 1-4.06-1.14v5.26a5.05 5.05 0 1 1-4.4-5.01v2.89a2.26 2.26 0 1 0 1.3 2.04V3h1.66Z" />
+  </svg>
+);
+
+const SOCIAL_ICONS: Record<VcardSocialPlatform, ComponentType<SocialIconProps>> = {
+  instagram: InstagramLogo,
+  facebook: FacebookLogo,
+  youtube: YoutubeLogo,
+  tiktok: TiktokLogo,
+};
+
+const SOCIAL_LABELS: Record<VcardSocialPlatform, string> = {
+  instagram: 'Instagram',
+  facebook: 'Facebook',
+  youtube: 'YouTube',
+  tiktok: 'TikTok',
+};
 
 const PROFILE_ALIGNMENTS: Record<VcardProfileAlign, string> = {
   left: 'left-5 translate-x-0 md:left-8',
@@ -190,11 +223,14 @@ export function VcardLandingCard({
   const coverX = style.coverX ?? 50;
   const coverY = style.coverY ?? 50;
   const socialLinks = [
-    { key: 'instagram', label: 'Instagram', value: profile.socials?.instagram?.trim() || '' },
-    { key: 'facebook', label: 'Facebook', value: profile.socials?.facebook?.trim() || '' },
-    { key: 'youtube', label: 'YouTube', value: profile.socials?.youtube?.trim() || '' },
-    { key: 'tiktok', label: 'TikTok', value: profile.socials?.tiktok?.trim() || '' },
+    { key: 'instagram' as const, label: SOCIAL_LABELS.instagram, value: profile.socials?.instagram?.trim() || '' },
+    { key: 'facebook' as const, label: SOCIAL_LABELS.facebook, value: profile.socials?.facebook?.trim() || '' },
+    { key: 'youtube' as const, label: SOCIAL_LABELS.youtube, value: profile.socials?.youtube?.trim() || '' },
+    { key: 'tiktok' as const, label: SOCIAL_LABELS.tiktok, value: profile.socials?.tiktok?.trim() || '' },
   ].filter((link) => link.value);
+  const featuredSocial = profile.favoriteSocial
+    ? socialLinks.find((link) => link.key === profile.favoriteSocial)
+    : null;
 
   const infoRows = [
     {
@@ -229,14 +265,17 @@ export function VcardLandingCard({
       href: profile.website?.trim() ? normalizeUrl(profile.website) : undefined,
       external: true,
     },
-    {
-      key: 'company',
-      label: 'Company',
-      value: company && company !== title ? company : '',
-      Icon: Building2,
-      href: undefined,
-      external: false,
-    },
+    ...(featuredSocial
+      ? [{
+          key: `featured-social-${featuredSocial.key}`,
+          label: 'Featured Social',
+          value: featuredSocial.label,
+          Icon: SOCIAL_ICONS[featuredSocial.key],
+          href: normalizeUrl(featuredSocial.value),
+          external: true,
+          featured: true,
+        }]
+      : []),
   ].filter((row) => row.value);
 
   return (
@@ -331,7 +370,7 @@ export function VcardLandingCard({
                 </p>
               ) : null}
               {company ? (
-                <p className={cn(isPreview ? 'text-sm' : 'text-sm sm:text-base')} style={{ color: frontFontColor, opacity: 0.72 }}>
+                <p className={cn(isPreview ? 'text-base' : 'text-base sm:text-lg md:text-xl')} style={{ color: frontFontColor, opacity: 0.8 }}>
                   {company}
                 </p>
               ) : null}
@@ -388,9 +427,15 @@ export function VcardLandingCard({
                     interactive,
                     row.href,
                     row.external,
-                    'group flex items-start gap-3 rounded-2xl border border-white/10 bg-white/5 px-3 py-2.5 backdrop-blur-sm transition hover:border-white/20 hover:bg-white/10 sm:px-4 sm:py-3',
+                    `group flex items-start gap-3 rounded-2xl px-3 py-2.5 backdrop-blur-sm transition sm:px-4 sm:py-3 ${
+                      row.featured
+                        ? 'border border-white/20 bg-white/10 shadow-[0_10px_30px_rgba(15,23,42,0.14)] hover:border-white/30 hover:bg-white/14'
+                        : 'border border-white/10 bg-white/5 hover:border-white/20 hover:bg-white/10'
+                    }`,
                     <>
-                      <div className="mt-0.5 flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-white/10 text-white/85 sm:h-10 sm:w-10">
+                      <div className={`mt-0.5 flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full text-white/90 sm:h-10 sm:w-10 ${
+                        row.featured ? 'bg-white/16' : 'bg-white/10'
+                      }`}>
                         <row.Icon className="h-4 w-4" />
                       </div>
                       <div className="min-w-0 space-y-1">

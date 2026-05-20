@@ -1,10 +1,11 @@
 /**
  * Desktop Studio Wizard Component
  * 
- * Desktop-only QR creation wizard that follows the Mobile V2 step-by-step flow.
+ * Shared QR creation wizard that follows the Mobile V2 step-by-step flow.
  * Provides a guided, step-by-step experience with progress indicator and navigation.
- * 
- * This component is scoped to desktop only (>= 1024px) and does not affect Mobile V2.
+ *
+ * It renders inline on desktop and can also be mounted inside a full-screen overlay
+ * for mobile/narrow-screen fallback flows.
  */
 
 import { useState, useRef, useEffect, useMemo } from 'react';
@@ -24,6 +25,7 @@ import {
   ChevronRight,
   Paintbrush,
   Sparkles,
+  Star,
   Edit,
   Facebook,
   Instagram,
@@ -50,7 +52,7 @@ import {
   getEffectiveStep,
   type QRWizardState,
 } from '@/lib/qr-wizard-steps';
-import type { QROptions, VcardProfile } from '@/types/qr';
+import type { QROptions, VcardProfile, VcardSocialPlatform } from '@/types/qr';
 
 type QRType = 'website' | 'vcard' | 'email' | 'phone' | 'file' | 'menu' | 'social' | 'portal';
 
@@ -253,6 +255,33 @@ export function DesktopStudioWizard({
   const canGoBack = currentStep > 1;
   const nextStep = getNextStep(effectiveStep, wizardState);
   const prevStep = currentStep > 1 ? (currentStep - 1) as QRWizardStep : null;
+  const updateVcardSocial = (platform: VcardSocialPlatform, value: string) => {
+    const nextSocials = {
+      instagram: vcard.socials?.instagram ?? '',
+      facebook: vcard.socials?.facebook ?? '',
+      youtube: vcard.socials?.youtube ?? '',
+      tiktok: vcard.socials?.tiktok ?? '',
+      [platform]: value,
+    };
+
+    onVcardChange({
+      socials: nextSocials,
+      favoriteSocial:
+        vcard.favoriteSocial === platform && !value.trim()
+          ? ''
+          : vcard.favoriteSocial ?? '',
+    });
+  };
+
+  const toggleFavoriteSocial = (platform: VcardSocialPlatform) => {
+    if (!(vcard.socials?.[platform] ?? '').trim()) {
+      return;
+    }
+
+    onVcardChange({
+      favoriteSocial: vcard.favoriteSocial === platform ? '' : platform,
+    });
+  };
 
   // Auto-advance when quick action is selected
   useEffect(() => {
@@ -850,75 +879,102 @@ export function DesktopStudioWizard({
                           <p className="mt-1 text-xs text-muted-foreground">
                             Add only the profiles you want to show on the VCard.
                           </p>
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            Star one profile to feature it in the highlighted social card.
+                          </p>
                         </div>
                         <div className="grid gap-3 sm:grid-cols-2">
                           <div className="flex items-center gap-3">
                             <Instagram className="h-4 w-4 text-primary" />
                             <Input
                               value={vcard.socials?.instagram ?? ''}
-                              onChange={(e) =>
-                                onVcardChange({
-                                  socials: {
-                                    instagram: e.target.value,
-                                    facebook: vcard.socials?.facebook ?? '',
-                                    youtube: vcard.socials?.youtube ?? '',
-                                    tiktok: vcard.socials?.tiktok ?? '',
-                                  },
-                                })
-                              }
+                              onChange={(e) => updateVcardSocial('instagram', e.target.value)}
                               placeholder="Instagram URL"
+                              className="flex-1"
                             />
+                            <button
+                              type="button"
+                              onClick={() => toggleFavoriteSocial('instagram')}
+                              disabled={!(vcard.socials?.instagram ?? '').trim()}
+                              aria-label="Feature Instagram on the social card"
+                              aria-pressed={vcard.favoriteSocial === 'instagram'}
+                              className={`flex h-10 w-10 items-center justify-center rounded-xl border transition ${
+                                vcard.favoriteSocial === 'instagram'
+                                  ? 'border-amber-400/50 bg-amber-400/10 text-amber-500'
+                                  : 'border-border/70 bg-secondary/30 text-muted-foreground hover:border-primary/40 hover:text-foreground'
+                              } disabled:cursor-not-allowed disabled:opacity-40`}
+                            >
+                              <Star className={`h-4 w-4 ${vcard.favoriteSocial === 'instagram' ? 'fill-current' : ''}`} />
+                            </button>
                           </div>
                           <div className="flex items-center gap-3">
                             <Facebook className="h-4 w-4 text-primary" />
                             <Input
                               value={vcard.socials?.facebook ?? ''}
-                              onChange={(e) =>
-                                onVcardChange({
-                                  socials: {
-                                    instagram: vcard.socials?.instagram ?? '',
-                                    facebook: e.target.value,
-                                    youtube: vcard.socials?.youtube ?? '',
-                                    tiktok: vcard.socials?.tiktok ?? '',
-                                  },
-                                })
-                              }
+                              onChange={(e) => updateVcardSocial('facebook', e.target.value)}
                               placeholder="Facebook URL"
+                              className="flex-1"
                             />
+                            <button
+                              type="button"
+                              onClick={() => toggleFavoriteSocial('facebook')}
+                              disabled={!(vcard.socials?.facebook ?? '').trim()}
+                              aria-label="Feature Facebook on the social card"
+                              aria-pressed={vcard.favoriteSocial === 'facebook'}
+                              className={`flex h-10 w-10 items-center justify-center rounded-xl border transition ${
+                                vcard.favoriteSocial === 'facebook'
+                                  ? 'border-amber-400/50 bg-amber-400/10 text-amber-500'
+                                  : 'border-border/70 bg-secondary/30 text-muted-foreground hover:border-primary/40 hover:text-foreground'
+                              } disabled:cursor-not-allowed disabled:opacity-40`}
+                            >
+                              <Star className={`h-4 w-4 ${vcard.favoriteSocial === 'facebook' ? 'fill-current' : ''}`} />
+                            </button>
                           </div>
                           <div className="flex items-center gap-3">
                             <Youtube className="h-4 w-4 text-primary" />
                             <Input
                               value={vcard.socials?.youtube ?? ''}
-                              onChange={(e) =>
-                                onVcardChange({
-                                  socials: {
-                                    instagram: vcard.socials?.instagram ?? '',
-                                    facebook: vcard.socials?.facebook ?? '',
-                                    youtube: e.target.value,
-                                    tiktok: vcard.socials?.tiktok ?? '',
-                                  },
-                                })
-                              }
+                              onChange={(e) => updateVcardSocial('youtube', e.target.value)}
                               placeholder="YouTube URL"
+                              className="flex-1"
                             />
+                            <button
+                              type="button"
+                              onClick={() => toggleFavoriteSocial('youtube')}
+                              disabled={!(vcard.socials?.youtube ?? '').trim()}
+                              aria-label="Feature YouTube on the social card"
+                              aria-pressed={vcard.favoriteSocial === 'youtube'}
+                              className={`flex h-10 w-10 items-center justify-center rounded-xl border transition ${
+                                vcard.favoriteSocial === 'youtube'
+                                  ? 'border-amber-400/50 bg-amber-400/10 text-amber-500'
+                                  : 'border-border/70 bg-secondary/30 text-muted-foreground hover:border-primary/40 hover:text-foreground'
+                              } disabled:cursor-not-allowed disabled:opacity-40`}
+                            >
+                              <Star className={`h-4 w-4 ${vcard.favoriteSocial === 'youtube' ? 'fill-current' : ''}`} />
+                            </button>
                           </div>
                           <div className="flex items-center gap-3">
                             <Music2 className="h-4 w-4 text-primary" />
                             <Input
                               value={vcard.socials?.tiktok ?? ''}
-                              onChange={(e) =>
-                                onVcardChange({
-                                  socials: {
-                                    instagram: vcard.socials?.instagram ?? '',
-                                    facebook: vcard.socials?.facebook ?? '',
-                                    youtube: vcard.socials?.youtube ?? '',
-                                    tiktok: e.target.value,
-                                  },
-                                })
-                              }
+                              onChange={(e) => updateVcardSocial('tiktok', e.target.value)}
                               placeholder="TikTok URL"
+                              className="flex-1"
                             />
+                            <button
+                              type="button"
+                              onClick={() => toggleFavoriteSocial('tiktok')}
+                              disabled={!(vcard.socials?.tiktok ?? '').trim()}
+                              aria-label="Feature TikTok on the social card"
+                              aria-pressed={vcard.favoriteSocial === 'tiktok'}
+                              className={`flex h-10 w-10 items-center justify-center rounded-xl border transition ${
+                                vcard.favoriteSocial === 'tiktok'
+                                  ? 'border-amber-400/50 bg-amber-400/10 text-amber-500'
+                                  : 'border-border/70 bg-secondary/30 text-muted-foreground hover:border-primary/40 hover:text-foreground'
+                              } disabled:cursor-not-allowed disabled:opacity-40`}
+                            >
+                              <Star className={`h-4 w-4 ${vcard.favoriteSocial === 'tiktok' ? 'fill-current' : ''}`} />
+                            </button>
                           </div>
                         </div>
                       </div>

@@ -56,6 +56,7 @@ import {
   VcardCtaType,
   VcardProfile,
   VcardProfileAlign,
+  VcardSocialPlatform,
   VcardStyle,
   VcardTexture,
 } from '@/types/qr';
@@ -143,6 +144,7 @@ const createEmptyVcardProfile = (): VcardProfile => ({
     youtube: '',
     tiktok: '',
   },
+  favoriteSocial: '',
   ctaType: '',
   ctaLabel: '',
   ctaValue: '',
@@ -176,6 +178,12 @@ const createDefaultVcardStyle = (): VcardStyle => ({
 });
 
 const normalizeVcardText = (value?: string | null) => value?.trim() ?? '';
+const getValidFavoriteVcardSocial = (profile: VcardProfile): VcardProfile['favoriteSocial'] => {
+  const favorite = profile.favoriteSocial ?? '';
+  if (!favorite) return '';
+  return normalizeVcardText(profile.socials?.[favorite]) ? favorite : '';
+};
+
 const getDefaultVcardCtaLabel = (type?: VcardCtaType | '') => {
   switch (type) {
     case 'call':
@@ -191,41 +199,49 @@ const getDefaultVcardCtaLabel = (type?: VcardCtaType | '') => {
   }
 };
 
-const buildVcardData = (profile: VcardProfile, style: VcardStyle): VcardData => ({
-  profile: {
-    name: normalizeVcardText(profile.name),
-    title: normalizeVcardText(profile.title),
-    phone: normalizeVcardText(profile.phone),
-    email: normalizeVcardText(profile.email),
-    website: normalizeVcardText(profile.website),
-    location: normalizeVcardText(profile.location),
-    company: normalizeVcardText(profile.company),
-    about: normalizeVcardText(profile.about),
-    slug: normalizeVcardText(profile.slug),
-    socials: {
-      instagram: normalizeVcardText(profile.socials?.instagram),
-      facebook: normalizeVcardText(profile.socials?.facebook),
-      youtube: normalizeVcardText(profile.socials?.youtube),
-      tiktok: normalizeVcardText(profile.socials?.tiktok),
+const buildVcardData = (profile: VcardProfile, style: VcardStyle): VcardData => {
+  const normalizedSocials = {
+    instagram: normalizeVcardText(profile.socials?.instagram),
+    facebook: normalizeVcardText(profile.socials?.facebook),
+    youtube: normalizeVcardText(profile.socials?.youtube),
+    tiktok: normalizeVcardText(profile.socials?.tiktok),
+  };
+
+  return {
+    profile: {
+      name: normalizeVcardText(profile.name),
+      title: normalizeVcardText(profile.title),
+      phone: normalizeVcardText(profile.phone),
+      email: normalizeVcardText(profile.email),
+      website: normalizeVcardText(profile.website),
+      location: normalizeVcardText(profile.location),
+      company: normalizeVcardText(profile.company),
+      about: normalizeVcardText(profile.about),
+      slug: normalizeVcardText(profile.slug),
+      socials: normalizedSocials,
+      favoriteSocial: getValidFavoriteVcardSocial({
+        ...profile,
+        socials: normalizedSocials,
+      }),
+      ctaType: profile.ctaType ?? '',
+      ctaLabel: normalizeVcardText(profile.ctaLabel),
+      ctaValue: normalizeVcardText(profile.ctaValue),
     },
-    ctaType: profile.ctaType ?? '',
-    ctaLabel: normalizeVcardText(profile.ctaLabel),
-    ctaValue: normalizeVcardText(profile.ctaValue),
-  },
-  style: {
-    ...style,
-    frontLogoDataUrl: style.frontLogoDataUrl ?? '',
-    backLogoDataUrl: style.backLogoDataUrl ?? '',
-    coverPhotoDataUrl: style.coverPhotoDataUrl ?? '',
-    profilePhotoDataUrl: style.profilePhotoDataUrl ?? '',
-    profileAlign: style.profileAlign ?? 'left',
-    buttonColor: style.buttonColor ?? style.frontGradient,
-    buttonTextColor: style.buttonTextColor ?? '#0F172A',
-    coverZoom: style.coverZoom ?? 100,
-    coverX: style.coverX ?? 50,
-    coverY: style.coverY ?? 50,
-  },
-});
+    style: {
+      ...style,
+      frontLogoDataUrl: style.frontLogoDataUrl ?? '',
+      backLogoDataUrl: style.backLogoDataUrl ?? '',
+      coverPhotoDataUrl: style.coverPhotoDataUrl ?? '',
+      profilePhotoDataUrl: style.profilePhotoDataUrl ?? '',
+      profileAlign: style.profileAlign ?? 'left',
+      buttonColor: style.buttonColor ?? style.frontGradient,
+      buttonTextColor: style.buttonTextColor ?? '#0F172A',
+      coverZoom: style.coverZoom ?? 100,
+      coverX: style.coverX ?? 50,
+      coverY: style.coverY ?? 50,
+    },
+  };
+};
 
 const stripVcardOptionMetadata = (options: QROptions): QROptions => {
   const {
@@ -687,18 +703,36 @@ const Index = () => {
     setVcard((prev) => ({ ...prev, ...patch }));
   }, []);
   const updateVcardSocial = useCallback(
-    (platform: 'instagram' | 'facebook' | 'youtube' | 'tiktok', value: string) => {
-      setVcard((prev) => ({
-        ...prev,
-        socials: {
+    (platform: VcardSocialPlatform, value: string) => {
+      setVcard((prev) => {
+        const nextSocials = {
           ...createEmptyVcardProfile().socials,
           ...(prev.socials ?? {}),
           [platform]: value,
-        },
-      }));
+        };
+        return {
+          ...prev,
+          socials: nextSocials,
+          favoriteSocial:
+            prev.favoriteSocial === platform && !normalizeVcardText(value)
+              ? ''
+              : prev.favoriteSocial ?? '',
+        };
+      });
     },
     []
   );
+  const toggleFavoriteVcardSocial = useCallback((platform: VcardSocialPlatform) => {
+    setVcard((prev) => {
+      if (!normalizeVcardText(prev.socials?.[platform])) {
+        return prev;
+      }
+      return {
+        ...prev,
+        favoriteSocial: prev.favoriteSocial === platform ? '' : platform,
+      };
+    });
+  }, []);
   const vcardSlug = useMemo(
     () => (vcard.slug ? slugify(vcard.slug) : slugify(vcard.name)),
     [slugify, vcard.slug, vcard.name]
@@ -4875,6 +4909,91 @@ const Index = () => {
     ],
   };
 
+  const studioWizardProps = {
+    qrMode,
+    qrType,
+    options,
+    websiteUrl,
+    emailAddress,
+    phoneNumber,
+    fileUrl,
+    fileName,
+    vcard,
+    menuFilesCount: menuFiles.length,
+    websiteTouched,
+    emailTouched,
+    phoneTouched,
+    fileTouched,
+    selectedQuickAction,
+    previewContent,
+    user,
+    onModeChange: setQrMode,
+    onTypeChange: setQrType,
+    onQuickActionSelect: setSelectedQuickAction,
+    onWebsiteUrlChange: setWebsiteUrl,
+    onEmailChange: setEmailAddress,
+    onPhoneChange: setPhoneNumber,
+    onFileChange: (url: string, name: string) => {
+      setFileUrl(url);
+      setFileName(name);
+    },
+    onVcardChange: updateVcardProfile,
+    onOptionChange: (key: keyof QROptions, value: unknown) => {
+      setOptions((prev) => ({ ...prev, [key]: value }));
+    },
+    onDone: handleCompleteQrCustomization,
+    onCancel: handleCancelCreateFlow,
+    onWebsiteTouched: setWebsiteTouched,
+    onEmailTouched: setEmailTouched,
+    onPhoneTouched: setPhoneTouched,
+    onFileTouched: setFileTouched,
+    onSocialChange: (platform: SocialPlatform, handle: string) => {
+      setSocialPlatform(platform);
+      setSocialHandle(handle);
+    },
+    fileUploading,
+    fileUploadProgress,
+    fileUploadError,
+    socialPlatform,
+    socialHandle,
+    portalLinks,
+    portalTitle,
+    portalDescription,
+    portalTemplate,
+    portalCustomization,
+    onPortalChange: (
+      links: PortalLink[],
+      title: string,
+      description: string,
+      template: number,
+      customization: PortalCustomization
+    ) => {
+      setPortalLinks(links);
+      setPortalTitle(title);
+      setPortalDescription(description);
+      setPortalTemplate(template);
+      setPortalCustomization(customization);
+    },
+    navigate,
+    toast,
+    cancelDisabled: isCreateFlowBusy,
+    onShowVcardCustomizer: () => setShowVcardCustomizer(true),
+    onShowMenuBuilder: () => setShowMenuBuilder(true),
+    onShowFileUpload: () => fileInputRef.current?.click(),
+  };
+
+  const showMobileWizardOverlay =
+    isMobile &&
+    activeTab === 'studio' &&
+    Boolean(selectedQuickAction) &&
+    !showMenuBuilder &&
+    !showMenuOrganize &&
+    !showVcardContents &&
+    !showVcardCustomizer &&
+    !showQrCustomizer &&
+    !showNameOverlay &&
+    !showGenerateSuccess;
+
   return (
     <>
       {/* Structured Data for SEO */}
@@ -6562,43 +6681,110 @@ const Index = () => {
                   <p className="text-xs text-muted-foreground">
                     Add only the profiles you want to show. Empty links stay hidden on the landing page.
                   </p>
+                  <p className="text-xs text-muted-foreground">
+                    Star one profile to feature it in the highlighted social card on the VCard.
+                  </p>
                 </div>
                 <div className="grid sm:grid-cols-2 gap-4">
                   <div className="flex items-center gap-3">
                     <Instagram className="h-4 w-4 text-primary" />
-                    <Input
-                      value={vcard.socials?.instagram ?? ''}
-                      onChange={(e) => updateVcardSocial('instagram', e.target.value)}
-                      placeholder="Instagram URL"
-                      className="bg-secondary/50 border-border"
-                    />
+                    <div className="flex-1">
+                      <Input
+                        value={vcard.socials?.instagram ?? ''}
+                        onChange={(e) => updateVcardSocial('instagram', e.target.value)}
+                        placeholder="Instagram URL"
+                        className="bg-secondary/50 border-border"
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => toggleFavoriteVcardSocial('instagram')}
+                      disabled={!normalizeVcardText(vcard.socials?.instagram)}
+                      aria-label="Feature Instagram on the social card"
+                      aria-pressed={vcard.favoriteSocial === 'instagram'}
+                      className={`flex h-10 w-10 items-center justify-center rounded-xl border transition ${
+                        vcard.favoriteSocial === 'instagram'
+                          ? 'border-amber-400/50 bg-amber-400/10 text-amber-500'
+                          : 'border-border/70 bg-secondary/30 text-muted-foreground hover:border-primary/40 hover:text-foreground'
+                      } disabled:cursor-not-allowed disabled:opacity-40`}
+                    >
+                      <Star className={`h-4 w-4 ${vcard.favoriteSocial === 'instagram' ? 'fill-current' : ''}`} />
+                    </button>
                   </div>
                   <div className="flex items-center gap-3">
                     <Facebook className="h-4 w-4 text-primary" />
-                    <Input
-                      value={vcard.socials?.facebook ?? ''}
-                      onChange={(e) => updateVcardSocial('facebook', e.target.value)}
-                      placeholder="Facebook URL"
-                      className="bg-secondary/50 border-border"
-                    />
+                    <div className="flex-1">
+                      <Input
+                        value={vcard.socials?.facebook ?? ''}
+                        onChange={(e) => updateVcardSocial('facebook', e.target.value)}
+                        placeholder="Facebook URL"
+                        className="bg-secondary/50 border-border"
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => toggleFavoriteVcardSocial('facebook')}
+                      disabled={!normalizeVcardText(vcard.socials?.facebook)}
+                      aria-label="Feature Facebook on the social card"
+                      aria-pressed={vcard.favoriteSocial === 'facebook'}
+                      className={`flex h-10 w-10 items-center justify-center rounded-xl border transition ${
+                        vcard.favoriteSocial === 'facebook'
+                          ? 'border-amber-400/50 bg-amber-400/10 text-amber-500'
+                          : 'border-border/70 bg-secondary/30 text-muted-foreground hover:border-primary/40 hover:text-foreground'
+                      } disabled:cursor-not-allowed disabled:opacity-40`}
+                    >
+                      <Star className={`h-4 w-4 ${vcard.favoriteSocial === 'facebook' ? 'fill-current' : ''}`} />
+                    </button>
                   </div>
                   <div className="flex items-center gap-3">
                     <Youtube className="h-4 w-4 text-primary" />
-                    <Input
-                      value={vcard.socials?.youtube ?? ''}
-                      onChange={(e) => updateVcardSocial('youtube', e.target.value)}
-                      placeholder="YouTube URL"
-                      className="bg-secondary/50 border-border"
-                    />
+                    <div className="flex-1">
+                      <Input
+                        value={vcard.socials?.youtube ?? ''}
+                        onChange={(e) => updateVcardSocial('youtube', e.target.value)}
+                        placeholder="YouTube URL"
+                        className="bg-secondary/50 border-border"
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => toggleFavoriteVcardSocial('youtube')}
+                      disabled={!normalizeVcardText(vcard.socials?.youtube)}
+                      aria-label="Feature YouTube on the social card"
+                      aria-pressed={vcard.favoriteSocial === 'youtube'}
+                      className={`flex h-10 w-10 items-center justify-center rounded-xl border transition ${
+                        vcard.favoriteSocial === 'youtube'
+                          ? 'border-amber-400/50 bg-amber-400/10 text-amber-500'
+                          : 'border-border/70 bg-secondary/30 text-muted-foreground hover:border-primary/40 hover:text-foreground'
+                      } disabled:cursor-not-allowed disabled:opacity-40`}
+                    >
+                      <Star className={`h-4 w-4 ${vcard.favoriteSocial === 'youtube' ? 'fill-current' : ''}`} />
+                    </button>
                   </div>
                   <div className="flex items-center gap-3">
                     <Music2 className="h-4 w-4 text-primary" />
-                    <Input
-                      value={vcard.socials?.tiktok ?? ''}
-                      onChange={(e) => updateVcardSocial('tiktok', e.target.value)}
-                      placeholder="TikTok URL"
-                      className="bg-secondary/50 border-border"
-                    />
+                    <div className="flex-1">
+                      <Input
+                        value={vcard.socials?.tiktok ?? ''}
+                        onChange={(e) => updateVcardSocial('tiktok', e.target.value)}
+                        placeholder="TikTok URL"
+                        className="bg-secondary/50 border-border"
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => toggleFavoriteVcardSocial('tiktok')}
+                      disabled={!normalizeVcardText(vcard.socials?.tiktok)}
+                      aria-label="Feature TikTok on the social card"
+                      aria-pressed={vcard.favoriteSocial === 'tiktok'}
+                      className={`flex h-10 w-10 items-center justify-center rounded-xl border transition ${
+                        vcard.favoriteSocial === 'tiktok'
+                          ? 'border-amber-400/50 bg-amber-400/10 text-amber-500'
+                          : 'border-border/70 bg-secondary/30 text-muted-foreground hover:border-primary/40 hover:text-foreground'
+                      } disabled:cursor-not-allowed disabled:opacity-40`}
+                    >
+                      <Star className={`h-4 w-4 ${vcard.favoriteSocial === 'tiktok' ? 'fill-current' : ''}`} />
+                    </button>
                   </div>
                 </div>
               </div>
@@ -7624,84 +7810,17 @@ const Index = () => {
           <>
         {/* Desktop Wizard - Only show on desktop when Quick Action is selected */}
         {!isMobile && selectedQuickAction && (
-          <DesktopStudioWizard
-            qrMode={qrMode}
-            qrType={qrType}
-            options={options}
-            websiteUrl={websiteUrl}
-            emailAddress={emailAddress}
-            phoneNumber={phoneNumber}
-            fileUrl={fileUrl}
-            fileName={fileName}
-            vcard={vcard}
-            menuFilesCount={menuFiles.length}
-            websiteTouched={websiteTouched}
-            emailTouched={emailTouched}
-            phoneTouched={phoneTouched}
-            fileTouched={fileTouched}
-            selectedQuickAction={selectedQuickAction}
-            previewContent={previewContent}
-            user={user}
-            onModeChange={setQrMode}
-            onTypeChange={setQrType}
-            onQuickActionSelect={setSelectedQuickAction}
-            onWebsiteUrlChange={setWebsiteUrl}
-            onEmailChange={setEmailAddress}
-            onPhoneChange={setPhoneNumber}
-            onFileChange={(url, name) => {
-              setFileUrl(url);
-              setFileName(name);
-            }}
-            onVcardChange={updateVcardProfile}
-            onOptionChange={(key, value) => {
-              setOptions((prev) => ({ ...prev, [key]: value }));
-            }}
-            onDone={handleCompleteQrCustomization}
-            onCancel={handleCancelCreateFlow}
-            onWebsiteTouched={setWebsiteTouched}
-            onEmailTouched={setEmailTouched}
-            onPhoneTouched={setPhoneTouched}
-            onFileTouched={setFileTouched}
-            onSocialChange={(platform, handle) => {
-              setSocialPlatform(platform);
-              setSocialHandle(handle);
-            }}
-            fileUploading={fileUploading}
-            fileUploadProgress={fileUploadProgress}
-            fileUploadError={fileUploadError}
-            socialPlatform={socialPlatform}
-            socialHandle={socialHandle}
-            portalLinks={portalLinks}
-            portalTitle={portalTitle}
-            portalDescription={portalDescription}
-            portalTemplate={portalTemplate}
-            portalCustomization={portalCustomization}
-            onPortalChange={(links, title, description, template, customization) => {
-              setPortalLinks(links);
-              setPortalTitle(title);
-              setPortalDescription(description);
-              setPortalTemplate(template);
-              setPortalCustomization(customization);
-            }}
-            navigate={navigate}
-            toast={toast}
-            cancelDisabled={isCreateFlowBusy}
-            onShowVcardCustomizer={() => setShowVcardCustomizer(true)}
-            onShowMenuBuilder={() => setShowMenuBuilder(true)}
-            onShowFileUpload={() => fileInputRef.current?.click()}
-          />
+          <DesktopStudioWizard {...studioWizardProps} />
         )}
         
         {/* Hidden file input for desktop wizard */}
-        {!isMobile && (
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*,application/pdf"
-            onChange={handleFileUpload}
-            className="hidden"
-          />
-        )}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*,application/pdf"
+          onChange={handleFileUpload}
+          className="hidden"
+        />
         
         {/* Desktop Studio Dashboard - Show when no Quick Action is selected */}
         {!isMobile && !selectedQuickAction && (
@@ -8224,6 +8343,20 @@ const Index = () => {
         )}
 
       </main>
+
+      {showMobileWizardOverlay && (
+        <div
+          className="fixed inset-0 z-[65] overflow-y-auto bg-background/80 backdrop-blur-md px-2 py-3 sm:px-4 sm:py-4"
+          onClick={handleCancelCreateFlow}
+        >
+          <div
+            className="mx-auto w-full max-w-6xl"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <DesktopStudioWizard {...studioWizardProps} />
+          </div>
+        </div>
+      )}
 
       {/* Navigation Overlay */}
       {showNavOverlay && (

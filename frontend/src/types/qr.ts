@@ -61,6 +61,7 @@ export interface VcardProfile {
   about?: string;
   slug?: string;
   socials?: VcardSocials;
+  favoriteSocial?: VcardSocialPlatform | '';
   ctaType?: VcardCtaType | '';
   ctaLabel?: string;
   ctaValue?: string;
