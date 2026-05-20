@@ -2,6 +2,10 @@ import type { Context } from 'hono'
 
 import { getAppBaseUrl } from '../../config/env'
 import type { AppBindings } from '../../shared/http/types'
+import { recordAreaScanForUser } from '../scans/areaStore'
+import { lookupGeo } from '../scans/geo'
+import type { AreaStorage } from '../scans/storage/area.interface'
+import type { ScansService } from '../scans/service'
 import type { Vcard } from '../vcards/models'
 import type { VcardsService } from '../vcards/service'
 import type { Url } from './models'
@@ -14,6 +18,13 @@ const FNV_PRIME = 0x01000193
 type ParsedKind = {
   mode: 'dynamic' | 'static'
   type: string
+}
+
+type LegacyAliasRecord = {
+  oldPath: string
+  type?: string
+  canonicalPath?: string
+  active?: boolean
 }
 
 type PublicTargetInput = Pick<Url, 'id' | 'userId' | 'targetUrl' | 'name' | 'kind' | 'options'>
@@ -165,10 +176,118 @@ const extractLegacyVcardSlug = (targetUrl: string) => {
 const getStoredOptionRecord = (options: Url['options']) =>
   options && typeof options === 'object' ? options : null
 
+const normalizePathname = (value: string) => {
+  const raw = value.startsWith('http://') || value.startsWith('https://')
+    ? tryParseUrlPathname(value)
+    : value
+  const normalized = raw.trim()
+  if (!normalized) return ''
+  const withLeadingSlash = normalized.startsWith('/') ? normalized : `/${normalized}`
+  const stripped = withLeadingSlash.replace(/\/+$/, '')
+  return stripped || '/'
+}
+
+const dedupeLegacyAliases = (aliases: LegacyAliasRecord[]) => {
+  const seen = new Set<string>()
+  const output: LegacyAliasRecord[] = []
+
+  for (const alias of aliases) {
+    const oldPath = normalizePathname(alias.oldPath)
+    if (!oldPath || seen.has(oldPath)) continue
+    seen.add(oldPath)
+    output.push({
+      oldPath,
+      type: alias.type || 'vcard',
+      canonicalPath: alias.canonicalPath ? normalizePathname(alias.canonicalPath) : undefined,
+      active: alias.active !== false,
+    })
+  }
+
+  return output
+}
+
+export const buildLegacyVcardPath = (slug: string) => {
+  const normalizedSlug = slugifyPublicSegment(slug)
+  return normalizedSlug ? `/v/${normalizedSlug}` : ''
+}
+
+const parseStoredLegacyAliases = (options: Url['options']) => {
+  const record = getStoredOptionRecord(options)
+  const raw = record?.legacyAliases
+  if (!Array.isArray(raw)) return []
+
+  const aliases: LegacyAliasRecord[] = []
+  for (const entry of raw) {
+    if (typeof entry === 'string') {
+      const oldPath = normalizePathname(entry)
+      if (oldPath) aliases.push({ oldPath, type: 'vcard', active: true })
+      continue
+    }
+
+    if (entry && typeof entry === 'object') {
+      const aliasRecord = entry as Record<string, unknown>
+      const oldPath = normalizePathname(
+        normalizeText(aliasRecord.oldPath) || normalizeText(aliasRecord.path)
+      )
+      if (!oldPath) continue
+      aliases.push({
+        oldPath,
+        type: normalizeText(aliasRecord.type) || 'vcard',
+        canonicalPath: normalizePathname(normalizeText(aliasRecord.canonicalPath)),
+        active: aliasRecord.active !== false,
+      })
+    }
+  }
+
+  return dedupeLegacyAliases(aliases)
+}
+
 const getInternalTargetUrl = (url: Url) => {
   const options = getStoredOptionRecord(url.options)
   const internalTargetUrl = normalizeText(options?.internalTargetUrl)
   return internalTargetUrl || url.targetUrl
+}
+
+export const getStoredLegacyAliases = (
+  url: Pick<Url, 'kind' | 'targetUrl' | 'options'>,
+  fallbackSlug?: string
+) => {
+  const parsedKind = parseKind(url.kind)
+  if (parsedKind.type !== 'vcard') {
+    return [] as LegacyAliasRecord[]
+  }
+
+  const options = getStoredOptionRecord(url.options)
+  const aliases = parseStoredLegacyAliases(url.options)
+  const extractedSlug = extractLegacyVcardSlug(url.targetUrl)
+  const optionVcardSlug = normalizeText(options?.vcardSlug)
+
+  const fallbackAliases = [extractedSlug, optionVcardSlug, fallbackSlug]
+    .map((value) => buildLegacyVcardPath(value ?? ''))
+    .filter(Boolean)
+    .map((oldPath) => ({ oldPath, type: 'vcard', active: true } satisfies LegacyAliasRecord))
+
+  return dedupeLegacyAliases([...aliases, ...fallbackAliases])
+}
+
+export const withStoredVcardAliases = (
+  input: PublicTargetInput,
+  slug: string
+) => {
+  const normalizedSlug = slugifyPublicSegment(slug)
+  const existing = getStoredOptionRecord(input.options) ?? {}
+  const canonicalPath = buildPublicPath(input.userId, normalizedSlug)
+
+  return {
+    ...existing,
+    vcardSlug: normalizedSlug,
+    legacyAliases: getStoredLegacyAliases(input, normalizedSlug).map((alias) => ({
+      oldPath: alias.oldPath,
+      type: 'vcard',
+      canonicalPath,
+      active: alias.active !== false,
+    })),
+  }
 }
 
 const getStoredPublicSlug = (url: PublicTargetInput) => {
@@ -260,6 +379,130 @@ export const withStoredPublicSlug = (
 
 const matchesPublicAlias = (url: Url, ownerSlug: string, publicSlug: string) => {
   return buildPublicOwnerSlug(url.userId) === ownerSlug && getStoredPublicSlug(url) === publicSlug
+}
+
+const matchesLegacyVcardAlias = (url: Url, legacyPath: string) => {
+  return getStoredLegacyAliases(url).some(
+    (alias) => alias.active !== false && alias.oldPath === legacyPath
+  )
+}
+
+export const resolveLegacyVcardMatch = async (
+  service: UrlsService,
+  vcardsService: VcardsService,
+  slug: string
+) => {
+  const normalizedSlug = slugifyPublicSegment(slug)
+  if (!normalizedSlug) return null
+
+  const legacyPath = buildLegacyVcardPath(normalizedSlug)
+  const urls = await service.getAllUrls()
+  const match = urls.find((url) => matchesLegacyVcardAlias(url, legacyPath))
+
+  if (match) {
+    const vcard = await vcardsService.getByShortId(match.id)
+    if (vcard) {
+      return { url: match, vcard, legacyPath }
+    }
+  }
+
+  const vcard = await vcardsService.getBySlug(normalizedSlug)
+  if (!vcard) {
+    return null
+  }
+
+  const url = await service.getById(vcard.shortId)
+  if (!url) {
+    return null
+  }
+
+  return { url, vcard, legacyPath }
+}
+
+const isPrivateIp = (ip: string) => {
+  if (ip === '::1') return true
+  const lower = ip.toLowerCase()
+  if (lower.startsWith('fc') || lower.startsWith('fd')) return true
+  if (lower.startsWith('fe80')) return true
+  const parts = ip.split('.').map((part) => Number(part))
+  if (parts.length !== 4 || parts.some((part) => Number.isNaN(part))) return false
+  if (parts[0] === 10) return true
+  if (parts[0] === 172 && parts[1] >= 16 && parts[1] <= 31) return true
+  if (parts[0] === 192 && parts[1] === 168) return true
+  if (parts[0] === 127) return true
+  return false
+}
+
+const getClientIp = (c: Context<AppBindings>) => {
+  const forwarded = c.req.header('x-forwarded-for')
+  if (forwarded) {
+    const candidates = forwarded.split(',').map((entry) => entry.trim()).filter(Boolean)
+    const publicIp = candidates.find((ip) => !isPrivateIp(ip))
+    return publicIp ?? candidates[0] ?? null
+  }
+  const direct = c.req.header('x-real-ip') ?? c.req.header('cf-connecting-ip')
+  if (direct) return direct
+  const raw = c.req.raw as unknown as { socket?: { remoteAddress?: string }; conn?: { remoteAddress?: string } }
+  return raw?.socket?.remoteAddress ?? raw?.conn?.remoteAddress ?? null
+}
+
+const getNowMs = () => (typeof performance !== 'undefined' ? performance.now() : Date.now())
+
+const recordPublicPageScan = (
+  c: Context<AppBindings>,
+  url: Pick<Url, 'id' | 'random' | 'userId'>,
+  scansService?: ScansService,
+  areaStorage?: AreaStorage
+) => {
+  if (!scansService && !areaStorage) return
+
+  const startedAt = getNowMs()
+  const ip = getClientIp(c)
+  const userAgent = c.req.header('user-agent') ?? null
+  const responseMs = Math.round(getNowMs() - startedAt)
+
+  Promise.all([
+    areaStorage
+      ? lookupGeo(ip)
+          .then((geo) =>
+            recordAreaScanForUser(areaStorage, {
+              userId: url.userId,
+              ip,
+              userAgent,
+              city: geo.city,
+              region: geo.region,
+              countryCode: geo.countryCode,
+              lat: geo.lat,
+              lon: geo.lon,
+              responseMs,
+            }).catch((err) => console.error('[scan] failed to record public page area scan', err))
+          )
+          .catch((err) => {
+            console.error('[scan] failed to lookup public page geo', err)
+            return recordAreaScanForUser(areaStorage, {
+              userId: url.userId,
+              ip,
+              userAgent,
+              city: null,
+              region: null,
+              countryCode: null,
+              lat: null,
+              lon: null,
+              responseMs,
+            }).catch((fallbackErr) =>
+              console.error('[scan] failed to record public page area scan (fallback)', fallbackErr)
+            )
+          })
+      : Promise.resolve(),
+    scansService?.recordScan({
+      urlId: url.id,
+      urlRandom: url.random,
+      userId: url.userId,
+      ip,
+      userAgent,
+      responseMs,
+    }).catch((err) => console.error('[scan] failed to record public page scan', err)),
+  ]).catch(() => {})
 }
 
 const buildVcardShareMeta = (profile: VcardProfileRecord) => {
@@ -703,7 +946,45 @@ export const buildVcardLandingHtml = (vcard: Vcard, canonicalUrl: string) => {
 </html>`
 }
 
-export const publicAliasPageHandler = (service: UrlsService, vcardsService: VcardsService) => {
+const renderVcardPublicPage = (
+  c: Context<AppBindings>,
+  url: Url,
+  vcard: Vcard,
+  scansService?: ScansService,
+  areaStorage?: AreaStorage
+) => {
+  recordPublicPageScan(c, url, scansService, areaStorage)
+  const canonicalUrl = buildVcardPublicUrl(vcard)
+  return c.html(buildVcardLandingHtml(vcard, canonicalUrl))
+}
+
+export const publicLegacyVcardPageHandler = (
+  service: UrlsService,
+  vcardsService: VcardsService,
+  scansService?: ScansService,
+  areaStorage?: AreaStorage
+) => {
+  return async (c: Context<AppBindings>) => {
+    const slug = slugifyPublicSegment(c.req.param('slug') ?? '')
+    if (!slug) {
+      return c.text('Not found', 404)
+    }
+
+    const match = await resolveLegacyVcardMatch(service, vcardsService, slug)
+    if (!match) {
+      return c.text('Not found', 404)
+    }
+
+    return renderVcardPublicPage(c, match.url, match.vcard, scansService, areaStorage)
+  }
+}
+
+export const publicAliasPageHandler = (
+  service: UrlsService,
+  vcardsService: VcardsService,
+  scansService?: ScansService,
+  areaStorage?: AreaStorage
+) => {
   return async (c: Context<AppBindings>) => {
     const owner = slugifyPublicSegment(c.req.param('owner') ?? '')
     const slug = slugifyPublicSegment(c.req.param('slug') ?? '')
@@ -725,8 +1006,7 @@ export const publicAliasPageHandler = (service: UrlsService, vcardsService: Vcar
       if (!vcard) {
         return c.text('Not found', 404)
       }
-      const canonicalUrl = buildVcardPublicUrl(vcard)
-      return c.html(buildVcardLandingHtml(vcard, canonicalUrl))
+      return renderVcardPublicPage(c, match, vcard, scansService, areaStorage)
     }
 
     return c.redirect(getInternalTargetUrl(match), 302)

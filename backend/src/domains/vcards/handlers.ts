@@ -3,7 +3,7 @@ import type { Context } from 'hono'
 import { UrlValidationError } from '../urls/errors'
 import type { AppBindings } from '../../shared/http/types'
 import type { UrlsService } from '../urls/service'
-import { buildVcardPublicUrl } from '../urls/public-links'
+import { buildVcardPublicUrl, resolveLegacyVcardMatch, withStoredVcardAliases } from '../urls/public-links'
 import { parseCreateVcardInput, parseUpdateVcardInput } from './validators'
 import type { VcardsService } from './service'
 import { Vcard } from './models'
@@ -24,11 +24,23 @@ export const createVcardHandler = (vcardsService: VcardsService, urlsService: Ur
 
       const baseSlug = input.slug ?? `${userId}-vcard`
       const slug = await findAvailableSlug(vcardsService, userId, baseSlug)
+      const publicUrl = buildVcardPublicUrl({ userId, slug })
+      const urlOptions = withStoredVcardAliases(
+        {
+          id: '',
+          userId,
+          targetUrl: input.publicUrl,
+          name: null,
+          kind: input.kind,
+          options: input.options ?? null,
+        },
+        slug
+      )
 
       const url = await urlsService.createUrl({
         userId,
-        targetUrl: input.publicUrl,
-        options: input.options ?? null,
+        targetUrl: publicUrl,
+        options: urlOptions,
         kind: input.kind
       })
 
@@ -36,7 +48,7 @@ export const createVcardHandler = (vcardsService: VcardsService, urlsService: Ur
         id: crypto.randomUUID(),
         userId,
         slug,
-        publicUrl: buildVcardPublicUrl({ userId, slug }),
+        publicUrl,
         shortId: url.id,
         shortRandom: url.random,
         data: input.data,
@@ -98,9 +110,20 @@ export const updateVcardHandler = (vcardsService: VcardsService, urlsService: Ur
       }
 
       if (input.name !== undefined || input.options !== undefined || input.kind !== undefined) {
+        const nextOptions = withStoredVcardAliases(
+          {
+            id: url.id,
+            userId,
+            targetUrl: url.targetUrl,
+            name: input.name ?? url.name ?? null,
+            kind: input.kind ?? url.kind ?? null,
+            options: input.options === undefined ? url.options ?? null : input.options,
+          },
+          record.slug
+        )
         url = await urlsService.updateUrl(record.shortId, userId, {
           name: input.name,
-          options: input.options,
+          options: nextOptions,
           kind: input.kind
         })
       }
@@ -133,21 +156,21 @@ export const listVcardsHandler = (vcardsService: VcardsService) => {
   }
 }
 
-export const publicVcardHandler = (vcardsService: VcardsService) => {
+export const publicVcardHandler = (vcardsService: VcardsService, urlsService: UrlsService) => {
   return async (c: Context<AppBindings>) => {
     const slug = c.req.param('slug')
     if (!slug) {
       return c.json({ message: 'slug is required' }, 400)
     }
 
-    const vcard = await vcardsService.getBySlug(slug)
-    if (!vcard) {
+    const match = await resolveLegacyVcardMatch(urlsService, vcardsService, slug)
+    if (!match) {
       return c.json({ message: 'Not found' }, 404)
     }
 
     return c.json({
-      ...vcard,
-      publicUrl: buildVcardPublicUrl(vcard)
+      ...match.vcard,
+      publicUrl: buildVcardPublicUrl(match.vcard)
     })
   }
 }

@@ -13,6 +13,6 @@ export const registerVcardsRoutes = (
   app.post('/vcards', createVcardHandler(vcardsService, urlsService))
   app.get('/vcards', listVcardsHandler(vcardsService))
   app.patch('/vcards/:id', updateVcardHandler(vcardsService, urlsService))
-  app.get('/public/vcards/:slug', publicVcardHandler(vcardsService))
+  app.get('/public/vcards/:slug', publicVcardHandler(vcardsService, urlsService))
   app.delete('/vcards/:id', deleteVcardHandler(vcardsService, urlsService))
 }

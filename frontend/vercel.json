@@ -13,6 +13,10 @@
       "destination": "https://api.luminarapps.com/public/:path*"
     },
     {
+      "source": "/v/:slug",
+      "destination": "https://api.luminarapps.com/public/pages/v/:slug"
+    },
+    {
       "source": "/:owner((?!v$|menu$|file$|r$|adaptive$|public$|assets$|login$|forgot-password$|reset-password$|terms$|privacy$|support$|data-deletion$|faq$)[^/]+)/:slug",
       "destination": "https://api.luminarapps.com/public/pages/:owner/:slug"
     },
