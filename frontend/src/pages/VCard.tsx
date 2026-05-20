@@ -153,13 +153,6 @@ const VCard = () => {
   }, [slug]);
 
   useEffect(() => {
-    if (typeof window === 'undefined' || !publicUrl) return;
-    const next = new URL(publicUrl, window.location.origin);
-    if (window.location.pathname === next.pathname) return;
-    window.history.replaceState(window.history.state, '', next.pathname);
-  }, [publicUrl]);
-
-  useEffect(() => {
     if (typeof window === 'undefined') return;
 
     const updateViewport = () => {
