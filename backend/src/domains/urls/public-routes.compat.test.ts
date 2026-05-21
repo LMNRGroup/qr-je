@@ -123,7 +123,8 @@ describe('public vcard compatibility routes', () => {
     expect(html).toContain('https://cdn.example.com/logo.png')
     expect(html).toContain('aria-label="Instagram"')
     expect(html).not.toContain('>IG<')
-    expect(html).toContain('Featured Social')
+    expect(html).toContain('Favorite channel')
+    expect(html).toContain('Follow on Instagram')
     expect(html).not.toContain('>Company<')
 
     await flushAsyncWork()
