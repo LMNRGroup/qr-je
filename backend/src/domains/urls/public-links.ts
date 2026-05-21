@@ -241,8 +241,17 @@ const normalizePathname = (value: string) => {
   return stripped || '/'
 }
 
+const normalizeCollectrPublicPath = (value: string) => {
+  const normalized = normalizePathname(value)
+  if (normalized.startsWith('/public/pages/')) {
+    const publicPath = normalized.slice('/public/pages'.length)
+    return normalizePathname(publicPath)
+  }
+  return normalized
+}
+
 const resolveCollectrShowcaseInput = (pathname: string, explicitInput?: string | null) => {
-  const normalizedPath = normalizePathname(pathname)
+  const normalizedPath = normalizeCollectrPublicPath(pathname)
   if (!COLLECTR_ALLOWED_PUBLIC_PATHS.has(normalizedPath)) {
     return ''
   }
