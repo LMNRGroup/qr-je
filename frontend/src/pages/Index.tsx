@@ -103,6 +103,11 @@ import {
 import { ChangeEvent, lazy, PointerEvent, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
+import {
+  VCARD_DEFAULT_FONT_FAMILY,
+  VCARD_FONT_OPTIONS,
+  normalizeVcardFontFamily,
+} from '@/lib/vcard-theme';
 
 const ArsenalPanel = lazy(() => import('@/components/ArsenalPanel').then((module) => ({ default: module.ArsenalPanel })));
 const SystemNotificationTab = lazy(() => import('@/components/SystemNotificationTab').then((module) => ({ default: module.SystemNotificationTab })));
@@ -151,7 +156,7 @@ const createEmptyVcardProfile = (): VcardProfile => ({
 });
 
 const createDefaultVcardStyle = (): VcardStyle => ({
-  fontFamily: 'Arial, sans-serif',
+  fontFamily: VCARD_DEFAULT_FONT_FAMILY,
   radius: 18,
   texture: 'matte',
   frontColor: '#111827',
@@ -229,6 +234,7 @@ const buildVcardData = (profile: VcardProfile, style: VcardStyle): VcardData => 
     },
     style: {
       ...style,
+      fontFamily: normalizeVcardFontFamily(style.fontFamily),
       frontLogoDataUrl: style.frontLogoDataUrl ?? '',
       backLogoDataUrl: style.backLogoDataUrl ?? '',
       coverPhotoDataUrl: style.coverPhotoDataUrl ?? '',
@@ -2659,18 +2665,6 @@ const Index = () => {
     }
   };
 
-  const vcardFontOptions = [
-    { label: 'Arial', value: 'Arial, sans-serif' },
-    { label: 'Helvetica', value: 'Helvetica, Arial, sans-serif' },
-    { label: 'Times New Roman', value: '"Times New Roman", Times, serif' },
-    { label: 'Georgia', value: 'Georgia, serif' },
-    { label: 'Trebuchet MS', value: '"Trebuchet MS", Arial, sans-serif' },
-    { label: 'Verdana', value: 'Verdana, Geneva, sans-serif' },
-    { label: 'Courier New', value: '"Courier New", Courier, monospace' },
-    { label: 'Lucida Console', value: '"Lucida Console", Monaco, monospace' },
-    { label: 'Tahoma', value: 'Tahoma, Geneva, sans-serif' },
-    { label: 'Garamond', value: 'Garamond, "Times New Roman", serif' },
-  ];
   const vcardTextureOptions: { id: VcardTexture; label: string }[] = [
     { id: 'matte', label: 'Matte' },
     { id: 'metallic', label: 'Metallic' },
@@ -3340,6 +3334,7 @@ const Index = () => {
     setVcardStyle({
       ...createDefaultVcardStyle(),
       ...(payload.style ?? {}),
+      fontFamily: normalizeVcardFontFamily(payload.style?.fontFamily),
     });
     setShowVcardContents(true);
     setShowVcardCustomizer(false);
@@ -5834,19 +5829,38 @@ const Index = () => {
                         <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">
                           Typography
                         </p>
-                        <select
-                          className="w-full h-11 rounded-xl border border-border bg-secondary/40 px-3 text-sm"
-                          value={vcardStyle.fontFamily}
-                          onChange={(event) =>
-                            setVcardStyle((prev) => ({ ...prev, fontFamily: event.target.value }))
-                          }
-                        >
-                          {vcardFontOptions.map((font) => (
-                            <option key={font.label} value={font.value}>
-                              {font.label}
-                            </option>
-                          ))}
-                        </select>
+                        <div className="grid gap-2 sm:grid-cols-2">
+                          {VCARD_FONT_OPTIONS.map((font) => {
+                            const isSelected = normalizeVcardFontFamily(vcardStyle.fontFamily) === font.value;
+                            return (
+                              <button
+                                key={font.label}
+                                type="button"
+                                onClick={() =>
+                                  setVcardStyle((prev) => ({
+                                    ...prev,
+                                    fontFamily: font.value,
+                                  }))
+                                }
+                                className={`rounded-2xl border px-4 py-3 text-left transition ${
+                                  isSelected
+                                    ? 'border-primary bg-secondary/55 shadow-sm'
+                                    : 'border-border/60 bg-secondary/25 hover:border-primary/40 hover:bg-secondary/35'
+                                }`}
+                              >
+                                <p
+                                  className="text-base font-semibold tracking-tight"
+                                  style={{ fontFamily: font.value }}
+                                >
+                                  {font.label}
+                                </p>
+                                <p className="mt-1 text-xs text-muted-foreground">
+                                  {font.note}
+                                </p>
+                              </button>
+                            );
+                          })}
+                        </div>
                       </div>
                       <ColorPicker
                         label="Background"

@@ -8,6 +8,7 @@ import {
   Phone,
 } from 'lucide-react';
 
+import { normalizeVcardFontFamily } from '@/lib/vcard-theme';
 import { cn } from '@/lib/utils';
 import type {
   VcardCtaType,
@@ -27,6 +28,23 @@ type VcardLandingCardProps = {
   className?: string;
 };
 
+type IconProps = {
+  className?: string;
+};
+
+type LinkConfig = {
+  href: string;
+  external: boolean;
+};
+
+type ContactRow = {
+  key: string;
+  label: string;
+  value: string;
+  Icon: ComponentType<IconProps>;
+  link?: LinkConfig | null;
+};
+
 const CTA_LABELS: Record<VcardCtaType, string> = {
   call: 'Call Me',
   email: 'Email Me',
@@ -41,37 +59,56 @@ const CTA_ICONS: Record<VcardCtaType, typeof Phone> = {
   website: Globe,
 };
 
-type SocialIconProps = {
-  className?: string;
+const CTA_KICKERS: Record<VcardCtaType, string> = {
+  call: 'Direct line',
+  email: 'Quick email',
+  whatsapp: 'Instant chat',
+  website: 'Explore more',
 };
 
-const InstagramLogo = ({ className }: SocialIconProps) => (
-  <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+const CTA_HELPERS: Record<VcardCtaType, string> = {
+  call: 'Tap to start a call right away.',
+  email: 'Open a message with one tap.',
+  whatsapp: 'Jump into WhatsApp instantly.',
+  website: 'Open the full website experience.',
+};
+
+const InstagramLogo = ({ className }: IconProps) => (
+  <svg
+    viewBox="0 0 24 24"
+    className={className}
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.9"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden="true"
+  >
     <rect x="3.75" y="3.75" width="16.5" height="16.5" rx="5.25" />
     <circle cx="12" cy="12" r="4.1" />
     <circle cx="17.35" cy="6.65" r="1.15" fill="currentColor" stroke="none" />
   </svg>
 );
 
-const FacebookLogo = ({ className }: SocialIconProps) => (
+const FacebookLogo = ({ className }: IconProps) => (
   <svg viewBox="0 0 24 24" className={className} fill="currentColor" aria-hidden="true">
     <path d="M13.25 21v-6.7h2.27l.34-2.77h-2.61V9.76c0-.8.22-1.35 1.38-1.35H16V5.96c-.24-.03-1.07-.1-2.04-.1-2.02 0-3.4 1.24-3.4 3.5v2.17H8.28v2.77h2.28V21h2.69Z" />
   </svg>
 );
 
-const YoutubeLogo = ({ className }: SocialIconProps) => (
+const YoutubeLogo = ({ className }: IconProps) => (
   <svg viewBox="0 0 24 24" className={className} fill="currentColor" aria-hidden="true">
     <path d="M21.56 7.3a2.85 2.85 0 0 0-2-2.02C17.78 4.8 12 4.8 12 4.8s-5.78 0-7.56.48a2.85 2.85 0 0 0-2 2.02A29.7 29.7 0 0 0 2 12a29.7 29.7 0 0 0 .44 4.7 2.85 2.85 0 0 0 2 2.02c1.78.48 7.56.48 7.56.48s5.78 0 7.56-.48a2.85 2.85 0 0 0 2-2.02A29.7 29.7 0 0 0 22 12a29.7 29.7 0 0 0-.44-4.7ZM10.25 15.2V8.8L15.85 12l-5.6 3.2Z" />
   </svg>
 );
 
-const TiktokLogo = ({ className }: SocialIconProps) => (
+const TiktokLogo = ({ className }: IconProps) => (
   <svg viewBox="0 0 24 24" className={className} fill="currentColor" aria-hidden="true">
     <path d="M14.2 3c.35 1.7 1.3 3.02 2.86 3.95.8.48 1.7.77 2.64.83v2.78a7.58 7.58 0 0 1-4.06-1.14v5.26a5.05 5.05 0 1 1-4.4-5.01v2.89a2.26 2.26 0 1 0 1.3 2.04V3h1.66Z" />
   </svg>
 );
 
-const SOCIAL_ICONS: Record<VcardSocialPlatform, ComponentType<SocialIconProps>> = {
+const SOCIAL_ICONS: Record<VcardSocialPlatform, ComponentType<IconProps>> = {
   instagram: InstagramLogo,
   facebook: FacebookLogo,
   youtube: YoutubeLogo,
@@ -83,6 +120,20 @@ const SOCIAL_LABELS: Record<VcardSocialPlatform, string> = {
   facebook: 'Facebook',
   youtube: 'YouTube',
   tiktok: 'TikTok',
+};
+
+const FEATURED_SOCIAL_TITLES: Record<VcardSocialPlatform, string> = {
+  instagram: 'Follow on Instagram',
+  facebook: 'Follow on Facebook',
+  youtube: 'Watch on YouTube',
+  tiktok: 'Follow on TikTok',
+};
+
+const FEATURED_SOCIAL_HINTS: Record<VcardSocialPlatform, string> = {
+  instagram: 'See the latest updates, stories, and drops.',
+  facebook: 'Stay connected for posts, events, and announcements.',
+  youtube: 'Open the channel and explore featured videos.',
+  tiktok: 'Catch short-form updates and behind-the-scenes posts.',
 };
 
 const PROFILE_ALIGNMENTS: Record<VcardProfileAlign, string> = {
@@ -104,7 +155,8 @@ const getTextureStyle = (texture: VcardTexture, base: string) => {
           'linear-gradient(120deg, rgba(255,255,255,0.55) 0%, rgba(255,255,255,0.12) 35%, rgba(0,0,0,0.25) 70%, rgba(255,255,255,0.25) 100%), repeating-linear-gradient(90deg, rgba(255,255,255,0.18) 0px, rgba(255,255,255,0.18) 2px, rgba(0,0,0,0.08) 3px, rgba(0,0,0,0.08) 6px), ' +
           base,
         backgroundBlendMode: 'screen, overlay, normal',
-        boxShadow: 'inset 0 1px 1px rgba(255,255,255,0.35), inset 0 -6px 10px rgba(0,0,0,0.35)',
+        boxShadow:
+          'inset 0 1px 1px rgba(255,255,255,0.35), inset 0 -6px 10px rgba(0,0,0,0.35)',
       } as CSSProperties;
     case 'glossy':
       return {
@@ -112,7 +164,8 @@ const getTextureStyle = (texture: VcardTexture, base: string) => {
           'radial-gradient(circle at 20% 10%, rgba(255,255,255,0.7), rgba(255,255,255,0) 55%), linear-gradient(180deg, rgba(255,255,255,0.18), rgba(0,0,0,0.2)), ' +
           base,
         backgroundBlendMode: 'screen, overlay, normal',
-        boxShadow: 'inset 0 12px 24px rgba(255,255,255,0.2), inset 0 -10px 16px rgba(0,0,0,0.3)',
+        boxShadow:
+          'inset 0 12px 24px rgba(255,255,255,0.2), inset 0 -10px 16px rgba(0,0,0,0.3)',
       } as CSSProperties;
     case 'paper':
       return {
@@ -126,10 +179,10 @@ const getTextureStyle = (texture: VcardTexture, base: string) => {
     default:
       return {
         backgroundImage:
-          'linear-gradient(0deg, rgba(0,0,0,0.2), rgba(0,0,0,0.2)), repeating-linear-gradient(135deg, rgba(255,255,255,0.04) 0px, rgba(255,255,255,0.04) 1px, rgba(0,0,0,0.04) 1px, rgba(0,0,0,0.04) 2px), ' +
+          'linear-gradient(0deg, rgba(0,0,0,0.16), rgba(0,0,0,0.16)), repeating-linear-gradient(135deg, rgba(255,255,255,0.04) 0px, rgba(255,255,255,0.04) 1px, rgba(0,0,0,0.04) 1px, rgba(0,0,0,0.04) 2px), ' +
           base,
         backgroundBlendMode: 'soft-light, overlay, normal',
-        filter: 'saturate(0.9)',
+        filter: 'saturate(0.94)',
       } as CSSProperties;
   }
 };
@@ -142,7 +195,64 @@ const normalizeUrl = (value?: string) => {
 
 const normalizePhone = (value?: string) => (value ?? '').replace(/[^\d+]/g, '').trim();
 
-const getActionHref = (profile: VcardProfile) => {
+const parseRgb = (value?: string | null) => {
+  if (!value) return null;
+  const trimmed = value.trim();
+
+  if (trimmed.startsWith('#')) {
+    const hex = trimmed.slice(1);
+    const normalized =
+      hex.length === 3
+        ? hex
+            .split('')
+            .map((char) => `${char}${char}`)
+            .join('')
+        : hex.length === 6
+          ? hex
+          : '';
+
+    if (!normalized) return null;
+
+    const parsed = Number.parseInt(normalized, 16);
+    if (Number.isNaN(parsed)) return null;
+
+    return {
+      r: (parsed >> 16) & 255,
+      g: (parsed >> 8) & 255,
+      b: parsed & 255,
+    };
+  }
+
+  const rgbMatch = trimmed.match(/^rgba?\((\d+),\s*(\d+),\s*(\d+)/i);
+  if (!rgbMatch) return null;
+
+  return {
+    r: Number(rgbMatch[1]),
+    g: Number(rgbMatch[2]),
+    b: Number(rgbMatch[3]),
+  };
+};
+
+const toRgba = (value: string | undefined, alpha: number) => {
+  const rgb = parseRgb(value);
+  if (!rgb) return null;
+  return `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${alpha})`;
+};
+
+const isLightColor = (value?: string | null) => {
+  const rgb = parseRgb(value);
+  if (!rgb) return true;
+  const channel = [rgb.r, rgb.g, rgb.b].map((component) => {
+    const normalized = component / 255;
+    return normalized <= 0.03928
+      ? normalized / 12.92
+      : ((normalized + 0.055) / 1.055) ** 2.4;
+  });
+  const luminance = 0.2126 * channel[0] + 0.7152 * channel[1] + 0.0722 * channel[2];
+  return luminance > 0.58;
+};
+
+const getActionLink = (profile: VcardProfile) => {
   const ctaType = profile.ctaType;
   const rawValue = profile.ctaValue?.trim() ?? '';
   if (!ctaType) return null;
@@ -159,7 +269,9 @@ const getActionHref = (profile: VcardProfile) => {
 
   if (ctaType === 'whatsapp') {
     const whatsapp = normalizePhone(rawValue || profile.phone);
-    return whatsapp ? { href: `https://wa.me/${whatsapp.replace(/[^\d]/g, '')}`, external: true } : null;
+    return whatsapp
+      ? { href: `https://wa.me/${whatsapp.replace(/[^\d]/g, '')}`, external: true }
+      : null;
   }
 
   const website = normalizeUrl(rawValue || profile.website);
@@ -169,12 +281,11 @@ const getActionHref = (profile: VcardProfile) => {
 const renderMaybeLink = (
   keyValue: string,
   interactive: boolean,
-  href: string | undefined,
-  external: boolean | undefined,
+  link: LinkConfig | null | undefined,
   className: string,
   children: ReactNode
 ) => {
-  if (!interactive || !href) {
+  if (!interactive || !link?.href) {
     return (
       <div key={keyValue} className={className}>
         {children}
@@ -185,10 +296,10 @@ const renderMaybeLink = (
   return (
     <a
       key={keyValue}
-      href={href}
+      href={link.href}
       className={className}
-      target={external ? '_blank' : undefined}
-      rel={external ? 'noreferrer' : undefined}
+      target={link.external ? '_blank' : undefined}
+      rel={link.external ? 'noreferrer' : undefined}
     >
       {children}
     </a>
@@ -214,74 +325,102 @@ export function VcardLandingCard({
   const buttonTextColor = style.buttonTextColor ?? '#0F172A';
   const profileAlign = style.profileAlign ?? 'left';
   const profileInitial = name.charAt(0).toUpperCase() || 'Q';
-  const actionConfig = getActionHref(profile);
+  const actionLink = getActionLink(profile);
   const actionLabel = profile.ctaLabel?.trim() || (profile.ctaType ? CTA_LABELS[profile.ctaType] : '');
   const ActionIcon = profile.ctaType ? CTA_ICONS[profile.ctaType] : null;
+  const actionKicker = profile.ctaType ? CTA_KICKERS[profile.ctaType] : '';
+  const actionHelper = profile.ctaType ? CTA_HELPERS[profile.ctaType] : '';
   const cardBase = makeBase(style.frontUseGradient, style.frontColor, style.frontGradient);
   const cardStyle = getTextureStyle(texture, cardBase);
   const coverZoom = style.coverZoom ?? 100;
   const coverX = style.coverX ?? 50;
   const coverY = style.coverY ?? 50;
+  const hasLightText = isLightColor(frontFontColor);
+  const hasDarkButtonText = !isLightColor(buttonTextColor);
+  const titleLabel = title || company ? 'Role' : 'Profile';
+  const primarySubline = company || title;
+  const secondarySubline = company && title ? title : '';
+  const accentGlow =
+    toRgba(style.frontGradient || style.frontColor, hasLightText ? 0.22 : 0.18) ??
+    'rgba(255,255,255,0.12)';
+  const buttonGlow =
+    toRgba(buttonColor, hasDarkButtonText ? 0.22 : 0.34) ??
+    'rgba(15,23,42,0.22)';
+
   const socialLinks = [
     { key: 'instagram' as const, label: SOCIAL_LABELS.instagram, value: profile.socials?.instagram?.trim() || '' },
     { key: 'facebook' as const, label: SOCIAL_LABELS.facebook, value: profile.socials?.facebook?.trim() || '' },
     { key: 'youtube' as const, label: SOCIAL_LABELS.youtube, value: profile.socials?.youtube?.trim() || '' },
     { key: 'tiktok' as const, label: SOCIAL_LABELS.tiktok, value: profile.socials?.tiktok?.trim() || '' },
   ].filter((link) => link.value);
+
   const featuredSocial = profile.favoriteSocial
     ? socialLinks.find((link) => link.key === profile.favoriteSocial)
     : null;
+  const FeaturedSocialIcon = featuredSocial ? SOCIAL_ICONS[featuredSocial.key] : null;
+  const featuredSocialLink = featuredSocial
+    ? {
+        href: normalizeUrl(featuredSocial.value),
+        external: true,
+      }
+    : null;
 
-  const infoRows = [
+  const contactRows: ContactRow[] = [
     {
       key: 'phone',
       label: 'Phone',
       value: profile.phone?.trim() || '',
       Icon: Phone,
-      href: profile.phone?.trim() ? `tel:${normalizePhone(profile.phone)}` : undefined,
-      external: false,
+      link: profile.phone?.trim()
+        ? { href: `tel:${normalizePhone(profile.phone)}`, external: false }
+        : null,
     },
     {
       key: 'email',
       label: 'Email',
       value: profile.email?.trim() || '',
       Icon: Mail,
-      href: profile.email?.trim() ? `mailto:${profile.email.trim()}` : undefined,
-      external: false,
+      link: profile.email?.trim()
+        ? { href: `mailto:${profile.email.trim()}`, external: false }
+        : null,
     },
     {
       key: 'location',
       label: 'Location',
       value: profile.location?.trim() || '',
       Icon: MapPin,
-      href: undefined,
-      external: false,
+      link: null,
     },
     {
       key: 'website',
       label: 'Website',
       value: profile.website?.trim() || '',
       Icon: Globe,
-      href: profile.website?.trim() ? normalizeUrl(profile.website) : undefined,
-      external: true,
+      link: profile.website?.trim()
+        ? { href: normalizeUrl(profile.website), external: true }
+        : null,
     },
-    ...(featuredSocial
-      ? [{
-          key: `featured-social-${featuredSocial.key}`,
-          label: 'Featured Social',
-          value: featuredSocial.label,
-          Icon: SOCIAL_ICONS[featuredSocial.key],
-          href: normalizeUrl(featuredSocial.value),
-          external: true,
-          featured: true,
-        }]
-      : []),
   ].filter((row) => row.value);
+
+  const shellClass = hasLightText
+    ? 'border-white/12 bg-white/[0.08] text-white shadow-[0_18px_40px_rgba(15,23,42,0.18)]'
+    : 'border-slate-900/10 bg-white/[0.58] text-slate-950 shadow-[0_18px_40px_rgba(15,23,42,0.12)]';
+  const panelClass = hasLightText
+    ? 'border-white/12 bg-white/[0.06]'
+    : 'border-slate-900/10 bg-white/50';
+  const chipClass = hasLightText
+    ? 'border-white/12 bg-white/[0.10] text-white/90'
+    : 'border-slate-900/[0.08] bg-white/70 text-slate-900/[0.85]';
+  const iconBubbleClass = hasLightText
+    ? 'bg-white/[0.12] text-white/[0.92]'
+    : 'bg-slate-950/[0.06] text-slate-950/[0.8]';
+  const dividerClass = hasLightText ? 'divide-white/10' : 'divide-slate-900/10';
+  const borderToneClass = hasLightText ? 'border-white/10' : 'border-slate-900/10';
 
   return (
     <section
       className={cn(
-        'w-full overflow-hidden border border-white/10 shadow-[0_24px_80px_rgba(15,23,42,0.28)]',
+        'relative isolate w-full overflow-hidden border shadow-[0_24px_80px_rgba(15,23,42,0.28)]',
         isPreview ? 'max-w-[360px]' : 'max-w-5xl',
         className
       )}
@@ -289,11 +428,23 @@ export function VcardLandingCard({
         ...cardStyle,
         borderRadius: `${style.radius ?? 24}px`,
         color: frontFontColor,
-        fontFamily: style.fontFamily,
+        fontFamily: normalizeVcardFontFamily(style.fontFamily),
       }}
     >
+      <div
+        className="pointer-events-none absolute inset-0 opacity-90"
+        style={{
+          background: `radial-gradient(circle at 12% 14%, ${accentGlow} 0%, transparent 34%), radial-gradient(circle at 88% 84%, ${buttonGlow} 0%, transparent 32%)`,
+        }}
+      />
+
       <div className="relative">
-        <div className={cn('relative overflow-hidden', isPreview ? 'aspect-[5/2]' : 'aspect-[5/2] md:aspect-[16/5]')}>
+        <div
+          className={cn(
+            'relative overflow-hidden',
+            isPreview ? 'aspect-[5/2]' : 'aspect-[5/2] sm:aspect-[16/6] lg:aspect-[16/5]'
+          )}
+        >
           <div
             className="absolute inset-0"
             style={{
@@ -312,28 +463,29 @@ export function VcardLandingCard({
               }}
             />
           ) : null}
-          <div className="absolute inset-0 bg-gradient-to-br from-black/18 via-black/8 to-black/24" />
-          <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/24 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-br from-black/24 via-black/8 to-black/38" />
+          <div className="absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-black/36 to-transparent" />
           {style.frontLogoDataUrl ? (
-            <div className="absolute right-4 top-4 flex items-center justify-center rounded-2xl border border-white/15 bg-black/15 p-2 backdrop-blur-sm md:right-6 md:top-6">
+            <div
+              className={cn(
+                'absolute right-4 top-4 flex items-center justify-center rounded-[1.4rem] border p-2.5 backdrop-blur-xl md:right-6 md:top-6',
+                hasLightText ? 'border-white/18 bg-black/20' : 'border-slate-900/12 bg-white/[0.65]'
+              )}
+            >
               <img
                 src={style.frontLogoDataUrl}
                 alt="Brand mark"
-                className={cn(isPreview ? 'h-10 max-w-[90px]' : 'h-14 max-w-[140px]')}
+                className={cn(isPreview ? 'h-10 max-w-[92px]' : 'h-14 max-w-[145px]')}
               />
             </div>
           ) : null}
         </div>
 
-        <div
-          className={cn(
-            'absolute bottom-0 z-10 translate-y-1/2',
-            PROFILE_ALIGNMENTS[profileAlign]
-          )}
-        >
+        <div className={cn('absolute bottom-0 z-10 translate-y-1/2', PROFILE_ALIGNMENTS[profileAlign])}>
           <div
             className={cn(
-              'overflow-hidden rounded-full border-4 border-white/80 bg-white/10 shadow-[0_12px_30px_rgba(15,23,42,0.35)]',
+              'overflow-hidden rounded-full border-4 shadow-[0_14px_38px_rgba(15,23,42,0.35)]',
+              hasLightText ? 'border-white/[0.85] bg-white/[0.12]' : 'border-white/[0.95] bg-white/[0.45]',
               isPreview ? 'h-24 w-24' : 'h-28 w-28 md:h-36 md:w-36'
             )}
           >
@@ -354,140 +506,334 @@ export function VcardLandingCard({
 
       <div
         className={cn(
-          'px-4 pb-4 pt-16 sm:px-5 sm:pb-5 md:px-8 md:pb-8',
-          isPreview ? 'space-y-6 pt-16' : 'space-y-5 pt-[4.75rem] sm:space-y-6 sm:pt-20 md:pt-24'
+          'relative px-4 pb-4 pt-16 sm:px-6 sm:pb-6',
+          isPreview ? 'space-y-4 pt-16' : 'space-y-5 pt-[4.75rem] sm:space-y-6 sm:pt-20 md:px-8 md:pb-8 md:pt-24'
         )}
       >
-        <div className={cn('space-y-5', isPreview ? '' : 'lg:grid lg:grid-cols-[minmax(0,1fr)_320px] lg:gap-8 lg:space-y-0')}>
-          <div className="space-y-3 sm:space-y-4">
-            <div className="space-y-2">
-              <h1 className={cn('font-semibold tracking-tight', isPreview ? 'text-2xl' : 'text-2xl sm:text-3xl md:text-4xl')}>
-                {name}
-              </h1>
-              {title ? (
-                <p className={cn('font-medium', isPreview ? 'text-sm' : 'text-sm sm:text-base md:text-lg')} style={{ color: frontFontColor, opacity: 0.92 }}>
-                  {title}
-                </p>
-              ) : null}
-              {company ? (
-                <p className={cn(isPreview ? 'text-base' : 'text-base sm:text-lg md:text-xl')} style={{ color: frontFontColor, opacity: 0.8 }}>
-                  {company}
-                </p>
-              ) : null}
-              {socialLinks.length > 0 ? (
-                <div className="flex flex-wrap items-center gap-2 pt-1">
-                  {socialLinks.map((link) => {
-                    const Icon = SOCIAL_ICONS[link.key as keyof typeof SOCIAL_ICONS];
-                    const href = normalizeUrl(link.value);
-                    const sharedClassName =
-                      'flex h-9 w-9 items-center justify-center rounded-full border border-white/12 bg-white/8 text-white/90 backdrop-blur-sm transition hover:border-white/20 hover:bg-white/14';
-                    if (interactive) {
+        <div className={cn('space-y-4', isPreview ? '' : 'lg:grid lg:grid-cols-[minmax(0,1.05fr)_minmax(280px,0.95fr)] lg:gap-6 lg:space-y-0')}>
+          <div className="space-y-4">
+            <div className={cn('rounded-[30px] border px-4 py-5 backdrop-blur-2xl sm:px-5 sm:py-6', shellClass)}>
+              <div className="space-y-4">
+                <div className="space-y-2.5">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span
+                      className={cn(
+                        'inline-flex items-center rounded-full border px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.32em]',
+                        chipClass
+                      )}
+                    >
+                      {titleLabel}
+                    </span>
+                    {socialLinks.length > 0 ? (
+                      <span
+                        className={cn(
+                          'inline-flex items-center rounded-full border px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.32em]',
+                          chipClass
+                        )}
+                      >
+                        {socialLinks.length} social{socialLinks.length > 1 ? 's' : ''}
+                      </span>
+                    ) : null}
+                  </div>
+
+                  <div className="space-y-2">
+                    <h1
+                      className={cn(
+                        'font-semibold tracking-tight',
+                        isPreview ? 'text-[2rem] leading-[1.02]' : 'text-[2.15rem] leading-[1.02] sm:text-[2.55rem] md:text-[3.15rem]'
+                      )}
+                    >
+                      {name}
+                    </h1>
+                    {primarySubline ? (
+                      <p
+                        className={cn(
+                          'font-medium tracking-tight',
+                          isPreview ? 'text-lg leading-tight' : 'text-xl leading-tight sm:text-2xl md:text-[2rem]'
+                        )}
+                        style={{ color: frontFontColor, opacity: hasLightText ? 0.92 : 0.84 }}
+                      >
+                        {primarySubline}
+                      </p>
+                    ) : null}
+                    {secondarySubline ? (
+                      <p
+                        className={cn(isPreview ? 'text-sm' : 'text-sm sm:text-base')}
+                        style={{ color: frontFontColor, opacity: hasLightText ? 0.78 : 0.66 }}
+                      >
+                        {secondarySubline}
+                      </p>
+                    ) : null}
+                  </div>
+                </div>
+
+                {socialLinks.length > 0 ? (
+                  <div className="flex flex-wrap items-center gap-2.5">
+                    {socialLinks.map((link) => {
+                      const Icon = SOCIAL_ICONS[link.key];
+                      const socialHref = normalizeUrl(link.value);
+                      const sharedClassName = cn(
+                        'flex h-10 w-10 items-center justify-center rounded-full border transition backdrop-blur-xl',
+                        hasLightText
+                          ? 'border-white/14 bg-white/[0.1] text-white/[0.92] hover:border-white/24 hover:bg-white/[0.16]'
+                          : 'border-slate-900/[0.08] bg-white/[0.72] text-slate-900/[0.82] hover:border-slate-900/14 hover:bg-white/[0.88]'
+                      );
+                      if (interactive) {
+                        return (
+                          <a
+                            key={link.key}
+                            href={socialHref}
+                            target="_blank"
+                            rel="noreferrer"
+                            aria-label={link.label}
+                            title={link.label}
+                            className={sharedClassName}
+                          >
+                            <Icon className="h-4 w-4" />
+                          </a>
+                        );
+                      }
                       return (
-                        <a
+                        <div
                           key={link.key}
-                          href={href}
-                          target="_blank"
-                          rel="noreferrer"
                           aria-label={link.label}
                           title={link.label}
                           className={sharedClassName}
                         >
                           <Icon className="h-4 w-4" />
-                        </a>
+                        </div>
                       );
-                    }
-                    return (
-                      <div
-                        key={link.key}
-                        aria-label={link.label}
-                        title={link.label}
-                        className={sharedClassName}
-                      >
-                        <Icon className="h-4 w-4" />
-                      </div>
-                    );
-                  })}
-                </div>
-              ) : null}
+                    })}
+                  </div>
+                ) : null}
+
+                {about ? (
+                  <p
+                    className={cn('max-w-[62ch] leading-relaxed', isPreview ? 'text-sm' : 'text-sm md:text-base')}
+                    style={{ color: frontFontColor, opacity: hasLightText ? 0.84 : 0.74 }}
+                  >
+                    {about}
+                  </p>
+                ) : null}
+              </div>
             </div>
 
-            {about ? (
-              <p className={cn('leading-relaxed', isPreview ? 'text-sm' : 'text-sm md:text-base')} style={{ color: frontFontColor, opacity: 0.86 }}>
-                {about}
-              </p>
+            {actionLink && actionLabel ? (
+              renderMaybeLink(
+                'primary-action',
+                interactive,
+                actionLink,
+                'group relative block overflow-hidden rounded-[30px] px-5 py-4 sm:px-6 sm:py-5',
+                <>
+                  <div
+                    className="absolute inset-0"
+                    style={{
+                      background: `linear-gradient(135deg, ${buttonColor} 0%, ${buttonColor} 65%, ${toRgba(
+                        buttonColor,
+                        hasDarkButtonText ? 0.78 : 0.92
+                      ) ?? buttonColor} 100%)`,
+                      boxShadow: `0 18px 40px ${buttonGlow}`,
+                    }}
+                  />
+                  <div
+                    className="absolute inset-0 opacity-80"
+                    style={{
+                      background:
+                        'linear-gradient(115deg, rgba(255,255,255,0.18) 0%, rgba(255,255,255,0) 34%, rgba(0,0,0,0.08) 100%)',
+                    }}
+                  />
+                  <div className="relative flex items-center justify-between gap-4">
+                    <div className="flex min-w-0 items-center gap-3">
+                      <div
+                          className={cn(
+                            'flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full border',
+                            hasDarkButtonText
+                              ? 'border-slate-900/12 bg-white/[0.35] text-slate-950'
+                              : 'border-white/20 bg-black/15 text-white'
+                          )}
+                      >
+                        {ActionIcon ? <ActionIcon className="h-5 w-5" /> : null}
+                      </div>
+                      <div className="min-w-0">
+                        <p
+                          className="text-[10px] font-semibold uppercase tracking-[0.32em]"
+                          style={{ color: buttonTextColor, opacity: 0.72 }}
+                        >
+                          {actionKicker}
+                        </p>
+                        <p
+                          className={cn(
+                            'truncate font-semibold tracking-tight',
+                            isPreview ? 'text-base' : 'text-lg sm:text-xl'
+                          )}
+                          style={{ color: buttonTextColor }}
+                        >
+                          {actionLabel}
+                        </p>
+                        <p
+                          className={cn(isPreview ? 'text-xs' : 'text-xs sm:text-sm')}
+                          style={{ color: buttonTextColor, opacity: 0.82 }}
+                        >
+                          {actionHelper}
+                        </p>
+                      </div>
+                    </div>
+                    <ArrowUpRight
+                      className={cn(
+                        'h-5 w-5 flex-shrink-0 transition duration-200 group-hover:-translate-y-0.5 group-hover:translate-x-0.5',
+                        isPreview ? 'hidden' : 'block'
+                      )}
+                      style={{ color: buttonTextColor }}
+                    />
+                  </div>
+                </>
+              )
             ) : null}
           </div>
 
-          <div className="space-y-3 sm:space-y-4">
-            {infoRows.length > 0 ? (
-              <div className="space-y-2.5 sm:space-y-3">
-                {infoRows.map((row) =>
-                  renderMaybeLink(
-                    row.key,
-                    interactive,
-                    row.href,
-                    row.external,
-                    `group flex items-start gap-3 rounded-2xl px-3 py-2.5 backdrop-blur-sm transition sm:px-4 sm:py-3 ${
-                      row.featured
-                        ? 'border border-white/20 bg-white/10 shadow-[0_10px_30px_rgba(15,23,42,0.14)] hover:border-white/30 hover:bg-white/14'
-                        : 'border border-white/10 bg-white/5 hover:border-white/20 hover:bg-white/10'
-                    }`,
-                    <>
-                      <div className={`mt-0.5 flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full text-white/90 sm:h-10 sm:w-10 ${
-                        row.featured ? 'bg-white/16' : 'bg-white/10'
-                      }`}>
-                        <row.Icon className="h-4 w-4" />
-                      </div>
-                      <div className="min-w-0 space-y-1">
-                        <p className="text-[11px] uppercase tracking-[0.28em]" style={{ color: frontFontColor, opacity: 0.58 }}>
-                          {row.label}
-                        </p>
-                        <div className="flex items-center gap-2">
-                          <p className={cn('truncate font-medium', isPreview ? 'text-sm' : 'text-sm md:text-base')} style={{ color: frontFontColor }}>
+          <div className="space-y-4">
+            {contactRows.length > 0 ? (
+              <div className={cn('overflow-hidden rounded-[30px] border p-2.5 backdrop-blur-2xl sm:p-3', shellClass)}>
+                <div className="flex items-end justify-between gap-4 px-3 pb-3 pt-1 sm:px-4">
+                  <div>
+                    <p
+                      className="text-[10px] font-semibold uppercase tracking-[0.32em]"
+                      style={{ color: frontFontColor, opacity: hasLightText ? 0.64 : 0.54 }}
+                    >
+                      Contact
+                    </p>
+                    <p
+                      className={cn(isPreview ? 'text-sm' : 'text-sm sm:text-base')}
+                      style={{ color: frontFontColor, opacity: hasLightText ? 0.84 : 0.72 }}
+                    >
+                      Reach out directly from the channels below.
+                    </p>
+                  </div>
+                  <span
+                    className={cn(
+                      'hidden rounded-full border px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.32em] sm:inline-flex',
+                      chipClass
+                    )}
+                  >
+                    {contactRows.length} ways
+                  </span>
+                </div>
+
+                <div className={cn('overflow-hidden rounded-[24px] border backdrop-blur-xl', panelClass, dividerClass)}>
+                  {contactRows.map((row) =>
+                    renderMaybeLink(
+                      row.key,
+                      interactive,
+                      row.link,
+                      'group flex items-center gap-3.5 px-4 py-3.5 transition sm:px-5 sm:py-4',
+                      <>
+                        <div
+                          className={cn(
+                            'flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-2xl',
+                            iconBubbleClass
+                          )}
+                        >
+                          <row.Icon className="h-[18px] w-[18px]" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p
+                            className="text-[10px] font-semibold uppercase tracking-[0.32em]"
+                            style={{ color: frontFontColor, opacity: hasLightText ? 0.58 : 0.5 }}
+                          >
+                            {row.label}
+                          </p>
+                          <p
+                            className={cn(
+                              'truncate font-medium tracking-tight',
+                              isPreview ? 'text-[15px]' : 'text-[15px] sm:text-base'
+                            )}
+                            style={{ color: frontFontColor, opacity: hasLightText ? 0.96 : 0.88 }}
+                          >
                             {row.value}
                           </p>
-                          {row.href ? <ArrowUpRight className="h-3.5 w-3.5 flex-shrink-0 opacity-65 transition group-hover:opacity-100" /> : null}
                         </div>
-                      </div>
-                    </>
-                  )
-                )}
+                        {row.link?.href ? (
+                          <ArrowUpRight
+                            className="h-4 w-4 flex-shrink-0 opacity-65 transition duration-200 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:opacity-100"
+                            style={{ color: frontFontColor }}
+                          />
+                        ) : null}
+                      </>
+                    )
+                  )}
+                </div>
               </div>
             ) : null}
 
-            {actionConfig && actionLabel ? (
-              interactive ? (
-                <a
-                  href={actionConfig.href}
-                  target={actionConfig.external ? '_blank' : undefined}
-                  rel={actionConfig.external ? 'noreferrer' : undefined}
-                  className="flex w-full items-center justify-center gap-2 rounded-2xl px-4 py-3.5 text-center text-sm font-semibold transition hover:opacity-92 sm:px-5 sm:py-4 sm:text-base"
-                  style={{
-                    backgroundColor: buttonColor,
-                    color: buttonTextColor,
-                  }}
-                >
-                  {ActionIcon ? <ActionIcon className="h-4 w-4" /> : null}
-                  {actionLabel}
-                </a>
-              ) : (
-                <div
-                  className="flex w-full items-center justify-center gap-2 rounded-2xl px-4 py-3.5 text-center text-sm font-semibold sm:px-5 sm:py-4 sm:text-base"
-                  style={{
-                    backgroundColor: buttonColor,
-                    color: buttonTextColor,
-                  }}
-                >
-                  {ActionIcon ? <ActionIcon className="h-4 w-4" /> : null}
-                  {actionLabel}
-                </div>
+            {featuredSocial ? (
+              renderMaybeLink(
+                'featured-social',
+                interactive,
+                featuredSocialLink,
+                cn(
+                  'group relative overflow-hidden rounded-[30px] border px-5 py-4 backdrop-blur-2xl sm:px-6 sm:py-5',
+                  shellClass
+                ),
+                <>
+                  <div
+                    className="absolute inset-0 opacity-70"
+                    style={{
+                      background: `linear-gradient(135deg, ${toRgba(style.frontGradient || style.frontColor, hasLightText ? 0.18 : 0.12) ?? 'transparent'} 0%, transparent 55%, ${toRgba(buttonColor, 0.18) ?? 'transparent'} 100%)`,
+                    }}
+                  />
+                  <div className="relative flex items-center gap-4">
+                    <div
+                      className={cn(
+                        'flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-2xl border',
+                        hasLightText
+                          ? 'border-white/14 bg-white/[0.12] text-white'
+                          : 'border-slate-900/[0.08] bg-white/70 text-slate-900/[0.85]'
+                      )}
+                    >
+                      {FeaturedSocialIcon ? <FeaturedSocialIcon className="h-6 w-6" /> : null}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p
+                        className="text-[10px] font-semibold uppercase tracking-[0.32em]"
+                        style={{ color: frontFontColor, opacity: hasLightText ? 0.6 : 0.5 }}
+                      >
+                        Favorite channel
+                      </p>
+                      <p
+                        className={cn(
+                          'font-semibold tracking-tight',
+                          isPreview ? 'text-base' : 'text-lg sm:text-xl'
+                        )}
+                        style={{ color: frontFontColor, opacity: hasLightText ? 0.96 : 0.9 }}
+                      >
+                        {FEATURED_SOCIAL_TITLES[featuredSocial.key]}
+                      </p>
+                      <p
+                        className={cn(isPreview ? 'text-xs' : 'text-xs sm:text-sm')}
+                        style={{ color: frontFontColor, opacity: hasLightText ? 0.78 : 0.66 }}
+                      >
+                        {FEATURED_SOCIAL_HINTS[featuredSocial.key]}
+                      </p>
+                    </div>
+                    <ArrowUpRight
+                      className="h-5 w-5 flex-shrink-0 opacity-72 transition duration-200 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:opacity-100"
+                      style={{ color: frontFontColor }}
+                    />
+                  </div>
+                </>
               )
             ) : null}
           </div>
         </div>
 
         {showFooter ? (
-          <div className="border-t border-white/10 pt-4 text-center text-xs" style={{ color: frontFontColor, opacity: 0.72 }}>
+          <div
+            className={cn(
+              'border-t pt-4 text-center text-[11px] sm:text-xs',
+              borderToneClass
+            )}
+            style={{ color: frontFontColor, opacity: hasLightText ? 0.76 : 0.7 }}
+          >
             This vcard was created with QR Code Studio by Luminar Apps.{' '}
             {interactive ? (
               <a

@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom';
 
 import { VcardLandingCard } from '@/components/VcardLandingCard';
 import { getPublicVcard } from '@/lib/api';
+import { VCARD_DEFAULT_FONT_FAMILY, normalizeVcardFontFamily } from '@/lib/vcard-theme';
 import { VcardProfile, VcardStyle } from '@/types/qr';
 
 const MOBILE_BREAKPOINT = 768;
@@ -77,7 +78,7 @@ const setMetaTag = (selector: string, attr: 'name' | 'property', key: string, co
 };
 
 const fallbackStyle: VcardStyle = {
-  fontFamily: 'Arial, sans-serif',
+  fontFamily: VCARD_DEFAULT_FONT_FAMILY,
   radius: 24,
   texture: 'matte',
   frontColor: '#25113a',
@@ -137,7 +138,14 @@ const VCard = () => {
         const data = await getPublicVcard(slug);
         const payload = data.data as { profile?: VcardProfile; style?: VcardStyle };
         setProfile(payload.profile ?? null);
-        setStyle(payload.style ?? null);
+        setStyle(
+          payload.style
+            ? {
+                ...payload.style,
+                fontFamily: normalizeVcardFontFamily(payload.style.fontFamily),
+              }
+            : null
+        );
         setPublicUrl(data.publicUrl ?? '');
         setError(null);
       } catch (err) {
