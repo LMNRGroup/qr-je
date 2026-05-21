@@ -46,6 +46,10 @@ import {
   type UserProfile,
 } from '@/lib/api';
 import {
+  canEditCollectrForVcard,
+  getCollectrPrefillUrl,
+} from '@/lib/collectr';
+import {
   QROptions,
   QRHistoryItem,
   defaultQROptions,
@@ -143,6 +147,7 @@ const createEmptyVcardProfile = (): VcardProfile => ({
   company: '',
   about: '',
   slug: '',
+  collectrUrl: '',
   socials: {
     instagram: '',
     facebook: '',
@@ -223,6 +228,7 @@ const buildVcardData = (profile: VcardProfile, style: VcardStyle): VcardData => 
       company: normalizeVcardText(profile.company),
       about: normalizeVcardText(profile.about),
       slug: normalizeVcardText(profile.slug),
+      collectrUrl: normalizeVcardText(profile.collectrUrl),
       socials: normalizedSocials,
       favoriteSocial: getValidFavoriteVcardSocial({
         ...profile,
@@ -542,6 +548,7 @@ const Index = () => {
     []
   );
   const [vcard, setVcard] = useState<VcardProfile>(() => createEmptyVcardProfile());
+  const collectrPrefillRef = useRef<string | null>(null);
   const [vcardStyle, setVcardStyle] = useState<VcardStyle>(() => createDefaultVcardStyle());
   const [vcardPhotoUploadProgress, setVcardPhotoUploadProgress] = useState<number>(0);
   const [vcardPhotoUploading, setVcardPhotoUploading] = useState(false);
@@ -750,6 +757,22 @@ const Index = () => {
   const vcardUrl = vcardSlug
     ? `${vcardBaseUrl}/v/${vcardSlug}`
     : '';
+  const activeVcardSlug = editingVcardQRC?.options?.vcardSlug ?? vcard.slug ?? vcardSlug;
+  const activeVcardPublicUrl =
+    (typeof editingVcardQRC?.options?.vcardPublicUrl === 'string'
+      ? editingVcardQRC.options.vcardPublicUrl
+      : '') ||
+    editingVcardQRC?.publicUrl ||
+    vcardUrl;
+  const showCollectrField = useMemo(
+    () =>
+      canEditCollectrForVcard({
+        userId: user?.id ?? '',
+        slug: activeVcardSlug,
+        publicUrl: activeVcardPublicUrl,
+      }),
+    [activeVcardPublicUrl, activeVcardSlug, user?.id]
+  );
   const menuPreviewUrl = menuFiles.length
     ? `${appBaseUrl}/menu-preview`
     : '';
@@ -847,6 +870,26 @@ const Index = () => {
     return editingDynamicContentQRC?.name || 'Menu QR';
   }, [editingDynamicContentQRC, fileName, qrType]);
   const isSessionReady = isLoggedIn;
+
+  useEffect(() => {
+    if (!showCollectrField) return;
+
+    const prefillKey = `${editingVcardQRC?.id ?? 'draft'}:${activeVcardSlug || 'vcard'}`;
+    if (collectrPrefillRef.current === prefillKey) {
+      return;
+    }
+
+    collectrPrefillRef.current = prefillKey;
+    if (normalizeVcardText(vcard.collectrUrl)) {
+      return;
+    }
+
+    setVcard((prev) =>
+      normalizeVcardText(prev.collectrUrl)
+        ? prev
+        : { ...prev, collectrUrl: getCollectrPrefillUrl(prev.collectrUrl) }
+    );
+  }, [activeVcardSlug, editingVcardQRC?.id, showCollectrField, vcard.collectrUrl]);
 
   const parseKind = useCallback((kind?: string | null) => {
     if (!kind) return { mode: 'static', type: 'url' };
@@ -2104,6 +2147,7 @@ const Index = () => {
   };
 
   const resetCreateFlow = useCallback(() => {
+    collectrPrefillRef.current = null;
     setEditingDynamicContentQRC(null);
     setEditingVcardQRC(null);
     setQrMode(null);
@@ -4975,6 +5019,7 @@ const Index = () => {
     onShowVcardCustomizer: () => setShowVcardCustomizer(true),
     onShowMenuBuilder: () => setShowMenuBuilder(true),
     onShowFileUpload: () => fileInputRef.current?.click(),
+    showCollectrField,
   };
 
   const showMobileWizardOverlay =
@@ -6659,6 +6704,14 @@ const Index = () => {
                   placeholder="Location"
                   className="bg-secondary/50 border-border"
                 />
+                {showCollectrField ? (
+                  <Input
+                    value={vcard.collectrUrl ?? ''}
+                    onChange={(e) => updateVcardProfile({ collectrUrl: e.target.value })}
+                    placeholder="Collectr Showcase URL (optional)"
+                    className="bg-secondary/50 border-border"
+                  />
+                ) : null}
                 <Input
                   value={vcard.slug ?? ''}
                   onChange={(e) => updateVcardProfile({ slug: e.target.value })}
@@ -6683,6 +6736,11 @@ const Index = () => {
                   </span>
                   <span>{(vcard.about ?? '').length}/250</span>
                 </div>
+                {showCollectrField ? (
+                  <p className="text-xs text-muted-foreground">
+                    Add a public Collectr showcase URL to feature a few cards directly on the landing page.
+                  </p>
+                ) : null}
                 <Input
                   value={vcardUrl || 'https://qrcode.luminarapps.com/your-handle'}
                   readOnly

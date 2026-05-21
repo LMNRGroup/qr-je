@@ -114,6 +114,7 @@ interface DesktopStudioWizardProps {
   onShowVcardCustomizer: () => void;
   onShowMenuBuilder: () => void;
   onShowFileUpload: () => void;
+  showCollectrField?: boolean;
 }
 
 const QUICK_ACTIONS = [
@@ -184,6 +185,7 @@ export function DesktopStudioWizard({
   onShowVcardCustomizer,
   onShowMenuBuilder,
   onShowFileUpload,
+  showCollectrField = false,
 }: DesktopStudioWizardProps) {
   const [currentStep, setCurrentStep] = useState<QRWizardStep>(1);
   const stepRefs = useRef<Record<QRWizardStep, HTMLDivElement | null>>({
@@ -856,6 +858,19 @@ export function DesktopStudioWizard({
                           placeholder="San Juan, PR"
                         />
                       </div>
+                      {showCollectrField ? (
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium">Collectr Showcase</label>
+                          <Input
+                            value={vcard.collectrUrl ?? ''}
+                            onChange={(e) => onVcardChange({ collectrUrl: e.target.value })}
+                            placeholder="https://app.getcollectr.com/showcase/profile/@yourhandle"
+                          />
+                          <p className="text-xs text-muted-foreground">
+                            Optional. Show a small teaser of cards from a public Collectr profile.
+                          </p>
+                        </div>
+                      ) : null}
                       <div className="space-y-2">
                         <label className="text-sm font-medium">Company</label>
                         <Input

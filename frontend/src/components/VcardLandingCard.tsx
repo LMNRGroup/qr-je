@@ -8,6 +8,7 @@ import {
   Phone,
 } from 'lucide-react';
 
+import { formatCollectrCurrency, resolveCollectrPreviewInput, useCollectrPreview } from '@/lib/collectr';
 import { normalizeVcardFontFamily } from '@/lib/vcard-theme';
 import { cn } from '@/lib/utils';
 import type {
@@ -43,6 +44,12 @@ type ContactRow = {
   value: string;
   Icon: ComponentType<IconProps>;
   link?: LinkConfig | null;
+};
+
+type CollectrStat = {
+  key: string;
+  label: string;
+  value: string;
 };
 
 const CTA_LABELS: Record<VcardCtaType, string> = {
@@ -416,6 +423,37 @@ export function VcardLandingCard({
     : 'bg-slate-950/[0.06] text-slate-950/[0.8]';
   const dividerClass = hasLightText ? 'divide-white/10' : 'divide-slate-900/10';
   const borderToneClass = hasLightText ? 'border-white/10' : 'border-slate-900/10';
+  const collectrInput =
+    mode === 'public'
+      ? resolveCollectrPreviewInput(
+          typeof window !== 'undefined' ? window.location.pathname : '',
+          profile.collectrUrl,
+          typeof window !== 'undefined' ? window.location.href : ''
+        )
+      : '';
+  const collectrPreview = useCollectrPreview(collectrInput, isPreview ? 4 : 5);
+  const collectrData = collectrPreview.data;
+  const showCollectrLoading = Boolean(collectrInput) && collectrPreview.isLoading && !collectrData;
+  const showCollectrModule = Boolean(collectrData || showCollectrLoading);
+  const collectrStats: CollectrStat[] = collectrData
+    ? [
+        {
+          key: 'cards',
+          label: 'Cards',
+          value: collectrData.profile.totalCards > 0 ? `${collectrData.profile.totalCards}` : '',
+        },
+        {
+          key: 'sealed',
+          label: 'Sealed',
+          value: collectrData.profile.totalSealed > 0 ? `${collectrData.profile.totalSealed}` : '',
+        },
+        {
+          key: 'value',
+          label: 'Value',
+          value: formatCollectrCurrency(collectrData.profile.portfolioValue),
+        },
+      ].filter((stat) => stat.value)
+    : [];
 
   return (
     <section
@@ -825,6 +863,277 @@ export function VcardLandingCard({
             ) : null}
           </div>
         </div>
+
+        {showCollectrModule ? (
+          <div
+            className={cn(
+              'group relative overflow-hidden rounded-[32px] border px-4 py-4 backdrop-blur-2xl sm:px-5 sm:py-5',
+              shellClass
+            )}
+          >
+            {collectrData?.profile.backgroundImageUrl ? (
+              <div
+                className="absolute inset-0 opacity-[0.14]"
+                style={{
+                  backgroundImage: `url(${collectrData.profile.backgroundImageUrl})`,
+                  backgroundPosition: 'center',
+                  backgroundSize: 'cover',
+                }}
+              />
+            ) : null}
+            <div
+              className="absolute inset-0 opacity-90"
+              style={{
+                background: `linear-gradient(135deg, ${toRgba(style.frontGradient || style.frontColor, hasLightText ? 0.14 : 0.08) ?? 'transparent'} 0%, transparent 48%, ${toRgba(buttonColor, hasDarkButtonText ? 0.18 : 0.12) ?? 'transparent'} 100%)`,
+              }}
+            />
+
+            <div className="relative space-y-4">
+              <div
+                className={cn(
+                  'flex flex-col gap-4',
+                  isPreview ? '' : 'sm:flex-row sm:items-end sm:justify-between'
+                )}
+              >
+                <div className="space-y-2">
+                  <div className="flex flex-wrap items-center gap-2.5">
+                    <span
+                      className={cn(
+                        'inline-flex items-center rounded-full border px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.32em]',
+                        chipClass
+                      )}
+                    >
+                      Collection showcase
+                    </span>
+                    {collectrData?.profile.handle ? (
+                      <span
+                        className={cn(
+                          'inline-flex items-center rounded-full border px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.26em]',
+                          chipClass
+                        )}
+                      >
+                        @{collectrData.profile.handle}
+                      </span>
+                    ) : null}
+                  </div>
+                  <div className="space-y-1.5">
+                    <h2
+                      className={cn(
+                        'font-semibold tracking-tight',
+                        isPreview ? 'text-lg' : 'text-xl sm:text-[1.5rem]'
+                      )}
+                      style={{ color: frontFontColor, opacity: hasLightText ? 0.98 : 0.92 }}
+                    >
+                      Featured from my Collectr
+                    </h2>
+                    <p
+                      className={cn(isPreview ? 'text-xs leading-relaxed' : 'text-sm leading-relaxed sm:text-[15px]')}
+                      style={{ color: frontFontColor, opacity: hasLightText ? 0.76 : 0.68 }}
+                    >
+                      A quick look at standout pieces from the collection without leaving this card.
+                    </p>
+                  </div>
+                </div>
+
+                {collectrStats.length > 0 ? (
+                  <div className="flex flex-wrap gap-2">
+                    {collectrStats.map((stat) => (
+                      <div
+                        key={stat.key}
+                        className={cn(
+                          'rounded-2xl border px-3 py-2 backdrop-blur-xl',
+                          panelClass
+                        )}
+                      >
+                        <p
+                          className="text-[10px] font-semibold uppercase tracking-[0.28em]"
+                          style={{ color: frontFontColor, opacity: hasLightText ? 0.56 : 0.5 }}
+                        >
+                          {stat.label}
+                        </p>
+                        <p
+                          className={cn(
+                            'font-semibold tracking-tight',
+                            isPreview ? 'text-sm' : 'text-sm sm:text-base'
+                          )}
+                          style={{ color: frontFontColor, opacity: hasLightText ? 0.96 : 0.88 }}
+                        >
+                          {stat.value}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+
+              {collectrData ? (
+                <>
+                  <div
+                    className={cn(
+                      'gap-2.5',
+                      isPreview
+                        ? 'grid grid-cols-2'
+                        : 'flex overflow-x-auto px-1 pb-1 sm:grid sm:grid-cols-3 sm:gap-3 sm:overflow-visible sm:px-0 sm:pb-0 lg:grid-cols-5'
+                    )}
+                  >
+                    {collectrData.cards.map((card) => (
+                      <a
+                        key={card.id}
+                        href={interactive ? collectrData.sourceUrl : undefined}
+                        target={interactive ? '_blank' : undefined}
+                        rel={interactive ? 'noreferrer' : undefined}
+                        className={cn(
+                          'group/card flex-none overflow-hidden border transition duration-200',
+                          panelClass,
+                          isPreview
+                            ? 'rounded-[24px]'
+                            : 'w-[104px] rounded-[20px] sm:w-auto sm:rounded-[24px]',
+                          interactive ? 'hover:-translate-y-0.5 hover:shadow-[0_18px_34px_rgba(15,23,42,0.16)]' : ''
+                        )}
+                      >
+                        <div className="aspect-[3/4] overflow-hidden bg-black/10">
+                          <img
+                            src={card.imageUrl}
+                            alt={card.name}
+                            className="h-full w-full object-cover transition duration-300 group-hover/card:scale-[1.03]"
+                            loading="lazy"
+                          />
+                        </div>
+                        <div
+                          className={cn(
+                            isPreview ? 'space-y-2 px-3 py-3' : 'space-y-1.5 px-2.5 py-2.5 sm:space-y-2 sm:px-3 sm:py-3'
+                          )}
+                        >
+                          <div className="space-y-1">
+                            <p
+                              className={cn(
+                                'font-semibold uppercase',
+                                isPreview ? 'text-[10px] tracking-[0.26em]' : 'text-[8px] tracking-[0.22em] sm:text-[10px] sm:tracking-[0.26em]'
+                              )}
+                              style={{ color: frontFontColor, opacity: hasLightText ? 0.54 : 0.48 }}
+                            >
+                              {card.setName || card.categoryName || 'Collectr'}
+                            </p>
+                            <p
+                              className={cn(
+                                'overflow-hidden font-semibold leading-tight tracking-tight',
+                                isPreview ? 'text-[13px]' : 'text-[11px] sm:text-sm'
+                              )}
+                              style={{
+                                color: frontFontColor,
+                                opacity: hasLightText ? 0.96 : 0.9,
+                                display: '-webkit-box',
+                                WebkitLineClamp: 2,
+                                WebkitBoxOrient: 'vertical',
+                              }}
+                            >
+                              {card.name}
+                            </p>
+                          </div>
+
+                          <div className="flex flex-wrap items-center gap-2">
+                            {card.marketPrice !== null ? (
+                              <span
+                                className={cn(
+                                  'rounded-full border font-semibold',
+                                  isPreview ? 'px-2.5 py-1 text-[11px]' : 'px-2 py-0.5 text-[10px] sm:px-2.5 sm:py-1 sm:text-[11px]',
+                                  hasLightText
+                                    ? 'border-white/12 bg-white/[0.12] text-white'
+                                    : 'border-slate-900/10 bg-white/[0.78] text-slate-950'
+                                )}
+                              >
+                                {formatCollectrCurrency(card.marketPrice)}
+                              </span>
+                            ) : null}
+                            {card.quantity > 1 ? (
+                              <span
+                                className={cn(
+                                  'rounded-full border font-medium',
+                                  isPreview ? 'px-2.5 py-1 text-[11px]' : 'px-2 py-0.5 text-[10px] sm:px-2.5 sm:py-1 sm:text-[11px]',
+                                  chipClass
+                                )}
+                              >
+                                x{card.quantity}
+                              </span>
+                            ) : null}
+                          </div>
+                        </div>
+                      </a>
+                    ))}
+                  </div>
+
+                  <a
+                    href={interactive ? collectrData.sourceUrl : undefined}
+                    target={interactive ? '_blank' : undefined}
+                    rel={interactive ? 'noreferrer' : undefined}
+                    className={cn(
+                      'flex items-center justify-between gap-4 rounded-[24px] border px-4 py-3.5 transition sm:px-5',
+                      panelClass,
+                      interactive ? 'hover:-translate-y-0.5 hover:shadow-[0_18px_34px_rgba(15,23,42,0.14)]' : ''
+                    )}
+                  >
+                    <div>
+                      <p
+                        className="text-[10px] font-semibold uppercase tracking-[0.3em]"
+                        style={{ color: frontFontColor, opacity: hasLightText ? 0.56 : 0.48 }}
+                      >
+                        Full showcase
+                      </p>
+                      <p
+                        className={cn(
+                          'font-semibold tracking-tight',
+                          isPreview ? 'text-sm' : 'text-sm sm:text-base'
+                        )}
+                        style={{ color: frontFontColor, opacity: hasLightText ? 0.96 : 0.9 }}
+                      >
+                        Open the complete Collectr page
+                      </p>
+                    </div>
+                    <ArrowUpRight
+                      className="h-5 w-5 flex-shrink-0"
+                      style={{ color: frontFontColor, opacity: hasLightText ? 0.8 : 0.74 }}
+                    />
+                  </a>
+                </>
+              ) : null}
+
+              {showCollectrLoading ? (
+                <div
+                  className={cn(
+                    'gap-2.5',
+                    isPreview
+                      ? 'grid grid-cols-2'
+                      : 'flex overflow-x-auto px-1 pb-1 sm:grid sm:grid-cols-3 sm:gap-3 sm:overflow-visible sm:px-0 sm:pb-0 lg:grid-cols-5'
+                  )}
+                >
+                  {Array.from({ length: isPreview ? 4 : 5 }).map((_, index) => (
+                    <div
+                      key={`collectr-skeleton-${index}`}
+                      className={cn(
+                        'flex-none overflow-hidden border animate-pulse',
+                        panelClass,
+                        isPreview
+                          ? 'rounded-[24px]'
+                          : 'w-[104px] rounded-[20px] sm:w-auto sm:rounded-[24px]'
+                      )}
+                    >
+                      <div className="aspect-[3/4] bg-black/10" />
+                      <div
+                        className={cn(
+                          isPreview ? 'space-y-2 px-3 py-3' : 'space-y-1.5 px-2.5 py-2.5 sm:space-y-2 sm:px-3 sm:py-3'
+                        )}
+                      >
+                        <div className="h-2.5 w-16 rounded-full bg-black/10" />
+                        <div className="h-3.5 w-full rounded-full bg-black/10" />
+                        <div className="h-3.5 w-3/4 rounded-full bg-black/10" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+          </div>
+        ) : null}
 
         {showFooter ? (
           <div

@@ -60,6 +60,7 @@ export interface VcardProfile {
   company?: string;
   about?: string;
   slug?: string;
+  collectrUrl?: string;
   socials?: VcardSocials;
   favoriteSocial?: VcardSocialPlatform | '';
   ctaType?: VcardCtaType | '';

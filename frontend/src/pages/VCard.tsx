@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useLocation, useParams } from 'react-router-dom';
 
 import { VcardLandingCard } from '@/components/VcardLandingCard';
 import { getPublicVcard } from '@/lib/api';
@@ -8,6 +8,8 @@ import { VcardProfile, VcardStyle } from '@/types/qr';
 
 const MOBILE_BREAKPOINT = 768;
 const MOBILE_FIT_BUFFER = 12;
+const COLLECTR_OWNER_ALIAS_PATH = '/1vbilcikwj/ramn-figueroa-soto';
+const COLLECTR_OWNER_ALIAS_SLUG = 'r';
 
 type ViewportMetrics = {
   width: number;
@@ -106,6 +108,9 @@ const fallbackStyle: VcardStyle = {
 
 const VCard = () => {
   const { slug } = useParams();
+  const location = useLocation();
+  const resolvedSlug =
+    location.pathname === COLLECTR_OWNER_ALIAS_PATH ? COLLECTR_OWNER_ALIAS_SLUG : slug;
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [profile, setProfile] = useState<VcardProfile | null>(null);
@@ -125,7 +130,7 @@ const VCard = () => {
       : undefined;
 
   useEffect(() => {
-    if (!slug) {
+    if (!resolvedSlug) {
       setError('Missing vcard slug.');
       setPublicUrl('');
       setIsLoading(false);
@@ -135,7 +140,7 @@ const VCard = () => {
     const load = async () => {
       setIsLoading(true);
       try {
-        const data = await getPublicVcard(slug);
+        const data = await getPublicVcard(resolvedSlug);
         const payload = data.data as { profile?: VcardProfile; style?: VcardStyle };
         setProfile(payload.profile ?? null);
         setStyle(
@@ -158,7 +163,7 @@ const VCard = () => {
     };
 
     load();
-  }, [slug]);
+  }, [resolvedSlug]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -240,7 +245,7 @@ const VCard = () => {
   }, [isMobileViewport, profile, style, viewport.height, viewport.width]);
 
   useEffect(() => {
-    if (typeof document === 'undefined' || !slug || !profile) return;
+    if (typeof document === 'undefined' || !resolvedSlug || !profile) return;
 
     const canonicalLink = document.querySelector<HTMLLinkElement>('link[rel="canonical"]');
     const previousTitle = document.title;
@@ -252,7 +257,7 @@ const VCard = () => {
 
     const currentUrl =
       publicUrl ||
-      (typeof window !== 'undefined' ? window.location.href : `/v/${slug}`);
+      (typeof window !== 'undefined' ? window.location.href : `/v/${resolvedSlug}`);
     const shareMeta = buildVcardShareMetadata(profile, currentUrl);
 
     document.title = shareMeta.title;
@@ -283,7 +288,7 @@ const VCard = () => {
         setMetaTag(tag.selector, tag.attr, tag.key, tag.content);
       }
     };
-  }, [profile, publicUrl, slug]);
+  }, [profile, publicUrl, resolvedSlug]);
 
   return (
     <div

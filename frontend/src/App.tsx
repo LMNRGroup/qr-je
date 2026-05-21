@@ -47,7 +47,9 @@ function useFooterHeightCssVariable(disabled = false) {
 
 const AppShell = () => {
   const location = useLocation();
-  const hideFooter = location.pathname.startsWith("/v/");
+  const hideFooter =
+    location.pathname.startsWith("/v/") ||
+    location.pathname === "/1vbilcikwj/ramn-figueroa-soto";
   const footerRef = useFooterHeightCssVariable(hideFooter);
 
   return (

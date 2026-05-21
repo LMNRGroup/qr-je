@@ -82,6 +82,12 @@ const VCARD_GOOGLE_FONTS_URL =
 const VCARD_DEFAULT_FONT_FAMILY =
   '"Manrope", "Inter", "SF Pro Text", "Helvetica Neue", Arial, sans-serif'
 
+const COLLECTR_SHOWCASE_FALLBACK = 'https://app.getcollectr.com/showcase/profile/@ramon852'
+const COLLECTR_ALLOWED_PUBLIC_PATHS = new Set([
+  '/v/r',
+  '/1vbilcikwj/ramn-figueroa-soto',
+])
+
 const SUPPORTED_VCARD_FONTS = new Set([
   VCARD_DEFAULT_FONT_FAMILY,
   '"Plus Jakarta Sans", "Inter", "Helvetica Neue", Arial, sans-serif',
@@ -233,6 +239,15 @@ const normalizePathname = (value: string) => {
   const withLeadingSlash = normalized.startsWith('/') ? normalized : `/${normalized}`
   const stripped = withLeadingSlash.replace(/\/+$/, '')
   return stripped || '/'
+}
+
+const resolveCollectrShowcaseInput = (pathname: string, explicitInput?: string | null) => {
+  const normalizedPath = normalizePathname(pathname)
+  if (!COLLECTR_ALLOWED_PUBLIC_PATHS.has(normalizedPath)) {
+    return ''
+  }
+
+  return normalizeText(explicitInput) || COLLECTR_SHOWCASE_FALLBACK
 }
 
 const dedupeLegacyAliases = (aliases: LegacyAliasRecord[]) => {
@@ -1716,18 +1731,24 @@ export const buildVcardLandingHtml = (
       color: var(--text-strong);
     }
     .collectr-grid {
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 12px;
+      display: flex;
+      gap: 10px;
+      overflow-x: auto;
+      margin: 0 -4px;
+      padding: 0 4px 4px;
+      scroll-snap-type: x proximity;
     }
     .collectr-card {
+      flex: 0 0 104px;
+      min-width: 104px;
       overflow: hidden;
-      border-radius: 24px;
+      border-radius: 20px;
       border: 1px solid var(--panel-border);
       background: var(--panel-bg);
       color: inherit;
       text-decoration: none;
       transition: transform 180ms ease, box-shadow 180ms ease;
+      scroll-snap-align: start;
     }
     .collectr-card:hover,
     .collectr-link:hover {
@@ -1747,19 +1768,19 @@ export const buildVcardLandingHtml = (
     }
     .collectr-card-body {
       display: grid;
-      gap: 8px;
-      padding: 12px;
+      gap: 6px;
+      padding: 10px 9px;
     }
     .collectr-card-set {
-      font-size: 10px;
+      font-size: 8px;
       font-weight: 700;
-      letter-spacing: 0.26em;
+      letter-spacing: 0.22em;
       text-transform: uppercase;
       color: var(--text-label);
     }
     .collectr-card-title {
-      min-height: 2.4em;
-      font-size: 0.9rem;
+      min-height: 2.2em;
+      font-size: 0.72rem;
       font-weight: 700;
       line-height: 1.25;
       letter-spacing: -0.02em;
@@ -1772,7 +1793,7 @@ export const buildVcardLandingHtml = (
     .collectr-card-meta {
       display: flex;
       flex-wrap: wrap;
-      gap: 8px;
+      gap: 6px;
     }
     .collectr-price,
     .collectr-quantity {
@@ -1782,8 +1803,8 @@ export const buildVcardLandingHtml = (
       border: 1px solid var(--chip-border);
       background: var(--chip-bg);
       color: var(--chip-color);
-      padding: 6px 10px;
-      font-size: 11px;
+      padding: 5px 8px;
+      font-size: 10px;
       font-weight: 700;
     }
     .collectr-link {
@@ -1849,7 +1870,37 @@ export const buildVcardLandingHtml = (
       .intro-shell { padding: 24px 24px 26px; }
       .contact-shell { padding: 12px; }
       .contact-count { display: inline-flex; }
-      .collectr-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+      .collectr-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 12px;
+        overflow: visible;
+        margin: 0;
+        padding: 0;
+        scroll-snap-type: none;
+      }
+      .collectr-card {
+        flex: initial;
+        min-width: 0;
+        border-radius: 24px;
+      }
+      .collectr-card-body {
+        gap: 8px;
+        padding: 12px;
+      }
+      .collectr-card-set {
+        font-size: 10px;
+        letter-spacing: 0.26em;
+      }
+      .collectr-card-title {
+        min-height: 2.4em;
+        font-size: 0.9rem;
+      }
+      .collectr-price,
+      .collectr-quantity {
+        padding: 6px 10px;
+        font-size: 11px;
+      }
     }
     @media (min-width: 1024px) {
       body { padding: 28px; }
@@ -1959,9 +2010,9 @@ const renderVcardPublicPage = async (
   recordPublicPageScan(c, url, scansService, areaStorage)
   const canonicalUrl = buildVcardPublicUrl(vcard)
   const payload = (vcard.data ?? {}) as { profile?: VcardProfileRecord }
-  const collectrUrl = normalizeText(payload.profile?.collectrUrl)
-  const collectrPreview = collectrUrl
-    ? await fetchCollectrShowcasePreview(collectrUrl, 5).catch(() => null)
+  const collectrInput = resolveCollectrShowcaseInput(c.req.path, payload.profile?.collectrUrl)
+  const collectrPreview = collectrInput
+    ? await fetchCollectrShowcasePreview(collectrInput, 5).catch(() => null)
     : null
   return c.html(buildVcardLandingHtml(vcard, canonicalUrl, collectrPreview))
 }
