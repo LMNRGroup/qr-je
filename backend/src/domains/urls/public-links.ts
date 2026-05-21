@@ -826,13 +826,20 @@ type BuiltCtaConfig = LinkConfig & {
 const buildMaybeLink = (
   link: LinkConfig | null,
   className: string,
-  content: string
+  content: string,
+  dataAttributes?: Record<string, string>
 ) => {
+  const attrs = dataAttributes
+    ? Object.entries(dataAttributes)
+        .map(([key, value]) => ` ${key}="${escapeHtml(value)}"`)
+        .join('')
+    : ''
+
   if (!link?.href) {
-    return `<div class="${className}">${content}</div>`
+    return `<div class="${className}"${attrs}>${content}</div>`
   }
 
-  return `<a class="${className}" href="${escapeHtml(link.href)}"${link.external ? ' target="_blank" rel="noreferrer"' : ''}>${content}</a>`
+  return `<a class="${className}"${attrs} href="${escapeHtml(link.href)}"${link.external ? ' target="_blank" rel="noreferrer"' : ''}>${content}</a>`
 }
 
 const buildSocialButton = (label: string, href: string, iconMarkup: string) =>
@@ -966,7 +973,7 @@ const buildCollectrModule = (preview: CollectrShowcasePreview) => {
   const backgroundImage = normalizeText(preview.profile.backgroundImageUrl)
 
   return `
-    <section class="surface-shell collectr-panel">
+    <section class="surface-shell collectr-panel qrc-scroll-spotlight" data-scroll-spotlight="collectr" data-scroll-strength="0.72">
       ${backgroundImage ? `<div class="collectr-bg" style="${escapeHtml(serializeStyle({ backgroundImage: `url(${backgroundImage})`, backgroundPosition: 'center', backgroundSize: 'cover' }))}"></div>` : ''}
       <div class="collectr-sheen"></div>
       <div class="collectr-content">
@@ -981,7 +988,7 @@ const buildCollectrModule = (preview: CollectrShowcasePreview) => {
           </div>
           ${stats ? `<div class="collectr-stats">${stats}</div>` : ''}
         </div>
-        <div class="collectr-grid">${cards}</div>
+        <div class="collectr-grid qrc-vcard-scrollbar">${cards}</div>
         <a class="collectr-link" href="${escapeHtml(preview.sourceUrl)}" target="_blank" rel="noreferrer">
           <div>
             <span class="collectr-link-label">Full showcase</span>
@@ -1020,7 +1027,6 @@ export const buildVcardLandingHtml = (
     normalizeText(style.frontLogoDataUrl)
   const profileAlign = PROFILE_ALIGNMENT[style.profileAlign ?? DEFAULT_VCARD_STYLE.profileAlign]
   const profileInitial = escapeHtml((name || 'Q').charAt(0).toUpperCase())
-  const titleLabel = title || company ? 'Role' : 'Profile'
   const primarySubline = company || title
   const secondarySubline = company && title ? title : ''
   const texture = style.texture ?? DEFAULT_VCARD_STYLE.texture
@@ -1121,7 +1127,7 @@ export const buildVcardLandingHtml = (
     featuredSocial
       ? buildMaybeLink(
           { href: normalizeUrl(featuredSocial.value), external: true },
-          'surface-shell featured-card',
+          'surface-shell featured-card qrc-scroll-spotlight',
           `
             <div class="featured-bg"></div>
             <div class="featured-inner">
@@ -1133,12 +1139,16 @@ export const buildVcardLandingHtml = (
               </div>
               <span class="row-arrow" aria-hidden="true">↗</span>
             </div>
-          `
+          `,
+          {
+            'data-scroll-spotlight': 'featured',
+            'data-scroll-strength': '1.05',
+          }
         )
       : ''
   const ctaMarkup =
     cta
-      ? `<a class="action-card" href="${escapeHtml(cta.href)}"${cta.external ? ' target="_blank" rel="noreferrer"' : ''}>
+      ? `<a class="action-card qrc-scroll-spotlight" data-scroll-spotlight="cta" data-scroll-strength="1.35" href="${escapeHtml(cta.href)}"${cta.external ? ' target="_blank" rel="noreferrer"' : ''}>
           <div class="action-overlay"></div>
           <div class="action-inner">
             <div class="action-copy-wrap">
@@ -1287,6 +1297,16 @@ export const buildVcardLandingHtml = (
       letter-spacing: 0.32em;
       text-transform: uppercase;
       white-space: nowrap;
+    }
+    .qrc-scroll-spotlight {
+      transform: translate3d(0, var(--qrc-spotlight-shift, 0px), 0) scale(var(--qrc-spotlight-scale, 1));
+      transform-origin: center top;
+      opacity: var(--qrc-spotlight-opacity, 1);
+      transition:
+        transform 220ms cubic-bezier(0.22, 1, 0.36, 1),
+        opacity 220ms cubic-bezier(0.22, 1, 0.36, 1),
+        box-shadow 220ms ease;
+      will-change: transform, opacity;
     }
     .hero {
       position: relative;
@@ -1738,6 +1758,26 @@ export const buildVcardLandingHtml = (
       padding: 0 4px 4px;
       scroll-snap-type: x proximity;
     }
+    .qrc-vcard-scrollbar {
+      scrollbar-width: thin;
+      scrollbar-color: rgba(148,163,184,0.42) transparent;
+    }
+    .qrc-vcard-scrollbar::-webkit-scrollbar {
+      height: 6px;
+      width: 6px;
+    }
+    .qrc-vcard-scrollbar::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    .qrc-vcard-scrollbar::-webkit-scrollbar-thumb {
+      border-radius: 999px;
+      background: linear-gradient(90deg, rgba(255,255,255,0.58), rgba(148,163,184,0.68));
+      border: 1px solid rgba(255,255,255,0.22);
+    }
+    .tone-dark-text .qrc-vcard-scrollbar::-webkit-scrollbar-thumb {
+      background: linear-gradient(90deg, rgba(148,163,184,0.72), rgba(255,255,255,0.48));
+      border-color: rgba(255,255,255,0.14);
+    }
     .collectr-card {
       flex: 0 0 104px;
       min-width: 104px;
@@ -1928,6 +1968,14 @@ export const buildVcardLandingHtml = (
         grid-template-columns: repeat(5, minmax(0, 1fr));
       }
     }
+    @media (prefers-reduced-motion: reduce) {
+      .qrc-scroll-spotlight {
+        transform: none;
+        opacity: 1;
+        transition: none;
+        will-change: auto;
+      }
+    }
   </style>
 </head>
 <body>
@@ -1954,10 +2002,6 @@ export const buildVcardLandingHtml = (
           <div class="column-main">
             <div class="surface-shell intro-shell">
               <div class="intro-copy">
-                <div class="chip-row">
-                  <span class="surface-chip">${escapeHtml(titleLabel)}</span>
-                  ${socialLinks.length > 0 ? `<span class="surface-chip">${socialLinks.length} social${socialLinks.length > 1 ? 's' : ''}</span>` : ''}
-                </div>
                 <div class="headline">
                   <h1>${escapeHtml(name)}</h1>
                   ${primarySubline ? `<p class="headline-subline">${escapeHtml(primarySubline)}</p>` : ''}
@@ -1968,11 +2012,12 @@ export const buildVcardLandingHtml = (
               </div>
             </div>
             ${ctaMarkup}
+            ${featuredSocialMarkup}
           </div>
 
           <div class="column-side">
             ${contactRows ? `
-              <div class="surface-shell contact-shell">
+              <div class="surface-shell contact-shell qrc-scroll-spotlight" data-scroll-spotlight="contact" data-scroll-strength="0.8">
                 <div class="contact-header">
                   <div class="contact-header-copy">
                     <div class="contact-kicker">Contact</div>
@@ -1983,7 +2028,6 @@ export const buildVcardLandingHtml = (
                 <div class="surface-panel contact-panel">${contactRows}</div>
               </div>
             ` : ''}
-            ${featuredSocialMarkup}
           </div>
         </div>
 
@@ -1996,6 +2040,52 @@ export const buildVcardLandingHtml = (
       </div>
     </section>
   </main>
+  <script>
+    (() => {
+      if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        return;
+      }
+
+      const targets = Array.from(document.querySelectorAll('[data-scroll-spotlight]'));
+      if (!targets.length) {
+        return;
+      }
+
+      let frame = 0;
+
+      const update = () => {
+        frame = 0;
+        const viewportHeight = window.visualViewport?.height || window.innerHeight;
+        const viewportCenter = viewportHeight * 0.52;
+
+        targets.forEach((target) => {
+          const rect = target.getBoundingClientRect();
+          const elementCenter = rect.top + rect.height / 2;
+          const distance = Math.abs(viewportCenter - elementCenter);
+          const range = Math.max(viewportHeight * 0.68, rect.height * 1.25);
+          const emphasis = Math.max(0, 1 - distance / range);
+          const strength = Number(target.getAttribute('data-scroll-strength') || '1');
+
+          target.style.setProperty('--qrc-spotlight-scale', (1 + emphasis * 0.06 * strength).toFixed(3));
+          target.style.setProperty('--qrc-spotlight-shift', (emphasis * -12 * strength).toFixed(2) + 'px');
+          target.style.setProperty('--qrc-spotlight-opacity', (0.9 + emphasis * 0.1).toFixed(3));
+        });
+      };
+
+      const schedule = () => {
+        if (frame) return;
+        frame = window.requestAnimationFrame(update);
+      };
+
+      update();
+
+      const visualViewport = window.visualViewport;
+      window.addEventListener('scroll', schedule, { passive: true });
+      window.addEventListener('resize', schedule);
+      visualViewport?.addEventListener('scroll', schedule);
+      visualViewport?.addEventListener('resize', schedule);
+    })();
+  </script>
 </body>
 </html>`
 }

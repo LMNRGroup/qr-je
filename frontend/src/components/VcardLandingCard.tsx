@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import type { CSSProperties, ComponentType, ReactNode } from 'react';
 import {
   ArrowUpRight,
@@ -290,11 +291,12 @@ const renderMaybeLink = (
   interactive: boolean,
   link: LinkConfig | null | undefined,
   className: string,
-  children: ReactNode
+  children: ReactNode,
+  dataAttributes?: Record<string, string | number>
 ) => {
   if (!interactive || !link?.href) {
     return (
-      <div key={keyValue} className={className}>
+      <div key={keyValue} className={className} {...dataAttributes}>
         {children}
       </div>
     );
@@ -307,6 +309,7 @@ const renderMaybeLink = (
       className={className}
       target={link.external ? '_blank' : undefined}
       rel={link.external ? 'noreferrer' : undefined}
+      {...dataAttributes}
     >
       {children}
     </a>
@@ -321,6 +324,7 @@ export function VcardLandingCard({
   showFooter = true,
   className,
 }: VcardLandingCardProps) {
+  const sectionRef = useRef<HTMLElement | null>(null);
   const isPreview = mode === 'preview';
   const texture = style.texture ?? 'matte';
   const name = profile.name?.trim() || 'Your Name';
@@ -344,7 +348,6 @@ export function VcardLandingCard({
   const coverY = style.coverY ?? 50;
   const hasLightText = isLightColor(frontFontColor);
   const hasDarkButtonText = !isLightColor(buttonTextColor);
-  const titleLabel = title || company ? 'Role' : 'Profile';
   const primarySubline = company || title;
   const secondarySubline = company && title ? title : '';
   const accentGlow =
@@ -455,8 +458,81 @@ export function VcardLandingCard({
       ].filter((stat) => stat.value)
     : [];
 
+  useEffect(() => {
+    if (typeof window === 'undefined' || isPreview || mode !== 'public') {
+      return;
+    }
+
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (reducedMotion) {
+      return;
+    }
+
+    const root = sectionRef.current;
+    if (!root) {
+      return;
+    }
+
+    const targets = Array.from(root.querySelectorAll<HTMLElement>('[data-scroll-spotlight]'));
+    if (!targets.length) {
+      return;
+    }
+
+    let frame = 0;
+
+    const update = () => {
+      frame = 0;
+      const viewportHeight = window.visualViewport?.height ?? window.innerHeight;
+      const viewportCenter = viewportHeight * 0.52;
+
+      targets.forEach((target) => {
+        const rect = target.getBoundingClientRect();
+        const elementCenter = rect.top + rect.height / 2;
+        const distance = Math.abs(viewportCenter - elementCenter);
+        const range = Math.max(viewportHeight * 0.68, rect.height * 1.25);
+        const emphasis = Math.max(0, 1 - distance / range);
+        const strength = Number(target.dataset.scrollStrength ?? '1');
+
+        target.style.setProperty('--qrc-spotlight-scale', (1 + emphasis * 0.06 * strength).toFixed(3));
+        target.style.setProperty('--qrc-spotlight-shift', `${(emphasis * -12 * strength).toFixed(2)}px`);
+        target.style.setProperty('--qrc-spotlight-opacity', (0.9 + emphasis * 0.1).toFixed(3));
+      });
+    };
+
+    const schedule = () => {
+      if (frame) {
+        return;
+      }
+      frame = window.requestAnimationFrame(update);
+    };
+
+    update();
+
+    const visualViewport = window.visualViewport;
+    window.addEventListener('scroll', schedule, { passive: true });
+    window.addEventListener('resize', schedule);
+    visualViewport?.addEventListener('scroll', schedule);
+    visualViewport?.addEventListener('resize', schedule);
+
+    return () => {
+      if (frame) {
+        window.cancelAnimationFrame(frame);
+      }
+      window.removeEventListener('scroll', schedule);
+      window.removeEventListener('resize', schedule);
+      visualViewport?.removeEventListener('scroll', schedule);
+      visualViewport?.removeEventListener('resize', schedule);
+      targets.forEach((target) => {
+        target.style.removeProperty('--qrc-spotlight-scale');
+        target.style.removeProperty('--qrc-spotlight-shift');
+        target.style.removeProperty('--qrc-spotlight-opacity');
+      });
+    };
+  }, [actionLabel, contactRows.length, featuredSocial?.key, isPreview, mode, showCollectrModule]);
+
   return (
     <section
+      ref={sectionRef}
       className={cn(
         'relative isolate w-full overflow-hidden border shadow-[0_24px_80px_rgba(15,23,42,0.28)]',
         isPreview ? 'max-w-[360px]' : 'max-w-5xl',
@@ -553,27 +629,6 @@ export function VcardLandingCard({
             <div className={cn('rounded-[30px] border px-4 py-5 backdrop-blur-2xl sm:px-5 sm:py-6', shellClass)}>
               <div className="space-y-4">
                 <div className="space-y-2.5">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span
-                      className={cn(
-                        'inline-flex items-center rounded-full border px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.32em]',
-                        chipClass
-                      )}
-                    >
-                      {titleLabel}
-                    </span>
-                    {socialLinks.length > 0 ? (
-                      <span
-                        className={cn(
-                          'inline-flex items-center rounded-full border px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.32em]',
-                          chipClass
-                        )}
-                      >
-                        {socialLinks.length} social{socialLinks.length > 1 ? 's' : ''}
-                      </span>
-                    ) : null}
-                  </div>
-
                   <div className="space-y-2">
                     <h1
                       className={cn(
@@ -661,7 +716,7 @@ export function VcardLandingCard({
                 'primary-action',
                 interactive,
                 actionLink,
-                'group relative block overflow-hidden rounded-[30px] px-5 py-4 sm:px-6 sm:py-5',
+                'qrc-scroll-spotlight group relative block overflow-hidden rounded-[30px] px-5 py-4 sm:px-6 sm:py-5',
                 <>
                   <div
                     className="absolute inset-0"
@@ -724,14 +779,88 @@ export function VcardLandingCard({
                       style={{ color: buttonTextColor }}
                     />
                   </div>
-                </>
+                </>,
+                {
+                  'data-scroll-spotlight': 'cta',
+                  'data-scroll-strength': 1.35,
+                }
+              )
+            ) : null}
+
+            {featuredSocial ? (
+              renderMaybeLink(
+                'featured-social',
+                interactive,
+                featuredSocialLink,
+                cn(
+                  'qrc-scroll-spotlight group relative overflow-hidden rounded-[30px] border px-5 py-4 backdrop-blur-2xl sm:px-6 sm:py-5',
+                  shellClass
+                ),
+                <>
+                  <div
+                    className="absolute inset-0 opacity-70"
+                    style={{
+                      background: `linear-gradient(135deg, ${toRgba(style.frontGradient || style.frontColor, hasLightText ? 0.18 : 0.12) ?? 'transparent'} 0%, transparent 55%, ${toRgba(buttonColor, 0.18) ?? 'transparent'} 100%)`,
+                    }}
+                  />
+                  <div className="relative flex items-center gap-4">
+                    <div
+                      className={cn(
+                        'flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-2xl border',
+                        hasLightText
+                          ? 'border-white/14 bg-white/[0.12] text-white'
+                          : 'border-slate-900/[0.08] bg-white/70 text-slate-900/[0.85]'
+                      )}
+                    >
+                      {FeaturedSocialIcon ? <FeaturedSocialIcon className="h-6 w-6" /> : null}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p
+                        className="text-[10px] font-semibold uppercase tracking-[0.32em]"
+                        style={{ color: frontFontColor, opacity: hasLightText ? 0.6 : 0.5 }}
+                      >
+                        Favorite channel
+                      </p>
+                      <p
+                        className={cn(
+                          'font-semibold tracking-tight',
+                          isPreview ? 'text-base' : 'text-lg sm:text-xl'
+                        )}
+                        style={{ color: frontFontColor, opacity: hasLightText ? 0.96 : 0.9 }}
+                      >
+                        {FEATURED_SOCIAL_TITLES[featuredSocial.key]}
+                      </p>
+                      <p
+                        className={cn(isPreview ? 'text-xs' : 'text-xs sm:text-sm')}
+                        style={{ color: frontFontColor, opacity: hasLightText ? 0.78 : 0.66 }}
+                      >
+                        {FEATURED_SOCIAL_HINTS[featuredSocial.key]}
+                      </p>
+                    </div>
+                    <ArrowUpRight
+                      className="h-5 w-5 flex-shrink-0 opacity-72 transition duration-200 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:opacity-100"
+                      style={{ color: frontFontColor }}
+                    />
+                  </div>
+                </>,
+                {
+                  'data-scroll-spotlight': 'featured',
+                  'data-scroll-strength': 1.05,
+                }
               )
             ) : null}
           </div>
 
           <div className="space-y-4">
             {contactRows.length > 0 ? (
-              <div className={cn('overflow-hidden rounded-[30px] border p-2.5 backdrop-blur-2xl sm:p-3', shellClass)}>
+              <div
+                className={cn(
+                  'qrc-scroll-spotlight overflow-hidden rounded-[30px] border p-2.5 backdrop-blur-2xl sm:p-3',
+                  shellClass
+                )}
+                data-scroll-spotlight="contact"
+                data-scroll-strength="0.8"
+              >
                 <div className="flex items-end justify-between gap-4 px-3 pb-3 pt-1 sm:px-4">
                   <div>
                     <p
@@ -802,74 +931,17 @@ export function VcardLandingCard({
                 </div>
               </div>
             ) : null}
-
-            {featuredSocial ? (
-              renderMaybeLink(
-                'featured-social',
-                interactive,
-                featuredSocialLink,
-                cn(
-                  'group relative overflow-hidden rounded-[30px] border px-5 py-4 backdrop-blur-2xl sm:px-6 sm:py-5',
-                  shellClass
-                ),
-                <>
-                  <div
-                    className="absolute inset-0 opacity-70"
-                    style={{
-                      background: `linear-gradient(135deg, ${toRgba(style.frontGradient || style.frontColor, hasLightText ? 0.18 : 0.12) ?? 'transparent'} 0%, transparent 55%, ${toRgba(buttonColor, 0.18) ?? 'transparent'} 100%)`,
-                    }}
-                  />
-                  <div className="relative flex items-center gap-4">
-                    <div
-                      className={cn(
-                        'flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-2xl border',
-                        hasLightText
-                          ? 'border-white/14 bg-white/[0.12] text-white'
-                          : 'border-slate-900/[0.08] bg-white/70 text-slate-900/[0.85]'
-                      )}
-                    >
-                      {FeaturedSocialIcon ? <FeaturedSocialIcon className="h-6 w-6" /> : null}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p
-                        className="text-[10px] font-semibold uppercase tracking-[0.32em]"
-                        style={{ color: frontFontColor, opacity: hasLightText ? 0.6 : 0.5 }}
-                      >
-                        Favorite channel
-                      </p>
-                      <p
-                        className={cn(
-                          'font-semibold tracking-tight',
-                          isPreview ? 'text-base' : 'text-lg sm:text-xl'
-                        )}
-                        style={{ color: frontFontColor, opacity: hasLightText ? 0.96 : 0.9 }}
-                      >
-                        {FEATURED_SOCIAL_TITLES[featuredSocial.key]}
-                      </p>
-                      <p
-                        className={cn(isPreview ? 'text-xs' : 'text-xs sm:text-sm')}
-                        style={{ color: frontFontColor, opacity: hasLightText ? 0.78 : 0.66 }}
-                      >
-                        {FEATURED_SOCIAL_HINTS[featuredSocial.key]}
-                      </p>
-                    </div>
-                    <ArrowUpRight
-                      className="h-5 w-5 flex-shrink-0 opacity-72 transition duration-200 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:opacity-100"
-                      style={{ color: frontFontColor }}
-                    />
-                  </div>
-                </>
-              )
-            ) : null}
           </div>
         </div>
 
         {showCollectrModule ? (
           <div
             className={cn(
-              'group relative overflow-hidden rounded-[32px] border px-4 py-4 backdrop-blur-2xl sm:px-5 sm:py-5',
+              'qrc-scroll-spotlight group relative overflow-hidden rounded-[32px] border px-4 py-4 backdrop-blur-2xl sm:px-5 sm:py-5',
               shellClass
             )}
+            data-scroll-spotlight="collectr"
+            data-scroll-strength="0.72"
           >
             {collectrData?.profile.backgroundImageUrl ? (
               <div
@@ -970,7 +1042,7 @@ export function VcardLandingCard({
                 <>
                   <div
                     className={cn(
-                      'gap-2.5',
+                      'qrc-vcard-scrollbar gap-2.5',
                       isPreview
                         ? 'grid grid-cols-2'
                         : 'flex overflow-x-auto px-1 pb-1 sm:grid sm:grid-cols-3 sm:gap-3 sm:overflow-visible sm:px-0 sm:pb-0 lg:grid-cols-5'
@@ -1100,7 +1172,7 @@ export function VcardLandingCard({
               {showCollectrLoading ? (
                 <div
                   className={cn(
-                    'gap-2.5',
+                    'qrc-vcard-scrollbar gap-2.5',
                     isPreview
                       ? 'grid grid-cols-2'
                       : 'flex overflow-x-auto px-1 pb-1 sm:grid sm:grid-cols-3 sm:gap-3 sm:overflow-visible sm:px-0 sm:pb-0 lg:grid-cols-5'
