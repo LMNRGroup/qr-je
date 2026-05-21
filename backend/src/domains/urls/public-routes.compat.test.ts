@@ -56,6 +56,10 @@ const createVcard = async (app: Hono<AppBindings>, slug = 'ramon') => {
           title: 'Founder',
           company: 'Luminar',
           email: 'ramon@example.com',
+          socials: {
+            instagram: 'https://instagram.com/ramontorres',
+          },
+          favoriteSocial: 'instagram',
         },
         style: {
           coverPhotoDataUrl: 'https://cdn.example.com/cover.png',
@@ -117,6 +121,10 @@ describe('public vcard compatibility routes', () => {
     expect(html).toContain('Ramon Torres')
     expect(html).toContain('https://cdn.example.com/cover.png')
     expect(html).toContain('https://cdn.example.com/logo.png')
+    expect(html).toContain('aria-label="Instagram"')
+    expect(html).not.toContain('>IG<')
+    expect(html).toContain('Featured Social')
+    expect(html).not.toContain('>Company<')
 
     await flushAsyncWork()
     expect(await testApp.scansService.getScanCount(payload.url.id, payload.url.random)).toBe(1)

@@ -40,6 +40,7 @@ type VcardProfileRecord = {
   about?: string
   slug?: string
   socials?: Record<string, string | undefined>
+  favoriteSocial?: 'instagram' | 'facebook' | 'youtube' | 'tiktok' | ''
   ctaType?: string
   ctaLabel?: string
   ctaValue?: string
@@ -531,19 +532,81 @@ const normalizeUrl = (value: string) => {
 
 const normalizePhone = (value: string) => value.replace(/[^\d+]/g, '').trim()
 
+const ICON_SVGS = {
+  phone: `
+    <svg viewBox="0 0 24 24" class="icon-svg" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M22 16.92v3a2 2 0 0 1-2.18 2A19.8 19.8 0 0 1 3.08 6.18 2 2 0 0 1 5.06 4h3a2 2 0 0 1 2 1.72c.12.9.34 1.78.66 2.62a2 2 0 0 1-.45 2.11L9.1 11.62a16 16 0 0 0 3.28 3.28l1.17-1.17a2 2 0 0 1 2.11-.45c.84.32 1.72.54 2.62.66A2 2 0 0 1 22 16.92Z"/>
+    </svg>
+  `,
+  email: `
+    <svg viewBox="0 0 24 24" class="icon-svg" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <rect x="3" y="5" width="18" height="14" rx="2"/>
+      <path d="m4 7 8 6 8-6"/>
+    </svg>
+  `,
+  location: `
+    <svg viewBox="0 0 24 24" class="icon-svg" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M12 21s6-4.35 6-10a6 6 0 1 0-12 0c0 5.65 6 10 6 10Z"/>
+      <circle cx="12" cy="11" r="2.2"/>
+    </svg>
+  `,
+  website: `
+    <svg viewBox="0 0 24 24" class="icon-svg" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <circle cx="12" cy="12" r="9"/>
+      <path d="M3 12h18"/>
+      <path d="M12 3a14.5 14.5 0 0 1 0 18"/>
+      <path d="M12 3a14.5 14.5 0 0 0 0 18"/>
+    </svg>
+  `,
+  instagram: `
+    <svg viewBox="0 0 24 24" class="icon-svg" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <rect x="3.75" y="3.75" width="16.5" height="16.5" rx="5.25"/>
+      <circle cx="12" cy="12" r="4.1"/>
+      <circle cx="17.35" cy="6.65" r="1.15" fill="currentColor" stroke="none"/>
+    </svg>
+  `,
+  facebook: `
+    <svg viewBox="0 0 24 24" class="icon-svg fill-icon" fill="currentColor" aria-hidden="true">
+      <path d="M13.25 21v-6.7h2.27l.34-2.77h-2.61V9.76c0-.8.22-1.35 1.38-1.35H16V5.96c-.24-.03-1.07-.1-2.04-.1-2.02 0-3.4 1.24-3.4 3.5v2.17H8.28v2.77h2.28V21h2.69Z"/>
+    </svg>
+  `,
+  youtube: `
+    <svg viewBox="0 0 24 24" class="icon-svg fill-icon" fill="currentColor" aria-hidden="true">
+      <path d="M21.56 7.3a2.85 2.85 0 0 0-2-2.02C17.78 4.8 12 4.8 12 4.8s-5.78 0-7.56.48a2.85 2.85 0 0 0-2 2.02A29.7 29.7 0 0 0 2 12a29.7 29.7 0 0 0 .44 4.7 2.85 2.85 0 0 0 2 2.02c1.78.48 7.56.48 7.56.48s5.78 0 7.56-.48a2.85 2.85 0 0 0 2-2.02A29.7 29.7 0 0 0 22 12a29.7 29.7 0 0 0-.44-4.7ZM10.25 15.2V8.8L15.85 12l-5.6 3.2Z"/>
+    </svg>
+  `,
+  tiktok: `
+    <svg viewBox="0 0 24 24" class="icon-svg fill-icon" fill="currentColor" aria-hidden="true">
+      <path d="M14.2 3c.35 1.7 1.3 3.02 2.86 3.95.8.48 1.7.77 2.64.83v2.78a7.58 7.58 0 0 1-4.06-1.14v5.26a5.05 5.05 0 1 1-4.4-5.01v2.89a2.26 2.26 0 1 0 1.3 2.04V3h1.66Z"/>
+    </svg>
+  `,
+} as const
+
+const SOCIAL_LABELS = {
+  instagram: 'Instagram',
+  facebook: 'Facebook',
+  youtube: 'YouTube',
+  tiktok: 'TikTok',
+} as const
+
 const pickColor = (value: unknown, fallback: string) => {
   const normalized = normalizeText(value)
   return normalized || fallback
 }
 
-const buildFieldRow = (label: string, value: string, href?: string) => {
+const buildFieldRow = (
+  label: string,
+  value: string,
+  href?: string,
+  iconMarkup?: string,
+  featured = false
+) => {
   const escapedLabel = escapeHtml(label)
   const escapedValue = escapeHtml(value)
-  const icon = escapeHtml(label.slice(0, 1).toUpperCase())
 
   return `
-    <div class="info-row">
-      <div class="info-icon" aria-hidden="true">${icon}</div>
+    <div class="info-row${featured ? ' info-row-featured' : ''}">
+      <div class="info-icon${featured ? ' info-icon-featured' : ''}" aria-hidden="true">${iconMarkup ?? ''}</div>
       <div class="info-copy">
         <div class="info-label">${escapedLabel}</div>
         ${
@@ -556,9 +619,13 @@ const buildFieldRow = (label: string, value: string, href?: string) => {
   `
 }
 
-const buildSocialButton = (label: string, href: string, short: string) => `
+const buildSocialButton = (
+  label: string,
+  href: string,
+  iconMarkup: string
+) => `
   <a class="social-chip" href="${escapeHtml(normalizeUrl(href))}" target="_blank" rel="noreferrer" aria-label="${escapeHtml(label)}">
-    <span>${escapeHtml(short)}</span>
+    ${iconMarkup}
   </a>
 `
 
@@ -606,21 +673,36 @@ export const buildVcardLandingHtml = (vcard: Vcard, canonicalUrl: string) => {
     : pickColor(style.frontColor, DEFAULT_VCARD_STYLE.frontColor)
   const profileAlign = PROFILE_ALIGNMENT[style.profileAlign ?? DEFAULT_VCARD_STYLE.profileAlign]
   const profileInitial = escapeHtml((fullName || 'V').charAt(0).toUpperCase())
+  const socials = profile.socials ?? {}
+  const favoriteSocialKey = normalizeText(profile.favoriteSocial) as VcardProfileRecord['favoriteSocial']
+  const favoriteSocialHref =
+    favoriteSocialKey && normalizeText(socials[favoriteSocialKey])
+      ? normalizeText(socials[favoriteSocialKey])
+      : ''
+  const favoriteSocialRow =
+    favoriteSocialKey && favoriteSocialHref
+      ? buildFieldRow(
+          'Featured Social',
+          SOCIAL_LABELS[favoriteSocialKey],
+          normalizeUrl(favoriteSocialHref),
+          ICON_SVGS[favoriteSocialKey],
+          true
+        )
+      : ''
 
   const infoRows = [
-    phone ? buildFieldRow('Phone', phone, `tel:${normalizePhone(phone)}`) : '',
-    email ? buildFieldRow('Email', email, `mailto:${email}`) : '',
-    location ? buildFieldRow('Location', location) : '',
-    website ? buildFieldRow('Website', website, normalizeUrl(website)) : '',
-    company && company !== title ? buildFieldRow('Company', company) : '',
+    phone ? buildFieldRow('Phone', phone, `tel:${normalizePhone(phone)}`, ICON_SVGS.phone) : '',
+    email ? buildFieldRow('Email', email, `mailto:${email}`, ICON_SVGS.email) : '',
+    location ? buildFieldRow('Location', location, undefined, ICON_SVGS.location) : '',
+    website ? buildFieldRow('Website', website, normalizeUrl(website), ICON_SVGS.website) : '',
+    favoriteSocialRow,
   ].filter(Boolean).join('')
 
-  const socials = profile.socials ?? {}
   const socialButtons = [
-    socials.instagram ? buildSocialButton('Instagram', socials.instagram, 'IG') : '',
-    socials.facebook ? buildSocialButton('Facebook', socials.facebook, 'FB') : '',
-    socials.youtube ? buildSocialButton('YouTube', socials.youtube, 'YT') : '',
-    socials.tiktok ? buildSocialButton('TikTok', socials.tiktok, 'TT') : '',
+    socials.instagram ? buildSocialButton('Instagram', socials.instagram, ICON_SVGS.instagram) : '',
+    socials.facebook ? buildSocialButton('Facebook', socials.facebook, ICON_SVGS.facebook) : '',
+    socials.youtube ? buildSocialButton('YouTube', socials.youtube, ICON_SVGS.youtube) : '',
+    socials.tiktok ? buildSocialButton('TikTok', socials.tiktok, ICON_SVGS.tiktok) : '',
   ].filter(Boolean).join('')
 
   const cta = buildCtaConfig(profile)
@@ -790,9 +872,10 @@ export const buildVcardLandingHtml = (vcard: Vcard, canonicalUrl: string) => {
       background: rgba(255,255,255,0.08);
       border: 1px solid rgba(255,255,255,0.12);
       backdrop-filter: blur(10px);
-      font-size: 0.74rem;
-      font-weight: 700;
-      letter-spacing: 0.08em;
+    }
+    .social-chip .icon-svg {
+      width: 18px;
+      height: 18px;
     }
     .about {
       margin: 0;
@@ -815,6 +898,11 @@ export const buildVcardLandingHtml = (vcard: Vcard, canonicalUrl: string) => {
       backdrop-filter: blur(8px);
       align-items: start;
     }
+    .info-row-featured {
+      border-color: rgba(255,255,255,0.2);
+      background: rgba(255,255,255,0.1);
+      box-shadow: 0 10px 30px rgba(15,23,42,0.14);
+    }
     .info-icon {
       width: 42px;
       height: 42px;
@@ -823,9 +911,18 @@ export const buildVcardLandingHtml = (vcard: Vcard, canonicalUrl: string) => {
       align-items: center;
       justify-content: center;
       background: rgba(255,255,255,0.1);
-      font-size: 0.82rem;
-      font-weight: 800;
       opacity: 0.9;
+    }
+    .info-icon-featured {
+      background: rgba(255,255,255,0.16);
+    }
+    .icon-svg {
+      width: 18px;
+      height: 18px;
+      flex-shrink: 0;
+    }
+    .fill-icon {
+      stroke: none;
     }
     .info-copy {
       min-width: 0;
