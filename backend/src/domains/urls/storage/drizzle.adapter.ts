@@ -5,6 +5,18 @@ import { urls } from '../../../infra/db/schema'
 import { Url } from '../models'
 import { UrlsStorage } from './interface'
 
+type UrlRow = {
+  id: string
+  random: string
+  userId: string
+  virtualCardId?: string | null
+  targetUrl: string
+  name?: string | null
+  createdAt: Date
+  options?: Record<string, unknown> | null
+  kind?: string | null
+}
+
 export class DrizzleUrlsStorageAdapter implements UrlsStorage {
   async createUrl(url: Url) {
     await db.insert(urls).values({
@@ -58,7 +70,26 @@ export class DrizzleUrlsStorageAdapter implements UrlsStorage {
     return rows.length > 0
   }
 
-  async getByUserId(userId: string) {
+  async getByUserId(userId: string, options?: { includeOptions?: boolean }) {
+    if (options?.includeOptions === false) {
+      const rows = await db
+        .select({
+          id: urls.id,
+          random: urls.random,
+          userId: urls.userId,
+          virtualCardId: urls.virtualCardId,
+          targetUrl: urls.targetUrl,
+          name: urls.name,
+          createdAt: urls.createdAt,
+          kind: urls.kind
+        })
+        .from(urls)
+        .where(eq(urls.userId, userId))
+        .orderBy(desc(urls.createdAt))
+
+      return rows.map((row) => this.toDomain(row))
+    }
+
     const rows = await db
       .select()
       .from(urls)
@@ -97,7 +128,7 @@ export class DrizzleUrlsStorageAdapter implements UrlsStorage {
     return this.toDomain(rows[0])
   }
 
-  private toDomain(row: typeof urls.$inferSelect): Url {
+  private toDomain(row: UrlRow): Url {
     return {
       id: row.id,
       random: row.random,

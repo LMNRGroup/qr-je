@@ -11,10 +11,19 @@ import { buildPublicOwnerSlug } from './public-links'
 import { createVcardsService } from '../vcards/service'
 import { InMemoryVcardsStorageAdapter } from '../vcards/storage/memory.adapter'
 import { registerVcardsRoutes } from '../vcards/routes'
+import type { BillingService, BillingStatus } from '../billing/service'
 
 process.env.APP_BASE_URL = 'https://qrcode.luminarapps.com'
 
 const USER_ID = 'user-123456789'
+const TEST_BILLING_STATUS: BillingStatus = {
+  plan: 'command',
+  dynamicQrCodeLimit: null,
+  adaptiveQrCodeLimit: 5,
+  subscriptionStatus: null,
+  priceId: null,
+  canManageBilling: false,
+}
 
 type CreateTestAppResult = {
   app: Hono<AppBindings>
@@ -26,17 +35,27 @@ const createTestApp = (): CreateTestAppResult => {
   const urlsService = createUrlsService(new InMemoryUrlsStorageAdapter())
   const vcardsService = createVcardsService(new InMemoryVcardsStorageAdapter())
   const scansService = createScansService(new InMemoryScansStorageAdapter())
+  const billingService = createTestBillingService()
 
   app.use('*', async (c, next) => {
     c.set('userId', USER_ID)
     await next()
   })
 
-  registerUrlsRoutes(app, urlsService, scansService, vcardsService)
-  registerVcardsRoutes(app, vcardsService, urlsService)
+  registerUrlsRoutes(app, urlsService, scansService, billingService, vcardsService)
+  registerVcardsRoutes(app, vcardsService, urlsService, billingService)
 
   return { app, scansService }
 }
+
+const createTestBillingService = (): BillingService => ({
+  createCheckoutSession: async () => '',
+  createPortalSession: async () => '',
+  getStatus: async () => TEST_BILLING_STATUS,
+  getEntitlements: async () => TEST_BILLING_STATUS,
+  syncUser: async () => TEST_BILLING_STATUS,
+  processWebhook: async () => {},
+})
 
 const flushAsyncWork = async () => {
   await new Promise((resolve) => setTimeout(resolve, 0))
@@ -77,7 +96,7 @@ const createVcard = async (app: Hono<AppBindings>, slug = 'ramon') => {
       targetUrl: string
       publicUrl: string
       options?: {
-        legacyAliases?: Array<{ oldPath: string; canonicalPath?: string; active?: boolean }>
+        legacyAliases?: Array<{ oldPath: string; type?: string; canonicalPath?: string; active?: boolean }>
       } | null
     }
     vcard: {

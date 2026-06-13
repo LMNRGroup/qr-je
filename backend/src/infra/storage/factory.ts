@@ -14,12 +14,16 @@ import { ScansStorage } from '../../domains/scans/storage/interface'
 import { DrizzleAreaStorageAdapter } from '../../domains/scans/storage/area.drizzle.adapter'
 import { MemoryAreaStorageAdapter } from '../../domains/scans/storage/area.memory.adapter'
 import type { AreaStorage } from '../../domains/scans/storage/area.interface'
+import { InMemoryBillingStorageAdapter } from '../../domains/billing/storage/memory.adapter'
+import { DrizzleBillingStorageAdapter } from '../../domains/billing/storage/drizzle.adapter'
+import type { BillingStorage } from '../../domains/billing/storage/interface'
 
 let urlsStorage: UrlsStorage | null = null
 let usersStorage: UsersStorage | null = null
 let vcardsStorage: VcardsStorage | null = null
 let scansStorage: ScansStorage | null = null
 let areaStorage: AreaStorage | null = null
+let billingStorage: BillingStorage | null = null
 
 const shouldUseSupabase = () => Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY)
 
@@ -93,4 +97,16 @@ export const getAreaStorage = () => {
     logStorageChoice('areas', useDatabase ? 'drizzle' : 'memory')
   }
   return areaStorage
+}
+
+export const getBillingStorage = () => {
+  if (!billingStorage) {
+    const useDatabase = shouldUseDatabase()
+    billingStorage = useDatabase
+      ? new DrizzleBillingStorageAdapter()
+      : new InMemoryBillingStorageAdapter()
+    logStorageChoice('billing', useDatabase ? 'drizzle' : 'memory')
+  }
+
+  return billingStorage
 }

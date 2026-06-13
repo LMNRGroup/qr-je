@@ -14,8 +14,9 @@ import { lookupGeo } from '../scans/geo'
 import type { AreaStorage } from '../scans/storage/area.interface'
 import { parseCreateUrlInput, parseResolveParams, parseUpdateUrlInput } from './validators'
 import type { AppBindings } from '../../shared/http/types'
+import type { BillingService } from '../billing/service'
 
-export const createUrlHandler = (service: UrlsService) => {
+export const createUrlHandler = (service: UrlsService, billingService: BillingService) => {
   return async (c: Context<AppBindings>) => {
     try {
       const payload = await c.req.json()
@@ -31,25 +32,38 @@ export const createUrlHandler = (service: UrlsService) => {
                             (input.options && typeof input.options === 'object' && 
                              'adaptive' in input.options && input.options.adaptive !== null)
 
+      const [userUrls, entitlements] = await Promise.all([
+        service.getUrlsForUser(userId),
+        billingService.getEntitlements(userId)
+      ])
+
+      if (
+        entitlements.dynamicQrCodeLimit !== null &&
+        userUrls.length >= entitlements.dynamicQrCodeLimit
+      ) {
+        return c.json({
+          message: `Your ${entitlements.plan} plan supports ${entitlements.dynamicQrCodeLimit} dynamic QR code${entitlements.dynamicQrCodeLimit === 1 ? '' : 's'}. Upgrade to create more.`,
+          code: 'DYNAMIC_QR_LIMIT_REACHED'
+        }, 402)
+      }
+
       if (isAdaptiveQRC) {
-        // Check if user already has an Adaptive QRC
-        const userUrls = await service.getUrlsForUser(userId)
-        const hasAdaptiveQRC = userUrls.some((url) => {
+        const adaptiveQrCodeCount = userUrls.filter((url) => {
           if (url.kind === 'adaptive') return true
           if (url.options && typeof url.options === 'object' && 'adaptive' in url.options) {
             return url.options.adaptive !== null && url.options.adaptive !== undefined
           }
           return false
-        })
+        }).length
 
-        if (hasAdaptiveQRC) {
+        if (adaptiveQrCodeCount >= entitlements.adaptiveQrCodeLimit) {
           return c.json({ 
-            message: 'You can only have one Adaptive QRC™ per account. Please modify your existing Adaptive QRC™ instead.' 
-          }, 409)
+            message: `Your ${entitlements.plan} plan supports ${entitlements.adaptiveQrCodeLimit} Adaptive QRC${entitlements.adaptiveQrCodeLimit === 1 ? '' : 's'}. Modify an existing one or upgrade.`,
+            code: 'ADAPTIVE_QR_LIMIT_REACHED'
+          }, 402)
         }
       }
 
-      const userUrls = await service.getUrlsForUser(userId)
       const options = withStoredPublicSlug(
         {
           id: '',
@@ -882,8 +896,8 @@ export const listUrlsHandler = (service: UrlsService, vcardsService?: VcardsServ
       return c.json({ message: 'Unauthorized' }, 401)
     }
 
-    const urls = await service.getUrlsForUser(userId)
     const summary = c.req.query('summary') === '1' || c.req.query('summary') === 'true'
+    const urls = await service.getUrlsForUser(userId, { includeOptions: !summary })
     const vcardMap = new Map<string, Vcard | null>()
 
     if (!summary && vcardsService) {

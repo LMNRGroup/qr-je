@@ -1062,7 +1062,7 @@ export const buildVcardLandingHtml = (
   ].filter((link) => link.value)
   const favoriteSocialKey = normalizeText(profile.favoriteSocial) as VcardProfileRecord['favoriteSocial']
   const featuredSocial =
-    favoriteSocialKey && favoriteSocialKey !== ''
+    favoriteSocialKey
       ? socialLinks.find((link) => link.key === favoriteSocialKey) ?? null
       : null
   const cta = buildActionLink(profile)

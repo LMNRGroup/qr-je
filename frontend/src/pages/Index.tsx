@@ -951,7 +951,7 @@ const Index = () => {
       if (typeof document !== 'undefined' && document.hidden) return;
       scanNotifyPollingRef.current = true;
       try {
-        const history = await getQRHistory();
+        const history = await getQRHistory({ summary: true });
         if (!history.success || cancelled) return;
         
         // Early return if user has no QR codes - no need to fetch counts

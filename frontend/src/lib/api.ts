@@ -42,6 +42,18 @@ export type UserProfile = {
   createdAt: string;
 };
 
+export type BillingPlan = 'free' | 'pro' | 'command';
+export type PaidBillingPlan = Exclude<BillingPlan, 'free'>;
+
+export type BillingStatus = {
+  plan: BillingPlan;
+  dynamicQrCodeLimit: number | null;
+  adaptiveQrCodeLimit: number;
+  subscriptionStatus: string | null;
+  priceId: string | null;
+  canManageBilling: boolean;
+};
+
 const requireBaseUrl = () => {
   if (!API_BASE_URL) {
     throw new Error('VITE_API_BASE_URL is not configured');
@@ -302,8 +314,8 @@ export async function getPublicVcard(slug: string): Promise<VcardResponse> {
   return (await response.json()) as VcardResponse;
 }
 
-export async function getQRHistory(): Promise<{ success: boolean; data: QRHistoryItem[] }> {
-  const response = await request('/urls');
+export async function getQRHistory(options?: { summary?: boolean }): Promise<{ success: boolean; data: QRHistoryItem[] }> {
+  const response = await request(options?.summary ? '/urls?summary=1' : '/urls');
   const data = (await response.json()) as UrlResponse[];
   return { success: true, data: data.map(toHistoryItem) };
 }
@@ -425,6 +437,35 @@ export async function updateUserProfile(payload: {
     body: JSON.stringify(payload),
   });
   return (await response.json()) as UserProfile;
+}
+
+export async function getBillingStatus(): Promise<BillingStatus> {
+  const response = await request('/billing/status');
+  return response.json();
+}
+
+export async function createBillingCheckout(plan: PaidBillingPlan): Promise<{ url: string }> {
+  const response = await request('/billing/checkout', {
+    method: 'POST',
+    body: JSON.stringify({ plan }),
+  });
+  return response.json();
+}
+
+export async function createBillingPortalSession(): Promise<{ url: string }> {
+  const response = await request('/billing/portal', {
+    method: 'POST',
+    body: JSON.stringify({}),
+  });
+  return response.json();
+}
+
+export async function syncBillingStatus(): Promise<BillingStatus> {
+  const response = await request('/billing/sync', {
+    method: 'POST',
+    body: JSON.stringify({}),
+  });
+  return response.json();
 }
 
 export async function checkUsernameAvailability(username: string): Promise<{ available: boolean; message?: string; username?: string }> {

@@ -20,8 +20,12 @@ export class InMemoryUrlsStorageAdapter implements UrlsStorage {
     return Array.from(this.records.values()).some((url) => url.id === id)
   }
 
-  async getByUserId(userId: string) {
-    return Array.from(this.records.values()).filter((url) => url.userId === userId)
+  async getByUserId(userId: string, options?: { includeOptions?: boolean }) {
+    const rows = Array.from(this.records.values()).filter((url) => url.userId === userId)
+    if (options?.includeOptions === false) {
+      return rows.map((url) => ({ ...url, options: null }))
+    }
+    return rows
   }
 
   async getAll() {

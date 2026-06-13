@@ -22,16 +22,18 @@ import { UrlsService } from './service'
 import type { ScansService } from '../scans/service'
 import type { VcardsService } from '../vcards/service'
 import type { AreaStorage } from '../scans/storage/area.interface'
+import type { BillingService } from '../billing/service'
 import type { AppBindings } from '../../shared/http/types'
 
 export const registerUrlsRoutes = (
   app: Hono<AppBindings>,
   service: UrlsService,
   scansService: ScansService,
+  billingService: BillingService,
   vcardsService?: VcardsService,
   areaStorage?: AreaStorage
 ) => {
-  app.post('/urls', createUrlHandler(service))
+  app.post('/urls', createUrlHandler(service, billingService))
   app.get('/r/:id/:random', redirectUrlHandler(service, scansService, areaStorage))
   app.get('/adaptive/:id/:random', adaptiveResolveHandler(service, scansService, areaStorage))
   app.get('/public/urls/:id/:random', publicUrlDetailsHandler(service))

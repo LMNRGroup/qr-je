@@ -61,9 +61,12 @@ export class SupabaseUrlsStorageAdapter implements UrlsStorage {
     return rows.length > 0
   }
 
-  async getByUserId(userId: string) {
+  async getByUserId(userId: string, options?: { includeOptions?: boolean }) {
+    const columns = options?.includeOptions === false
+      ? 'id,random,user_id,target_url,name,created_at,kind'
+      : '*'
     const rows = await this.requestJson<UrlRow[]>(
-      `urls?select=*&user_id=eq.${encodeURIComponent(userId)}&order=created_at.desc`
+      `urls?select=${columns}&user_id=eq.${encodeURIComponent(userId)}&order=created_at.desc`
     )
     return rows.map((row) => this.mapRow(row))
   }
