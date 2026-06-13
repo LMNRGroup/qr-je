@@ -27,6 +27,7 @@ const ROUTES = [
   { path: '/data-deletion', element: <DataDeletion /> },
   { path: '/faq', element: <FAQ /> },
   { path: '/v/:slug', element: <VCard /> },
+  { path: '/:owner/:slug', element: <VCard /> },
   { path: '/file/:id/:random', element: <FileViewer /> },
   { path: '/menu/:id/:random', element: <MenuViewer /> },
   // Billing is hidden in production for now

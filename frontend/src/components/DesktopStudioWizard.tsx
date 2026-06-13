@@ -1,10 +1,11 @@
 /**
  * Desktop Studio Wizard Component
  * 
- * Desktop-only QR creation wizard that follows the Mobile V2 step-by-step flow.
+ * Shared QR creation wizard that follows the Mobile V2 step-by-step flow.
  * Provides a guided, step-by-step experience with progress indicator and navigation.
- * 
- * This component is scoped to desktop only (>= 1024px) and does not affect Mobile V2.
+ *
+ * It renders inline on desktop and can also be mounted inside a full-screen overlay
+ * for mobile/narrow-screen fallback flows.
  */
 
 import { useState, useRef, useEffect, useMemo } from 'react';
@@ -24,7 +25,12 @@ import {
   ChevronRight,
   Paintbrush,
   Sparkles,
+  Star,
   Edit,
+  Facebook,
+  Instagram,
+  Music2,
+  Youtube,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -46,7 +52,7 @@ import {
   getEffectiveStep,
   type QRWizardState,
 } from '@/lib/qr-wizard-steps';
-import type { QROptions } from '@/types/qr';
+import type { QROptions, VcardProfile, VcardSocialPlatform } from '@/types/qr';
 
 type QRType = 'website' | 'vcard' | 'email' | 'phone' | 'file' | 'menu' | 'social' | 'portal';
 
@@ -60,13 +66,7 @@ interface DesktopStudioWizardProps {
   phoneNumber: string;
   fileUrl: string;
   fileName: string;
-  vcardName: string;
-  vcardSlug: string;
-  vcardPhone: string;
-  vcardEmail: string;
-  vcardWebsite: string;
-  vcardCompany: string;
-  vcardAbout: string;
+  vcard: VcardProfile;
   menuFilesCount: number;
   websiteTouched: boolean;
   emailTouched: boolean;
@@ -94,9 +94,10 @@ interface DesktopStudioWizardProps {
   onEmailChange: (email: string) => void;
   onPhoneChange: (phone: string) => void;
   onFileChange: (url: string, name: string) => void;
-  onVcardChange: (name: string, slug: string, phone?: string, email?: string, website?: string, company?: string, about?: string) => void;
+  onVcardChange: (patch: Partial<VcardProfile>) => void;
   onOptionChange: (key: keyof QROptions, value: unknown) => void;
-  onDone: () => void; // Called when user clicks Done - parent should show name overlay
+  onDone: () => void;
+  onCancel: () => void;
   onWebsiteTouched: (touched: boolean) => void;
   onEmailTouched: (touched: boolean) => void;
   onPhoneTouched: (touched: boolean) => void;
@@ -108,10 +109,12 @@ interface DesktopStudioWizardProps {
     error: (message: string) => void;
     info: (message: string) => void;
   };
+  cancelDisabled?: boolean;
   // Overlay handlers
   onShowVcardCustomizer: () => void;
   onShowMenuBuilder: () => void;
   onShowFileUpload: () => void;
+  showCollectrField?: boolean;
 }
 
 const QUICK_ACTIONS = [
@@ -123,6 +126,14 @@ const QUICK_ACTIONS = [
   { id: 'menu', label: 'Menu', Icon: Utensils },
 ] as const;
 
+const getDefaultVcardCtaLabel = (type: VcardProfile['ctaType']) => {
+  if (type === 'call') return 'Call Me';
+  if (type === 'email') return 'Email Me';
+  if (type === 'whatsapp') return 'WhatsApp Me';
+  if (type === 'website') return 'Visit My Website';
+  return '';
+};
+
 export function DesktopStudioWizard({
   qrMode,
   qrType,
@@ -132,13 +143,7 @@ export function DesktopStudioWizard({
   phoneNumber,
   fileUrl,
   fileName,
-  vcardName,
-  vcardSlug,
-  vcardPhone,
-  vcardEmail,
-  vcardWebsite,
-  vcardCompany,
-  vcardAbout,
+  vcard,
   menuFilesCount,
   websiteTouched,
   emailTouched,
@@ -157,6 +162,7 @@ export function DesktopStudioWizard({
   onVcardChange,
   onOptionChange,
   onDone,
+  onCancel,
   onWebsiteTouched,
   onEmailTouched,
   onPhoneTouched,
@@ -175,9 +181,11 @@ export function DesktopStudioWizard({
   portalCustomization,
   navigate,
   toast,
+  cancelDisabled = false,
   onShowVcardCustomizer,
   onShowMenuBuilder,
   onShowFileUpload,
+  showCollectrField = false,
 }: DesktopStudioWizardProps) {
   const [currentStep, setCurrentStep] = useState<QRWizardStep>(1);
   const stepRefs = useRef<Record<QRWizardStep, HTMLDivElement | null>>({
@@ -199,8 +207,8 @@ export function DesktopStudioWizard({
       phoneNumber,
       fileUrl,
       fileName,
-      vcardName,
-      vcardSlug,
+      vcardName: vcard.name ?? '',
+      vcardSlug: vcard.slug ?? '',
       menuFilesCount,
       socialPlatform: socialPlatform || '',
       socialHandle,
@@ -226,8 +234,8 @@ export function DesktopStudioWizard({
       phoneNumber,
       fileUrl,
       fileName,
-      vcardName,
-      vcardSlug,
+      vcard.name,
+      vcard.slug,
       menuFilesCount,
       socialPlatform,
       socialHandle,
@@ -249,6 +257,33 @@ export function DesktopStudioWizard({
   const canGoBack = currentStep > 1;
   const nextStep = getNextStep(effectiveStep, wizardState);
   const prevStep = currentStep > 1 ? (currentStep - 1) as QRWizardStep : null;
+  const updateVcardSocial = (platform: VcardSocialPlatform, value: string) => {
+    const nextSocials = {
+      instagram: vcard.socials?.instagram ?? '',
+      facebook: vcard.socials?.facebook ?? '',
+      youtube: vcard.socials?.youtube ?? '',
+      tiktok: vcard.socials?.tiktok ?? '',
+      [platform]: value,
+    };
+
+    onVcardChange({
+      socials: nextSocials,
+      favoriteSocial:
+        vcard.favoriteSocial === platform && !value.trim()
+          ? ''
+          : vcard.favoriteSocial ?? '',
+    });
+  };
+
+  const toggleFavoriteSocial = (platform: VcardSocialPlatform) => {
+    if (!(vcard.socials?.[platform] ?? '').trim()) {
+      return;
+    }
+
+    onVcardChange({
+      favoriteSocial: vcard.favoriteSocial === platform ? '' : platform,
+    });
+  };
 
   // Auto-advance when quick action is selected
   useEffect(() => {
@@ -387,7 +422,19 @@ export function DesktopStudioWizard({
             <p className="text-xs uppercase tracking-[0.4em] text-muted-foreground">Studio</p>
             <h2 className="text-2xl sm:text-3xl font-semibold tracking-tight">Create Your QR Code</h2>
           </div>
-          <span className="text-xs uppercase tracking-[0.3em] text-primary">Step-by-step</span>
+          <div className="flex items-center gap-3">
+            <span className="text-xs uppercase tracking-[0.3em] text-primary">Step-by-step</span>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={onCancel}
+              disabled={cancelDisabled}
+              className="uppercase tracking-[0.2em] text-xs text-muted-foreground hover:text-foreground"
+            >
+              Cancel
+            </Button>
+          </div>
         </div>
         
         {/* Step Progress Bar */}
@@ -760,21 +807,29 @@ export function DesktopStudioWizard({
                       <div className="space-y-2">
                         <label className="text-sm font-medium">Name *</label>
                         <Input
-                          value={vcardName}
-                          onChange={(e) => onVcardChange(e.target.value, vcardSlug)}
+                          value={vcard.name ?? ''}
+                          onChange={(e) => onVcardChange({ name: e.target.value })}
                           placeholder="Your Name"
-                          className={!vcardName && canProceed === false ? 'border-destructive' : ''}
+                          className={!vcard.name && canProceed === false ? 'border-destructive' : ''}
                         />
-                        {!vcardName && canProceed === false && (
+                        {!vcard.name && canProceed === false && (
                           <p className="text-xs text-destructive">Name is required</p>
                         )}
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">Title</label>
+                        <Input
+                          value={vcard.title ?? ''}
+                          onChange={(e) => onVcardChange({ title: e.target.value })}
+                          placeholder="Brand Director"
+                        />
                       </div>
                       <div className="space-y-2">
                         <label className="text-sm font-medium">Phone</label>
                         <Input
                           type="tel"
-                          value={vcardPhone}
-                          onChange={(e) => onVcardChange(vcardName, vcardSlug, e.target.value, vcardEmail, vcardWebsite, vcardCompany, vcardAbout)}
+                          value={vcard.phone ?? ''}
+                          onChange={(e) => onVcardChange({ phone: e.target.value })}
                           placeholder="+1 (555) 123-4567"
                         />
                       </div>
@@ -782,36 +837,210 @@ export function DesktopStudioWizard({
                         <label className="text-sm font-medium">Email</label>
                         <Input
                           type="email"
-                          value={vcardEmail}
-                          onChange={(e) => onVcardChange(vcardName, vcardSlug, vcardPhone, e.target.value, vcardWebsite, vcardCompany, vcardAbout)}
+                          value={vcard.email ?? ''}
+                          onChange={(e) => onVcardChange({ email: e.target.value })}
                           placeholder="email@example.com"
                         />
                       </div>
                       <div className="space-y-2">
                         <label className="text-sm font-medium">Website</label>
                         <Input
-                          value={vcardWebsite}
-                          onChange={(e) => onVcardChange(vcardName, vcardSlug, vcardPhone, vcardEmail, e.target.value, vcardCompany, vcardAbout)}
+                          value={vcard.website ?? ''}
+                          onChange={(e) => onVcardChange({ website: e.target.value })}
                           placeholder="https://example.com"
                         />
                       </div>
                       <div className="space-y-2">
+                        <label className="text-sm font-medium">Location</label>
+                        <Input
+                          value={vcard.location ?? ''}
+                          onChange={(e) => onVcardChange({ location: e.target.value })}
+                          placeholder="San Juan, PR"
+                        />
+                      </div>
+                      {showCollectrField ? (
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium">Collectr Showcase</label>
+                          <Input
+                            value={vcard.collectrUrl ?? ''}
+                            onChange={(e) => onVcardChange({ collectrUrl: e.target.value })}
+                            placeholder="https://app.getcollectr.com/showcase/profile/@yourhandle"
+                          />
+                          <p className="text-xs text-muted-foreground">
+                            Optional. Show a small teaser of cards from a public Collectr profile.
+                          </p>
+                        </div>
+                      ) : null}
+                      <div className="space-y-2">
                         <label className="text-sm font-medium">Company</label>
                         <Input
-                          value={vcardCompany}
-                          onChange={(e) => onVcardChange(vcardName, vcardSlug, vcardPhone, vcardEmail, vcardWebsite, e.target.value, vcardAbout)}
+                          value={vcard.company ?? ''}
+                          onChange={(e) => onVcardChange({ company: e.target.value })}
                           placeholder="Company Name"
                         />
                       </div>
                       <div className="space-y-2">
                         <label className="text-sm font-medium">About</label>
                         <Textarea
-                          value={vcardAbout}
-                          onChange={(e) => onVcardChange(vcardName, vcardSlug, vcardPhone, vcardEmail, vcardWebsite, vcardCompany, e.target.value)}
+                          value={vcard.about ?? ''}
+                          onChange={(e) => onVcardChange({ about: e.target.value })}
                           placeholder="A brief description about yourself"
                           rows={3}
                         />
                       </div>
+                      <div className="space-y-3 rounded-xl border border-border/60 bg-secondary/20 p-4">
+                        <div>
+                          <label className="text-sm font-medium">Social Links</label>
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            Add only the profiles you want to show on the VCard.
+                          </p>
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            Star one profile to feature it in the highlighted social card.
+                          </p>
+                        </div>
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          <div className="flex items-center gap-3">
+                            <Instagram className="h-4 w-4 text-primary" />
+                            <Input
+                              value={vcard.socials?.instagram ?? ''}
+                              onChange={(e) => updateVcardSocial('instagram', e.target.value)}
+                              placeholder="Instagram URL"
+                              className="flex-1"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => toggleFavoriteSocial('instagram')}
+                              disabled={!(vcard.socials?.instagram ?? '').trim()}
+                              aria-label="Feature Instagram on the social card"
+                              aria-pressed={vcard.favoriteSocial === 'instagram'}
+                              className={`flex h-10 w-10 items-center justify-center rounded-xl border transition ${
+                                vcard.favoriteSocial === 'instagram'
+                                  ? 'border-amber-400/50 bg-amber-400/10 text-amber-500'
+                                  : 'border-border/70 bg-secondary/30 text-muted-foreground hover:border-primary/40 hover:text-foreground'
+                              } disabled:cursor-not-allowed disabled:opacity-40`}
+                            >
+                              <Star className={`h-4 w-4 ${vcard.favoriteSocial === 'instagram' ? 'fill-current' : ''}`} />
+                            </button>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <Facebook className="h-4 w-4 text-primary" />
+                            <Input
+                              value={vcard.socials?.facebook ?? ''}
+                              onChange={(e) => updateVcardSocial('facebook', e.target.value)}
+                              placeholder="Facebook URL"
+                              className="flex-1"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => toggleFavoriteSocial('facebook')}
+                              disabled={!(vcard.socials?.facebook ?? '').trim()}
+                              aria-label="Feature Facebook on the social card"
+                              aria-pressed={vcard.favoriteSocial === 'facebook'}
+                              className={`flex h-10 w-10 items-center justify-center rounded-xl border transition ${
+                                vcard.favoriteSocial === 'facebook'
+                                  ? 'border-amber-400/50 bg-amber-400/10 text-amber-500'
+                                  : 'border-border/70 bg-secondary/30 text-muted-foreground hover:border-primary/40 hover:text-foreground'
+                              } disabled:cursor-not-allowed disabled:opacity-40`}
+                            >
+                              <Star className={`h-4 w-4 ${vcard.favoriteSocial === 'facebook' ? 'fill-current' : ''}`} />
+                            </button>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <Youtube className="h-4 w-4 text-primary" />
+                            <Input
+                              value={vcard.socials?.youtube ?? ''}
+                              onChange={(e) => updateVcardSocial('youtube', e.target.value)}
+                              placeholder="YouTube URL"
+                              className="flex-1"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => toggleFavoriteSocial('youtube')}
+                              disabled={!(vcard.socials?.youtube ?? '').trim()}
+                              aria-label="Feature YouTube on the social card"
+                              aria-pressed={vcard.favoriteSocial === 'youtube'}
+                              className={`flex h-10 w-10 items-center justify-center rounded-xl border transition ${
+                                vcard.favoriteSocial === 'youtube'
+                                  ? 'border-amber-400/50 bg-amber-400/10 text-amber-500'
+                                  : 'border-border/70 bg-secondary/30 text-muted-foreground hover:border-primary/40 hover:text-foreground'
+                              } disabled:cursor-not-allowed disabled:opacity-40`}
+                            >
+                              <Star className={`h-4 w-4 ${vcard.favoriteSocial === 'youtube' ? 'fill-current' : ''}`} />
+                            </button>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <Music2 className="h-4 w-4 text-primary" />
+                            <Input
+                              value={vcard.socials?.tiktok ?? ''}
+                              onChange={(e) => updateVcardSocial('tiktok', e.target.value)}
+                              placeholder="TikTok URL"
+                              className="flex-1"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => toggleFavoriteSocial('tiktok')}
+                              disabled={!(vcard.socials?.tiktok ?? '').trim()}
+                              aria-label="Feature TikTok on the social card"
+                              aria-pressed={vcard.favoriteSocial === 'tiktok'}
+                              className={`flex h-10 w-10 items-center justify-center rounded-xl border transition ${
+                                vcard.favoriteSocial === 'tiktok'
+                                  ? 'border-amber-400/50 bg-amber-400/10 text-amber-500'
+                                  : 'border-border/70 bg-secondary/30 text-muted-foreground hover:border-primary/40 hover:text-foreground'
+                              } disabled:cursor-not-allowed disabled:opacity-40`}
+                            >
+                              <Star className={`h-4 w-4 ${vcard.favoriteSocial === 'tiktok' ? 'fill-current' : ''}`} />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">Action Button</label>
+                        <select
+                          className="w-full h-11 rounded-xl border border-border bg-secondary/40 px-3 text-sm"
+                          value={vcard.ctaType ?? ''}
+                          onChange={(e) =>
+                            onVcardChange({
+                              ctaType: e.target.value as VcardProfile['ctaType'],
+                              ctaLabel: getDefaultVcardCtaLabel(e.target.value as VcardProfile['ctaType']),
+                              ctaValue: '',
+                            })
+                          }
+                        >
+                          <option value="">No action button</option>
+                          <option value="call">Call Me</option>
+                          <option value="email">Email Me</option>
+                          <option value="whatsapp">WhatsApp Me</option>
+                          <option value="website">Visit My Website</option>
+                        </select>
+                      </div>
+                      {vcard.ctaType ? (
+                        <>
+                          <div className="space-y-2">
+                            <label className="text-sm font-medium">Button Label</label>
+                            <Input
+                              value={vcard.ctaLabel ?? ''}
+                              onChange={(e) => onVcardChange({ ctaLabel: e.target.value })}
+                              placeholder="Call Me"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <label className="text-sm font-medium">Action Value</label>
+                            <Input
+                              value={vcard.ctaValue ?? ''}
+                              onChange={(e) => onVcardChange({ ctaValue: e.target.value })}
+                              placeholder={
+                                vcard.ctaType === 'call'
+                                  ? '+1 787 555 1234'
+                                  : vcard.ctaType === 'email'
+                                    ? 'name@example.com'
+                                    : vcard.ctaType === 'whatsapp'
+                                      ? '+1 787 555 1234'
+                                      : 'https://example.com'
+                              }
+                            />
+                          </div>
+                        </>
+                      ) : null}
                     </div>
                   </div>
                 )}
@@ -876,9 +1105,9 @@ export function DesktopStudioWizard({
                         <User className="mr-2 h-4 w-4" />
                         Customize vCard Design
                       </Button>
-                      {vcardName && (
+                      {vcard.name && (
                         <div className="p-4 rounded-xl border border-primary/30 bg-primary/5">
-                          <p className="text-sm font-medium">{vcardName}</p>
+                          <p className="text-sm font-medium">{vcard.name}</p>
                           <p className="text-xs text-muted-foreground mt-1">vCard ready for customization</p>
                         </div>
                       )}
@@ -911,29 +1140,31 @@ export function DesktopStudioWizard({
                     />
                   </div>
 
-                  <div className="space-y-4">
-                    <p className="text-sm font-medium">Logo</p>
-                    <LogoUpload
-                      logo={options.logo}
-                      maxLogoSize={Math.round((options.size - 32) * 0.22)}
-                      onLogoChange={(v, meta) => {
-                        onOptionChange('logo', v);
-                        if (meta) {
-                          onOptionChange('logoAspect', meta.aspect);
-                          onOptionChange('logoWidth', meta.width);
-                          onOptionChange('logoHeight', meta.height);
-                        }
-                      }}
-                    />
-                    {options.logo && (
-                      <SizeSlider
-                        value={options.logoSize || 50}
-                        onChange={(v) => onOptionChange('logoSize', v)}
-                        min={20}
-                        max={100}
+                  {qrType !== 'vcard' ? (
+                    <div className="space-y-4">
+                      <p className="text-sm font-medium">Logo</p>
+                      <LogoUpload
+                        logo={options.logo}
+                        maxLogoSize={Math.round((options.size - 32) * 0.22)}
+                        onLogoChange={(v, meta) => {
+                          onOptionChange('logo', v);
+                          if (meta) {
+                            onOptionChange('logoAspect', meta.aspect);
+                            onOptionChange('logoWidth', meta.width);
+                            onOptionChange('logoHeight', meta.height);
+                          }
+                        }}
                       />
-                    )}
-                  </div>
+                      {options.logo && (
+                        <SizeSlider
+                          value={options.logoSize || 50}
+                          onChange={(v) => onOptionChange('logoSize', v)}
+                          min={20}
+                          max={100}
+                        />
+                      )}
+                    </div>
+                  ) : null}
                 </div>
               </motion.div>
             )}
@@ -941,32 +1172,52 @@ export function DesktopStudioWizard({
 
           {/* Navigation Buttons - Hide Next for step 2 (auto-advance), hide for step 4 (Done is in preview) */}
           {currentStep !== 2 && currentStep !== 4 && (
-            <div className="flex items-center justify-between gap-4 pt-4 border-t">
+            <div className="flex flex-col gap-3 pt-4 border-t sm:flex-row sm:items-center sm:justify-between">
               <Button
-                variant="outline"
-                onClick={handleBack}
-                disabled={!canGoBack}
-                className="gap-2"
+                type="button"
+                variant="ghost"
+                onClick={onCancel}
+                disabled={cancelDisabled}
+                className="uppercase tracking-[0.2em] text-xs text-muted-foreground hover:text-foreground"
               >
-                <ArrowLeft className="h-4 w-4" />
-                Back
+                Cancel
               </Button>
-              {currentStep < 4 && (
+              <div className="flex flex-col gap-3 sm:ml-auto sm:flex-row sm:items-center">
                 <Button
-                  onClick={handleNext}
-                  disabled={!canProceed}
+                  variant="outline"
+                  onClick={handleBack}
+                  disabled={!canGoBack}
                   className="gap-2"
                 >
-                  Next
-                  <ArrowRight className="h-4 w-4" />
+                  <ArrowLeft className="h-4 w-4" />
+                  Back
                 </Button>
-              )}
+                {currentStep < 4 && (
+                  <Button
+                    onClick={handleNext}
+                    disabled={!canProceed}
+                    className="gap-2"
+                  >
+                    Next
+                    <ArrowRight className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
             </div>
           )}
           
           {/* Back button only for step 2 */}
           {currentStep === 2 && (
-            <div className="flex items-center justify-start gap-4 pt-4 border-t">
+            <div className="flex flex-col gap-3 pt-4 border-t sm:flex-row sm:items-center sm:justify-between">
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={onCancel}
+                disabled={cancelDisabled}
+                className="uppercase tracking-[0.2em] text-xs text-muted-foreground hover:text-foreground"
+              >
+                Cancel
+              </Button>
               <Button
                 variant="outline"
                 onClick={handleBack}
@@ -1004,14 +1255,26 @@ export function DesktopStudioWizard({
             {/* Done button below preview when on step 4 */}
             {currentStep === 4 && (
               <div className="pt-4 border-t">
-                <Button
-                  onClick={handleDone}
-                  disabled={!canProceed}
-                  className="w-full gap-2 bg-gradient-primary"
-                  size="lg"
-                >
-                  Done
-                </Button>
+                <div className="flex flex-col gap-3 sm:flex-row">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={onCancel}
+                    disabled={cancelDisabled}
+                    className="sm:flex-1 uppercase tracking-[0.2em] text-xs"
+                    size="lg"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={handleDone}
+                    disabled={!canProceed}
+                    className="sm:flex-1 gap-2 bg-gradient-primary"
+                    size="lg"
+                  >
+                    Done
+                  </Button>
+                </div>
               </div>
             )}
           </div>

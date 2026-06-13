@@ -14,7 +14,9 @@ interface ArsenalPageProps {
   handleAdaptiveMockOpen: () => void;
   handleAdaptiveEdit: (item: QRHistoryItem) => void;
   handleDynamicContentEdit: (item: QRHistoryItem) => void;
+  handleVcardEdit: (item: QRHistoryItem) => void;
   arsenalRefreshKey: number;
+  preferredSelectedId?: string | null;
   setArsenalRefreshKey: (fn: (prev: number) => number) => void;
   setArsenalStats: (stats: { total: number; dynamic: number }) => void;
   userProfile: UserProfile | null;
@@ -32,7 +34,9 @@ export function ArsenalPage({
   handleAdaptiveMockOpen,
   handleAdaptiveEdit,
   handleDynamicContentEdit,
+  handleVcardEdit,
   arsenalRefreshKey,
+  preferredSelectedId,
   setArsenalRefreshKey,
   setArsenalStats,
   userProfile,
@@ -64,6 +68,8 @@ export function ArsenalPage({
               cacheKey={user?.id ?? 'guest'}
               onAdaptiveEdit={handleAdaptiveEdit}
               onDynamicContentEdit={handleDynamicContentEdit}
+              onVcardEdit={handleVcardEdit}
+              preferredSelectedId={preferredSelectedId}
               topContent={undefined}
             />
           ) : (
@@ -128,6 +134,8 @@ export function ArsenalPage({
               cacheKey={user?.id ?? 'guest'}
               onAdaptiveEdit={handleAdaptiveEdit}
               onDynamicContentEdit={handleDynamicContentEdit}
+              onVcardEdit={handleVcardEdit}
+              preferredSelectedId={preferredSelectedId}
               topContent={undefined}
             />
           ) : (

@@ -17,6 +17,7 @@ import {
   List,
   Loader2,
   Mail,
+  Pencil,
   Phone,
   QrCode,
   Send,
@@ -75,6 +76,28 @@ const getDisplayName = (item: QRHistoryItem, list: QRHistoryItem[] = []) => {
     return `Untitled QRC ${index + 1}`;
   }
   return `Untitled QRC`;
+};
+
+const normalizeShareText = (value?: string | null) => value?.trim() ?? '';
+
+const getVcardSharePayload = (item: QRHistoryItem) => {
+  const profile = item.options?.vcardData?.profile;
+  const fullName = normalizeShareText(profile?.name) || normalizeShareText(item.name) || 'Someone';
+  const firstName = fullName.split(/\s+/)[0] || fullName;
+  const company = normalizeShareText(profile?.company);
+  const title = normalizeShareText(profile?.title);
+  const roleSummary = [title, company].filter(Boolean).join(' at ');
+
+  return {
+    title:
+      fullName === 'Someone'
+        ? 'A virtual card has been shared with you'
+        : `${firstName} wants to share a virtual card with you`,
+    text:
+      fullName === 'Someone'
+        ? 'Open this virtual card to view contact details and save them in one tap.'
+        : `Open ${fullName}'s virtual card${roleSummary ? `, ${roleSummary},` : ''} and save their contact details in one tap.`,
+  };
 };
 
 // Calculate total storage used by a QR code's files
@@ -207,7 +230,7 @@ const isWebUrl = (value: string) => /^https?:\/\//i.test(value);
 
 const parseKind = (kind?: string | null) => {
   if (!kind) return { mode: 'static', type: 'url' };
-  if (kind === 'vcard') return { mode: 'static', type: 'vcard' };
+  if (kind === 'vcard') return { mode: 'dynamic', type: 'vcard' };
   if (kind === 'adaptive') return { mode: 'dynamic', type: 'adaptive' };
   if (kind === 'dynamic' || kind === 'static') return { mode: kind, type: 'url' };
   if (kind.includes(':')) {
@@ -307,6 +330,8 @@ export function ArsenalPanel({
   topContent,
   onAdaptiveEdit,
   onDynamicContentEdit,
+  onVcardEdit,
+  preferredSelectedId,
 }: {
   refreshKey?: number;
   onStatsChange?: (stats: { total: number; dynamic: number }) => void;
@@ -318,6 +343,8 @@ export function ArsenalPanel({
   topContent?: React.ReactNode;
   onAdaptiveEdit?: (item: QRHistoryItem) => void;
   onDynamicContentEdit?: (item: QRHistoryItem) => void;
+  onVcardEdit?: (item: QRHistoryItem) => void;
+  preferredSelectedId?: string | null;
 }) {
   const [isDesktop, setIsDesktop] = useState(() => {
     if (typeof window === 'undefined') return true;
@@ -600,10 +627,15 @@ export function ArsenalPanel({
           setViewMode(cached.viewMode ?? 'grid');
           lastTodayRef.current = cached.today ?? 0;
           onScansChange?.(cached.today ?? 0);
-          if (cached.items?.length && isDesktop) {
-            const fallback = cached.items[0];
+          if (cached.items?.length) {
+            const preferredItem = preferredSelectedId
+              ? cached.items.find((item) => item.id === preferredSelectedId) ?? null
+              : null;
+            const fallback = preferredItem ?? cached.items[0];
             const cachedSelected =
-              cached.items.find((item) => item.id === cached.selectedId) ?? fallback;
+              preferredItem ??
+              cached.items.find((item) => item.id === cached.selectedId) ??
+              (isDesktop ? fallback : null);
             if (cachedSelected) {
               setSelectedId(cachedSelected.id);
               setEditName(cachedSelected.name?.trim() ?? '');
@@ -616,11 +648,14 @@ export function ArsenalPanel({
         const response = await getQRHistory();
         if (response.success) {
           setItems(response.data);
-          if (response.data.length > 0 && isDesktop) {
-            const first = response.data[0];
-            setSelectedId(first.id);
-            setEditName(first.name?.trim() ?? '');
-            setEditContent(first.content);
+          const preferredItem = preferredSelectedId
+            ? response.data.find((item) => item.id === preferredSelectedId) ?? null
+            : null;
+          const initialSelection = preferredItem ?? (isDesktop ? response.data[0] : null);
+          if (initialSelection) {
+            setSelectedId(initialSelection.id);
+            setEditName(initialSelection.name?.trim() ?? '');
+            setEditContent(initialSelection.content);
           }
           // Only fetch scan counts if user has QR codes (optimize for users with no QRs)
           const countsResult = response.data.length > 0
@@ -629,9 +664,9 @@ export function ArsenalPanel({
           writeCache({
             items: response.data,
             scanCounts: countsResult.counts,
-            selectedId: response.data[0]?.id ?? null,
-            editName: response.data[0]?.name?.trim() ?? '',
-            editContent: response.data[0]?.content ?? '',
+            selectedId: initialSelection?.id ?? null,
+            editName: initialSelection?.name?.trim() ?? '',
+            editContent: initialSelection?.content ?? '',
             today: countsResult.today,
             page: 1,
             sortMode,
@@ -649,7 +684,7 @@ export function ArsenalPanel({
   // Intentionally limited: this effect loads on mount, layout changes, and explicit refreshes.
   // Including cache helpers/state setters here causes cache-reset loops and excess network traffic.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [refreshKey, isDesktop]);
+  }, [refreshKey, isDesktop, preferredSelectedId]);
 
   useEffect(() => {
     if (!items.length) return;
@@ -749,6 +784,8 @@ export function ArsenalPanel({
   const selectedDisplayName = selectedItem ? getDisplayName(selectedItem, sortedItems) : '';
   const selectedKind = parseKind(selectedItem?.kind ?? null);
   const isDynamic = selectedKind.mode === 'dynamic';
+  const isVcard = selectedKind.type === 'vcard';
+  const canEditTargetUrl = isDynamic && !isVcard;
   const canEditDynamicContent = Boolean(
     selectedItem &&
       isDynamic &&
@@ -757,7 +794,7 @@ export function ArsenalPanel({
   const hasUnsavedChanges = Boolean(
     selectedItem &&
       (editName.trim() !== (selectedItem.name?.trim() ?? '') ||
-        (isDynamic && editContent.trim() !== selectedItem.content))
+        (canEditTargetUrl && editContent.trim() !== selectedItem.content))
   );
 
   // Scan counts load once per refresh to avoid constant re-renders.
@@ -902,7 +939,7 @@ export function ArsenalPanel({
     if (desiredName !== currentName) {
       payload.name = desiredName.length ? desiredName : null;
     }
-    if (isDynamic && editContent.trim() && editContent.trim() !== selectedItem.content) {
+    if (canEditTargetUrl && editContent.trim() && editContent.trim() !== selectedItem.content) {
       payload.targetUrl = editContent.trim();
     }
     if (Object.keys(payload).length === 0) {
@@ -928,7 +965,11 @@ export function ArsenalPanel({
 
   const handleCopy = async () => {
     if (!selectedItem) return;
-    const shareUrl = selectedItem.shortUrl ?? selectedItem.content;
+    const parsed = parseKind(selectedItem.kind ?? null);
+    const shareUrl =
+      parsed.type === 'vcard'
+        ? selectedItem.publicUrl ?? selectedItem.shortUrl ?? selectedItem.content
+        : selectedItem.shortUrl ?? selectedItem.content;
     const fallbackCopy = () => {
       const textarea = document.createElement('textarea');
       textarea.value = shareUrl;
@@ -960,13 +1001,23 @@ export function ArsenalPanel({
 
   const handleShare = async () => {
     if (!selectedItem) return;
-    const shareUrl = selectedItem.shortUrl ?? selectedItem.content;
-    const shareTitle = getDisplayName(selectedItem, sortedItems);
+    const parsed = parseKind(selectedItem.kind ?? null);
+    const isVcardShare = parsed.type === 'vcard';
+    const shareUrl = isVcardShare
+      ? selectedItem.publicUrl ?? selectedItem.shortUrl ?? selectedItem.content
+      : selectedItem.shortUrl ?? selectedItem.content;
+    const defaultShareTitle = getDisplayName(selectedItem, sortedItems);
+    const sharePayload = isVcardShare
+      ? getVcardSharePayload(selectedItem)
+      : {
+          title: defaultShareTitle,
+          text: defaultShareTitle,
+        };
     try {
       if (navigator.share) {
         await navigator.share({
-          title: shareTitle,
-          text: shareTitle,
+          title: sharePayload.title,
+          text: sharePayload.text,
           url: shareUrl,
         });
         return;
@@ -1016,6 +1067,14 @@ export function ArsenalPanel({
         </span>
       </div>
     );
+  };
+
+  const getDisplayedLink = (item: QRHistoryItem) => {
+    const parsed = parseKind(item.kind ?? null);
+    if (parsed.type === 'vcard' && item.publicUrl) {
+      return item.publicUrl;
+    }
+    return item.shortUrl ?? item.content;
   };
 
   const getScanCountValue = (item: QRHistoryItem) => scanCounts[item.id] ?? 0;
@@ -1157,6 +1216,19 @@ export function ArsenalPanel({
           </button>
         )}
         <div className="flex flex-wrap items-center gap-2 overflow-visible">
+          {isVcard && onVcardEdit ? (
+            <Button
+              size="icon"
+              variant="outline"
+              className="group relative border-primary/40 text-primary hover:bg-primary/10"
+              onClick={() => onVcardEdit(selectedItem)}
+            >
+              <Pencil className="h-4 w-4" />
+              <span className="pointer-events-none absolute -bottom-6 left-1/2 -translate-x-1/2 whitespace-nowrap text-[10px] uppercase tracking-[0.35em] text-muted-foreground opacity-0 transition group-hover:opacity-100">
+                {t('Edit VCard', 'Editar VCard')}
+              </span>
+            </Button>
+          ) : null}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
@@ -1277,9 +1349,9 @@ export function ArsenalPanel({
           type="button"
           onClick={handleCopy}
           className="group relative w-full text-center text-xs text-muted-foreground truncate hover:text-primary transition"
-          title={selectedItem.shortUrl ?? selectedItem.content}
+          title={getDisplayedLink(selectedItem)}
         >
-          {selectedItem.shortUrl ?? selectedItem.content}
+          {getDisplayedLink(selectedItem)}
           <span className="pointer-events-none absolute -bottom-5 left-1/2 -translate-x-1/2 text-[10px] uppercase tracking-[0.35em] text-muted-foreground opacity-0 transition group-hover:opacity-100">
             {t('Copy', 'Copiar')}
           </span>
@@ -1287,7 +1359,7 @@ export function ArsenalPanel({
 
         <div className="space-y-3">
           <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">
-            {isDynamic ? t('Dynamic URL', 'URL dinamica') : t('QR Destination', 'Destino del QR')}
+            {canEditTargetUrl ? t('Dynamic URL', 'URL dinamica') : t('QR Destination', 'Destino del QR')}
           </p>
           <button
             type="button"
@@ -1298,15 +1370,20 @@ export function ArsenalPanel({
               value={editContent}
               onChange={(event) => setEditContent(event.target.value)}
               className="bg-secondary/40 border-border pr-14 cursor-pointer transition group-hover:bg-secondary/60"
-              readOnly={!isDynamic}
+              readOnly={!canEditTargetUrl}
             />
             <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[10px] uppercase tracking-[0.35em] text-muted-foreground opacity-0 transition group-hover:opacity-100">
               {t('Copy', 'Copiar')}
             </span>
           </button>
-          {!isDynamic && (
+          {!canEditTargetUrl && (
             <p className="text-[11px] uppercase tracking-[0.3em] text-muted-foreground">
-              {t('Static QR destinations are read-only.', 'Los destinos QR estaticos son de solo lectura.')}
+              {isVcard
+                ? t(
+                    'VCard destinations stay fixed. Use Edit VCard to update the card itself.',
+                    'Los destinos de VCard permanecen fijos. Usa Edit VCard para actualizar la tarjeta.'
+                  )
+                : t('Static QR destinations are read-only.', 'Los destinos QR estaticos son de solo lectura.')}
             </p>
           )}
         </div>
@@ -2148,6 +2225,19 @@ export function ArsenalPanel({
             {selectedItem ? (
               <>
                 <div className="flex flex-wrap items-center gap-2 overflow-visible">
+                  {isVcard && onVcardEdit ? (
+                    <Button
+                      size="icon"
+                      variant="outline"
+                      className="group relative border-primary/40 text-primary hover:bg-primary/10"
+                      onClick={() => onVcardEdit(selectedItem)}
+                    >
+                      <Pencil className="h-4 w-4" />
+                      <span className="pointer-events-none absolute -bottom-6 left-1/2 -translate-x-1/2 whitespace-nowrap text-[10px] uppercase tracking-[0.35em] text-muted-foreground opacity-0 transition group-hover:opacity-100">
+                        {t('Edit VCard', 'Editar VCard')}
+                      </span>
+                    </Button>
+                  ) : null}
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button
@@ -2268,9 +2358,9 @@ export function ArsenalPanel({
                   type="button"
                   onClick={handleCopy}
                   className="group relative w-full text-center text-xs text-muted-foreground truncate hover:text-primary transition"
-                  title={selectedItem.shortUrl ?? selectedItem.content}
+                  title={getDisplayedLink(selectedItem)}
                 >
-                  {selectedItem.shortUrl ?? selectedItem.content}
+                  {getDisplayedLink(selectedItem)}
                   <span className="pointer-events-none absolute -bottom-5 left-1/2 -translate-x-1/2 text-[10px] uppercase tracking-[0.35em] text-muted-foreground opacity-0 transition group-hover:opacity-100">
                     {t('Copy', 'Copiar')}
                   </span>
@@ -2278,7 +2368,7 @@ export function ArsenalPanel({
 
                 <div className="space-y-3">
                   <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">
-                    {isDynamic ? t('Dynamic URL', 'URL dinamica') : t('QR Destination', 'Destino del QR')}
+                    {canEditTargetUrl ? t('Dynamic URL', 'URL dinamica') : t('QR Destination', 'Destino del QR')}
                   </p>
                   <button
                     type="button"
@@ -2289,15 +2379,20 @@ export function ArsenalPanel({
                       value={editContent}
                       onChange={(event) => setEditContent(event.target.value)}
                       className="bg-secondary/40 border-border pr-14 cursor-pointer transition group-hover:bg-secondary/60"
-                      readOnly={!isDynamic}
+                      readOnly={!canEditTargetUrl}
                     />
                     <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[10px] uppercase tracking-[0.35em] text-muted-foreground opacity-0 transition group-hover:opacity-100">
                       {t('Copy', 'Copiar')}
                     </span>
                   </button>
-                  {!isDynamic && (
+                  {!canEditTargetUrl && (
                     <p className="text-[11px] uppercase tracking-[0.3em] text-muted-foreground">
-                      {t('Static QR destinations are read-only.', 'Los destinos QR estaticos son de solo lectura.')}
+                      {isVcard
+                        ? t(
+                            'VCard destinations stay fixed. Use Edit VCard to update the card itself.',
+                            'Los destinos de VCard permanecen fijos. Usa Edit VCard para actualizar la tarjeta.'
+                          )
+                        : t('Static QR destinations are read-only.', 'Los destinos QR estaticos son de solo lectura.')}
                     </p>
                   )}
                 </div>

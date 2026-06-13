@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Lora:wght@500;600;700&family=Manrope:wght@400;500;600;700;800&family=Outfit:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Sora:wght@400;500;600;700;800&family=Space+Grotesk:wght@400;500;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -249,6 +251,56 @@
     }
     100% {
       background-position: 200% 0;
+    }
+  }
+}
+
+@layer utilities {
+  .qrc-scroll-spotlight {
+    transform: translate3d(0, var(--qrc-spotlight-shift, 0px), 0)
+      scale(var(--qrc-spotlight-scale, 1));
+    transform-origin: center top;
+    opacity: var(--qrc-spotlight-opacity, 1);
+    transition:
+      transform 220ms cubic-bezier(0.22, 1, 0.36, 1),
+      opacity 220ms cubic-bezier(0.22, 1, 0.36, 1),
+      box-shadow 220ms ease;
+    will-change: transform, opacity;
+  }
+
+  .qrc-vcard-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(148, 163, 184, 0.42) transparent;
+  }
+
+  .qrc-vcard-scrollbar::-webkit-scrollbar {
+    height: 6px;
+    width: 6px;
+  }
+
+  .qrc-vcard-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .qrc-vcard-scrollbar::-webkit-scrollbar-thumb {
+    border-radius: 999px;
+    background:
+      linear-gradient(90deg, rgba(255, 255, 255, 0.58), rgba(148, 163, 184, 0.68));
+    border: 1px solid rgba(255, 255, 255, 0.22);
+  }
+
+  .dark .qrc-vcard-scrollbar::-webkit-scrollbar-thumb {
+    background:
+      linear-gradient(90deg, rgba(148, 163, 184, 0.72), rgba(255, 255, 255, 0.48));
+    border-color: rgba(255, 255, 255, 0.14);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .qrc-scroll-spotlight {
+      transform: none;
+      opacity: 1;
+      transition: none;
+      will-change: auto;
     }
   }
 }

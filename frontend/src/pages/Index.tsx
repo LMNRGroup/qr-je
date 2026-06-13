@@ -9,6 +9,7 @@ import { ThemeToggle } from '@/components/ThemeToggle';
 import { UserMenu } from '@/components/UserMenu';
 import { SocialMediaSelector, type SocialPlatform } from '@/components/SocialMediaSelector';
 import { PortalEditor, type PortalLink, type PortalCustomization } from '@/components/PortalEditor';
+import { VcardLandingCard } from '@/components/VcardLandingCard';
 import {
   Accordion,
   AccordionContent,
@@ -39,11 +40,30 @@ import {
   getScanTrends,
   getUserProfile,
   updateQR,
+  updateVcard,
   updateUserProfile,
   type ScanAreaSummary,
   type UserProfile,
 } from '@/lib/api';
-import { QROptions, QRHistoryItem, defaultQROptions, AdaptiveConfig, AdaptiveSlot, AdaptiveRule } from '@/types/qr';
+import {
+  canEditCollectrForVcard,
+  getCollectrPrefillUrl,
+} from '@/lib/collectr';
+import {
+  QROptions,
+  QRHistoryItem,
+  defaultQROptions,
+  AdaptiveConfig,
+  AdaptiveSlot,
+  AdaptiveRule,
+  VcardData,
+  VcardCtaType,
+  VcardProfile,
+  VcardProfileAlign,
+  VcardSocialPlatform,
+  VcardStyle,
+  VcardTexture,
+} from '@/types/qr';
 import { STEP_CONFIG } from '@/lib/qr-wizard-steps';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
@@ -80,12 +100,18 @@ import {
   User,
   UserRound,
   Users,
+  Youtube,
   Zap,
   X,
 } from 'lucide-react';
 import { ChangeEvent, lazy, PointerEvent, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
+import {
+  VCARD_DEFAULT_FONT_FAMILY,
+  VCARD_FONT_OPTIONS,
+  normalizeVcardFontFamily,
+} from '@/lib/vcard-theme';
 
 const ArsenalPanel = lazy(() => import('@/components/ArsenalPanel').then((module) => ({ default: module.ArsenalPanel })));
 const SystemNotificationTab = lazy(() => import('@/components/SystemNotificationTab').then((module) => ({ default: module.SystemNotificationTab })));
@@ -107,8 +133,143 @@ const MAX_MENU_PDF_BYTES = 10 * 1024 * 1024; // 10MB for PDFs (before compressio
 const MAX_MENU_TOTAL_BYTES = 10 * 1024 * 1024; // 10MB total for menu (before compression)
 const MAX_MENU_FILES = 15;
 const MAX_VCARD_PHOTO_BYTES = 10 * 1024 * 1024; // 10MB before compression
+const MAX_VCARD_COVER_BYTES = 10 * 1024 * 1024; // 10MB before compression
 const MAX_FILE_BYTES = 10 * 1024 * 1024; // 10MB before compression
 const MAX_STORAGE_BYTES = 25 * 1024 * 1024; // 25MB total storage limit (compressed size)
+
+const createEmptyVcardProfile = (): VcardProfile => ({
+  name: '',
+  title: '',
+  phone: '',
+  email: '',
+  website: '',
+  location: '',
+  company: '',
+  about: '',
+  slug: '',
+  collectrUrl: '',
+  socials: {
+    instagram: '',
+    facebook: '',
+    youtube: '',
+    tiktok: '',
+  },
+  favoriteSocial: '',
+  ctaType: '',
+  ctaLabel: '',
+  ctaValue: '',
+});
+
+const createDefaultVcardStyle = (): VcardStyle => ({
+  fontFamily: VCARD_DEFAULT_FONT_FAMILY,
+  radius: 18,
+  texture: 'matte',
+  frontColor: '#111827',
+  frontGradient: '#2563eb',
+  frontUseGradient: true,
+  frontFontColor: '#F8FAFC',
+  backColor: '#0f172a',
+  backGradient: '#4f46e5',
+  backUseGradient: true,
+  backFontColor: '#F8FAFC',
+  frontLogoDataUrl: '',
+  backLogoDataUrl: '',
+  coverPhotoDataUrl: '',
+  profilePhotoDataUrl: '',
+  profileAlign: 'left',
+  buttonColor: '#F3E7D0',
+  buttonTextColor: '#34164B',
+  coverZoom: 100,
+  coverX: 50,
+  coverY: 50,
+  photoZoom: 110,
+  photoX: 50,
+  photoY: 50,
+});
+
+const normalizeVcardText = (value?: string | null) => value?.trim() ?? '';
+const getValidFavoriteVcardSocial = (profile: VcardProfile): VcardProfile['favoriteSocial'] => {
+  const favorite = profile.favoriteSocial ?? '';
+  if (!favorite) return '';
+  return normalizeVcardText(profile.socials?.[favorite]) ? favorite : '';
+};
+
+const getDefaultVcardCtaLabel = (type?: VcardCtaType | '') => {
+  switch (type) {
+    case 'call':
+      return 'Call Me';
+    case 'email':
+      return 'Email Me';
+    case 'whatsapp':
+      return 'WhatsApp Me';
+    case 'website':
+      return 'Visit My Website';
+    default:
+      return '';
+  }
+};
+
+const buildVcardData = (profile: VcardProfile, style: VcardStyle): VcardData => {
+  const normalizedSocials = {
+    instagram: normalizeVcardText(profile.socials?.instagram),
+    facebook: normalizeVcardText(profile.socials?.facebook),
+    youtube: normalizeVcardText(profile.socials?.youtube),
+    tiktok: normalizeVcardText(profile.socials?.tiktok),
+  };
+
+  return {
+    profile: {
+      name: normalizeVcardText(profile.name),
+      title: normalizeVcardText(profile.title),
+      phone: normalizeVcardText(profile.phone),
+      email: normalizeVcardText(profile.email),
+      website: normalizeVcardText(profile.website),
+      location: normalizeVcardText(profile.location),
+      company: normalizeVcardText(profile.company),
+      about: normalizeVcardText(profile.about),
+      slug: normalizeVcardText(profile.slug),
+      collectrUrl: normalizeVcardText(profile.collectrUrl),
+      socials: normalizedSocials,
+      favoriteSocial: getValidFavoriteVcardSocial({
+        ...profile,
+        socials: normalizedSocials,
+      }),
+      ctaType: profile.ctaType ?? '',
+      ctaLabel: normalizeVcardText(profile.ctaLabel),
+      ctaValue: normalizeVcardText(profile.ctaValue),
+    },
+    style: {
+      ...style,
+      fontFamily: normalizeVcardFontFamily(style.fontFamily),
+      frontLogoDataUrl: style.frontLogoDataUrl ?? '',
+      backLogoDataUrl: style.backLogoDataUrl ?? '',
+      coverPhotoDataUrl: style.coverPhotoDataUrl ?? '',
+      profilePhotoDataUrl: style.profilePhotoDataUrl ?? '',
+      profileAlign: style.profileAlign ?? 'left',
+      buttonColor: style.buttonColor ?? style.frontGradient,
+      buttonTextColor: style.buttonTextColor ?? '#0F172A',
+      coverZoom: style.coverZoom ?? 100,
+      coverX: style.coverX ?? 50,
+      coverY: style.coverY ?? 50,
+    },
+  };
+};
+
+const stripVcardOptionMetadata = (options: QROptions): QROptions => {
+  const {
+    vcardId: _vcardId,
+    vcardSlug: _vcardSlug,
+    vcardPublicUrl: _vcardPublicUrl,
+    vcardData: _vcardData,
+    logo: _logo,
+    logoSize: _logoSize,
+    logoWidth: _logoWidth,
+    logoHeight: _logoHeight,
+    logoAspect: _logoAspect,
+    ...rest
+  } = options;
+  return rest as QROptions;
+};
 const STORAGE_KEY = 'qrc.storage.usage'; // localStorage key for tracking storage
 
 const Index = () => {
@@ -216,6 +377,7 @@ const Index = () => {
   const [scanAreas, setScanAreas] = useState<ScanAreaSummary[]>([]);
   const [radarLabel, setRadarLabel] = useState('LOOKING FOR SIGNALS');
   const [arsenalRefreshKey, setArsenalRefreshKey] = useState(0);
+  const [arsenalPreferredSelectedId, setArsenalPreferredSelectedId] = useState<string | null>(null);
   const [navHint, setNavHint] = useState('');
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [usernameStatus, setUsernameStatus] = useState<'idle' | 'checking' | 'available' | 'taken' | 'invalid'>('idle');
@@ -256,7 +418,6 @@ const Index = () => {
   const [showVcardContents, setShowVcardContents] = useState(false);
   const [showVcardPreview, setShowVcardPreview] = useState(false);
   const [vcardFromContents, setVcardFromContents] = useState(false);
-  const [vcardPreviewSide, setVcardPreviewSide] = useState<'front' | 'back'>('front');
   const [showStudioBoot, setShowStudioBoot] = useState(false);
   const [showAccountModal, setShowAccountModal] = useState(false);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
@@ -283,8 +444,17 @@ const Index = () => {
     () => ({
       ...options,
       size: Math.max(180, Math.round(options.size * 0.75)),
+      ...(qrType === 'vcard'
+        ? {
+            logo: undefined,
+            logoSize: undefined,
+            logoWidth: undefined,
+            logoHeight: undefined,
+            logoAspect: undefined,
+          }
+        : {}),
     }),
-    [options]
+    [options, qrType]
   );
   const productionStages = useMemo(
     () => [
@@ -377,38 +547,15 @@ const Index = () => {
     ],
     []
   );
-  type VcardTexture = 'matte' | 'metallic' | 'glossy' | 'paper';
-  const [vcard, setVcard] = useState({
-    name: '',
-    phone: '',
-    email: '',
-    website: '',
-    company: '',
-    about: '',
-    slug: '',
-  });
-  const [vcardStyle, setVcardStyle] = useState({
-    fontFamily: 'Arial, sans-serif',
-    radius: 18,
-    texture: 'matte' as VcardTexture,
-    frontColor: '#111827',
-    frontGradient: '#2563eb',
-    frontUseGradient: true,
-    frontFontColor: '#F8FAFC',
-    backColor: '#0f172a',
-    backGradient: '#4f46e5',
-    backUseGradient: true,
-    backFontColor: '#F8FAFC',
-    frontLogoDataUrl: '',
-    backLogoDataUrl: '',
-    profilePhotoDataUrl: '',
-    photoZoom: 110,
-    photoX: 50,
-    photoY: 50,
-  });
+  const [vcard, setVcard] = useState<VcardProfile>(() => createEmptyVcardProfile());
+  const collectrPrefillRef = useRef<string | null>(null);
+  const [vcardStyle, setVcardStyle] = useState<VcardStyle>(() => createDefaultVcardStyle());
   const [vcardPhotoUploadProgress, setVcardPhotoUploadProgress] = useState<number>(0);
   const [vcardPhotoUploading, setVcardPhotoUploading] = useState(false);
   const [vcardPhotoUploadError, setVcardPhotoUploadError] = useState<string | null>(null);
+  const [vcardCoverUploadProgress, setVcardCoverUploadProgress] = useState<number>(0);
+  const [vcardCoverUploading, setVcardCoverUploading] = useState(false);
+  const [vcardCoverUploadError, setVcardCoverUploadError] = useState<string | null>(null);
   const [adaptiveSlotCount, setAdaptiveSlotCount] = useState(2);
   const [adaptiveSlots, setAdaptiveSlots] = useState([
     {
@@ -458,9 +605,12 @@ const Index = () => {
   const [showAdaptiveEditor, setShowAdaptiveEditor] = useState(false);
   const [existingAdaptiveQRC, setExistingAdaptiveQRC] = useState<QRHistoryItem | null>(null);
   const [editingDynamicContentQRC, setEditingDynamicContentQRC] = useState<QRHistoryItem | null>(null);
+  const [editingVcardQRC, setEditingVcardQRC] = useState<QRHistoryItem | null>(null);
   const [isGeneratingAdaptive, setIsGeneratingAdaptive] = useState(false);
   const [showAdaptiveBanner, setShowAdaptiveBanner] = useState(true);
   const [qrHistory, setQrHistory] = useState<QRHistoryItem[]>([]);
+  const coverDragRef = useRef<HTMLDivElement>(null);
+  const coverDragState = useRef({ dragging: false, startX: 0, startY: 0, startCoverX: 50, startCoverY: 50 });
   const photoDragRef = useRef<HTMLDivElement>(null);
   const photoDragState = useRef({ dragging: false, startX: 0, startY: 0, startPhotoX: 50, startPhotoY: 50 });
   const [showMenuBuilder, setShowMenuBuilder] = useState(false);
@@ -558,6 +708,44 @@ const Index = () => {
   );
   const isEmailValid = useMemo(() => isValidEmail(emailAddress), [emailAddress, isValidEmail]);
   const isPhoneValid = useMemo(() => isValidPhone(phoneNumber), [isValidPhone, phoneNumber]);
+  const normalizedVcard = useMemo(
+    () => buildVcardData(vcard, vcardStyle).profile ?? createEmptyVcardProfile(),
+    [vcard, vcardStyle]
+  );
+  const updateVcardProfile = useCallback((patch: Partial<VcardProfile>) => {
+    setVcard((prev) => ({ ...prev, ...patch }));
+  }, []);
+  const updateVcardSocial = useCallback(
+    (platform: VcardSocialPlatform, value: string) => {
+      setVcard((prev) => {
+        const nextSocials = {
+          ...createEmptyVcardProfile().socials,
+          ...(prev.socials ?? {}),
+          [platform]: value,
+        };
+        return {
+          ...prev,
+          socials: nextSocials,
+          favoriteSocial:
+            prev.favoriteSocial === platform && !normalizeVcardText(value)
+              ? ''
+              : prev.favoriteSocial ?? '',
+        };
+      });
+    },
+    []
+  );
+  const toggleFavoriteVcardSocial = useCallback((platform: VcardSocialPlatform) => {
+    setVcard((prev) => {
+      if (!normalizeVcardText(prev.socials?.[platform])) {
+        return prev;
+      }
+      return {
+        ...prev,
+        favoriteSocial: prev.favoriteSocial === platform ? '' : platform,
+      };
+    });
+  }, []);
   const vcardSlug = useMemo(
     () => (vcard.slug ? slugify(vcard.slug) : slugify(vcard.name)),
     [slugify, vcard.slug, vcard.name]
@@ -569,6 +757,22 @@ const Index = () => {
   const vcardUrl = vcardSlug
     ? `${vcardBaseUrl}/v/${vcardSlug}`
     : '';
+  const activeVcardSlug = editingVcardQRC?.options?.vcardSlug ?? vcard.slug ?? vcardSlug;
+  const activeVcardPublicUrl =
+    (typeof editingVcardQRC?.options?.vcardPublicUrl === 'string'
+      ? editingVcardQRC.options.vcardPublicUrl
+      : '') ||
+    editingVcardQRC?.publicUrl ||
+    vcardUrl;
+  const showCollectrField = useMemo(
+    () =>
+      canEditCollectrForVcard({
+        userId: user?.id ?? '',
+        slug: activeVcardSlug,
+        publicUrl: activeVcardPublicUrl,
+      }),
+    [activeVcardPublicUrl, activeVcardSlug, user?.id]
+  );
   const menuPreviewUrl = menuFiles.length
     ? `${appBaseUrl}/menu-preview`
     : '';
@@ -589,6 +793,12 @@ const Index = () => {
     };
     return platforms[socialPlatform] || '';
   }, [qrType, socialPlatform, socialHandle]);
+
+  useEffect(() => {
+    if (qrType === 'vcard' && qrMode === null) {
+      setQrMode('dynamic');
+    }
+  }, [qrMode, qrType]);
 
   const fallbackContent = qrType === 'website'
     ? (isWebsiteValid ? normalizedWebsiteUrl : '')
@@ -639,11 +849,51 @@ const Index = () => {
     : hasSelectedType
       ? 'https://preview.qrcodestudio.app'
       : '';
+  const resolveEditedVcardQrName = useCallback(() => {
+    if (!editingVcardQRC) {
+      return normalizedVcard.name || 'VCard';
+    }
+    const currentName = editingVcardQRC.name?.trim() ?? '';
+    const previousName =
+      typeof editingVcardQRC.options?.vcardData === 'object' && editingVcardQRC.options.vcardData
+        ? normalizeVcardText((editingVcardQRC.options.vcardData as VcardData).profile?.name)
+        : '';
+    if (!currentName || currentName === previousName || /^vcard$/i.test(currentName) || /^untitled/i.test(currentName)) {
+      return normalizedVcard.name || 'VCard';
+    }
+    return currentName;
+  }, [editingVcardQRC, normalizedVcard.name]);
+  const resolveEditedDynamicQrName = useCallback(() => {
+    if (qrType === 'file') {
+      return fileName || editingDynamicContentQRC?.options.fileName || editingDynamicContentQRC?.name || 'File QR';
+    }
+    return editingDynamicContentQRC?.name || 'Menu QR';
+  }, [editingDynamicContentQRC, fileName, qrType]);
   const isSessionReady = isLoggedIn;
+
+  useEffect(() => {
+    if (!showCollectrField) return;
+
+    const prefillKey = `${editingVcardQRC?.id ?? 'draft'}:${activeVcardSlug || 'vcard'}`;
+    if (collectrPrefillRef.current === prefillKey) {
+      return;
+    }
+
+    collectrPrefillRef.current = prefillKey;
+    if (normalizeVcardText(vcard.collectrUrl)) {
+      return;
+    }
+
+    setVcard((prev) =>
+      normalizeVcardText(prev.collectrUrl)
+        ? prev
+        : { ...prev, collectrUrl: getCollectrPrefillUrl(prev.collectrUrl) }
+    );
+  }, [activeVcardSlug, editingVcardQRC?.id, showCollectrField, vcard.collectrUrl]);
 
   const parseKind = useCallback((kind?: string | null) => {
     if (!kind) return { mode: 'static', type: 'url' };
-    if (kind === 'vcard') return { mode: 'static', type: 'vcard' };
+    if (kind === 'vcard') return { mode: 'dynamic', type: 'vcard' };
     if (kind === 'dynamic' || kind === 'static') return { mode: kind, type: 'url' };
     if (kind.includes(':')) {
       const [mode, type] = kind.split(':');
@@ -1492,7 +1742,7 @@ const Index = () => {
     return () => window.clearTimeout(timer);
   }, [activeTab, pendingCreateScroll]);
 
-  const handleGenerate = async (name?: string | null) => {
+  const handleGenerate = async (name?: string | null, editBehavior: 'stay' | 'arsenal' = 'arsenal') => {
     if (!hasSelectedMode) {
       toast.error('Choose Static or Dynamic to continue');
       return;
@@ -1537,6 +1787,7 @@ const Index = () => {
           adaptive: adaptiveConfig,
         }
       : optionsSnapshot;
+    const normalizedVcardData = buildVcardData(vcard, vcardStyle);
     
     setIsGenerating(true);
     // Declare file variables outside IIFE for use in adaptive logic
@@ -1604,12 +1855,52 @@ const Index = () => {
         setGeneratedLongUrl(targetUrl);
         setLastGeneratedContent(editingDynamicContentQRC.shortUrl ?? targetUrl);
         toast.success('Dynamic QR content updated!');
-        setHasGenerated(true);
-        setArsenalRefreshKey((prev) => prev + 1);
-        setShowGenerateSuccess(true);
-        setShowNameOverlay(false);
-        setEditingDynamicContentQRC(null);
-        resetCreateFlow();
+        if (editBehavior === 'stay') {
+          setArsenalPreferredSelectedId(editingDynamicContentQRC.id);
+          setArsenalRefreshKey((prev) => prev + 1);
+          setShowNameOverlay(false);
+          return;
+        }
+        returnToArsenalAfterEdit(editingDynamicContentQRC.id);
+        return;
+      }
+
+      const isEditingVcard =
+        Boolean(editingVcardQRC) &&
+        qrType === 'vcard' &&
+        editingVcardQRC?.options?.vcardId;
+
+      if (isEditingVcard && editingVcardQRC?.options.vcardId) {
+        const vcardMode = qrMode === 'static' ? 'static' : 'dynamic';
+        const response = await updateVcard(editingVcardQRC.options.vcardId, {
+          data: normalizedVcardData as Record<string, unknown>,
+          options: {
+            ...stripVcardOptionMetadata(finalOptions),
+            content: vcardUrl,
+          },
+          name: name || editingVcardQRC.name || normalizedVcard.name || 'VCard',
+          kind: `${vcardMode}:vcard`,
+        });
+
+        if (response.success && response.url) {
+          const qrContent = vcardMode === 'dynamic'
+            ? response.url.shortUrl
+            : response.url.targetUrl;
+          setGeneratedShortUrl(response.url.shortUrl);
+          setGeneratedLongUrl(response.url.publicUrl ?? response.url.targetUrl);
+          setLastGeneratedContent(qrContent);
+          toast.success('VCard updated!');
+          if (editBehavior === 'stay') {
+            setArsenalPreferredSelectedId(editingVcardQRC.id);
+            setArsenalRefreshKey((prev) => prev + 1);
+            setShowNameOverlay(false);
+            return;
+          }
+          returnToArsenalAfterEdit(editingVcardQRC.id);
+          return;
+        }
+
+        toast.error('Failed to update VCard');
         return;
       }
 
@@ -1617,14 +1908,12 @@ const Index = () => {
         ? await createVcard({
           slug: vcardSlug || null,
           publicUrl: vcardUrl,
-          data: {
-            profile: vcard,
-            style: vcardStyle,
-          },
+          data: normalizedVcardData as Record<string, unknown>,
           options: {
-            ...finalOptions,
+            ...stripVcardOptionMetadata(finalOptions),
             content: vcardUrl,
           },
+          kind: `${qrMode === 'static' ? 'static' : 'dynamic'}:vcard`,
         })
         : await (async () => {
           // For file QR, upload file to DB now (only when generating)
@@ -1705,18 +1994,12 @@ const Index = () => {
         })();
       if (response.success) {
         if ('url' in response && response.url) {
-          // For vCard, update the URL with the name and adaptive config if provided
+          // For vCard, update the URL name after creation if provided.
           if (qrType === 'vcard' && response.url.id) {
             try {
-              const updatePayload: { name?: string; options?: Record<string, unknown> } = {};
+              const updatePayload: { name?: string } = {};
               if (name) {
                 updatePayload.name = name;
-              }
-              if (isAdaptiveQR && adaptiveConfig) {
-                updatePayload.options = {
-                  ...finalOptions,
-                  content: vcardUrl,
-                };
               }
               if (Object.keys(updatePayload).length > 0) {
                 await updateQR(response.url.id, updatePayload);
@@ -1727,7 +2010,10 @@ const Index = () => {
           }
           
           // For adaptive QR codes, convert /r/ URL to /adaptive/ URL
-          let qrContent = response.url.shortUrl;
+          let qrContent =
+            qrType === 'vcard' && qrMode === 'static'
+              ? response.url.targetUrl
+              : response.url.shortUrl;
           if (isAdaptiveQR && response.url.id && response.url.random) {
             qrContent = `${appBaseUrl}/adaptive/${response.url.id}/${response.url.random}`;
             // Update the QR code content in the database to point to adaptive endpoint
@@ -1744,7 +2030,7 @@ const Index = () => {
           }
           
           setGeneratedShortUrl(response.url.shortUrl);
-          setGeneratedLongUrl(response.url.targetUrl);
+          setGeneratedLongUrl(response.url.publicUrl ?? response.url.targetUrl);
           setLastGeneratedContent(qrContent);
         } else if ('data' in response && response.data) {
           let nextItem = response.data;
@@ -1835,6 +2121,7 @@ const Index = () => {
         }
         toast.success('QR code generated!');
         setHasGenerated(true);
+        setArsenalPreferredSelectedId(null);
         setArsenalRefreshKey((prev) => prev + 1);
         // refreshArsenalStats() will handle storage recalculation internally
         setShowGenerateSuccess(true);
@@ -1860,10 +2147,13 @@ const Index = () => {
   };
 
   const resetCreateFlow = useCallback(() => {
+    collectrPrefillRef.current = null;
     setEditingDynamicContentQRC(null);
+    setEditingVcardQRC(null);
     setQrMode(null);
     setQrType(null);
     setSelectedQuickAction(null);
+    setQrName('QRC Untitled 1');
     setWebsiteUrl('');
     setWebsiteTouched(false);
     setEmailAddress('');
@@ -1876,6 +2166,9 @@ const Index = () => {
     setFileDataUrl('');
     setFileBlob(null);
     setFileTouched(false);
+    setFileUploadProgress(0);
+    setFileUploading(false);
+    setFileUploadError(null);
     setMenuFiles([]);
     setMenuType('restaurant');
     setMenuLogoDataUrl('');
@@ -1910,6 +2203,12 @@ const Index = () => {
         note: 'Internal staff dashboard',
       },
     ]);
+    setMenuUploadProgress(0);
+    setMenuUploading(false);
+    setMenuUploadError(null);
+    setMenuLogoUploadProgress(0);
+    setMenuLogoUploading(false);
+    setMenuLogoUploadError(null);
     setAdaptiveDateRulesEnabled(true);
     setAdaptiveDateRules([
       {
@@ -1932,47 +2231,89 @@ const Index = () => {
     setAdaptiveAdminIpInput('');
     setMenuFlip(false);
     setMenuCarouselIndex(0);
-    setVcard({
-      name: '',
-      phone: '',
-      email: '',
-      website: '',
-      company: '',
-      about: '',
-      slug: '',
-    });
-    setVcardStyle({
-      fontFamily: 'Arial, sans-serif',
-      radius: 18,
-      texture: 'matte' as VcardTexture,
-      frontColor: '#111827',
-      frontGradient: '#2563eb',
-      frontUseGradient: true,
-      frontFontColor: '#F8FAFC',
-      backColor: '#0f172a',
-      backGradient: '#4f46e5',
-      backUseGradient: true,
-      backFontColor: '#F8FAFC',
-      frontLogoDataUrl: '',
-      backLogoDataUrl: '',
-      profilePhotoDataUrl: '',
-      photoZoom: 110,
-      photoX: 50,
-      photoY: 50,
-    });
-    setVcardPreviewSide('front');
+    setVcard(createEmptyVcardProfile());
+    setVcardStyle(createDefaultVcardStyle());
+    setVcardPhotoUploadProgress(0);
+    setVcardPhotoUploading(false);
+    setVcardPhotoUploadError(null);
+    setVcardCoverUploadProgress(0);
+    setVcardCoverUploading(false);
+    setVcardCoverUploadError(null);
     setShowVcardCustomizer(false);
     setShowVcardPreview(false);
+    setShowVcardContents(false);
     setShowMenuBuilder(false);
+    setShowMenuOrganize(false);
     setMenuBuilderStep('menu'); // Reset step when closing
+    setShowNameOverlay(false);
+    setVcardFromContents(false);
     setOptions({ ...defaultQROptions });
     setGeneratedShortUrl('');
     setGeneratedLongUrl('');
     setLastGeneratedContent('');
     setHasGenerated(false);
     setIsGenerating(false);
+    setPendingCreateScroll(false);
     setMobileCustomizeStep(false);
+    setMobileStudioStep(1);
   }, []);
+
+  const isCreateFlowBusy =
+    isGenerating ||
+    fileUploading ||
+    menuUploading ||
+    menuLogoUploading ||
+    vcardPhotoUploading ||
+    vcardCoverUploading;
+
+  const handleCancelCreateFlow = useCallback(() => {
+    if (isCreateFlowBusy) return;
+    setActiveTab('studio');
+    resetCreateFlow();
+  }, [isCreateFlowBusy, resetCreateFlow]);
+
+  const returnToArsenalAfterEdit = useCallback((itemId: string) => {
+    setArsenalPreferredSelectedId(itemId);
+    setShowGenerateSuccess(false);
+    setShowNameOverlay(false);
+    setArsenalRefreshKey((prev) => prev + 1);
+    resetCreateFlow();
+    setActiveTab('codes');
+  }, [resetCreateFlow]);
+
+  const handleCompleteQrCustomization = () => {
+    if (editingVcardQRC && qrType === 'vcard') {
+      void handleGenerate(resolveEditedVcardQrName(), 'arsenal');
+      return;
+    }
+    if (editingDynamicContentQRC && (qrType === 'file' || qrType === 'menu')) {
+      void handleGenerate(resolveEditedDynamicQrName(), 'arsenal');
+      return;
+    }
+    const defaultName = qrType === 'file' ? fileName || 'File QR' : 'QRC Untitled 1';
+    setQrName(defaultName);
+    setShowNameOverlay(true);
+  };
+
+  const handleApplyVcardCustomization = () => {
+    if (editingVcardQRC && qrType === 'vcard') {
+      void handleGenerate(resolveEditedVcardQrName(), 'stay');
+      return;
+    }
+    setShowVcardCustomizer(false);
+  };
+
+  const handleFinishVcardCustomization = () => {
+    if (editingVcardQRC && qrType === 'vcard') {
+      void handleGenerate(resolveEditedVcardQrName(), 'arsenal');
+      return;
+    }
+    setShowVcardCustomizer(false);
+    if (vcardFromContents) {
+      setVcardFromContents(false);
+      openQrCustomizer();
+    }
+  };
 
   const handleDownload = async (format: 'png' | 'svg' | 'jpeg' | 'pdf') => {
     if (!qrRef.current) return;
@@ -2368,18 +2709,6 @@ const Index = () => {
     }
   };
 
-  const vcardFontOptions = [
-    { label: 'Arial', value: 'Arial, sans-serif' },
-    { label: 'Helvetica', value: 'Helvetica, Arial, sans-serif' },
-    { label: 'Times New Roman', value: '"Times New Roman", Times, serif' },
-    { label: 'Georgia', value: 'Georgia, serif' },
-    { label: 'Trebuchet MS', value: '"Trebuchet MS", Arial, sans-serif' },
-    { label: 'Verdana', value: 'Verdana, Geneva, sans-serif' },
-    { label: 'Courier New', value: '"Courier New", Courier, monospace' },
-    { label: 'Lucida Console', value: '"Lucida Console", Monaco, monospace' },
-    { label: 'Tahoma', value: 'Tahoma, Geneva, sans-serif' },
-    { label: 'Garamond', value: 'Garamond, "Times New Roman", serif' },
-  ];
   const vcardTextureOptions: { id: VcardTexture; label: string }[] = [
     { id: 'matte', label: 'Matte' },
     { id: 'metallic', label: 'Metallic' },
@@ -2461,49 +2790,6 @@ const Index = () => {
     return currentTourStep.target;
   }, [currentTourStep, isDialOpen]);
 
-  const makeVcardGradient = (from: string, to: string) => `linear-gradient(135deg, ${from}, ${to})`;
-  const makeVcardBase = (useGradient: boolean, color: string, gradient: string) =>
-    useGradient ? makeVcardGradient(color, gradient) : `linear-gradient(0deg, ${color}, ${color})`;
-  const getVcardTextureStyle = (texture: VcardTexture, base: string) => {
-    switch (texture) {
-      case 'metallic':
-        return {
-          backgroundImage:
-            'linear-gradient(120deg, rgba(255,255,255,0.55) 0%, rgba(255,255,255,0.12) 35%, rgba(0,0,0,0.25) 70%, rgba(255,255,255,0.25) 100%), repeating-linear-gradient(90deg, rgba(255,255,255,0.18) 0px, rgba(255,255,255,0.18) 2px, rgba(0,0,0,0.08) 3px, rgba(0,0,0,0.08) 6px), ' +
-            base,
-          backgroundBlendMode: 'screen, overlay, normal',
-          boxShadow:
-            'inset 0 1px 1px rgba(255,255,255,0.35), inset 0 -6px 10px rgba(0,0,0,0.35)',
-        };
-      case 'glossy':
-        return {
-          backgroundImage:
-            'radial-gradient(circle at 20% 10%, rgba(255,255,255,0.7), rgba(255,255,255,0) 55%), linear-gradient(180deg, rgba(255,255,255,0.18), rgba(0,0,0,0.2)), ' +
-            base,
-          backgroundBlendMode: 'screen, overlay, normal',
-          boxShadow:
-            'inset 0 12px 24px rgba(255,255,255,0.2), inset 0 -10px 16px rgba(0,0,0,0.3)',
-        };
-      case 'paper':
-        return {
-          backgroundImage:
-            'radial-gradient(circle at 30% 20%, rgba(255,255,255,0.3), rgba(255,255,255,0) 60%), repeating-linear-gradient(45deg, rgba(255,255,255,0.08) 0px, rgba(255,255,255,0.08) 2px, rgba(0,0,0,0.06) 2px, rgba(0,0,0,0.06) 4px), ' +
-            base,
-          backgroundBlendMode: 'soft-light, overlay, normal',
-          filter: 'saturate(0.95)',
-        };
-      case 'matte':
-      default:
-        return {
-          backgroundImage:
-            'linear-gradient(0deg, rgba(0,0,0,0.2), rgba(0,0,0,0.2)), repeating-linear-gradient(135deg, rgba(255,255,255,0.04) 0px, rgba(255,255,255,0.04) 1px, rgba(0,0,0,0.04) 1px, rgba(0,0,0,0.04) 2px), ' +
-            base,
-          backgroundBlendMode: 'soft-light, overlay, normal',
-          filter: 'saturate(0.9)',
-        };
-    }
-  };
-
   const dataUrlToBlob = (dataUrl: string) => {
     const [header, data] = dataUrl.split(',');
     const mime = header.match(/data:(.*?);base64/)?.[1] || 'application/octet-stream';
@@ -2513,6 +2799,15 @@ const Index = () => {
       bytes[i] = binary.charCodeAt(i);
     }
     return new Blob([bytes], { type: mime });
+  };
+
+  const getDataUrlSize = (dataUrl?: string | null) => {
+    if (!dataUrl) return 0;
+    try {
+      return dataUrlToBlob(dataUrl).size;
+    } catch {
+      return 0;
+    }
   };
 
   // Get current storage usage (compressed sizes)
@@ -2662,6 +2957,13 @@ const Index = () => {
         setVcardPhotoUploading(false);
         return;
       }
+      if (file.size > MAX_VCARD_PHOTO_BYTES) {
+        const errorMsg = `Photo is too large. Please upload an image under ${Math.round(MAX_VCARD_PHOTO_BYTES / (1024 * 1024))}MB.`;
+        setVcardPhotoUploadError(errorMsg);
+        toast.error(errorMsg);
+        setVcardPhotoUploading(false);
+        return;
+      }
 
       // Simulate progress
       const progressInterval = setInterval(() => {
@@ -2691,6 +2993,10 @@ const Index = () => {
 
       // Track storage (we'll add it when we upload, but for vCard we store locally)
       // For vCard, we store the dataUrl locally, so we track it
+      const previousPhotoSize = getDataUrlSize(vcardStyle.profilePhotoDataUrl);
+      if (previousPhotoSize > 0) {
+        removeStorageUsage(previousPhotoSize);
+      }
       addStorageUsage(compressedBlob.size);
 
       clearInterval(progressInterval);
@@ -2712,6 +3018,86 @@ const Index = () => {
     } finally {
       setVcardPhotoUploading(false);
       setVcardPhotoUploadProgress(0);
+    }
+  };
+
+  const handleVcardCoverChange = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    event.target.value = '';
+
+    setVcardCoverUploadError(null);
+    setVcardCoverUploadProgress(0);
+    setVcardCoverUploading(true);
+
+    try {
+      if (!file.type.startsWith('image/')) {
+        const errorMsg = `"${file.name}" is not an image file. Please upload a JPG or PNG cover photo.`;
+        setVcardCoverUploadError(errorMsg);
+        toast.error(errorMsg);
+        setVcardCoverUploading(false);
+        return;
+      }
+      if (file.size > MAX_VCARD_COVER_BYTES) {
+        const errorMsg = `Cover photo is too large. Please upload an image under ${Math.round(MAX_VCARD_COVER_BYTES / (1024 * 1024))}MB.`;
+        setVcardCoverUploadError(errorMsg);
+        toast.error(errorMsg);
+        setVcardCoverUploading(false);
+        return;
+      }
+
+      const progressInterval = setInterval(() => {
+        setVcardCoverUploadProgress((prev) => {
+          if (prev >= 90) return prev;
+          return prev + Math.random() * 10;
+        });
+      }, 200);
+
+      toast.info('Preparing cover photo...');
+      const preserveAlpha = file.type === 'image/png' || file.type === 'image/webp';
+      const compressedDataUrl = await compressImageFile(file, {
+        targetSize: 1600,
+        quality: 0.82,
+        preserveAlpha,
+      });
+      const compressedBlob = dataUrlToBlob(compressedDataUrl);
+      const storageCheck = checkStorageLimit(compressedBlob.size);
+      if (!storageCheck.allowed) {
+        const availableMB = (storageCheck.available / (1024 * 1024)).toFixed(1);
+        const neededMB = (compressedBlob.size / (1024 * 1024)).toFixed(1);
+        clearInterval(progressInterval);
+        const errorMsg = `Storage limit exceeded. You have ${availableMB}MB available, but need ${neededMB}MB.`;
+        setVcardCoverUploadError(errorMsg);
+        toast.error(errorMsg);
+        setVcardCoverUploading(false);
+        return;
+      }
+
+      const previousCoverSize = getDataUrlSize(vcardStyle.coverPhotoDataUrl);
+      if (previousCoverSize > 0) {
+        removeStorageUsage(previousCoverSize);
+      }
+      addStorageUsage(compressedBlob.size);
+
+      clearInterval(progressInterval);
+      setVcardCoverUploadProgress(100);
+      await new Promise((resolve) => setTimeout(resolve, 300));
+
+      setVcardStyle((prev) => ({
+        ...prev,
+        coverPhotoDataUrl: compressedDataUrl,
+        coverZoom: 100,
+        coverX: 50,
+        coverY: 50,
+      }));
+      toast.success('Cover photo updated!');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to process cover photo.';
+      setVcardCoverUploadError(message);
+      toast.error(`Upload failed: ${message}`);
+    } finally {
+      setVcardCoverUploading(false);
+      setVcardCoverUploadProgress(0);
     }
   };
 
@@ -2745,6 +3131,36 @@ const Index = () => {
     photoDragState.current.dragging = false;
   };
 
+  const handleCoverPointerDown = (event: PointerEvent<HTMLDivElement>) => {
+    if (!coverDragRef.current || !vcardStyle.coverPhotoDataUrl) return;
+    coverDragRef.current.setPointerCapture(event.pointerId);
+    coverDragState.current = {
+      dragging: true,
+      startX: event.clientX,
+      startY: event.clientY,
+      startCoverX: vcardStyle.coverX ?? 50,
+      startCoverY: vcardStyle.coverY ?? 50,
+    };
+  };
+
+  const handleCoverPointerMove = (event: PointerEvent<HTMLDivElement>) => {
+    if (!coverDragState.current.dragging || !coverDragRef.current || !vcardStyle.coverPhotoDataUrl) return;
+    const rect = coverDragRef.current.getBoundingClientRect();
+    const deltaX = ((event.clientX - coverDragState.current.startX) / rect.width) * 100;
+    const deltaY = ((event.clientY - coverDragState.current.startY) / rect.height) * 100;
+    setVcardStyle((prev) => ({
+      ...prev,
+      coverX: Math.min(100, Math.max(0, coverDragState.current.startCoverX + deltaX)),
+      coverY: Math.min(100, Math.max(0, coverDragState.current.startCoverY + deltaY)),
+    }));
+  };
+
+  const handleCoverPointerUp = (event: PointerEvent<HTMLDivElement>) => {
+    if (!coverDragRef.current) return;
+    coverDragRef.current.releasePointerCapture(event.pointerId);
+    coverDragState.current.dragging = false;
+  };
+
   const readAsDataUrl = (file: File) => {
     return new Promise<string>((resolve, reject) => {
       const reader = new FileReader();
@@ -2762,7 +3178,17 @@ const Index = () => {
 
   const compressImageFile = async (
     file: File,
-    { maxDimension = 2000, quality = 0.80, targetSize = 250 }: { maxDimension?: number; quality?: number; targetSize?: number } = {}
+    {
+      maxDimension = 2000,
+      quality = 0.80,
+      targetSize = 250,
+      preserveAlpha = false,
+    }: {
+      maxDimension?: number;
+      quality?: number;
+      targetSize?: number;
+      preserveAlpha?: boolean;
+    } = {}
   ) => {
     const dataUrl = await readAsDataUrl(file);
     const image = new Image();
@@ -2787,10 +3213,23 @@ const Index = () => {
     ctx.imageSmoothingQuality = 'high';
     ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
     
+    if (preserveAlpha) {
+      try {
+        const webpDataUrl = canvas.toDataURL('image/webp', quality);
+        if (webpDataUrl.startsWith('data:image/webp')) {
+          return webpDataUrl;
+        }
+      } catch {
+        // fall through to PNG
+      }
+
+      return canvas.toDataURL('image/png');
+    }
+
     // Use WebP if supported, otherwise JPEG
     const mimeType = 'image/jpeg';
     const finalQuality = quality;
-    
+
     // Try WebP for better compression
     try {
       const webpDataUrl = canvas.toDataURL('image/webp', quality);
@@ -2800,7 +3239,7 @@ const Index = () => {
     } catch {
       // WebP not supported, fall back to JPEG
     }
-    
+
     return canvas.toDataURL(mimeType, finalQuality);
   };
 
@@ -2905,6 +3344,47 @@ const Index = () => {
       console.warn('Failed to clean up storage asset:', error);
     }
   }, []);
+
+  const handleVcardEdit = useCallback((item: QRHistoryItem) => {
+    const parsed = parseKind(item.kind ?? null);
+    if (parsed.type !== 'vcard') {
+      return;
+    }
+
+    const payload = item.options?.vcardData;
+    const vcardId = item.options?.vcardId;
+    if (!payload || !vcardId) {
+      toast.error('Unable to load this VCard for editing.');
+      return;
+    }
+
+    setEditingVcardQRC(item);
+    setEditingDynamicContentQRC(null);
+    setActiveTab('studio');
+    setPendingCreateScroll(true);
+    setSelectedQuickAction('vcard');
+    setQrMode(parsed.mode);
+    setQrType('vcard');
+    setQrName(item.name || normalizeVcardText(payload.profile?.name) || 'VCard');
+    setOptions({
+      ...defaultQROptions,
+      ...stripVcardOptionMetadata(item.options),
+    });
+    setVcard({
+      ...createEmptyVcardProfile(),
+      ...(payload.profile ?? {}),
+      slug: item.options?.vcardSlug ?? payload.profile?.slug ?? '',
+    });
+    setVcardStyle({
+      ...createDefaultVcardStyle(),
+      ...(payload.style ?? {}),
+      fontFamily: normalizeVcardFontFamily(payload.style?.fontFamily),
+    });
+    setShowVcardContents(true);
+    setShowVcardCustomizer(false);
+    setShowQrCustomizer(false);
+    toast.info('Update the VCard details or landing-page design, then save your changes.');
+  }, [parseKind]);
 
   const handleDynamicContentEdit = useCallback((item: QRHistoryItem) => {
     const parsed = parseKind(item.kind ?? null);
@@ -3316,69 +3796,6 @@ const Index = () => {
 
     return <span>{display}</span>;
   };
-
-  const vcardFrontBase = makeVcardBase(
-    vcardStyle.frontUseGradient,
-    vcardStyle.frontColor,
-    vcardStyle.frontGradient
-  );
-  const vcardBackBase = makeVcardBase(
-    vcardStyle.backUseGradient,
-    vcardStyle.backColor,
-    vcardStyle.backGradient
-  );
-  const vcardFrontTexture = getVcardTextureStyle(vcardStyle.texture, vcardFrontBase);
-  const vcardBackTexture = getVcardTextureStyle(vcardStyle.texture, vcardBackBase);
-  const vcardPreviewBase = isMobile
-    ? { width: 260, height: 420 }
-    : { width: 280, height: 460 };
-  
-  // Make vCard preview responsive - larger on bigger screens
-  // Calculate scale based on viewport height, reactive to window resize
-  const [vcardPreviewScale, setVcardPreviewScale] = useState(() => {
-    if (isMobile) return 0.65;
-    if (typeof window === 'undefined') return 0.8;
-    const vh = window.innerHeight;
-    const baseScale = 0.8;
-    const maxScale = 1.2;
-    // Scale from 0.8 at 600px height to 1.2 at 1200px+ height
-    const scale = Math.min(maxScale, baseScale + ((vh - 600) / 600) * 0.4);
-    return Math.max(0.8, scale);
-  });
-
-  useEffect(() => {
-    if (isMobile) return;
-    const updateScale = () => {
-      if (typeof window === 'undefined') return;
-      const vh = window.innerHeight;
-      const baseScale = 0.8;
-      const maxScale = 1.2;
-      const scale = Math.min(maxScale, baseScale + ((vh - 600) / 600) * 0.4);
-      setVcardPreviewScale(Math.max(0.8, scale));
-    };
-    updateScale();
-    window.addEventListener('resize', updateScale);
-    return () => window.removeEventListener('resize', updateScale);
-  }, [isMobile]);
-
-  const vcardPreviewScaled = {
-    width: vcardPreviewBase.width * vcardPreviewScale,
-    height: vcardPreviewBase.height * vcardPreviewScale,
-  };
-  const vcardFrontStyle = {
-    fontFamily: vcardStyle.fontFamily,
-    borderRadius: `${vcardStyle.radius}px`,
-    backgroundColor: vcardStyle.frontColor,
-    ...vcardFrontTexture,
-  };
-
-  const vcardBackStyle = {
-    fontFamily: vcardStyle.fontFamily,
-    borderRadius: `${vcardStyle.radius}px`,
-    backgroundColor: vcardStyle.backColor,
-    ...vcardBackTexture,
-  };
-
   const adaptiveGradientText =
     'bg-gradient-to-r from-amber-200 via-yellow-400 to-amber-500 text-transparent bg-clip-text';
   const adaptiveGlowText = 'font-semibold text-transparent bg-clip-text bg-gradient-to-r from-amber-200 via-yellow-400 to-amber-500 drop-shadow-[0_0_10px_rgba(251,191,36,0.35)]';
@@ -4531,6 +4948,92 @@ const Index = () => {
     ],
   };
 
+  const studioWizardProps = {
+    qrMode,
+    qrType,
+    options,
+    websiteUrl,
+    emailAddress,
+    phoneNumber,
+    fileUrl,
+    fileName,
+    vcard,
+    menuFilesCount: menuFiles.length,
+    websiteTouched,
+    emailTouched,
+    phoneTouched,
+    fileTouched,
+    selectedQuickAction,
+    previewContent,
+    user,
+    onModeChange: setQrMode,
+    onTypeChange: setQrType,
+    onQuickActionSelect: setSelectedQuickAction,
+    onWebsiteUrlChange: setWebsiteUrl,
+    onEmailChange: setEmailAddress,
+    onPhoneChange: setPhoneNumber,
+    onFileChange: (url: string, name: string) => {
+      setFileUrl(url);
+      setFileName(name);
+    },
+    onVcardChange: updateVcardProfile,
+    onOptionChange: (key: keyof QROptions, value: unknown) => {
+      setOptions((prev) => ({ ...prev, [key]: value }));
+    },
+    onDone: handleCompleteQrCustomization,
+    onCancel: handleCancelCreateFlow,
+    onWebsiteTouched: setWebsiteTouched,
+    onEmailTouched: setEmailTouched,
+    onPhoneTouched: setPhoneTouched,
+    onFileTouched: setFileTouched,
+    onSocialChange: (platform: SocialPlatform, handle: string) => {
+      setSocialPlatform(platform);
+      setSocialHandle(handle);
+    },
+    fileUploading,
+    fileUploadProgress,
+    fileUploadError,
+    socialPlatform,
+    socialHandle,
+    portalLinks,
+    portalTitle,
+    portalDescription,
+    portalTemplate,
+    portalCustomization,
+    onPortalChange: (
+      links: PortalLink[],
+      title: string,
+      description: string,
+      template: number,
+      customization: PortalCustomization
+    ) => {
+      setPortalLinks(links);
+      setPortalTitle(title);
+      setPortalDescription(description);
+      setPortalTemplate(template);
+      setPortalCustomization(customization);
+    },
+    navigate,
+    toast,
+    cancelDisabled: isCreateFlowBusy,
+    onShowVcardCustomizer: () => setShowVcardCustomizer(true),
+    onShowMenuBuilder: () => setShowMenuBuilder(true),
+    onShowFileUpload: () => fileInputRef.current?.click(),
+    showCollectrField,
+  };
+
+  const showMobileWizardOverlay =
+    isMobile &&
+    activeTab === 'studio' &&
+    Boolean(selectedQuickAction) &&
+    !showMenuBuilder &&
+    !showMenuOrganize &&
+    !showVcardContents &&
+    !showVcardCustomizer &&
+    !showQrCustomizer &&
+    !showNameOverlay &&
+    !showGenerateSuccess;
+
   return (
     <>
       {/* Structured Data for SEO */}
@@ -4677,13 +5180,16 @@ const Index = () => {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between">
-              <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Name Your QR Code</p>
+              <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">
+                {editingVcardQRC ? 'Update Your VCard' : 'Name Your QR Code'}
+              </p>
               <button
                 type="button"
                 className="text-xs uppercase tracking-[0.3em] text-muted-foreground hover:text-foreground transition"
-                onClick={() => setShowNameOverlay(false)}
+                onClick={handleCancelCreateFlow}
+                disabled={isCreateFlowBusy}
               >
-                <X className="h-4 w-4" />
+                Cancel
               </button>
             </div>
             <div className="space-y-3">
@@ -4710,24 +5216,36 @@ const Index = () => {
                   {qrName.length}/25 characters
                 </p>
               </div>
-              <Button
-                size="lg"
-                className="w-full gap-2 bg-gradient-primary hover:opacity-90 text-primary-foreground glow uppercase tracking-[0.2em] text-xs"
-                disabled={!canGenerate || isGenerating || !qrName.trim()}
-                onClick={() => handleGenerate(qrName.trim() || null)}
-              >
-                {isGenerating ? (
-                  <>
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    Generating
-                  </>
-                ) : (
-                  <>
-                    <Rocket className="h-4 w-4" />
-                    Generate
-                  </>
-                )}
-              </Button>
+              <div className="flex flex-col gap-3 sm:flex-row">
+                <Button
+                  type="button"
+                  size="lg"
+                  variant="outline"
+                  className="sm:flex-1 uppercase tracking-[0.2em] text-xs"
+                  disabled={isCreateFlowBusy}
+                  onClick={handleCancelCreateFlow}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  size="lg"
+                  className="sm:flex-1 gap-2 bg-gradient-primary hover:opacity-90 text-primary-foreground glow uppercase tracking-[0.2em] text-xs"
+                  disabled={!canGenerate || isGenerating || !qrName.trim()}
+                  onClick={() => handleGenerate(qrName.trim() || null)}
+                >
+                  {isGenerating ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      {editingVcardQRC ? 'Saving' : 'Generating'}
+                    </>
+                  ) : (
+                    <>
+                      <Rocket className="h-4 w-4" />
+                      {editingVcardQRC ? 'Save' : 'Generate'}
+                    </>
+                  )}
+                </Button>
+              </div>
             </div>
           </div>
         </div>
@@ -5033,143 +5551,175 @@ const Index = () => {
           onClick={() => setShowVcardCustomizer(false)}
         >
           <div
-            className="glass-panel rounded-3xl p-6 sm:p-8 w-full max-w-6xl mx-auto my-auto space-y-6 relative max-h-[90dvh] overflow-y-auto overscroll-contain"
+            className="glass-panel relative mx-auto my-auto flex max-h-[90dvh] w-full max-w-6xl flex-col overflow-hidden rounded-3xl"
             onClick={(event) => event.stopPropagation()}
           >
-            <button
-              type="button"
-              className="absolute right-4 top-4 text-xs uppercase tracking-[0.3em] text-muted-foreground transition hover:text-foreground"
-              onClick={() => setShowVcardCustomizer(false)}
-            >
-              X
-            </button>
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-              <div>
-                <p className="text-xs uppercase tracking-[0.35em] text-muted-foreground">VCard</p>
-                <h2 className="text-2xl font-semibold">Customize your card</h2>
-                <p className="text-sm text-muted-foreground">
-                  Tap the preview to flip between front and back.
-                </p>
+            <div className="sticky top-0 z-20 border-b border-border/50 bg-background/95 px-6 py-4 backdrop-blur-md sm:px-8 sm:py-5">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <p className="text-xs uppercase tracking-[0.35em] text-muted-foreground">VCard</p>
+                  <h2 className="text-2xl font-semibold">Customize your landing page</h2>
+                  <p className="text-sm text-muted-foreground">
+                    Build a one-page VCard with a wide cover photo, branded styling, and a clear action button.
+                  </p>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  className="h-10 w-10 shrink-0 border-border"
+                  onClick={handleCancelCreateFlow}
+                  disabled={isCreateFlowBusy}
+                  aria-label="Close vcard customizer"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
               </div>
             </div>
 
-            <div className="grid lg:grid-cols-[0.9fr_1.1fr] gap-6">
+            <div className="flex-1 overflow-y-auto overscroll-contain px-6 pb-6 pt-4 sm:px-8 sm:pb-8">
+              <div className="grid gap-6 lg:grid-cols-[0.85fr_1.15fr]">
               <div className="flex flex-col items-center gap-4">
                 <button
                   type="button"
-                  className="relative"
-                  style={{
-                    width: `${vcardPreviewScaled.width}px`,
-                    height: `${vcardPreviewScaled.height}px`,
-                  }}
+                  className="w-full max-w-[360px] transition hover:scale-[1.01]"
                   onClick={() => {
                     if (isMobile) {
                       setShowVcardPreview(true);
-                      return;
                     }
-                    setVcardPreviewSide((prev) => (prev === 'front' ? 'back' : 'front'));
                   }}
-                  aria-label={isMobile ? 'Open vcard preview' : 'Flip vcard preview'}
+                  aria-label="Open vcard preview"
                 >
-                  <div
-                    className="absolute inset-0"
-                    style={{
-                      width: `${vcardPreviewBase.width}px`,
-                      height: `${vcardPreviewBase.height}px`,
-                      transform: `scale(${vcardPreviewScale})`,
-                      transformOrigin: 'top left',
-                    }}
-                  >
-                    <div
-                      className="absolute inset-0 transition-transform duration-500"
-                      style={{
-                        transformStyle: 'preserve-3d',
-                        transform: vcardPreviewSide === 'back' ? 'rotateY(180deg)' : 'rotateY(0deg)',
-                      }}
-                    >
-                    <div
-                      className="absolute inset-0 flex flex-col justify-between p-6 text-left text-white shadow-xl"
-                      style={{ ...vcardFrontStyle, backfaceVisibility: 'hidden' }}
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="space-y-1">
-                          <p className="text-xs uppercase tracking-[0.3em]" style={{ color: vcardStyle.frontFontColor, opacity: 0.7 }}>VCard</p>
-                          <h3 className="text-2xl font-semibold" style={{ color: vcardStyle.frontFontColor }}>
-                            {vcard.name || 'Your Name'}
-                          </h3>
-                          <p className="text-sm" style={{ color: vcardStyle.frontFontColor, opacity: 0.85 }}>
-                            {vcard.company || 'Your Company'}
-                          </p>
-                        </div>
-                        <div
-                          className="h-16 w-16 rounded-full border border-white/30 bg-white/10"
-                          style={{
-                            backgroundImage: vcardStyle.profilePhotoDataUrl
-                              ? `url(${vcardStyle.profilePhotoDataUrl})`
-                              : undefined,
-                            backgroundSize: `${vcardStyle.photoZoom}%`,
-                            backgroundPosition: `${vcardStyle.photoX}% ${vcardStyle.photoY}%`,
-                            backgroundRepeat: 'no-repeat',
-                          }}
-                        />
-                      </div>
-                      <div className="space-y-2 text-sm" style={{ color: vcardStyle.frontFontColor, opacity: 0.9 }}>
-                        <p>{vcard.phone || '+1 (555) 123-4567'}</p>
-                        <p>{vcard.email || 'you@example.com'}</p>
-                        <p>{vcard.website || 'qrcodestudio.app'}</p>
-                      </div>
-                      {vcardStyle.frontLogoDataUrl && (
-                        <div className="flex justify-end">
-                          <img
-                            src={vcardStyle.frontLogoDataUrl}
-                            alt="Front logo"
-                            className="h-10 w-10 rounded-lg object-cover border border-white/20"
-                          />
-                        </div>
-                      )}
-                      <p className="text-[11px] uppercase tracking-[0.4em]" style={{ color: vcardStyle.frontFontColor, opacity: 0.7 }}>
-                        Tap to flip
-                      </p>
-                    </div>
-
-                    <div
-                      className="absolute inset-0 flex flex-col items-center justify-center gap-4 p-6 text-white shadow-xl"
-                      style={{
-                        ...vcardBackStyle,
-                        transform: 'rotateY(180deg)',
-                        backfaceVisibility: 'hidden',
-                      }}
-                    >
-                      {vcardStyle.backLogoDataUrl ? (
-                        <img
-                          src={vcardStyle.backLogoDataUrl}
-                          alt="VCard logo"
-                          className="h-20 w-20 rounded-xl object-cover border border-white/20"
-                        />
-                      ) : (
-                        <div className="h-20 w-20 rounded-xl border border-white/20 flex items-center justify-center text-xs text-white/70">
-                          Logo
-                        </div>
-                      )}
-                      <p className="text-xs uppercase tracking-[0.4em]" style={{ color: vcardStyle.backFontColor, opacity: 0.7 }}>
-                        Tap to flip
-                      </p>
-                    </div>
-                    </div>
-                  </div>
+                  <VcardLandingCard
+                    profile={normalizedVcard}
+                    style={vcardStyle}
+                    mode="preview"
+                    interactive={false}
+                    showFooter
+                  />
                 </button>
                 <p className="text-xs text-muted-foreground">
-                  {isMobile ? 'Tap to expand preview.' : 'Tap to flip preview.'}
+                  {isMobile ? 'Tap to expand preview.' : 'Live landing-page preview.'}
                 </p>
               </div>
 
-                <div className="space-y-6">
+              <div className="space-y-6">
+                <div className="glass-panel rounded-2xl p-4 space-y-4">
+                  <div className="space-y-1">
+                    <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">
+                      Cover Photo
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Recommended upload: 1600 x 640 px at a 5:2 ratio for the cleanest wide banner crop.
+                    </p>
+                  </div>
+                  {vcardCoverUploading ? (
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-muted-foreground">Uploading cover...</span>
+                        <span className="font-semibold text-foreground">{Math.round(vcardCoverUploadProgress)}%</span>
+                      </div>
+                      <div className="relative h-2 w-full overflow-hidden rounded-full bg-secondary/30">
+                        <div
+                          className="h-full rounded-full bg-gradient-to-r from-primary via-amber-400 to-amber-300 transition-all duration-300 ease-out"
+                          style={{ width: `${vcardCoverUploadProgress}%` }}
+                        />
+                      </div>
+                    </div>
+                  ) : null}
+                  {vcardCoverUploadError ? (
+                    <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-3">
+                      <p className="text-sm font-semibold text-destructive">Upload Failed</p>
+                      <p className="mt-1 text-xs text-destructive/80">{vcardCoverUploadError}</p>
+                    </div>
+                  ) : null}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleVcardCoverChange}
+                    className="text-xs text-muted-foreground"
+                  />
+                  {vcardStyle.coverPhotoDataUrl ? (
+                    <div className="space-y-3">
+                      <div
+                        ref={coverDragRef}
+                        className="relative aspect-[5/2] w-full overflow-hidden rounded-2xl border border-border/60 bg-secondary/20 cursor-grab active:cursor-grabbing"
+                        onPointerDown={handleCoverPointerDown}
+                        onPointerMove={handleCoverPointerMove}
+                        onPointerUp={handleCoverPointerUp}
+                        style={{ touchAction: 'none' }}
+                      >
+                        <div
+                          className="absolute inset-0"
+                          style={{
+                            background: vcardStyle.frontUseGradient
+                              ? `linear-gradient(135deg, ${vcardStyle.frontColor}, ${vcardStyle.frontGradient})`
+                              : `linear-gradient(0deg, ${vcardStyle.frontColor}, ${vcardStyle.frontColor})`,
+                          }}
+                        />
+                        <div
+                          className="absolute inset-0"
+                          style={{
+                            backgroundImage: `url(${vcardStyle.coverPhotoDataUrl})`,
+                            backgroundSize: `${vcardStyle.coverZoom ?? 100}%`,
+                            backgroundPosition: `${vcardStyle.coverX ?? 50}% ${vcardStyle.coverY ?? 50}%`,
+                            backgroundRepeat: 'no-repeat',
+                          }}
+                        />
+                        <div className="pointer-events-none absolute inset-0 border border-white/10" />
+                      </div>
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between text-[11px] uppercase tracking-[0.3em] text-muted-foreground">
+                          <span>Cover Zoom</span>
+                          <span>{Math.round(vcardStyle.coverZoom ?? 100)}%</span>
+                        </div>
+                        <input
+                          type="range"
+                          min={100}
+                          max={180}
+                          value={vcardStyle.coverZoom ?? 100}
+                          onChange={(event) =>
+                            setVcardStyle((prev) => ({
+                              ...prev,
+                              coverZoom: Number(event.target.value),
+                            }))
+                          }
+                          className="w-full"
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          Drag inside the banner to reposition the crop. Transparent PNG areas blend into your selected page background.
+                        </p>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="w-full uppercase tracking-[0.2em] text-xs"
+                        onClick={() => {
+                          const previousCoverSize = getDataUrlSize(vcardStyle.coverPhotoDataUrl);
+                          if (previousCoverSize > 0) {
+                            removeStorageUsage(previousCoverSize);
+                          }
+                          setVcardStyle((prev) => ({
+                            ...prev,
+                            coverPhotoDataUrl: '',
+                            coverZoom: 100,
+                            coverX: 50,
+                            coverY: 50,
+                          }));
+                        }}
+                      >
+                        Remove Cover
+                      </Button>
+                    </div>
+                  ) : null}
+                </div>
+
                 <div className="space-y-4">
                   <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">
-                    Contact Photo
+                    Profile Photo
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    Use a professional selfie for services/freelancers or your business logo for a company card.
+                    Use a professional headshot or logo, then fine-tune the crop and landing-page position.
                   </p>
                   {vcardPhotoUploading ? (
                     <div className="space-y-2">
@@ -5260,59 +5810,35 @@ const Index = () => {
                           className="w-full"
                         />
                       </div>
+                      <div className="space-y-2">
+                        <p className="text-[11px] uppercase tracking-[0.3em] text-muted-foreground">
+                          Avatar Position
+                        </p>
+                        <div className="grid grid-cols-3 gap-2">
+                          {(['left', 'center', 'right'] as VcardProfileAlign[]).map((position) => (
+                            <Button
+                              key={position}
+                              type="button"
+                              variant={vcardStyle.profileAlign === position ? 'default' : 'outline'}
+                              className="uppercase tracking-[0.2em] text-xs"
+                              onClick={() =>
+                                setVcardStyle((prev) => ({
+                                  ...prev,
+                                  profileAlign: position,
+                                }))
+                              }
+                            >
+                              {position}
+                            </Button>
+                          ))}
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
 
-                <div className="space-y-3">
-                  <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">
-                    Typography
-                  </p>
-                  <select
-                    className="w-full h-11 rounded-xl border border-border bg-secondary/40 px-3 text-sm"
-                    value={vcardStyle.fontFamily}
-                    onChange={(event) =>
-                      setVcardStyle((prev) => ({ ...prev, fontFamily: event.target.value }))
-                    }
-                  >
-                    {vcardFontOptions.map((font) => (
-                      <option key={font.label} value={font.value}>
-                        {font.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="space-y-3">
-                  <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">
-                    Corner Radius
-                  </p>
-                  <input
-                    type="range"
-                    min={8}
-                    max={32}
-                    value={vcardStyle.radius}
-                    onChange={(event) =>
-                      setVcardStyle((prev) => ({
-                        ...prev,
-                        radius: Number(event.target.value),
-                      }))
-                    }
-                    className="w-full"
-                  />
-                </div>
-
                 <Accordion
                   type="multiple"
-                  defaultValue={[
-                    'texture',
-                    'front-bg',
-                    'front-font',
-                    'front-gradient',
-                    'back-bg',
-                    'back-font',
-                    'back-gradient',
-                  ]}
                   className="space-y-2"
                 >
                   <AccordionItem value="texture" className="border-none">
@@ -5339,39 +5865,60 @@ const Index = () => {
                     </AccordionContent>
                   </AccordionItem>
 
-                  <AccordionItem value="front-bg" className="border-none">
+                  <AccordionItem value="page-style" className="border-none">
                     <AccordionTrigger className="py-3 px-4 rounded-lg hover:bg-secondary/50 hover:no-underline">
-                      <span className="text-sm font-medium">Front Background</span>
+                      <span className="text-sm font-medium">Page Style</span>
                     </AccordionTrigger>
-                    <AccordionContent className="px-4 pb-4 pt-2">
+                    <AccordionContent className="px-4 pb-4 pt-2 space-y-5">
+                      <div className="space-y-3">
+                        <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">
+                          Typography
+                        </p>
+                        <div className="grid gap-2 sm:grid-cols-2">
+                          {VCARD_FONT_OPTIONS.map((font) => {
+                            const isSelected = normalizeVcardFontFamily(vcardStyle.fontFamily) === font.value;
+                            return (
+                              <button
+                                key={font.label}
+                                type="button"
+                                onClick={() =>
+                                  setVcardStyle((prev) => ({
+                                    ...prev,
+                                    fontFamily: font.value,
+                                  }))
+                                }
+                                className={`rounded-2xl border px-4 py-3 text-left transition ${
+                                  isSelected
+                                    ? 'border-primary bg-secondary/55 shadow-sm'
+                                    : 'border-border/60 bg-secondary/25 hover:border-primary/40 hover:bg-secondary/35'
+                                }`}
+                              >
+                                <p
+                                  className="text-base font-semibold tracking-tight"
+                                  style={{ fontFamily: font.value }}
+                                >
+                                  {font.label}
+                                </p>
+                                <p className="mt-1 text-xs text-muted-foreground">
+                                  {font.note}
+                                </p>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
                       <ColorPicker
-                        label="Front Background"
+                        label="Background"
                         value={vcardStyle.frontColor}
                         onChange={(value) => setVcardStyle((prev) => ({ ...prev, frontColor: value }))}
                         presets={bgColorPresets}
                       />
-                    </AccordionContent>
-                  </AccordionItem>
-
-                  <AccordionItem value="front-font" className="border-none">
-                    <AccordionTrigger className="py-3 px-4 rounded-lg hover:bg-secondary/50 hover:no-underline">
-                      <span className="text-sm font-medium">Front Font Color</span>
-                    </AccordionTrigger>
-                    <AccordionContent className="px-4 pb-4 pt-2">
                       <ColorPicker
-                        label="Front Font Color"
+                        label="Text Color"
                         value={vcardStyle.frontFontColor}
                         onChange={(value) => setVcardStyle((prev) => ({ ...prev, frontFontColor: value }))}
                         presets={fgColorPresets}
                       />
-                    </AccordionContent>
-                  </AccordionItem>
-
-                  <AccordionItem value="front-gradient" className="border-none">
-                    <AccordionTrigger className="py-3 px-4 rounded-lg hover:bg-secondary/50 hover:no-underline">
-                      <span className="text-sm font-medium">Front Gradient</span>
-                    </AccordionTrigger>
-                    <AccordionContent className="px-4 pb-4 pt-2 space-y-3">
                       <div className="flex items-center gap-2">
                         <input
                           id="front-gradient"
@@ -5385,12 +5932,12 @@ const Index = () => {
                           }
                         />
                         <label htmlFor="front-gradient" className="text-xs text-muted-foreground">
-                          Use gradient
+                          Use accent gradient
                         </label>
                       </div>
                       {vcardStyle.frontUseGradient && (
                         <ColorPicker
-                          label="Front Gradient"
+                          label="Accent Gradient"
                           value={vcardStyle.frontGradient}
                           onChange={(value) =>
                             setVcardStyle((prev) => ({
@@ -5401,125 +5948,95 @@ const Index = () => {
                           presets={fgColorPresets}
                         />
                       )}
+                      <div className="space-y-3">
+                        <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">
+                          Corner Radius
+                        </p>
+                        <input
+                          type="range"
+                          min={8}
+                          max={32}
+                          value={vcardStyle.radius}
+                          onChange={(event) =>
+                            setVcardStyle((prev) => ({
+                              ...prev,
+                              radius: Number(event.target.value),
+                            }))
+                          }
+                          className="w-full"
+                        />
+                      </div>
                     </AccordionContent>
                   </AccordionItem>
 
-                  <AccordionItem value="back-bg" className="border-none">
+                  <AccordionItem value="button-style" className="border-none">
                     <AccordionTrigger className="py-3 px-4 rounded-lg hover:bg-secondary/50 hover:no-underline">
-                      <span className="text-sm font-medium">Back Background</span>
+                      <span className="text-sm font-medium">Action Button</span>
                     </AccordionTrigger>
-                    <AccordionContent className="px-4 pb-4 pt-2">
+                    <AccordionContent className="px-4 pb-4 pt-2 space-y-5">
                       <ColorPicker
-                        label="Back Background"
-                        value={vcardStyle.backColor}
-                        onChange={(value) => setVcardStyle((prev) => ({ ...prev, backColor: value }))}
+                        label="Button Background"
+                        value={vcardStyle.buttonColor || '#F3E7D0'}
+                        onChange={(value) => setVcardStyle((prev) => ({ ...prev, buttonColor: value }))}
                         presets={bgColorPresets}
                       />
-                    </AccordionContent>
-                  </AccordionItem>
-
-                  <AccordionItem value="back-font" className="border-none">
-                    <AccordionTrigger className="py-3 px-4 rounded-lg hover:bg-secondary/50 hover:no-underline">
-                      <span className="text-sm font-medium">Back Font Color</span>
-                    </AccordionTrigger>
-                    <AccordionContent className="px-4 pb-4 pt-2">
                       <ColorPicker
-                        label="Back Font Color"
-                        value={vcardStyle.backFontColor}
-                        onChange={(value) => setVcardStyle((prev) => ({ ...prev, backFontColor: value }))}
+                        label="Button Text"
+                        value={vcardStyle.buttonTextColor || '#34164B'}
+                        onChange={(value) => setVcardStyle((prev) => ({ ...prev, buttonTextColor: value }))}
                         presets={fgColorPresets}
                       />
                     </AccordionContent>
                   </AccordionItem>
 
-                  <AccordionItem value="back-gradient" className="border-none">
+                  <AccordionItem value="brand-mark" className="border-none">
                     <AccordionTrigger className="py-3 px-4 rounded-lg hover:bg-secondary/50 hover:no-underline">
-                      <span className="text-sm font-medium">Back Gradient</span>
+                      <span className="text-sm font-medium">Brand Mark</span>
                     </AccordionTrigger>
-                    <AccordionContent className="px-4 pb-4 pt-2 space-y-3">
-                      <div className="flex items-center gap-2">
-                        <input
-                          id="back-gradient"
-                          type="checkbox"
-                          checked={vcardStyle.backUseGradient}
-                          onChange={(event) =>
-                            setVcardStyle((prev) => ({
-                              ...prev,
-                              backUseGradient: event.target.checked,
-                            }))
-                          }
-                        />
-                        <label htmlFor="back-gradient" className="text-xs text-muted-foreground">
-                          Use gradient
-                        </label>
-                      </div>
-                      {vcardStyle.backUseGradient && (
-                        <ColorPicker
-                          label="Back Gradient"
-                          value={vcardStyle.backGradient}
-                          onChange={(value) =>
-                            setVcardStyle((prev) => ({
-                              ...prev,
-                              backGradient: value,
-                            }))
-                          }
-                          presets={fgColorPresets}
-                        />
-                      )}
+                    <AccordionContent className="px-4 pb-4 pt-2">
+                      <LogoUpload
+                        logo={vcardStyle.frontLogoDataUrl || undefined}
+                        maxLogoSize={180}
+                        hideLabel
+                        onLogoChange={(value) =>
+                          setVcardStyle((prev) => ({ ...prev, frontLogoDataUrl: value }))
+                        }
+                      />
                     </AccordionContent>
                   </AccordionItem>
                 </Accordion>
+              </div>
+            </div>
+            </div>
 
-                <div className="grid lg:grid-cols-2 gap-6">
-                  <div className="space-y-3">
-                    <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">
-                      Front Logo
-                    </p>
-                    <LogoUpload
-                      logo={vcardStyle.frontLogoDataUrl || undefined}
-                      maxLogoSize={180}
-                      onLogoChange={(value) =>
-                        setVcardStyle((prev) => ({ ...prev, frontLogoDataUrl: value }))
-                      }
-                    />
-                  </div>
-                  <div className="space-y-3">
-                    <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">
-                      Back Logo
-                    </p>
-                    <LogoUpload
-                      logo={vcardStyle.backLogoDataUrl || undefined}
-                      maxLogoSize={220}
-                      onLogoChange={(value) =>
-                        setVcardStyle((prev) => ({ ...prev, backLogoDataUrl: value }))
-                      }
-                    />
-                  </div>
-                </div>
-
-                <div className="flex flex-col sm:flex-row gap-3">
-                  <Button
-                    className="bg-gradient-primary text-primary-foreground uppercase tracking-[0.2em] text-xs"
-                    onClick={() => setShowVcardCustomizer(false)}
-                  >
-                    Save Customization
-                  </Button>
-                  <Button
-                    variant="outline"
-                    className="border-border uppercase tracking-[0.2em] text-xs"
-                    onClick={() => {
-                      setVcardPreviewSide('front');
-                      setShowVcardCustomizer(false);
-                      // If we came from vCard contents overlay, open QR customizer
-                      if (vcardFromContents) {
-                        setVcardFromContents(false);
-                        openQrCustomizer();
-                      }
-                    }}
-                  >
-                    Done
-                  </Button>
-                </div>
+            <div className="sticky bottom-0 z-20 border-t border-border/50 bg-background/95 px-6 py-4 backdrop-blur-md sm:px-8">
+              <div className="flex flex-col gap-3 sm:flex-row">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="sm:flex-1 border-border uppercase tracking-[0.2em] text-xs"
+                  onClick={handleCancelCreateFlow}
+                  disabled={isCreateFlowBusy}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="button"
+                  className="sm:flex-1 bg-gradient-primary text-primary-foreground uppercase tracking-[0.2em] text-xs"
+                  disabled={isCreateFlowBusy}
+                  onClick={handleApplyVcardCustomization}
+                >
+                  Apply Changes
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="sm:flex-1 border-border uppercase tracking-[0.2em] text-xs"
+                  disabled={isCreateFlowBusy}
+                  onClick={handleFinishVcardCustomization}
+                >
+                  {editingVcardQRC ? 'Save & Exit' : vcardFromContents ? 'Continue' : 'Done'}
+                </Button>
               </div>
             </div>
           </div>
@@ -5529,7 +6046,7 @@ const Index = () => {
       {showVcardPreview && isMobile && (
         <div className="fixed inset-0 z-[80] flex items-center justify-center bg-background/80 backdrop-blur-md px-4">
           <motion.div
-            className="relative"
+            className="relative w-full max-w-[390px]"
             initial={{ opacity: 0, scale: 0.92 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.25, ease: 'easeOut' }}
@@ -5542,89 +6059,13 @@ const Index = () => {
             >
               X
             </button>
-            <button
-              type="button"
-              onClick={() => setVcardPreviewSide((prev) => (prev === 'front' ? 'back' : 'front'))}
-              className="relative h-[420px] w-[260px] sm:h-[460px] sm:w-[280px]"
-              aria-label="Flip vcard preview"
-            >
-              <div
-                className="absolute inset-0 transition-transform duration-500"
-                style={{
-                  transformStyle: 'preserve-3d',
-                  transform: vcardPreviewSide === 'back' ? 'rotateY(180deg)' : 'rotateY(0deg)',
-                }}
-              >
-                <div
-                  className="absolute inset-0 flex flex-col justify-between p-6 text-left text-white shadow-xl"
-                  style={{ ...vcardFrontStyle, backfaceVisibility: 'hidden' }}
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="space-y-1">
-                      <p className="text-xs uppercase tracking-[0.3em] text-white/70">VCard</p>
-                      <h3 className="text-2xl font-semibold">
-                        {vcard.name || 'Your Name'}
-                      </h3>
-                      <p className="text-sm text-white/80">
-                        {vcard.company || 'Your Company'}
-                      </p>
-                    </div>
-                    <div
-                      className="h-16 w-16 rounded-full border border-white/30 bg-white/10"
-                      style={{
-                        backgroundImage: vcardStyle.profilePhotoDataUrl
-                          ? `url(${vcardStyle.profilePhotoDataUrl})`
-                          : undefined,
-                        backgroundSize: `${vcardStyle.photoZoom}%`,
-                        backgroundPosition: `${vcardStyle.photoX}% ${vcardStyle.photoY}%`,
-                        backgroundRepeat: 'no-repeat',
-                      }}
-                    />
-                  </div>
-                  <div className="space-y-2 text-sm" style={{ color: vcardStyle.frontFontColor, opacity: 0.9 }}>
-                    <p>{vcard.phone || '+1 (555) 123-4567'}</p>
-                    <p>{vcard.email || 'you@example.com'}</p>
-                    <p>{vcard.website || 'qrcodestudio.app'}</p>
-                  </div>
-                  {vcardStyle.frontLogoDataUrl && (
-                    <div className="flex justify-end">
-                      <img
-                        src={vcardStyle.frontLogoDataUrl}
-                        alt="Front logo"
-                        className="h-10 w-10 rounded-lg object-cover border border-white/20"
-                      />
-                    </div>
-                  )}
-                  <p className="text-[11px] uppercase tracking-[0.4em]" style={{ color: vcardStyle.frontFontColor, opacity: 0.7 }}>
-                    Tap to flip
-                  </p>
-                </div>
-
-                <div
-                  className="absolute inset-0 flex flex-col items-center justify-center gap-4 p-6 text-white shadow-xl"
-                  style={{
-                    ...vcardBackStyle,
-                    transform: 'rotateY(180deg)',
-                    backfaceVisibility: 'hidden',
-                  }}
-                >
-                  {vcardStyle.backLogoDataUrl ? (
-                    <img
-                      src={vcardStyle.backLogoDataUrl}
-                      alt="VCard logo"
-                      className="h-20 w-20 rounded-xl object-cover border border-white/20"
-                    />
-                  ) : (
-                    <div className="h-20 w-20 rounded-xl border border-white/20 flex items-center justify-center text-xs text-white/70">
-                      Logo
-                    </div>
-                  )}
-                  <div className="space-y-2 text-sm text-center" style={{ color: vcardStyle.backFontColor, opacity: 0.9 }}>
-                    <p>{vcard.about || 'A short brand statement goes here.'}</p>
-                  </div>
-                </div>
-              </div>
-            </button>
+            <VcardLandingCard
+              profile={normalizedVcard}
+              style={vcardStyle}
+              mode="preview"
+              interactive={false}
+              showFooter
+            />
           </motion.div>
         </div>
       )}
@@ -5648,9 +6089,10 @@ const Index = () => {
             <button
               type="button"
               className="absolute right-4 top-4 text-xs uppercase tracking-[0.3em] text-muted-foreground transition hover:text-foreground z-10"
-              onClick={() => setShowMenuBuilder(false)}
+              onClick={handleCancelCreateFlow}
+              disabled={isCreateFlowBusy}
             >
-              X
+              Cancel
             </button>
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
               <div>
@@ -6114,6 +6556,18 @@ const Index = () => {
                 )}
               </div>
             </div>
+
+            <div className="flex justify-end border-t border-border/50 pt-4">
+              <Button
+                type="button"
+                variant="outline"
+                className="uppercase tracking-[0.2em] text-xs"
+                onClick={handleCancelCreateFlow}
+                disabled={isCreateFlowBusy}
+              >
+                Cancel
+              </Button>
+            </div>
           </div>
         </div>
       )}
@@ -6190,9 +6644,10 @@ const Index = () => {
             <button
               type="button"
               className="absolute right-4 top-4 text-xs uppercase tracking-[0.3em] text-muted-foreground transition hover:text-foreground z-10"
-              onClick={() => setShowVcardContents(false)}
+              onClick={handleCancelCreateFlow}
+              disabled={isCreateFlowBusy}
             >
-              X
+              Cancel
             </button>
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
               <div>
@@ -6207,62 +6662,265 @@ const Index = () => {
             <div className="space-y-6">
               <div className="grid sm:grid-cols-2 gap-4">
                 <Input
-                  value={vcard.name}
-                  onChange={(e) => setVcard((prev) => ({ ...prev, name: e.target.value }))}
+                  value={vcard.name ?? ''}
+                  onChange={(e) => updateVcardProfile({ name: e.target.value })}
                   placeholder="Full Name"
                   className="bg-secondary/50 border-border"
                 />
                 <Input
-                  value={vcard.company}
-                  onChange={(e) => setVcard((prev) => ({ ...prev, company: e.target.value }))}
+                  value={vcard.title ?? ''}
+                  onChange={(e) => updateVcardProfile({ title: e.target.value })}
+                  placeholder="Title / Role"
+                  className="bg-secondary/50 border-border"
+                />
+                <Input
+                  value={vcard.company ?? ''}
+                  onChange={(e) => updateVcardProfile({ company: e.target.value })}
                   placeholder="Company"
                   className="bg-secondary/50 border-border"
                 />
                 <Input
-                  value={vcard.phone}
-                  onChange={(e) => setVcard((prev) => ({ ...prev, phone: e.target.value }))}
+                  value={vcard.phone ?? ''}
+                  onChange={(e) => updateVcardProfile({ phone: e.target.value })}
                   placeholder="Phone"
                   className="bg-secondary/50 border-border"
                 />
                 <Input
-                  value={vcard.email}
-                  onChange={(e) => setVcard((prev) => ({ ...prev, email: e.target.value }))}
+                  value={vcard.email ?? ''}
+                  onChange={(e) => updateVcardProfile({ email: e.target.value })}
                   placeholder="Email"
                   type="email"
                   className="bg-secondary/50 border-border"
                 />
                 <Input
-                  value={vcard.website}
-                  onChange={(e) => setVcard((prev) => ({ ...prev, website: e.target.value }))}
+                  value={vcard.website ?? ''}
+                  onChange={(e) => updateVcardProfile({ website: e.target.value })}
                   placeholder="Website"
                   className="bg-secondary/50 border-border"
                 />
                 <Input
-                  value={vcard.slug}
-                  onChange={(e) => setVcard((prev) => ({ ...prev, slug: e.target.value }))}
+                  value={vcard.location ?? ''}
+                  onChange={(e) => updateVcardProfile({ location: e.target.value })}
+                  placeholder="Location"
+                  className="bg-secondary/50 border-border"
+                />
+                {showCollectrField ? (
+                  <Input
+                    value={vcard.collectrUrl ?? ''}
+                    onChange={(e) => updateVcardProfile({ collectrUrl: e.target.value })}
+                    placeholder="Collectr Showcase URL (optional)"
+                    className="bg-secondary/50 border-border"
+                  />
+                ) : null}
+                <Input
+                  value={vcard.slug ?? ''}
+                  onChange={(e) => updateVcardProfile({ slug: e.target.value })}
                   placeholder="Profile Slug (optional)"
+                  readOnly={Boolean(editingVcardQRC)}
                   className="bg-secondary/50 border-border"
                 />
               </div>
               <div className="space-y-2">
                 <Textarea
-                  value={vcard.about}
-                  onChange={(e) => setVcard((prev) => ({ ...prev, about: e.target.value }))}
+                  value={vcard.about ?? ''}
+                  onChange={(e) => updateVcardProfile({ about: e.target.value })}
                   placeholder="About Me (max 250 characters)"
                   maxLength={250}
                   className="bg-secondary/50 border-border"
                 />
                 <div className="flex items-center justify-between text-xs text-muted-foreground">
-                  <span>Virtual card hosted at QR Code Studio</span>
-                  <span>{vcard.about.length}/250</span>
+                  <span>
+                    {editingVcardQRC
+                      ? 'Public VCard link stays fixed after creation'
+                      : 'Virtual card hosted at QR Code Studio'}
+                  </span>
+                  <span>{(vcard.about ?? '').length}/250</span>
                 </div>
+                {showCollectrField ? (
+                  <p className="text-xs text-muted-foreground">
+                    Add a public Collectr showcase URL to feature a few cards directly on the landing page.
+                  </p>
+                ) : null}
                 <Input
                   value={vcardUrl || 'https://qrcode.luminarapps.com/your-handle'}
                   readOnly
                   className="bg-secondary/40 border-border text-xs text-muted-foreground"
                 />
               </div>
+              <div className="rounded-2xl border border-border/60 bg-secondary/20 p-4 space-y-4">
+                <div className="space-y-1">
+                  <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Social Links</p>
+                  <p className="text-xs text-muted-foreground">
+                    Add only the profiles you want to show. Empty links stay hidden on the landing page.
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Star one profile to feature it in the highlighted social card on the VCard.
+                  </p>
+                </div>
+                <div className="grid sm:grid-cols-2 gap-4">
+                  <div className="flex items-center gap-3">
+                    <Instagram className="h-4 w-4 text-primary" />
+                    <div className="flex-1">
+                      <Input
+                        value={vcard.socials?.instagram ?? ''}
+                        onChange={(e) => updateVcardSocial('instagram', e.target.value)}
+                        placeholder="Instagram URL"
+                        className="bg-secondary/50 border-border"
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => toggleFavoriteVcardSocial('instagram')}
+                      disabled={!normalizeVcardText(vcard.socials?.instagram)}
+                      aria-label="Feature Instagram on the social card"
+                      aria-pressed={vcard.favoriteSocial === 'instagram'}
+                      className={`flex h-10 w-10 items-center justify-center rounded-xl border transition ${
+                        vcard.favoriteSocial === 'instagram'
+                          ? 'border-amber-400/50 bg-amber-400/10 text-amber-500'
+                          : 'border-border/70 bg-secondary/30 text-muted-foreground hover:border-primary/40 hover:text-foreground'
+                      } disabled:cursor-not-allowed disabled:opacity-40`}
+                    >
+                      <Star className={`h-4 w-4 ${vcard.favoriteSocial === 'instagram' ? 'fill-current' : ''}`} />
+                    </button>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <Facebook className="h-4 w-4 text-primary" />
+                    <div className="flex-1">
+                      <Input
+                        value={vcard.socials?.facebook ?? ''}
+                        onChange={(e) => updateVcardSocial('facebook', e.target.value)}
+                        placeholder="Facebook URL"
+                        className="bg-secondary/50 border-border"
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => toggleFavoriteVcardSocial('facebook')}
+                      disabled={!normalizeVcardText(vcard.socials?.facebook)}
+                      aria-label="Feature Facebook on the social card"
+                      aria-pressed={vcard.favoriteSocial === 'facebook'}
+                      className={`flex h-10 w-10 items-center justify-center rounded-xl border transition ${
+                        vcard.favoriteSocial === 'facebook'
+                          ? 'border-amber-400/50 bg-amber-400/10 text-amber-500'
+                          : 'border-border/70 bg-secondary/30 text-muted-foreground hover:border-primary/40 hover:text-foreground'
+                      } disabled:cursor-not-allowed disabled:opacity-40`}
+                    >
+                      <Star className={`h-4 w-4 ${vcard.favoriteSocial === 'facebook' ? 'fill-current' : ''}`} />
+                    </button>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <Youtube className="h-4 w-4 text-primary" />
+                    <div className="flex-1">
+                      <Input
+                        value={vcard.socials?.youtube ?? ''}
+                        onChange={(e) => updateVcardSocial('youtube', e.target.value)}
+                        placeholder="YouTube URL"
+                        className="bg-secondary/50 border-border"
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => toggleFavoriteVcardSocial('youtube')}
+                      disabled={!normalizeVcardText(vcard.socials?.youtube)}
+                      aria-label="Feature YouTube on the social card"
+                      aria-pressed={vcard.favoriteSocial === 'youtube'}
+                      className={`flex h-10 w-10 items-center justify-center rounded-xl border transition ${
+                        vcard.favoriteSocial === 'youtube'
+                          ? 'border-amber-400/50 bg-amber-400/10 text-amber-500'
+                          : 'border-border/70 bg-secondary/30 text-muted-foreground hover:border-primary/40 hover:text-foreground'
+                      } disabled:cursor-not-allowed disabled:opacity-40`}
+                    >
+                      <Star className={`h-4 w-4 ${vcard.favoriteSocial === 'youtube' ? 'fill-current' : ''}`} />
+                    </button>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <Music2 className="h-4 w-4 text-primary" />
+                    <div className="flex-1">
+                      <Input
+                        value={vcard.socials?.tiktok ?? ''}
+                        onChange={(e) => updateVcardSocial('tiktok', e.target.value)}
+                        placeholder="TikTok URL"
+                        className="bg-secondary/50 border-border"
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => toggleFavoriteVcardSocial('tiktok')}
+                      disabled={!normalizeVcardText(vcard.socials?.tiktok)}
+                      aria-label="Feature TikTok on the social card"
+                      aria-pressed={vcard.favoriteSocial === 'tiktok'}
+                      className={`flex h-10 w-10 items-center justify-center rounded-xl border transition ${
+                        vcard.favoriteSocial === 'tiktok'
+                          ? 'border-amber-400/50 bg-amber-400/10 text-amber-500'
+                          : 'border-border/70 bg-secondary/30 text-muted-foreground hover:border-primary/40 hover:text-foreground'
+                      } disabled:cursor-not-allowed disabled:opacity-40`}
+                    >
+                      <Star className={`h-4 w-4 ${vcard.favoriteSocial === 'tiktok' ? 'fill-current' : ''}`} />
+                    </button>
+                  </div>
+                </div>
+              </div>
+              <div className="rounded-2xl border border-border/60 bg-secondary/20 p-4 space-y-4">
+                <div className="space-y-1">
+                  <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Action Button</p>
+                  <p className="text-xs text-muted-foreground">
+                    Choose one primary action visitors can tap immediately from your VCard landing page.
+                  </p>
+                </div>
+                <div className="grid sm:grid-cols-2 gap-4">
+                  <select
+                    className="w-full h-11 rounded-xl border border-border bg-secondary/40 px-3 text-sm"
+                    value={vcard.ctaType ?? ''}
+                    onChange={(e) =>
+                      updateVcardProfile({
+                        ctaType: e.target.value as VcardProfile['ctaType'],
+                        ctaLabel: e.target.value ? getDefaultVcardCtaLabel(e.target.value as VcardCtaType) : '',
+                        ctaValue: '',
+                      })
+                    }
+                  >
+                    <option value="">No action button</option>
+                    <option value="call">Call Me</option>
+                    <option value="email">Email Me</option>
+                    <option value="whatsapp">WhatsApp Me</option>
+                    <option value="website">Visit My Website</option>
+                  </select>
+                  {vcard.ctaType ? (
+                    <Input
+                    value={vcard.ctaLabel ?? ''}
+                      onChange={(e) => updateVcardProfile({ ctaLabel: e.target.value })}
+                      placeholder={getDefaultVcardCtaLabel(vcard.ctaType as VcardCtaType)}
+                      className="bg-secondary/50 border-border"
+                    />
+                  ) : null}
+                </div>
+                {vcard.ctaType ? (
+                  <Input
+                    value={vcard.ctaValue ?? ''}
+                    onChange={(e) => updateVcardProfile({ ctaValue: e.target.value })}
+                    placeholder={
+                      vcard.ctaType === 'call'
+                        ? 'Phone number for the button'
+                        : vcard.ctaType === 'email'
+                          ? 'Email address for the button'
+                          : vcard.ctaType === 'whatsapp'
+                            ? 'WhatsApp number for the button'
+                            : 'Website URL for the button'
+                    }
+                    className="bg-secondary/50 border-border"
+                  />
+                ) : null}
+              </div>
               <div className="flex flex-col sm:flex-row gap-3">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="flex-1 uppercase tracking-[0.2em] text-xs"
+                  onClick={handleCancelCreateFlow}
+                  disabled={isCreateFlowBusy}
+                >
+                  Cancel
+                </Button>
                 <Button
                   type="button"
                   variant="outline"
@@ -6271,7 +6929,6 @@ const Index = () => {
                     setShowVcardContents(false);
                     setVcardFromContents(true);
                     setShowVcardCustomizer(true);
-                    setVcardPreviewSide('front');
                   }}
                 >
                   Customize VCard
@@ -6307,9 +6964,10 @@ const Index = () => {
             <button
               type="button"
               className="absolute right-4 top-4 text-xs uppercase tracking-[0.3em] text-muted-foreground transition hover:text-foreground z-10"
-              onClick={() => setShowQrCustomizer(false)}
+              onClick={handleCancelCreateFlow}
+              disabled={isCreateFlowBusy}
             >
-              X
+              Cancel
             </button>
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
               <div>
@@ -6387,55 +7045,64 @@ const Index = () => {
                   </AccordionContent>
                 </AccordionItem>
 
-                <AccordionItem value="logo" className="border-none">
-                  <AccordionTrigger
-                    className="py-3 px-4 rounded-lg hover:bg-secondary/50 hover:no-underline"
-                    onClick={() => {
-                      window.setTimeout(() => scrollToRef(logoSectionRef, 'start'), 30);
-                    }}
-                  >
-                    <span className="text-sm font-medium">Logo</span>
-                  </AccordionTrigger>
-                  <AccordionContent className="px-4 pb-4 pt-2">
-                    <div ref={logoSectionRef} className="space-y-4">
-                      <LogoUpload
-                        logo={options.logo}
-                        maxLogoSize={Math.round((options.size - 32) * 0.22)}
-                        onLogoChange={(v, meta) => {
-                          updateOption('logo', v);
-                          updateOption('logoAspect', meta?.aspect);
-                          updateOption('logoWidth', meta?.width);
-                          updateOption('logoHeight', meta?.height);
-                        }}
-                      />
-                      {options.logo && (
-                        <div>
-                          <SizeSlider
-                            value={options.logoSize || 50}
-                            onChange={(v) => updateOption('logoSize', v)}
-                            min={20}
-                            max={100}
-                          />
-                        </div>
-                      )}
-                    </div>
-                  </AccordionContent>
-                </AccordionItem>
+                {qrType !== 'vcard' ? (
+                  <AccordionItem value="logo" className="border-none">
+                    <AccordionTrigger
+                      className="py-3 px-4 rounded-lg hover:bg-secondary/50 hover:no-underline"
+                      onClick={() => {
+                        window.setTimeout(() => scrollToRef(logoSectionRef, 'start'), 30);
+                      }}
+                    >
+                      <span className="text-sm font-medium">Logo</span>
+                    </AccordionTrigger>
+                    <AccordionContent className="px-4 pb-4 pt-2">
+                      <div ref={logoSectionRef} className="space-y-4">
+                        <LogoUpload
+                          logo={options.logo}
+                          maxLogoSize={Math.round((options.size - 32) * 0.22)}
+                          onLogoChange={(v, meta) => {
+                            updateOption('logo', v);
+                            updateOption('logoAspect', meta?.aspect);
+                            updateOption('logoWidth', meta?.width);
+                            updateOption('logoHeight', meta?.height);
+                          }}
+                        />
+                        {options.logo && (
+                          <div>
+                            <SizeSlider
+                              value={options.logoSize || 50}
+                              onChange={(v) => updateOption('logoSize', v)}
+                              min={20}
+                              max={100}
+                            />
+                          </div>
+                        )}
+                      </div>
+                    </AccordionContent>
+                  </AccordionItem>
+                ) : null}
               </Accordion>
-              <div className="px-4 pb-4 pt-2 space-y-3">
+              <div className="px-4 pb-4 pt-2 flex flex-col gap-3 sm:flex-row">
+                <Button
+                  type="button"
+                  size="lg"
+                  variant="outline"
+                  className="sm:flex-1 uppercase tracking-[0.2em] text-xs"
+                  disabled={isCreateFlowBusy}
+                  onClick={handleCancelCreateFlow}
+                >
+                  Cancel
+                </Button>
                 <Button
                   size="lg"
-                  className="w-full gap-2 bg-gradient-primary hover:opacity-90 text-primary-foreground glow uppercase tracking-[0.2em] text-xs"
+                  className="sm:flex-1 gap-2 bg-gradient-primary hover:opacity-90 text-primary-foreground glow uppercase tracking-[0.2em] text-xs"
                   disabled={!canGenerate}
                   onClick={() => {
                     setShowQrCustomizer(false);
-                    // Reset name to default if needed
-                    const defaultName = qrType === 'file' ? fileName || 'File QR' : 'QRC Untitled 1';
-                    setQrName(defaultName);
-                    setShowNameOverlay(true);
+                    handleCompleteQrCustomization();
                   }}
                 >
-                  Done
+                  {editingVcardQRC && qrType === 'vcard' ? 'Save VCard' : 'Done'}
                 </Button>
               </div>
             </div>
@@ -7215,103 +7882,17 @@ const Index = () => {
           <>
         {/* Desktop Wizard - Only show on desktop when Quick Action is selected */}
         {!isMobile && selectedQuickAction && (
-          <DesktopStudioWizard
-            qrMode={qrMode}
-            qrType={qrType}
-            options={options}
-            websiteUrl={websiteUrl}
-            emailAddress={emailAddress}
-            phoneNumber={phoneNumber}
-            fileUrl={fileUrl}
-            fileName={fileName}
-            vcardName={vcard.name}
-            vcardSlug={vcardSlug}
-            vcardPhone={vcard.phone}
-            vcardEmail={vcard.email}
-            vcardWebsite={vcard.website}
-            vcardCompany={vcard.company}
-            vcardAbout={vcard.about}
-            menuFilesCount={menuFiles.length}
-            websiteTouched={websiteTouched}
-            emailTouched={emailTouched}
-            phoneTouched={phoneTouched}
-            fileTouched={fileTouched}
-            selectedQuickAction={selectedQuickAction}
-            previewContent={previewContent}
-            user={user}
-            onModeChange={setQrMode}
-            onTypeChange={setQrType}
-            onQuickActionSelect={setSelectedQuickAction}
-            onWebsiteUrlChange={setWebsiteUrl}
-            onEmailChange={setEmailAddress}
-            onPhoneChange={setPhoneNumber}
-            onFileChange={(url, name) => {
-              setFileUrl(url);
-              setFileName(name);
-            }}
-            onVcardChange={(name, slug, phone, email, website, company, about) => {
-              setVcard((prev) => ({
-                ...prev,
-                name: name || prev.name,
-                slug: slug || prev.slug,
-                phone: phone !== undefined ? phone : prev.phone,
-                email: email !== undefined ? email : prev.email,
-                website: website !== undefined ? website : prev.website,
-                company: company !== undefined ? company : prev.company,
-                about: about !== undefined ? about : prev.about,
-              }));
-            }}
-            onOptionChange={(key, value) => {
-              setOptions((prev) => ({ ...prev, [key]: value }));
-            }}
-            onDone={() => {
-              const defaultName = qrType === 'file' ? fileName || 'File QR' : 'QRC Untitled 1';
-              setQrName(defaultName);
-              setShowNameOverlay(true);
-            }}
-            onWebsiteTouched={setWebsiteTouched}
-            onEmailTouched={setEmailTouched}
-            onPhoneTouched={setPhoneTouched}
-            onFileTouched={setFileTouched}
-            onSocialChange={(platform, handle) => {
-              setSocialPlatform(platform);
-              setSocialHandle(handle);
-            }}
-            fileUploading={fileUploading}
-            fileUploadProgress={fileUploadProgress}
-            fileUploadError={fileUploadError}
-            socialPlatform={socialPlatform}
-            socialHandle={socialHandle}
-            portalLinks={portalLinks}
-            portalTitle={portalTitle}
-            portalDescription={portalDescription}
-            portalTemplate={portalTemplate}
-            portalCustomization={portalCustomization}
-            onPortalChange={(links, title, description, template, customization) => {
-              setPortalLinks(links);
-              setPortalTitle(title);
-              setPortalDescription(description);
-              setPortalTemplate(template);
-              setPortalCustomization(customization);
-            }}
-            navigate={navigate}
-            toast={toast}
-            onShowVcardCustomizer={() => setShowVcardCustomizer(true)}
-            onShowMenuBuilder={() => setShowMenuBuilder(true)}
-            onShowFileUpload={() => fileInputRef.current?.click()}
-          />
+          <DesktopStudioWizard {...studioWizardProps} />
         )}
         
         {/* Hidden file input for desktop wizard */}
-        {!isMobile && (
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*,application/pdf"
-            onChange={handleFileUpload}
-            className="hidden"
-          />
-        )}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*,application/pdf"
+          onChange={handleFileUpload}
+          className="hidden"
+        />
         
         {/* Desktop Studio Dashboard - Show when no Quick Action is selected */}
         {!isMobile && !selectedQuickAction && (
@@ -7748,7 +8329,9 @@ const Index = () => {
             handleAdaptiveMockOpen={handleAdaptiveMockOpen}
             handleAdaptiveEdit={handleAdaptiveEdit}
             handleDynamicContentEdit={handleDynamicContentEdit}
+            handleVcardEdit={handleVcardEdit}
             arsenalRefreshKey={arsenalRefreshKey}
+            preferredSelectedId={arsenalPreferredSelectedId}
             setArsenalRefreshKey={setArsenalRefreshKey}
             setArsenalStats={setArsenalStats}
             userProfile={userProfile}
@@ -7832,6 +8415,20 @@ const Index = () => {
         )}
 
       </main>
+
+      {showMobileWizardOverlay && (
+        <div
+          className="fixed inset-0 z-[65] overflow-y-auto bg-background/80 backdrop-blur-md px-2 py-3 sm:px-4 sm:py-4"
+          onClick={handleCancelCreateFlow}
+        >
+          <div
+            className="mx-auto w-full max-w-6xl"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <DesktopStudioWizard {...studioWizardProps} />
+          </div>
+        </div>
+      )}
 
       {/* Navigation Overlay */}
       {showNavOverlay && (

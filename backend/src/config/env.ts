@@ -1,6 +1,5 @@
-const APP_BASE_URL = process.env.APP_BASE_URL ?? ''
-
 export const getAppBaseUrl = () => {
+  const APP_BASE_URL = process.env.APP_BASE_URL ?? ''
   if (!APP_BASE_URL) {
     throw new Error('APP_BASE_URL is required')
   }

@@ -9,6 +9,7 @@ import {
   redirectUrlHandler,
   updateUrlHandler
 } from './handlers'
+import { publicAliasPageHandler, publicLegacyVcardPageHandler } from './public-links'
 import {
   getScanAreasHandler,
   getScanCountHandler,
@@ -36,13 +37,17 @@ export const registerUrlsRoutes = (
   app.get('/r/:id/:random', redirectUrlHandler(service, scansService, areaStorage))
   app.get('/adaptive/:id/:random', adaptiveResolveHandler(service, scansService, areaStorage))
   app.get('/public/urls/:id/:random', publicUrlDetailsHandler(service))
+  if (vcardsService) {
+    app.get('/public/pages/v/:slug', publicLegacyVcardPageHandler(service, vcardsService, scansService, areaStorage))
+    app.get('/public/pages/:owner/:slug', publicAliasPageHandler(service, vcardsService, scansService, areaStorage))
+  }
   app.get('/urls/:id/:random/scans/count', getScanCountHandler(scansService, service))
   app.get('/urls/:id/:random/scans', listScansHandler(scansService, service))
   app.get('/scans/summary', getUserScanSummaryHandler(scansService))
   app.get('/scans/trends', getUserScanTrendsHandler(scansService))
   app.get('/scans/areas', getScanAreasHandler(areaStorage!))
   app.get('/scans/counts', getUserScanCountsHandler(scansService))
-  app.get('/urls', listUrlsHandler(service))
+  app.get('/urls', listUrlsHandler(service, vcardsService))
   app.patch('/urls/:id', updateUrlHandler(service))
   app.delete('/urls/:id', deleteUrlHandler(service, scansService, vcardsService))
 }

@@ -1,6 +1,7 @@
 import { Hono } from 'hono'
 
-import { createVcardHandler, deleteVcardHandler, listVcardsHandler, publicVcardHandler } from './handlers'
+import { publicCollectrPreviewHandler } from './collectr'
+import { createVcardHandler, deleteVcardHandler, listVcardsHandler, publicVcardHandler, updateVcardHandler } from './handlers'
 import type { VcardsService } from './service'
 import type { UrlsService } from '../urls/service'
 import type { BillingService } from '../billing/service'
@@ -14,6 +15,8 @@ export const registerVcardsRoutes = (
 ) => {
   app.post('/vcards', createVcardHandler(vcardsService, urlsService, billingService))
   app.get('/vcards', listVcardsHandler(vcardsService))
-  app.get('/public/vcards/:slug', publicVcardHandler(vcardsService))
+  app.patch('/vcards/:id', updateVcardHandler(vcardsService, urlsService))
+  app.get('/public/vcards/:slug', publicVcardHandler(vcardsService, urlsService))
+  app.get('/public/integrations/collectr', publicCollectrPreviewHandler())
   app.delete('/vcards/:id', deleteVcardHandler(vcardsService, urlsService))
 }

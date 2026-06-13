@@ -9,6 +9,7 @@ type UrlResponse = {
   random: string;
   targetUrl: string;
   shortUrl: string;
+  publicUrl?: string | null;
   createdAt: string;
   options?: Record<string, unknown> | null;
   kind?: string | null;
@@ -226,6 +227,7 @@ const toHistoryItem = (entry: UrlResponse): QRHistoryItem => {
     } as QROptions,
     createdAt: entry.createdAt,
     shortUrl: entry.shortUrl,
+    publicUrl: entry.publicUrl ?? null,
     name: entry.name ?? null,
     kind: entry.kind ?? null,
   };
@@ -273,9 +275,28 @@ export async function createVcard(payload: {
   publicUrl: string;
   data: Record<string, unknown>;
   options?: Record<string, unknown> | null;
+  kind?: string | null;
 }): Promise<{ success: boolean; url?: UrlResponse; vcard?: VcardResponse }> {
   const response = await request('/vcards', {
     method: 'POST',
+    body: JSON.stringify(payload),
+  });
+
+  const data = (await response.json()) as { url: UrlResponse; vcard: VcardResponse };
+  return { success: true, url: data.url, vcard: data.vcard };
+}
+
+export async function updateVcard(
+  id: string,
+  payload: {
+    data: Record<string, unknown>;
+    options?: Record<string, unknown> | null;
+    name?: string | null;
+    kind?: string | null;
+  }
+): Promise<{ success: boolean; url?: UrlResponse; vcard?: VcardResponse }> {
+  const response = await request(`/vcards/${id}`, {
+    method: 'PATCH',
     body: JSON.stringify(payload),
   });
 

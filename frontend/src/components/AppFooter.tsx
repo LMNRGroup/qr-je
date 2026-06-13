@@ -9,10 +9,10 @@ const FOOTER_LINKS = [
 
 const COPYRIGHT_YEAR = new Date().getFullYear();
 
-export const AppFooter = forwardRef<HTMLElement>((_, ref) => (
+export const AppFooter = forwardRef<HTMLElement, { className?: string }>(({ className }, ref) => (
   <footer
     ref={ref}
-    className="flex-shrink-0 px-4 py-2 sm:pb-6 sm:pt-8 text-center text-xs text-muted-foreground"
+    className={`flex-shrink-0 px-4 py-2 text-center text-xs text-muted-foreground sm:pb-6 sm:pt-8 ${className ?? ''}`}
   >
     <nav className="flex flex-wrap items-center justify-center gap-3 sm:gap-4" aria-label="Footer">
       {FOOTER_LINKS.map((link, index) => (

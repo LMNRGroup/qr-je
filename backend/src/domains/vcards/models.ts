@@ -14,6 +14,14 @@ export type CreateVcardPayload = {
   publicUrl: string
   data: Record<string, unknown>
   options?: Record<string, unknown> | null
+  kind?: string | null
+}
+
+export type UpdateVcardPayload = {
+  data: Record<string, unknown>
+  options?: Record<string, unknown> | null
+  name?: string | null
+  kind?: string | null
 }
 
 export type CreateVcardInput = CreateVcardPayload & {

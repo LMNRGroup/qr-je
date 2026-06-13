@@ -5,6 +5,10 @@ import { UrlConflictError, UrlNotFoundError, UrlValidationError } from './errors
 import { UrlsService } from './service'
 import type { ScansService } from '../scans/service'
 import type { VcardsService } from '../vcards/service'
+import type { Vcard } from '../vcards/models'
+import { buildUrlResponse } from '../vcards/response'
+import { isVcardKind, normalizeVcardKind } from '../vcards/kind'
+import { buildPublicUrlForUrl, withStoredPublicSlug } from './public-links'
 import { recordAreaScanForUser } from '../scans/areaStore'
 import { lookupGeo } from '../scans/geo'
 import type { AreaStorage } from '../scans/storage/area.interface'
@@ -60,7 +64,18 @@ export const createUrlHandler = (service: UrlsService, billingService: BillingSe
         }
       }
 
-      const url = await service.createUrl({ ...input, userId })
+      const options = withStoredPublicSlug(
+        {
+          id: '',
+          userId,
+          targetUrl: input.targetUrl,
+          name: input.name ?? null,
+          kind: input.kind ?? null,
+          options: input.options ?? null,
+        },
+        userUrls
+      )
+      const url = await service.createUrl({ ...input, userId, options })
 
       return c.json(
         {
@@ -70,6 +85,7 @@ export const createUrlHandler = (service: UrlsService, billingService: BillingSe
           name: url.name ?? null,
           virtualCardId: url.virtualCardId ?? null,
           shortUrl: buildShortUrl(url.id, url.random),
+          publicUrl: buildPublicUrlForUrl(url),
           createdAt: url.createdAt,
           options: url.options ?? null,
           kind: url.kind ?? null
@@ -853,6 +869,7 @@ export const publicUrlDetailsHandler = (service: UrlsService) => {
         targetUrl: url.targetUrl,
         name: url.name ?? null,
         shortUrl: buildShortUrl(url.id, url.random),
+        publicUrl: buildPublicUrlForUrl(url),
         createdAt: url.createdAt,
         options: url.options ?? null,
         kind: url.kind ?? null
@@ -871,7 +888,7 @@ export const publicUrlDetailsHandler = (service: UrlsService) => {
   }
 }
 
-export const listUrlsHandler = (service: UrlsService) => {
+export const listUrlsHandler = (service: UrlsService, vcardsService?: VcardsService) => {
   return async (c: Context<AppBindings>) => {
     const userId = c.get('userId')
 
@@ -881,17 +898,34 @@ export const listUrlsHandler = (service: UrlsService) => {
 
     const summary = c.req.query('summary') === '1' || c.req.query('summary') === 'true'
     const urls = await service.getUrlsForUser(userId, { includeOptions: !summary })
+    const vcardMap = new Map<string, Vcard | null>()
+
+    if (!summary && vcardsService) {
+      const vcardUrls = urls.filter((url) => isVcardKind(url.kind))
+      const vcardEntries = await Promise.all(
+        vcardUrls.map(async (url) => [url.id, await vcardsService.getByShortId(url.id)] as const)
+      )
+      for (const [shortId, vcard] of vcardEntries) {
+        vcardMap.set(shortId, vcard)
+      }
+    }
+
     return c.json(
-      urls.map((url) => ({
-        id: url.id,
-        random: url.random,
-        targetUrl: url.targetUrl,
-        name: url.name ?? null,
-        shortUrl: buildShortUrl(url.id, url.random),
-        createdAt: url.createdAt,
-        options: summary ? null : url.options ?? null,
-        kind: url.kind ?? null
-      }))
+      urls.map((url) =>
+        summary
+          ? {
+              id: url.id,
+              random: url.random,
+              targetUrl: url.targetUrl,
+              name: url.name ?? null,
+              shortUrl: buildShortUrl(url.id, url.random),
+              publicUrl: buildPublicUrlForUrl(url),
+              createdAt: url.createdAt,
+              options: null,
+              kind: isVcardKind(url.kind) ? normalizeVcardKind(url.kind) : url.kind ?? null
+            }
+          : buildUrlResponse(url, vcardMap.get(url.id) ?? null)
+      )
     )
   }
 }
@@ -910,9 +944,30 @@ export const updateUrlHandler = (service: UrlsService) => {
         return c.json({ message: 'id is required' }, 400)
       }
 
+      const existing = await service.getById(id)
+      if (!existing || existing.userId !== userId) {
+        return c.json({ message: 'Short url not found' }, 404)
+      }
+
       const payload = await c.req.json()
       const updates = parseUpdateUrlInput(payload)
-      const url = await service.updateUrl(id, userId, updates)
+      const userUrls = await service.getUrlsForUser(userId)
+      const nextOptions = updates.options === undefined
+        ? existing.options ?? null
+        : updates.options
+      const options = withStoredPublicSlug(
+        {
+          id: existing.id,
+          userId,
+          targetUrl: updates.targetUrl ?? existing.targetUrl,
+          name: updates.name ?? existing.name ?? null,
+          kind: updates.kind ?? existing.kind ?? null,
+          options: nextOptions,
+        },
+        userUrls,
+        existing.id
+      )
+      const url = await service.updateUrl(id, userId, { ...updates, options })
 
       return c.json({
         id: url.id,
@@ -920,6 +975,7 @@ export const updateUrlHandler = (service: UrlsService) => {
         targetUrl: url.targetUrl,
         name: url.name ?? null,
         shortUrl: buildShortUrl(url.id, url.random),
+        publicUrl: buildPublicUrlForUrl(url),
         createdAt: url.createdAt,
         options: url.options ?? null,
         kind: url.kind ?? null
@@ -1048,7 +1104,7 @@ export const deleteUrlHandler = (
     }
 
     // If this is a vCard QR, delete the associated vCard record
-    if (url.kind === 'vcard' && vcardsService) {
+    if (isVcardKind(url.kind) && vcardsService) {
       try {
         const vcard = await vcardsService.getByShortId(id)
         if (vcard) {

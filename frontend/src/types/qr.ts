@@ -38,6 +38,68 @@ export interface AdaptiveConfig {
   timezone?: string;
 }
 
+export type VcardTexture = 'matte' | 'metallic' | 'glossy' | 'paper';
+export type VcardCtaType = 'call' | 'email' | 'whatsapp' | 'website';
+export type VcardProfileAlign = 'left' | 'center' | 'right';
+export type VcardSocialPlatform = 'instagram' | 'facebook' | 'youtube' | 'tiktok';
+
+export interface VcardSocials {
+  instagram?: string;
+  facebook?: string;
+  youtube?: string;
+  tiktok?: string;
+}
+
+export interface VcardProfile {
+  name?: string;
+  title?: string;
+  phone?: string;
+  email?: string;
+  website?: string;
+  location?: string;
+  company?: string;
+  about?: string;
+  slug?: string;
+  collectrUrl?: string;
+  socials?: VcardSocials;
+  favoriteSocial?: VcardSocialPlatform | '';
+  ctaType?: VcardCtaType | '';
+  ctaLabel?: string;
+  ctaValue?: string;
+}
+
+export interface VcardStyle {
+  fontFamily: string;
+  radius: number;
+  texture: VcardTexture;
+  frontColor: string;
+  frontGradient: string;
+  frontUseGradient: boolean;
+  frontFontColor: string;
+  backColor: string;
+  backGradient: string;
+  backUseGradient: boolean;
+  backFontColor: string;
+  frontLogoDataUrl?: string | null;
+  backLogoDataUrl?: string | null;
+  coverPhotoDataUrl?: string | null;
+  profilePhotoDataUrl?: string | null;
+  profileAlign?: VcardProfileAlign;
+  buttonColor?: string;
+  buttonTextColor?: string;
+  coverZoom?: number;
+  coverX?: number;
+  coverY?: number;
+  photoZoom: number;
+  photoX: number;
+  photoY: number;
+}
+
+export interface VcardData {
+  profile?: VcardProfile;
+  style?: VcardStyle;
+}
+
 export interface QROptions {
   content: string;
   size: number;
@@ -78,6 +140,10 @@ export interface QROptions {
     fontFamily: string;
     fontColor: string;
   };
+  vcardId?: string;
+  vcardSlug?: string;
+  vcardPublicUrl?: string;
+  vcardData?: VcardData;
 }
 
 export interface QRHistoryItem {
@@ -87,6 +153,7 @@ export interface QRHistoryItem {
   options: QROptions;
   createdAt: string;
   shortUrl?: string;
+  publicUrl?: string | null;
   name?: string | null;
   kind?: string | null;
   thumbnail?: string;

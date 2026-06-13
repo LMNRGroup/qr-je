@@ -2,6 +2,8 @@
   "name": "backend",
   "scripts": {
     "dev": "bun run --hot src/index.ts",
+    "test": "bun test",
+    "audit:vcards:legacy": "bun run scripts/audit-vcard-legacy-aliases.ts",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate"
   },
