@@ -11,7 +11,7 @@ export type UrlsService = {
   createUrl: (input: CreateUrlInput) => Promise<Url>
   resolveUrl: (input: ResolveUrlInput) => Promise<Url>
   getById: (id: string) => Promise<Url | null>
-  getUrlsForUser: (userId: string) => Promise<Url[]>
+  getUrlsForUser: (userId: string, options?: { includeOptions?: boolean }) => Promise<Url[]>
   getAllUrls: () => Promise<Url[]>
   updateUrl: (id: string, userId: string, updates: UpdateUrlPayload) => Promise<Url>
   deleteUrl: (id: string) => Promise<void>
@@ -61,8 +61,8 @@ export const createUrlsService = (storage: UrlsStorage): UrlsService => {
     return storage.getById(id)
   }
 
-  const getUrlsForUser = async (userId: string) => {
-    return storage.getByUserId(userId)
+  const getUrlsForUser = async (userId: string, options?: { includeOptions?: boolean }) => {
+    return storage.getByUserId(userId, options)
   }
 
   const getAllUrls = async () => {

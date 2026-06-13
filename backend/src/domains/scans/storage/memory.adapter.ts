@@ -27,7 +27,8 @@ export class InMemoryScansStorageAdapter implements ScansStorage {
   }
 
   async deleteByUrlId(urlId: string) {
-    this.records = this.records.filter((scan) => scan.urlId !== urlId)
+    const retained = this.records.filter((scan) => scan.urlId !== urlId)
+    this.records.splice(0, this.records.length, ...retained)
   }
 
   async getTotalForUser(userId: string) {

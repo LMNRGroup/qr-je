@@ -1,19 +1,26 @@
 {
-  "version": "5",
-  "dialect": "pg",
+  "version": "7",
+  "dialect": "postgresql",
   "entries": [
     {
       "idx": 0,
-      "version": "5",
-      "when": 0,
-      "tag": "0000_init",
+      "version": "7",
+      "when": 1779588078020,
+      "tag": "0000_baseline",
       "breakpoints": true
     },
     {
       "idx": 1,
-      "version": "5",
-      "when": 1,
-      "tag": "0001_add_url_fields",
+      "version": "7",
+      "when": 1779632989282,
+      "tag": "0001_fix_prod_drift",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1779651420966,
+      "tag": "0002_add_billing",
       "breakpoints": true
     }
   ]

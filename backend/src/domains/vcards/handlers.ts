@@ -4,13 +4,18 @@ import { buildShortUrl } from '../../config/env'
 import { UrlValidationError } from '../urls/errors'
 import type { AppBindings } from '../../shared/http/types'
 import type { UrlsService } from '../urls/service'
+import type { BillingService } from '../billing/service'
 import { parseCreateVcardInput } from './validators'
 import type { VcardsService } from './service'
 import { Vcard } from './models'
 
 const MAX_SLUG_ATTEMPTS = 20
 
-export const createVcardHandler = (vcardsService: VcardsService, urlsService: UrlsService) => {
+export const createVcardHandler = (
+  vcardsService: VcardsService,
+  urlsService: UrlsService,
+  billingService: BillingService
+) => {
   return async (c: Context<AppBindings>) => {
     try {
       const userId = c.get('userId')
@@ -23,6 +28,20 @@ export const createVcardHandler = (vcardsService: VcardsService, urlsService: Ur
 
       const baseSlug = input.slug ?? `${userId}-vcard`
       const slug = await findAvailableSlug(vcardsService, userId, baseSlug)
+      const [userUrls, entitlements] = await Promise.all([
+        urlsService.getUrlsForUser(userId),
+        billingService.getEntitlements(userId)
+      ])
+
+      if (
+        entitlements.dynamicQrCodeLimit !== null &&
+        userUrls.length >= entitlements.dynamicQrCodeLimit
+      ) {
+        return c.json({
+          message: `Your ${entitlements.plan} plan supports ${entitlements.dynamicQrCodeLimit} dynamic QR code${entitlements.dynamicQrCodeLimit === 1 ? '' : 's'}. Upgrade to create more.`,
+          code: 'DYNAMIC_QR_LIMIT_REACHED'
+        }, 402)
+      }
 
       const url = await urlsService.createUrl({
         userId,

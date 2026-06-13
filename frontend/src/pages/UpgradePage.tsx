@@ -1,7 +1,22 @@
 import { Button } from '@/components/ui/button';
 import { NavPageLayout } from '@/components/NavPageLayout';
+import { useAuth } from '@/contexts/AuthContext';
+import {
+  createBillingCheckout,
+  createBillingPortalSession,
+  getBillingStatus,
+  type BillingPlan,
+  type BillingStatus,
+  type PaidBillingPlan,
+} from '@/lib/api';
 import { motion } from 'framer-motion';
-import { User, Users, Info } from 'lucide-react';
+import { Loader2, User, Users, Info } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
+
+// Billing is hidden in production for now; flips on automatically in dev builds.
+const BILLING_ENABLED = import.meta.env.DEV;
 
 interface UpgradePageProps {
   isMobileV2: boolean;
@@ -18,6 +33,132 @@ export function UpgradePage({
   setSelectedPlanComparison,
   adaptiveGradientText,
 }: UpgradePageProps) {
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const [billingStatus, setBillingStatus] = useState<BillingStatus | null>(null);
+  const [billingLoading, setBillingLoading] = useState(false);
+  const [billingAction, setBillingAction] = useState<PaidBillingPlan | 'portal' | null>(null);
+  const currentPlan = billingStatus?.plan ?? 'free';
+
+  useEffect(() => {
+    if (!BILLING_ENABLED) {
+      return;
+    }
+
+    if (!user) {
+      setBillingStatus(null);
+      setBillingLoading(false);
+      return;
+    }
+
+    let mounted = true;
+    setBillingLoading(true);
+    getBillingStatus()
+      .then((status) => {
+        if (mounted) {
+          setBillingStatus(status);
+        }
+      })
+      .catch((error) => {
+        if (mounted) {
+          toast.error(error instanceof Error ? error.message : 'Billing status could not be loaded.');
+        }
+      })
+      .finally(() => {
+        if (mounted) {
+          setBillingLoading(false);
+        }
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, [user]);
+
+  const beginCheckout = async (plan: PaidBillingPlan) => {
+    if (!user) {
+      navigate('/login');
+      return;
+    }
+
+    setBillingAction(plan);
+    try {
+      const { url } = await createBillingCheckout(plan);
+      window.location.assign(url);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Checkout could not be started.');
+      setBillingAction(null);
+    }
+  };
+
+  const openBillingPortal = async () => {
+    setBillingAction('portal');
+    try {
+      const { url } = await createBillingPortalSession();
+      window.location.assign(url);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Billing portal could not be opened.');
+      setBillingAction(null);
+    }
+  };
+
+  const lockedClasses = BILLING_ENABLED ? '' : ' blur-sm pointer-events-none select-none';
+
+  const billingPanel = BILLING_ENABLED ? (
+    <div className="glass-panel rounded-2xl border border-border/60 p-4 sm:p-5 space-y-3">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Current plan</p>
+          <p className="text-base font-semibold text-foreground">
+            {billingLoading ? 'Loading billing status' : getPlanLabel(currentPlan)}
+          </p>
+        </div>
+        {billingStatus?.subscriptionStatus && (
+          <div className="text-xs uppercase tracking-[0.25em] text-muted-foreground">
+            Subscription status: <span className="text-foreground">{billingStatus.subscriptionStatus}</span>
+          </div>
+        )}
+      </div>
+      <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+        <Button
+          type="button"
+          disabled={billingAction !== null || currentPlan !== 'free'}
+          onClick={() => beginCheckout('pro')}
+          className="uppercase tracking-[0.2em] text-xs"
+        >
+          {billingAction === 'pro' && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+          {user ? (currentPlan === 'pro' ? 'Pro active' : 'Choose Pro') : 'Log in for Pro'}
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          disabled={billingAction !== null || currentPlan !== 'free'}
+          onClick={() => beginCheckout('command')}
+          className="uppercase tracking-[0.2em] text-xs"
+        >
+          {billingAction === 'command' && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+          {user ? (currentPlan === 'command' ? 'Command active' : 'Choose Command') : 'Log in for Command'}
+        </Button>
+        {billingStatus?.canManageBilling && (
+          <Button
+            type="button"
+            variant="secondary"
+            disabled={billingAction !== null}
+            onClick={openBillingPortal}
+            className="uppercase tracking-[0.2em] text-xs"
+          >
+            {billingAction === 'portal' && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+            Manage billing
+          </Button>
+        )}
+      </div>
+    </div>
+  ) : (
+    <div className={isMobileV2 ? 'text-center text-xs text-muted-foreground' : 'text-center text-sm text-muted-foreground'}>
+      Current plan: <span className="text-foreground font-semibold">FREE FOREVER PLAN</span>
+    </div>
+  );
+
   return (
     <NavPageLayout
       sectionLabel="Upgrade"
@@ -27,10 +168,8 @@ export function UpgradePage({
     >
       {isMobileV2 ? (
         <div className="flex flex-col min-h-0 space-y-3">
-          <div className="text-center text-xs text-muted-foreground">
-            Current plan: <span className="text-foreground font-semibold">FREE FOREVER PLAN</span>
-          </div>
-          <div className="relative blur-sm pointer-events-none select-none">
+          {billingPanel}
+          <div className={`relative${lockedClasses}`}>
             <div className="grid gap-4">
               <div className="glass-panel rounded-2xl p-4 space-y-4 border border-border/60">
                 <div className="space-y-1">
@@ -128,11 +267,9 @@ export function UpgradePage({
             <p className="text-sm text-muted-foreground">Pricing comparison for every team size.</p>
           </div>
 
-          <div className="text-center text-sm text-muted-foreground">
-            Current plan: <span className="text-foreground font-semibold">FREE FOREVER PLAN</span>
-          </div>
+          {billingPanel}
 
-          <div className="relative blur-sm pointer-events-none select-none">
+          <div className={`relative${lockedClasses}`}>
             <div className="grid gap-6 lg:grid-cols-3">
               <div className="glass-panel rounded-2xl p-6 space-y-5 border border-border/60 transition-transform duration-200 hover:scale-[1.02] hover:border-amber-300/60 hover:shadow-[0_0_25px_rgba(251,191,36,0.15)]">
                 <div className="space-y-2">
@@ -252,7 +389,7 @@ export function UpgradePage({
             </div>
           </div>
 
-          <div className="glass-panel rounded-2xl p-6 overflow-x-auto blur-sm pointer-events-none select-none">
+          <div className={`glass-panel rounded-2xl p-6 overflow-x-auto${lockedClasses}`}>
             <table className="w-full text-sm text-muted-foreground">
               <thead>
                 <tr className="text-left border-b border-border/60">
@@ -298,7 +435,7 @@ export function UpgradePage({
                 initial={{ opacity: 0, scale: 0.9, rotateY: 12 }}
                 animate={{ opacity: 1, scale: 1, rotateY: 0 }}
                 transition={{ duration: 0.35, ease: 'easeOut' }}
-                className="glass-panel rounded-3xl p-6 sm:p-8 w-full max-w-3xl space-y-5 blur-sm pointer-events-none select-none"
+                className={`glass-panel rounded-3xl p-6 sm:p-8 w-full max-w-3xl space-y-5${lockedClasses}`}
                 onClick={(event) => event.stopPropagation()}
               >
                 <div className="flex items-center justify-between">
@@ -366,3 +503,11 @@ export function UpgradePage({
     </NavPageLayout>
   );
 }
+
+const PLAN_LABELS: Record<BillingPlan, string> = {
+  free: 'Free Forever',
+  pro: 'Pro',
+  command: 'Command',
+};
+
+const getPlanLabel = (plan: BillingPlan) => PLAN_LABELS[plan];
