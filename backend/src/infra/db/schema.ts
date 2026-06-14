@@ -1,4 +1,4 @@
-import { boolean, doublePrecision, index, integer, jsonb, pgTable, primaryKey, text, timestamp } from 'drizzle-orm/pg-core'
+import { boolean, doublePrecision, index, integer, jsonb, pgTable, primaryKey, text, timestamp, uniqueIndex } from 'drizzle-orm/pg-core'
 
 export const users = pgTable('users', {
   id: text('id').primaryKey(),
@@ -31,8 +31,28 @@ export const urls = pgTable(
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow()
   },
   (table) => ({
-    pk: primaryKey({ columns: [table.id, table.random] }),
+    pk: primaryKey({ name: 'urls_pkey', columns: [table.id, table.random] }),
     userIdIdx: index('urls_user_id_idx').on(table.userId)
+  })
+)
+
+export const vcards = pgTable(
+  'vcards',
+  {
+    id: text('id').primaryKey(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    slug: text('slug').notNull(),
+    publicUrl: text('public_url').notNull(),
+    shortId: text('short_id').notNull(),
+    shortRandom: text('short_random').notNull(),
+    data: jsonb('data').$type<Record<string, unknown>>().notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow()
+  },
+  (table) => ({
+    userIdIdx: index('vcards_user_id_idx').on(table.userId),
+    userSlugIdx: uniqueIndex('vcards_user_slug_idx').on(table.userId, table.slug)
   })
 )
 
