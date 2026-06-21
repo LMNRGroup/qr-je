@@ -15,7 +15,10 @@ The Next.js app runs on [http://localhost:8081](http://localhost:8081). The
 existing Vite app keeps its original port.
 
 The backend should run on port `3000` for local API, redirect, adaptive QR, and
-public-data requests. Set `API_PROXY_ORIGIN` to use a different backend origin.
+public-data requests. Set `API_PROXY_ORIGIN` to point `next dev` at a different
+backend origin. This only affects `next dev` — **production proxying is
+configured in `vercel.json`** (not via env vars), so there is nothing to set for
+prod.
 
 ## Validation
 
