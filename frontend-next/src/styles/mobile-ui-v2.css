@@ -1,0 +1,278 @@
+@media (max-width: 768px) {
+  html[data-mobile-ui="v2"] {
+    --qrc-v2-header-h: 70px;
+    --qrc-v2-main-gap: 24px;
+    --qrc-footer-h: 80px;
+  }
+
+  html[data-mobile-ui="v2"] body {
+    min-height: auto;
+    overflow-x: hidden;
+  }
+
+  html[data-mobile-ui="v2"] #root,
+  html[data-mobile-ui="v2"] [data-app-shell] {
+    min-height: auto;
+  }
+
+  html[data-mobile-ui="v2"] .qrc-v2-main {
+    padding-left: 12px;
+    padding-right: 12px;
+    gap: 12px;
+    overflow-x: hidden;
+  }
+
+  html[data-mobile-ui="v2"] .qrc-v2-section {
+    margin-top: 8px;
+  }
+  
+  /* Reduce spacing in sections for mobile V2 */
+  html[data-mobile-ui="v2"] .qrc-v2-section.space-y-6 {
+    gap: 8px;
+  }
+
+  html[data-mobile-ui="v2"] .qrc-v2-card {
+    padding: 12px;
+    border-radius: 16px;
+  }
+
+  html[data-mobile-ui="v2"] .qrc-no-scroll-x {
+    overflow-x: hidden;
+  }
+
+  html[data-mobile-ui="v2"] .qrc-arsenal-scroll {
+    max-height: calc(100dvh - var(--qrc-v2-header-h) - var(--qrc-footer-h) - var(--qrc-v2-main-gap));
+    height: calc(100dvh - var(--qrc-v2-header-h) - var(--qrc-footer-h) - var(--qrc-v2-main-gap));
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  
+  /* Generic scrollable container for all nav pages */
+  /* Height calculation: 100dvh - header (~70px) - footer (~80px) - main padding/gaps (~24px) */
+  html[data-mobile-ui="v2"] .qrc-v2-scroll-container {
+    max-height: calc(100dvh - var(--qrc-v2-header-h) - var(--qrc-footer-h) - var(--qrc-v2-main-gap));
+    height: calc(100dvh - var(--qrc-v2-header-h) - var(--qrc-footer-h) - var(--qrc-v2-main-gap));
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  
+  html[data-mobile-ui="v2"] .qrc-v2-scroll-container [data-radix-scroll-area-viewport] {
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+    flex: 1;
+    min-height: 0;
+    max-height: 100%;
+    height: 100%;
+  }
+
+  /* Scroll content padding to prevent footer overlap */
+  /* Footer height (~80px) + safe-area-inset-bottom */
+  html[data-mobile-ui="v2"] .qrc-v2-scroll-content {
+    padding-bottom: calc(var(--qrc-footer-h) + env(safe-area-inset-bottom, 0px));
+    min-height: 100%;
+  }
+
+  html[data-mobile-ui="v2"] .qrc-arsenal-scroll [data-radix-scroll-area-viewport] {
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+    flex: 1;
+    min-height: 0;
+    max-height: 100%;
+    height: 100%;
+  }
+
+  html[data-mobile-ui="v2"] .qrc-arsenal-list {
+    overflow-x: hidden;
+    min-width: 0;
+  }
+
+  html[data-mobile-ui="v2"] .qrc-arsenal-list > * {
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  html[data-mobile-ui="v2"] .qrc-v2-drawer {
+    max-height: calc(100dvh - env(safe-area-inset-top) - 72px);
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  html[data-mobile-ui="v2"] .qrc-v2-drawer-header {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background: hsl(var(--card) / 0.95);
+    backdrop-filter: blur(8px);
+  }
+
+  html[data-mobile-ui="v2"] .qrc-v2-drawer-body {
+    flex: 1;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  html[data-mobile-ui="v2"] [data-mobile-step] {
+    display: none;
+  }
+
+  html[data-mobile-ui="v2"] [data-mobile-step-current="1"] [data-mobile-step="1"],
+  html[data-mobile-ui="v2"] [data-mobile-step-current="2"] [data-mobile-step="2"],
+  html[data-mobile-ui="v2"] [data-mobile-step-current="3"] [data-mobile-step="3"],
+  html[data-mobile-ui="v2"] [data-mobile-step-current="4"] [data-mobile-step="4"] {
+    display: block;
+  }
+
+  /* Handwritten letter card for Friends & Family stage */
+  html[data-mobile-ui="v2"] .qrc-letter-card {
+    background: #fffaf0;
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.05);
+    transform: rotate(-0.5deg);
+    max-height: calc(100dvh - 200px);
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+    display: flex;
+    flex-direction: column;
+  }
+
+  html[data-mobile-ui="v2"] .qrc-letter-content {
+    flex: 1;
+    color: #2a2a2a;
+    line-height: 1.7;
+  }
+
+  html[data-mobile-ui="v2"] .qrc-letter-title {
+    font-size: 18px;
+    font-weight: 600;
+    margin: 0 0 16px 0;
+    color: #1a1a1a;
+    letter-spacing: 0.3px;
+  }
+
+  html[data-mobile-ui="v2"] .qrc-letter-body {
+    font-size: 14px;
+    white-space: pre-line;
+    margin: 0;
+    color: #2a2a2a;
+  }
+
+  html[data-mobile-ui="v2"] .qrc-letter-footer {
+    margin-top: 24px;
+    padding-top: 16px;
+    border-top: 1px solid rgba(0, 0, 0, 0.08);
+  }
+
+  html[data-mobile-ui="v2"] .qrc-letter-signature {
+    font-size: 14px;
+    font-weight: 500;
+    color: #1a1a1a;
+    margin: 0;
+    line-height: 1.3;
+  }
+
+  /* Ensure stage overlay is scrollable on mobile */
+  html[data-mobile-ui="v2"] .glass-panel {
+    max-height: calc(100dvh - 32px);
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Step 4 QR Customization - make content scrollable, not the panel itself */
+  html[data-mobile-ui="v2"] .qrc-v2-customize-panel {
+    overflow: hidden;
+  }
+
+  html[data-mobile-ui="v2"] .qrc-v2-customize-panel > div.flex-1 {
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Only apply sticky background to drawer headers, not all glass-panel first children */
+  html[data-mobile-ui="v2"] .qrc-v2-drawer .glass-panel > div:first-child {
+    position: sticky;
+    top: 0;
+    background: hsl(var(--card) / 0.95);
+    backdrop-filter: blur(8px);
+    z-index: 1;
+    padding-bottom: 8px;
+    margin-bottom: 8px;
+  }
+
+  /* Config page - single page with scrollable content */
+  html[data-mobile-ui="v2"] .qrc-config-section {
+    display: flex;
+    flex-direction: column;
+    height: calc(100dvh - 140px);
+    max-height: calc(100dvh - 140px);
+    overflow: hidden;
+  }
+  
+  /* Consistent header block for nav pages */
+  /* Header height: section label (~20px) + title (~28px) + spacing (~22px) = ~70px */
+  html[data-mobile-ui="v2"] .qrc-v2-section > div:first-child {
+    margin-bottom: 0 !important;
+    padding-bottom: 8px !important;
+    min-height: 70px;
+  }
+
+  /* Ensure no horizontal scrolling anywhere */
+  html[data-mobile-ui="v2"] .qrc-v2-section,
+  html[data-mobile-ui="v2"] .qrc-v2-scroll-content {
+    overflow-x: hidden;
+    max-width: 100%;
+  }
+
+  /* Wrap long URLs and text to prevent horizontal overflow */
+  html[data-mobile-ui="v2"] .qrc-v2-scroll-content * {
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    max-width: 100%;
+  }
+  
+  /* Reduce glass panel padding on mobile V2 */
+  html[data-mobile-ui="v2"] .qrc-v2-section .glass-panel {
+    padding: 12px !important;
+  }
+
+  html[data-mobile-ui="v2"] .qrc-config-panel {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    max-height: 100%;
+    position: relative;
+  }
+
+  html[data-mobile-ui="v2"] .qrc-config-content {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+    padding-right: 4px;
+    margin-right: -4px;
+    padding-bottom: 80px; /* Space for floating save button */
+    background-color: transparent !important; /* Match container color - invisible */
+  }
+
+  html[data-mobile-ui="v2"] .qrc-config-content::-webkit-scrollbar {
+    width: 4px;
+  }
+
+  html[data-mobile-ui="v2"] .qrc-config-content::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  html[data-mobile-ui="v2"] .qrc-config-content::-webkit-scrollbar-thumb {
+    background: hsl(var(--border));
+    border-radius: 2px;
+  }
+}

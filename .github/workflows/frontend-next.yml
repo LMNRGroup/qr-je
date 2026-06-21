@@ -1,0 +1,33 @@
+name: frontend-next
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'frontend-next/**'
+      - '.github/workflows/frontend-next.yml'
+  pull_request:
+    paths:
+      - 'frontend-next/**'
+      - '.github/workflows/frontend-next.yml'
+
+defaults:
+  run:
+    working-directory: frontend-next
+
+jobs:
+  # Lint + typecheck only. Vercel owns build, the static export, and the
+  # per-PR preview deploy, so we don't duplicate the build/smoke here — this
+  # job just covers the checks Vercel doesn't run.
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: frontend-next/.nvmrc
+          cache: npm
+          cache-dependency-path: frontend-next/package-lock.json
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run lint

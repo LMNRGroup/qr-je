@@ -1,0 +1,15 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "rewrites": [
+    { "source": "/r/:id/:random", "destination": "https://api.luminarapps.com/r/:id/:random" },
+    { "source": "/adaptive/:id/:random", "destination": "https://api.luminarapps.com/adaptive/:id/:random" },
+    { "source": "/public/:path*", "destination": "https://api.luminarapps.com/public/:path*" },
+    { "source": "/file/:id/:random", "destination": "/file" },
+    { "source": "/menu/:id/:random", "destination": "/menu" },
+    { "source": "/v/:slug", "destination": "https://api.luminarapps.com/public/pages/v/:slug" },
+    {
+      "source": "/:owner((?!v$|menu$|file$|r$|adaptive$|public$|assets$|api$|_next$|inspector$|login$|forgot-password$|reset-password$|terms$|privacy$|support$|data-deletion$|faq$)[^/]+)/:slug",
+      "destination": "https://api.luminarapps.com/public/pages/:owner/:slug"
+    }
+  ]
+}
