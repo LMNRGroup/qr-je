@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { useParams, usePathname } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 
 import { VcardLandingCard } from '@/components/VcardLandingCard';
 import { getPublicVcard } from '@/lib/api';
@@ -40,6 +40,36 @@ const getViewportMetrics = (): ViewportMetrics => {
 };
 
 const normalizeText = (value?: string | null) => value?.trim() ?? '';
+
+const decodePathSegment = (value?: string) => {
+  if (!value) return '';
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return value;
+  }
+};
+
+const normalizePathname = (value?: string | null) => {
+  const normalized = `/${(value ?? '').split('/').filter(Boolean).join('/')}`;
+  return normalized === '/' ? '/' : normalized.replace(/\/+$/, '');
+};
+
+function resolveVcardSlugFromPathname(pathname?: string | null) {
+  const normalizedPathname = normalizePathname(pathname);
+  if (normalizedPathname === COLLECTR_OWNER_ALIAS_PATH) {
+    return COLLECTR_OWNER_ALIAS_SLUG;
+  }
+
+  const [firstSegment, secondSegment] = normalizedPathname.split('/').filter(Boolean);
+  if (firstSegment === 'v') {
+    return decodePathSegment(secondSegment);
+  }
+
+  // Owner vanity URLs keep the public owner in the first segment and the vCard
+  // slug in the second segment: /:owner/:slug.
+  return decodePathSegment(secondSegment);
+}
 
 const getFirstName = (value?: string | null) => {
   const normalized = normalizeText(value);
@@ -109,10 +139,10 @@ const fallbackStyle: VcardStyle = {
 };
 
 const VCard = () => {
-  const { slug } = useParams<{ slug: string }>();
   const pathname = usePathname();
-  const resolvedSlug =
-    pathname === COLLECTR_OWNER_ALIAS_PATH ? COLLECTR_OWNER_ALIAS_SLUG : slug;
+  const resolvedSlug = resolveVcardSlugFromPathname(
+    typeof window !== 'undefined' ? window.location.pathname : pathname
+  );
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [profile, setProfile] = useState<VcardProfile | null>(null);

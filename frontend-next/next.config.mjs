@@ -26,6 +26,9 @@ const publicEnv = Object.fromEntries(
 // a local placeholder and every auth/data call fails at runtime instead.
 function validatePublicEnv() {
   const missing = [];
+  if (!publicEnv.NEXT_PUBLIC_API_BASE_URL) {
+    missing.push('NEXT_PUBLIC_API_BASE_URL');
+  }
   if (!publicEnv.NEXT_PUBLIC_SUPABASE_URL) {
     missing.push('NEXT_PUBLIC_SUPABASE_URL');
   }
@@ -39,8 +42,8 @@ function validatePublicEnv() {
   if (missing.length === 0) return;
 
   const message =
-    `[env] Missing required Supabase configuration: ${missing.join(', ')}.\n` +
-    '      Auth and data features will not work. See README "Migration architecture".';
+    `[env] Missing required public configuration: ${missing.join(', ')}.\n` +
+    '      API, auth, and data features will not work. See README "Migration architecture".';
 
   // Treat a misconfigured production build/start as fatal; warn in development
   // so local work without a backend is still possible.
@@ -69,11 +72,13 @@ async function devRewrites() {
     { source: '/r/:id/:random', destination: `${apiOrigin}/r/:id/:random` },
     { source: '/adaptive/:id/:random', destination: `${apiOrigin}/adaptive/:id/:random` },
     { source: '/public/:path*', destination: `${apiOrigin}/public/:path*` },
-    { source: '/v/:slug', destination: `${apiOrigin}/public/pages/v/:slug` },
+    // Public vCards ship as a client-rendered static shell that fetches vCard
+    // data from the API. Keep the browser URL stable and serve the shell.
+    { source: '/v/:slug', destination: '/vcard' },
     {
       source:
-        '/:owner((?!v$|menu$|file$|r$|adaptive$|public$|assets$|api$|_next$|inspector$|login$|forgot-password$|reset-password$|terms$|privacy$|support$|data-deletion$|faq$)[^/]+)/:slug',
-      destination: `${apiOrigin}/public/pages/:owner/:slug`,
+        '/:owner((?!v$|vcard$|menu$|file$|r$|adaptive$|public$|assets$|api$|_next$|inspector$|login$|forgot-password$|reset-password$|terms$|privacy$|support$|data-deletion$|faq$)[^/]+)/:slug',
+      destination: '/vcard',
     },
     // Map the real viewer URLs onto their single static shells (mirrors vercel.json).
     { source: '/file/:id/:random', destination: '/file' },
