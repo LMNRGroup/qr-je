@@ -29,7 +29,7 @@ import {
 import { toast } from 'sonner';
 import type { AdaptiveConfig, AdaptiveRule, AdaptiveSlot, QRHistoryItem, QROptions } from '@/types/qr';
 import type { User } from '@supabase/supabase-js';
-import type { UserProfile } from '@/lib/api';
+import { buildAssetProxyUrl, type UserProfile } from '@/lib/api';
 import { defaultQROptions } from '@/types/qr';
 
 interface AdaptiveContent {
@@ -250,7 +250,7 @@ export const AdaptiveQRCWizard = ({
       
       const { error, data: uploadData } = await supabase.storage
         .from(QR_ASSETS_BUCKET)
-        .upload(filePath, payload, { upsert: true, contentType: file.type });
+        .upload(filePath, payload, { upsert: true, contentType: file.type, cacheControl: '31536000' });
       
       if (error) {
         throw new Error(error.message || 'Failed to upload file.');
@@ -258,11 +258,7 @@ export const AdaptiveQRCWizard = ({
       
       addStorageUsage(compressedSize);
       
-      const { data } = supabase.storage.from(QR_ASSETS_BUCKET).getPublicUrl(filePath);
-      if (!data?.publicUrl) {
-        throw new Error('Failed to get public URL for uploaded file.');
-      }
-      return { url: data.publicUrl, size: compressedSize };
+      return { url: buildAssetProxyUrl(filePath), size: compressedSize };
     } catch (error) {
       if (error instanceof Error) {
         throw error;

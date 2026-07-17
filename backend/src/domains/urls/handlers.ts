@@ -13,6 +13,7 @@ import { recordAreaScanForUser } from '../scans/areaStore'
 import { lookupGeo } from '../scans/geo'
 import type { AreaStorage } from '../scans/storage/area.interface'
 import { parseCreateUrlInput, parseResolveParams, parseUpdateUrlInput } from './validators'
+import { extractStoragePath, rewriteAssetUrl, rewriteOptionsAssetUrls } from '../../shared/assets/url'
 import type { AppBindings } from '../../shared/http/types'
 
 export const createUrlHandler = (service: UrlsService) => {
@@ -67,13 +68,13 @@ export const createUrlHandler = (service: UrlsService) => {
         {
           id: url.id,
           random: url.random,
-          targetUrl: url.targetUrl,
+          targetUrl: rewriteAssetUrl(url.targetUrl),
           name: url.name ?? null,
           virtualCardId: url.virtualCardId ?? null,
           shortUrl: buildShortUrl(url.id, url.random),
           publicUrl: buildPublicUrlForUrl(url),
           createdAt: url.createdAt,
-          options: url.options ?? null,
+          options: rewriteOptionsAssetUrls(url.options ?? null),
           kind: url.kind ?? null
         },
         201
@@ -321,7 +322,7 @@ export const redirectUrlHandler = (service: UrlsService, scansService?: ScansSer
       ]).catch(() => {}) // Ignore all analytics errors
 
       // ✅ IMMEDIATE REDIRECT - Don't wait for analytics
-      return c.redirect(url.targetUrl, 302)
+      return c.redirect(rewriteAssetUrl(url.targetUrl), 302)
     } catch (error) {
       if (error instanceof UrlValidationError) {
         return c.json({ message: error.message }, 400)
@@ -779,7 +780,7 @@ export const adaptiveResolveHandler = (service: UrlsService, scansService?: Scan
       }
       
       const adaptiveTarget = resolveAdaptiveTarget(options, ip, isReturning)
-      const destination = adaptiveTarget ?? url.targetUrl
+      const destination = rewriteAssetUrl(adaptiveTarget ?? url.targetUrl)
       const responseMs = Math.round(getNowMs() - startedAt)
 
       // ✅ FIRE-AND-FORGET: Don't block redirect for analytics
@@ -852,12 +853,12 @@ export const publicUrlDetailsHandler = (service: UrlsService) => {
       return c.json({
         id: url.id,
         random: url.random,
-        targetUrl: url.targetUrl,
+        targetUrl: rewriteAssetUrl(url.targetUrl),
         name: url.name ?? null,
         shortUrl: buildShortUrl(url.id, url.random),
         publicUrl: buildPublicUrlForUrl(url),
         createdAt: url.createdAt,
-        options: url.options ?? null,
+        options: rewriteOptionsAssetUrls(url.options ?? null),
         kind: url.kind ?? null
       })
     } catch (error) {
@@ -958,12 +959,12 @@ export const updateUrlHandler = (service: UrlsService) => {
       return c.json({
         id: url.id,
         random: url.random,
-        targetUrl: url.targetUrl,
+        targetUrl: rewriteAssetUrl(url.targetUrl),
         name: url.name ?? null,
         shortUrl: buildShortUrl(url.id, url.random),
         publicUrl: buildPublicUrlForUrl(url),
         createdAt: url.createdAt,
-        options: url.options ?? null,
+        options: rewriteOptionsAssetUrls(url.options ?? null),
         kind: url.kind ?? null
       })
     } catch (error) {
@@ -1019,13 +1020,13 @@ const deleteStorageFiles = async (options: Record<string, unknown> | null | unde
   // Delete files from Supabase storage
   for (const fileUrl of filesToDelete) {
     try {
-      // Extract path from Supabase public URL
-      // Format: https://{project}.supabase.co/storage/v1/object/public/qr-assets/{path}
-      const urlMatch = fileUrl.match(/\/storage\/v1\/object\/public\/qr-assets\/(.+)$/)
-      if (!urlMatch) continue
-
-      const filePath = urlMatch[1]
-      const storageUrl = `${SUPABASE_PROJECT_URL}/storage/v1/object/qr-assets/${filePath}`
+      // Accepts both legacy Supabase public URLs and proxy URLs:
+      // https://{project}.supabase.co/storage/v1/object/public/qr-assets/{path}
+      // {appBaseUrl}/public/assets/{path}
+      const filePath = extractStoragePath(fileUrl)
+      if (!filePath) continue
+      const encodedPath = filePath.split('/').map(encodeURIComponent).join('/')
+      const storageUrl = `${SUPABASE_PROJECT_URL}/storage/v1/object/qr-assets/${encodedPath}`
 
       const response = await fetch(storageUrl, {
         method: 'DELETE',

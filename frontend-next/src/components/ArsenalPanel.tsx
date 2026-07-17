@@ -145,31 +145,38 @@ const calculateQRStorageSize = (item: QRHistoryItem): number => {
 
 // Delete file from Supabase storage
 const deleteFileFromStorage = async (fileUrl: string) => {
-  if (!fileUrl || (!fileUrl.includes('/storage/v1/object/public/') && !fileUrl.includes('/storage/v1/object/sign/'))) return;
+  const isProxyUrl = fileUrl?.includes('/public/assets/');
+  const isSupabaseUrl = fileUrl?.includes('/storage/v1/object/public/') || fileUrl?.includes('/storage/v1/object/sign/');
+  if (!fileUrl || (!isProxyUrl && !isSupabaseUrl)) return;
   
   try {
-    // Extract file path from public URL
-    // URL format: https://[project].supabase.co/storage/v1/object/public/qr-assets/files/[filename]
-    // Or signed URL format: https://[project].supabase.co/storage/v1/object/sign/qr-assets/files/[filename]?...
-    let urlParts: string[];
-    if (fileUrl.includes('/storage/v1/object/public/')) {
-      urlParts = fileUrl.split('/storage/v1/object/public/');
+    // URL formats:
+    // - Proxy:  {apiBase}/public/assets/files/[filename]
+    // - Public: https://[project].supabase.co/storage/v1/object/public/qr-assets/files/[filename]
+    // - Signed: https://[project].supabase.co/storage/v1/object/sign/qr-assets/files/[filename]?...
+    let bucket = 'qr-assets';
+    let filePath: string;
+    
+    if (isProxyUrl) {
+      const pathOnly = fileUrl.split('/public/assets/')[1]?.split('?')[0] ?? '';
+      filePath = decodeURIComponent(pathOnly);
     } else {
-      urlParts = fileUrl.split('/storage/v1/object/sign/');
+      const urlParts = fileUrl.includes('/storage/v1/object/public/')
+        ? fileUrl.split('/storage/v1/object/public/')
+        : fileUrl.split('/storage/v1/object/sign/');
+      if (urlParts.length < 2) return;
+      
+      const pathOnly = urlParts[1].split('?')[0];
+      const pathParts = pathOnly.split('/');
+      if (pathParts.length < 3) return; // Should be: bucket/folder/filename
+      
+      bucket = pathParts[0];
+      const folder = pathParts[1];
+      const filename = pathParts.slice(2).join('/');
+      filePath = `${folder}/${filename}`;
     }
     
-    if (urlParts.length < 2) return;
-    
-    // Remove query params if present
-    const pathWithQuery = urlParts[1];
-    const pathOnly = pathWithQuery.split('?')[0];
-    const pathParts = pathOnly.split('/');
-    if (pathParts.length < 3) return; // Should be: bucket/folder/filename
-    
-    const bucket = pathParts[0];
-    const folder = pathParts[1];
-    const filename = pathParts.slice(2).join('/');
-    const filePath = `${folder}/${filename}`;
+    if (!filePath) return;
     
     const { error } = await supabase.storage.from(bucket).remove([filePath]);
     
