@@ -44,9 +44,11 @@ Routing notes:
   served by single static shells (`src/app/file`, `src/app/menu`). The real
   `id`/`random` are read from the URL on the client (`src/lib/spa-route.ts`);
   Vercel rewrites the full URL onto the shell.
-- Public **vCard** pages (`/v/:slug`, `/:owner/:slug`) and the scan/redirect
-  flow (`/r/...`, `/adaptive/...`, `/public/...`) are proxied to the backend HTML
-  renderer and scan-tracking flow.
+- Public **vCard** pages (`/v/:slug`, `/:owner/:slug`) are served by a single
+  static shell (`src/app/vcard`) that reads the visible URL on the client and
+  fetches vCard data from the backend API.
+- The scan/redirect flow (`/r/...`, `/adaptive/...`, `/public/...`) is proxied
+  to the backend scan-tracking and asset flow.
 - Production proxying lives in `vercel.json` (edge rewrites — no function
   compute). Static export ignores `next.config.mjs` rewrites, so an equivalent
   set is defined there for `next dev` only, to mirror production locally.

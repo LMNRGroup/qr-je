@@ -27,9 +27,8 @@ const MIME = {
 };
 
 // Routes that ship as static files. The viewer shells (/file, /menu) are now
-// static too; the real `/file/:id/:random` URLs and the public vcard pages are
-// proxied to the backend in production (see vercel.json), so they're not tested
-// here.
+// static too; the real `/file/:id/:random`, `/menu/:id/:random`, `/v/:slug`,
+// and `/:owner/:slug` URLs are deployment rewrites onto static shells.
 const checks = [
   { path: '/', expect: 200 },
   { path: '/login', expect: 200 },
@@ -42,13 +41,70 @@ const checks = [
   { path: '/reset-password', expect: 200 },
   { path: '/file', expect: 200 },
   { path: '/menu', expect: 200 },
+  { path: '/file/demo-id/demo-random', expect: 200 },
+  { path: '/menu/demo-id/demo-random', expect: 200 },
+  { path: '/v/demo-vcard', expect: 200 },
+  { path: '/demo-owner/demo-vcard', expect: 200 },
+  { path: '/1vbilcikwj/ramn-figueroa-soto', expect: 200 },
   { path: '/this-route-should-not-exist', expect: 404 },
 ];
+
+const RESERVED_OWNER_SEGMENTS = new Set([
+  'v',
+  'vcard',
+  'menu',
+  'file',
+  'r',
+  'adaptive',
+  'public',
+  'assets',
+  'api',
+  '_next',
+  'inspector',
+  'login',
+  'forgot-password',
+  'reset-password',
+  'terms',
+  'privacy',
+  'support',
+  'data-deletion',
+  'faq',
+]);
+
+function applyDeploymentRewrite(urlPath) {
+  const clean = normalize(decodeURIComponent(urlPath.split('?')[0].split('#')[0]));
+  const segments = clean.split('/').filter(Boolean);
+
+  if (
+    segments.length === 3 &&
+    (segments[0] === 'file' || segments[0] === 'menu') &&
+    segments[1] &&
+    segments[2]
+  ) {
+    return `/${segments[0]}`;
+  }
+
+  if (segments.length === 2 && segments[0] === 'v' && segments[1]) {
+    return '/vcard';
+  }
+
+  if (
+    segments.length === 2 &&
+    segments[0] &&
+    segments[1] &&
+    !RESERVED_OWNER_SEGMENTS.has(segments[0])
+  ) {
+    return '/vcard';
+  }
+
+  return urlPath;
+}
 
 // Resolve a request path to a file in `out/`, mirroring static hosting:
 // `/login` -> `login.html`, `/` -> `index.html`, `/_next/x.js` -> `_next/x.js`.
 async function resolveFile(urlPath) {
-  const clean = normalize(decodeURIComponent(urlPath.split('?')[0].split('#')[0]));
+  const rewrittenPath = applyDeploymentRewrite(urlPath);
+  const clean = normalize(decodeURIComponent(rewrittenPath.split('?')[0].split('#')[0]));
   if (clean.includes('..')) return null;
   const base = clean === '/' ? '/index.html' : clean;
   const candidates = extname(base) !== '' ? [base] : [`${base}.html`, `${base}/index.html`];
