@@ -1,4 +1,5 @@
 import { buildShortUrl } from '../../config/env'
+import { rewriteAssetUrl, rewriteOptionsAssetUrls } from '../../shared/assets/url'
 import { Url } from '../urls/models'
 import { buildPublicUrlForUrl, buildVcardPublicUrl } from '../urls/public-links'
 import { Vcard } from './models'
@@ -24,11 +25,11 @@ export const decorateVcardOptions = (
 export const buildUrlResponse = (url: Url, vcard?: Vcard | null) => ({
   id: url.id,
   random: url.random,
-  targetUrl: url.targetUrl,
+  targetUrl: rewriteAssetUrl(url.targetUrl),
   name: url.name ?? null,
   shortUrl: buildShortUrl(url.id, url.random),
   publicUrl: vcard ? buildVcardPublicUrl(vcard) : buildPublicUrlForUrl(url),
   createdAt: url.createdAt,
-  options: decorateVcardOptions(url.options ?? null, vcard),
+  options: rewriteOptionsAssetUrls(decorateVcardOptions(url.options ?? null, vcard)),
   kind: isVcardKind(url.kind) ? normalizeVcardKind(url.kind) : url.kind ?? null
 })

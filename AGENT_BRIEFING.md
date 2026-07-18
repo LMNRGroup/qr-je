@@ -316,10 +316,10 @@ npm run dev
 
 See `SUPABASE_STORAGE_SETUP.md` for complete instructions. Key points:
 
-1. **Bucket:** `qr-assets` (must be public for SELECT, authenticated for INSERT/DELETE)
+1. **Bucket:** `qr-assets` (PRIVATE - public access OFF; authenticated for INSERT/DELETE)
 2. **RLS Policies Required:**
    - INSERT: Authenticated users only, folder structure: `files/`, `menus/`, `logos/`
-   - SELECT: Public (anon role) - QR codes need to be readable by anyone
+   - SELECT: None - files are served via the backend proxy `GET /public/assets/{path}` using the service role key
    - DELETE: Authenticated users only
 
 3. **Storage Limits:**

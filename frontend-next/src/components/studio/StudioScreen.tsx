@@ -46,6 +46,7 @@ import {
   updateUserProfile,
   type ScanAreaSummary,
   type UserProfile,
+  buildAssetProxyUrl,
 } from '@/lib/api';
 import {
   canEditCollectrForVcard,
@@ -2908,7 +2909,7 @@ const Index = () => {
       
       const { error, data: uploadData } = await supabase.storage
         .from(QR_ASSETS_BUCKET)
-        .upload(filePath, payload, { upsert: true, contentType: file.type });
+        .upload(filePath, payload, { upsert: false, contentType: file.type, cacheControl: '31536000' });
       
       if (error) {
         // Provide detailed error messages
@@ -2931,11 +2932,7 @@ const Index = () => {
       // Track storage usage (compressed size)
       addStorageUsage(compressedSize);
       
-      const { data } = supabase.storage.from(QR_ASSETS_BUCKET).getPublicUrl(filePath);
-      if (!data?.publicUrl) {
-        throw new Error('Failed to get public URL for uploaded file.');
-      }
-      return { url: data.publicUrl, size: compressedSize };
+      return { url: buildAssetProxyUrl(filePath), size: compressedSize };
     } catch (error) {
       // Re-throw with context if it's already an Error, otherwise wrap it
       if (error instanceof Error) {
@@ -3327,20 +3324,32 @@ const Index = () => {
   };
 
   const deleteStorageAsset = useCallback(async (fileUrl?: string) => {
-    if (!fileUrl || (!fileUrl.includes('/storage/v1/object/public/') && !fileUrl.includes('/storage/v1/object/sign/'))) {
+    const isProxyUrl = fileUrl?.includes('/public/assets/');
+    const isSupabaseUrl = fileUrl?.includes('/storage/v1/object/public/') || fileUrl?.includes('/storage/v1/object/sign/');
+    if (!fileUrl || (!isProxyUrl && !isSupabaseUrl)) {
       return;
     }
 
     try {
-      const separator = fileUrl.includes('/storage/v1/object/public/')
-        ? '/storage/v1/object/public/'
-        : '/storage/v1/object/sign/';
-      const [, pathWithQuery = ''] = fileUrl.split(separator);
-      const pathOnly = pathWithQuery.split('?')[0];
-      const pathParts = pathOnly.split('/');
-      if (pathParts.length < 3) return;
-      const bucket = pathParts[0];
-      const filePath = pathParts.slice(1).join('/');
+      let bucket = 'qr-assets';
+      let filePath: string;
+
+      if (isProxyUrl) {
+        const pathOnly = fileUrl.split('/public/assets/')[1]?.split('?')[0] ?? '';
+        filePath = decodeURIComponent(pathOnly);
+      } else {
+        const separator = fileUrl.includes('/storage/v1/object/public/')
+          ? '/storage/v1/object/public/'
+          : '/storage/v1/object/sign/';
+        const [, pathWithQuery = ''] = fileUrl.split(separator);
+        const pathOnly = pathWithQuery.split('?')[0];
+        const pathParts = pathOnly.split('/');
+        if (pathParts.length < 3) return;
+        bucket = pathParts[0];
+        filePath = pathParts.slice(1).join('/');
+      }
+
+      if (!filePath) return;
       const { error } = await supabase.storage.from(bucket).remove([filePath]);
       if (error) {
         console.warn('Failed to delete storage asset:', error);

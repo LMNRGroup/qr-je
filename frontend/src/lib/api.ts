@@ -49,6 +49,13 @@ const requireBaseUrl = () => {
   return API_BASE_URL.replace(/\/+$/, '');
 };
 
+// Files uploaded to Supabase storage are served through the backend proxy so
+// the bucket can stay private and responses carry long-lived cache headers.
+export const buildAssetProxyUrl = (filePath: string): string => {
+  const baseUrl = requireBaseUrl();
+  return `${baseUrl}/public/assets/${filePath.split('/').map(encodeURIComponent).join('/')}`;
+};
+
 const readStoredSession = (): { access_token: string; refresh_token: string } | null => {
   if (typeof window === 'undefined') {
     return null;

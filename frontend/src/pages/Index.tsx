@@ -44,6 +44,7 @@ import {
   updateUserProfile,
   type ScanAreaSummary,
   type UserProfile,
+  buildAssetProxyUrl,
 } from '@/lib/api';
 import {
   canEditCollectrForVcard,
@@ -2903,7 +2904,7 @@ const Index = () => {
       
       const { error, data: uploadData } = await supabase.storage
         .from(QR_ASSETS_BUCKET)
-        .upload(filePath, payload, { upsert: true, contentType: file.type });
+        .upload(filePath, payload, { upsert: false, contentType: file.type, cacheControl: '31536000' });
       
       if (error) {
         // Provide detailed error messages
@@ -2926,11 +2927,7 @@ const Index = () => {
       // Track storage usage (compressed size)
       addStorageUsage(compressedSize);
       
-      const { data } = supabase.storage.from(QR_ASSETS_BUCKET).getPublicUrl(filePath);
-      if (!data?.publicUrl) {
-        throw new Error('Failed to get public URL for uploaded file.');
-      }
-      return { url: data.publicUrl, size: compressedSize };
+      return { url: buildAssetProxyUrl(filePath), size: compressedSize };
     } catch (error) {
       // Re-throw with context if it's already an Error, otherwise wrap it
       if (error instanceof Error) {

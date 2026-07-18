@@ -10,6 +10,7 @@ import { createVcardsService } from './domains/vcards/service'
 import { createScansService } from './domains/scans/service'
 import { getScansStorage, getUrlsStorage, getUsersStorage, getVcardsStorage, getAreaStorage } from './infra/storage/factory'
 import { createAuthMiddleware } from './shared/http/auth'
+import { assetProxyHandler } from './shared/assets/handlers'
 import type { AppBindings } from './shared/http/types'
 
 const app = new Hono<AppBindings>()
@@ -32,6 +33,7 @@ const authMiddleware = createAuthMiddleware({
 app.use('*', authMiddleware)
 
 app.get('/health', (c) => c.json({ message: 'Healthy!' }))
+app.get('/public/assets/*', assetProxyHandler())
 app.get('/debug/auth', (c) => {
   const auth = c.req.header('Authorization') ?? ''
   return c.json({
