@@ -56,6 +56,14 @@ const buildSignedUrl = async (projectUrl: string, serviceRoleKey: string, path: 
   return signedPath.startsWith('http') ? signedPath : `${projectUrl}${signedPath}`
 }
 
+const cancelResponseBody = async (response: Response) => {
+  try {
+    await response.body?.cancel()
+  } catch (error) {
+    console.warn('[assets] Failed to cancel upstream response body', error)
+  }
+}
+
 export const assetProxyHandler = () => {
   return async (c: Context<AppBindings>) => {
     const rawPath = c.req.path.replace(/^\/public\/assets\//, '')
@@ -97,10 +105,12 @@ export const assetProxyHandler = () => {
     }
 
     if (upstream.status === 404 || upstream.status === 400) {
+      await cancelResponseBody(upstream)
       return c.json({ message: 'Asset not found' }, 404)
     }
 
     if (!upstream.ok) {
+      await cancelResponseBody(upstream)
       console.error(`[assets] Upstream error for ${path}: ${upstream.status}`)
       return c.json({ message: 'Asset storage unavailable' }, 502)
     }
@@ -125,6 +135,7 @@ export const assetProxyHandler = () => {
     // private; the URL expires quickly and the redirect itself is barely cached.
     if (contentLength > SIGNED_URL_THRESHOLD_BYTES) {
       try {
+        await cancelResponseBody(upstream)
         const signedUrl = await buildSignedUrl(projectUrl, serviceRoleKey, path)
         return new Response(null, {
           status: 302,

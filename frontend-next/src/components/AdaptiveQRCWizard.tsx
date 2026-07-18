@@ -250,7 +250,7 @@ export const AdaptiveQRCWizard = ({
       
       const { error, data: uploadData } = await supabase.storage
         .from(QR_ASSETS_BUCKET)
-        .upload(filePath, payload, { upsert: true, contentType: file.type, cacheControl: '31536000' });
+        .upload(filePath, payload, { upsert: false, contentType: file.type, cacheControl: '31536000' });
       
       if (error) {
         throw new Error(error.message || 'Failed to upload file.');

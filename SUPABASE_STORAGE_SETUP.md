@@ -34,22 +34,33 @@ You need to create RLS policies in Supabase Dashboard > Storage > Policies for t
 )
 ```
 
-#### 2. Allow Authenticated Users to Delete (DELETE)
-**Policy Name:** `Allow authenticated deletes`
+#### 2. Allow Owners to Read Their Storage Metadata (SELECT)
+**Policy Name:** `Allow owners to select their assets`
+**Operation:** SELECT (check this checkbox only)
+**Target Roles:** Select "authenticated"
+**Policy Definition:**
+```sql
+(
+  (bucket_id = 'qr-assets'::text) AND
+  (owner_id = (select auth.uid()::text))
+)
+```
+
+This owner-scoped policy does **not** make the bucket public. It is required by the browser-side Storage API when an authenticated owner deletes an asset. Public reads still go through the backend proxy.
+
+#### 3. Allow Owners to Delete Their Assets (DELETE)
+**Policy Name:** `Allow owners to delete their assets`
 **Operation:** DELETE (check this checkbox only)
 **Target Roles:** Select "authenticated" (IMPORTANT: Do NOT leave as "defaults to all public roles" - this would allow anyone to delete!)
 **Policy Definition:**
 ```sql
 (
   (bucket_id = 'qr-assets'::text) AND
-  (auth.role() = 'authenticated'::text)
+  (owner_id = (select auth.uid()::text))
 )
 ```
 
-#### 3. SELECT Policy: NOT NEEDED (and not recommended)
-No SELECT policy is required. Reads are performed by the backend with the service role key, which bypasses RLS. Do **not** add a public/anon SELECT policy — that would re-expose every file to the internet.
-
-If you previously created an "Allow authenticated reads" SELECT policy, you can keep or remove it; it is unused either way.
+No UPDATE policy is required. Upload paths use random UUID filenames and uploads set `upsert: false`, so existing objects are never overwritten.
 
 ## Quick Setup Steps
 
@@ -58,7 +69,7 @@ If you previously created an "Allow authenticated reads" SELECT policy, you can 
 3. Navigate to Storage > Policies
 4. Select the `qr-assets` bucket
 5. Click "New Policy"
-6. For each policy above (INSERT, DELETE):
+6. For each policy above (INSERT, SELECT, DELETE):
    - Choose the operation
    - Use "Custom policy" option
    - Paste the SQL from above
@@ -67,8 +78,8 @@ If you previously created an "Allow authenticated reads" SELECT policy, you can 
 ## Notes
 
 - **CRITICAL:** Always select "authenticated" as the target role. Leaving it as "defaults to all public roles" would allow anyone (even unauthenticated users) to access your storage!
-- These policies allow any authenticated user to upload/delete files
-- For production, you may want to add user-specific path restrictions (e.g., `qr-assets/menus/{userId}/...`)
+- Authenticated users can upload to the allowed folders, but can only select/delete objects they own
+- Public/anonymous users cannot read objects directly from Supabase Storage; public asset delivery goes through the backend proxy
 - **Storage Cleanup:** When a user deletes a QR code, all associated files (menu files, logos, file QRCs, vCard photos) are automatically deleted from Supabase storage to free up space. Cleanup handles both proxy URLs and legacy Supabase public URLs.
 - **Upload caching:** Uploads set `cacheControl: '31536000'` because filenames are random UUIDs (a new upload = a new URL), so objects are safe to cache immutably.
 
