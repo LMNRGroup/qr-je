@@ -185,4 +185,45 @@ describe('public vcard compatibility routes', () => {
     await flushAsyncWork()
     expect(await testApp.scansService.getScanCount(payload.id, payload.random)).toBe(1)
   })
+
+  test('adaptive redirects remain active after more than 500 scans', async () => {
+    const createResponse = await testApp.app.request('/urls', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        targetUrl: 'https://example.com/adaptive-destination',
+        kind: 'adaptive',
+        name: 'Unlimited Adaptive',
+        options: { adaptive: {} },
+      }),
+    })
+
+    expect(createResponse.status).toBe(201)
+
+    const payload = (await createResponse.json()) as {
+      id: string
+      random: string
+    }
+
+    await Promise.all(
+      Array.from({ length: 500 }, () =>
+        testApp.scansService.recordScan({
+          urlId: payload.id,
+          urlRandom: payload.random,
+          userId: USER_ID,
+        })
+      )
+    )
+
+    const redirectResponse = await testApp.app.request(
+      `/adaptive/${payload.id}/${payload.random}`,
+      { redirect: 'manual' }
+    )
+
+    expect(redirectResponse.status).toBe(307)
+    expect(redirectResponse.headers.get('location')).toBe('https://example.com/adaptive-destination')
+
+    await flushAsyncWork()
+    expect(await testApp.scansService.getScanCount(payload.id, payload.random)).toBe(501)
+  })
 })
