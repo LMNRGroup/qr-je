@@ -158,10 +158,9 @@ export function AdaptivePage({
                     <div className="flex items-start gap-3">
                       <Info className="h-4 w-4 text-amber-400 mt-0.5 flex-shrink-0" />
                       <div className="space-y-1.5 flex-1 min-w-0">
-                        <p className="text-xs font-semibold bg-gradient-to-r from-amber-400 via-amber-300 to-amber-400 bg-clip-text text-transparent">Monthly Scan Limit</p>
+                        <p className="text-xs font-semibold bg-gradient-to-r from-amber-400 via-amber-300 to-amber-400 bg-clip-text text-transparent">Unlimited Scans</p>
                         <p className="text-xs text-muted-foreground leading-relaxed">
-                          Your Adaptive QRC™ has a limit of <span className="font-semibold bg-gradient-to-r from-amber-400 via-amber-300 to-amber-400 bg-clip-text text-transparent">500 scans per month</span>. 
-                          Upgrade to Pro or Command for unlimited scans.
+                          Your Adaptive QRC™ stays active with unlimited scans on every plan.
                         </p>
                       </div>
                     </div>
@@ -187,7 +186,7 @@ export function AdaptivePage({
                         </h3>
                         <p className="text-xs text-muted-foreground mb-4 leading-relaxed">
                           Build a premium QR code that routes content based on time, day, or visitor count. 
-                          One Adaptive QRC™ per account with 500 scans per month.
+                          One Adaptive QRC™ per account with unlimited scans.
                         </p>
                       </div>
                       {!user ? (
@@ -252,7 +251,7 @@ export function AdaptivePage({
                         <p className="text-xs font-semibold bg-gradient-to-r from-amber-400 via-amber-300 to-amber-400 bg-clip-text text-transparent">Limits & Restrictions</p>
                         <ul className="text-xs text-muted-foreground space-y-1 leading-relaxed">
                           <li>• One Adaptive QRC™ per account</li>
-                          <li>• 500 scans per month limit (upgrade for unlimited)</li>
+                          <li>• Unlimited scans</li>
                           <li>• Choose either Time rules OR Visit rules (not both)</li>
                         </ul>
                       </div>
@@ -349,10 +348,9 @@ export function AdaptivePage({
                 <div className="flex items-start gap-4">
                   <Info className="h-5 w-5 text-amber-400 mt-0.5 flex-shrink-0" />
                   <div className="space-y-2">
-                    <p className="text-sm font-semibold text-amber-200">Monthly Scan Limit</p>
+                    <p className="text-sm font-semibold text-amber-200">Unlimited Scans</p>
                     <p className="text-sm text-amber-200/70">
-                      Your Adaptive QRC™ has a limit of <span className="font-semibold text-amber-300">500 scans per month</span>. 
-                      Upgrade to Pro or Command for unlimited scans.
+                      Your Adaptive QRC™ stays active with unlimited scans on every plan.
                     </p>
                   </div>
                 </div>
@@ -378,7 +376,7 @@ export function AdaptivePage({
                     </h3>
                     <p className="text-muted-foreground mb-6">
                       Build a premium QR code that routes content based on time, day, or visitor count. 
-                      One Adaptive QRC™ per account with 500 scans per month.
+                      One Adaptive QRC™ per account with unlimited scans.
                     </p>
                   </div>
                   {!user ? (
@@ -442,7 +440,7 @@ export function AdaptivePage({
                     <p className="text-sm font-semibold text-amber-200">Limits & Restrictions</p>
                     <ul className="text-sm text-amber-200/70 space-y-1">
                       <li>• One Adaptive QRC™ per account</li>
-                      <li>• 500 scans per month limit (upgrade for unlimited)</li>
+                      <li>• Unlimited scans</li>
                       <li>• Choose either Time rules OR Visit rules (not both)</li>
                     </ul>
                   </div>
