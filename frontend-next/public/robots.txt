@@ -1,0 +1,8 @@
+# robots.txt for QR Code Studio
+# Allow all search engine crawlers
+
+User-agent: *
+Allow: /
+
+# Sitemap location
+Sitemap: https://qrcode.luminarapps.com/sitemap.xml

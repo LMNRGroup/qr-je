@@ -5,16 +5,21 @@ import { registerUrlsRoutes } from './domains/urls/routes'
 import { createUrlsService } from './domains/urls/service'
 import { createUsersService } from './domains/users/service'
 import { registerUsersRoutes } from './domains/users/routes'
-import { createBillingService } from './domains/billing/service'
+import { createBillingService, isBillingFeatureEnabled } from './domains/billing/service'
 import { registerBillingRoutes } from './domains/billing/routes'
 import { registerVcardsRoutes } from './domains/vcards/routes'
 import { createVcardsService } from './domains/vcards/service'
 import { createScansService } from './domains/scans/service'
 import { getScansStorage, getUrlsStorage, getUsersStorage, getVcardsStorage, getAreaStorage, getBillingStorage } from './infra/storage/factory'
 import { createAuthMiddleware } from './shared/http/auth'
+import { assetProxyHandler } from './shared/assets/handlers'
 import type { AppBindings } from './shared/http/types'
 
 const app = new Hono<AppBindings>()
+
+if (isBillingFeatureEnabled() && !process.env.SUPABASE_DB_URL) {
+  throw new Error('SUPABASE_DB_URL is required when BILLING_ENABLED=true')
+}
 
 app.use(
   '*',
@@ -34,6 +39,7 @@ const authMiddleware = createAuthMiddleware({
 app.use('*', authMiddleware)
 
 app.get('/health', (c) => c.json({ message: 'Healthy!' }))
+app.get('/public/assets/*', assetProxyHandler())
 app.get('/debug/auth', (c) => {
   const auth = c.req.header('Authorization') ?? ''
   return c.json({

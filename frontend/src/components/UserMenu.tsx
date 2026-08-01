@@ -347,8 +347,8 @@ export function UserMenu({ trigger, onSignOut }: { trigger?: React.ReactNode; on
             <AlertDialogCancel className="w-full sm:w-auto border-border uppercase tracking-[0.2em] text-xs">
               Cancel
             </AlertDialogCancel>
-            <AlertDialogAction 
-              onClick={handleSignOut} 
+            <AlertDialogAction
+              onClick={handleSignOut}
               className="w-full sm:w-auto bg-destructive text-destructive-foreground hover:bg-destructive/90 uppercase tracking-[0.2em] text-xs"
             >
               Sign Out

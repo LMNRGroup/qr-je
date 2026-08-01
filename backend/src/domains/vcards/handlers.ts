@@ -1,6 +1,6 @@
 import type { Context } from 'hono'
 
-import { UrlValidationError } from '../urls/errors'
+import { UrlQuotaExceededError, UrlValidationError } from '../urls/errors'
 import type { AppBindings } from '../../shared/http/types'
 import type { UrlsService } from '../urls/service'
 import type { BillingService } from '../billing/service'
@@ -29,20 +29,7 @@ export const createVcardHandler = (
 
       const baseSlug = input.slug ?? `${userId}-vcard`
       const slug = await findAvailableSlug(vcardsService, userId, baseSlug)
-      const [userUrls, entitlements] = await Promise.all([
-        urlsService.getUrlsForUser(userId),
-        billingService.getEntitlements(userId)
-      ])
-
-      if (
-        entitlements.dynamicQrCodeLimit !== null &&
-        userUrls.length >= entitlements.dynamicQrCodeLimit
-      ) {
-        return c.json({
-          message: `Your ${entitlements.plan} plan supports ${entitlements.dynamicQrCodeLimit} dynamic QR code${entitlements.dynamicQrCodeLimit === 1 ? '' : 's'}. Upgrade to create more.`,
-          code: 'DYNAMIC_QR_LIMIT_REACHED'
-        }, 402)
-      }
+      const entitlements = await billingService.getEntitlements(userId)
 
       const publicUrl = buildVcardPublicUrl({ userId, slug })
       const urlOptions = withStoredVcardAliases(
@@ -62,7 +49,7 @@ export const createVcardHandler = (
         targetUrl: publicUrl,
         options: urlOptions,
         kind: input.kind
-      })
+      }, entitlements)
 
       const vcard: Vcard = {
         id: crypto.randomUUID(),
@@ -91,6 +78,12 @@ export const createVcardHandler = (
       if (error instanceof UrlValidationError) {
         return c.json({ message: error.message }, 400)
       }
+      if (error instanceof UrlQuotaExceededError) {
+        return c.json({
+          message: 'Your current plan has reached its dynamic QR code limit. Modify an existing code or upgrade.',
+          code: error.code
+        }, 402)
+      }
       const message = error instanceof Error ? error.message : 'Failed to create vcard'
       console.error('[vcards] create failed', message)
       return c.json({ message: 'Failed to create vcard', reason: message }, 500)
@@ -98,7 +91,11 @@ export const createVcardHandler = (
   }
 }
 
-export const updateVcardHandler = (vcardsService: VcardsService, urlsService: UrlsService) => {
+export const updateVcardHandler = (
+  vcardsService: VcardsService,
+  urlsService: UrlsService,
+  billingService: BillingService
+) => {
   return async (c: Context<AppBindings>) => {
     try {
       const userId = c.get('userId')
@@ -141,11 +138,12 @@ export const updateVcardHandler = (vcardsService: VcardsService, urlsService: Ur
           },
           record.slug
         )
+        const entitlements = await billingService.getEntitlements(userId)
         url = await urlsService.updateUrl(record.shortId, userId, {
           name: input.name,
           options: nextOptions,
           kind: input.kind
-        })
+        }, entitlements)
       }
 
       return c.json({
@@ -155,6 +153,13 @@ export const updateVcardHandler = (vcardsService: VcardsService, urlsService: Ur
     } catch (error) {
       if (error instanceof UrlValidationError) {
         return c.json({ message: error.message }, 400)
+      }
+
+      if (error instanceof UrlQuotaExceededError) {
+        return c.json({
+          message: 'Your current plan has reached its QR code limit. Modify an existing code or upgrade.',
+          code: error.code
+        }, 402)
       }
 
       const message = error instanceof Error ? error.message : 'Failed to update vcard'

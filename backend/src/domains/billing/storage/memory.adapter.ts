@@ -24,10 +24,16 @@ export class InMemoryBillingStorageAdapter implements BillingStorage {
     const record: BillingRecord = {
       userId: input.userId,
       stripeCustomerId: input.stripeCustomerId,
-      stripeSubscriptionId: input.stripeSubscriptionId ?? existing?.stripeSubscriptionId ?? null,
+      stripeSubscriptionId: input.stripeSubscriptionId === undefined
+        ? existing?.stripeSubscriptionId ?? null
+        : input.stripeSubscriptionId,
       billingPlan: input.billingPlan ?? existing?.billingPlan ?? 'free',
-      billingStatus: input.billingStatus ?? existing?.billingStatus ?? null,
-      billingPriceId: input.billingPriceId ?? existing?.billingPriceId ?? null,
+      billingStatus: input.billingStatus === undefined
+        ? existing?.billingStatus ?? null
+        : input.billingStatus,
+      billingPriceId: input.billingPriceId === undefined
+        ? existing?.billingPriceId ?? null
+        : input.billingPriceId,
       createdAt: existing?.createdAt ?? now,
       updatedAt: now
     }

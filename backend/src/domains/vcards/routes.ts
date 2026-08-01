@@ -15,7 +15,7 @@ export const registerVcardsRoutes = (
 ) => {
   app.post('/vcards', createVcardHandler(vcardsService, urlsService, billingService))
   app.get('/vcards', listVcardsHandler(vcardsService))
-  app.patch('/vcards/:id', updateVcardHandler(vcardsService, urlsService))
+  app.patch('/vcards/:id', updateVcardHandler(vcardsService, urlsService, billingService))
   app.get('/public/vcards/:slug', publicVcardHandler(vcardsService, urlsService))
   app.get('/public/integrations/collectr', publicCollectrPreviewHandler())
   app.delete('/vcards/:id', deleteVcardHandler(vcardsService, urlsService))

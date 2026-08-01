@@ -1,7 +1,7 @@
 import type { Context } from 'hono'
 
 import { buildShortUrl } from '../../config/env'
-import { UrlConflictError, UrlNotFoundError, UrlValidationError } from './errors'
+import { UrlConflictError, UrlNotFoundError, UrlQuotaExceededError, UrlValidationError } from './errors'
 import { UrlsService } from './service'
 import type { ScansService } from '../scans/service'
 import type { VcardsService } from '../vcards/service'
@@ -13,6 +13,7 @@ import { recordAreaScanForUser } from '../scans/areaStore'
 import { lookupGeo } from '../scans/geo'
 import type { AreaStorage } from '../scans/storage/area.interface'
 import { parseCreateUrlInput, parseResolveParams, parseUpdateUrlInput } from './validators'
+import { extractStoragePath, rewriteAssetUrl, rewriteOptionsAssetUrls } from '../../shared/assets/url'
 import type { AppBindings } from '../../shared/http/types'
 import type { BillingService } from '../billing/service'
 
@@ -27,42 +28,10 @@ export const createUrlHandler = (service: UrlsService, billingService: BillingSe
         return c.json({ message: 'Unauthorized' }, 401)
       }
 
-      // Check if user is trying to create an Adaptive QRC
-      const isAdaptiveQRC = input.kind === 'adaptive' || 
-                            (input.options && typeof input.options === 'object' && 
-                             'adaptive' in input.options && input.options.adaptive !== null)
-
       const [userUrls, entitlements] = await Promise.all([
         service.getUrlsForUser(userId),
         billingService.getEntitlements(userId)
       ])
-
-      if (
-        entitlements.dynamicQrCodeLimit !== null &&
-        userUrls.length >= entitlements.dynamicQrCodeLimit
-      ) {
-        return c.json({
-          message: `Your ${entitlements.plan} plan supports ${entitlements.dynamicQrCodeLimit} dynamic QR code${entitlements.dynamicQrCodeLimit === 1 ? '' : 's'}. Upgrade to create more.`,
-          code: 'DYNAMIC_QR_LIMIT_REACHED'
-        }, 402)
-      }
-
-      if (isAdaptiveQRC) {
-        const adaptiveQrCodeCount = userUrls.filter((url) => {
-          if (url.kind === 'adaptive') return true
-          if (url.options && typeof url.options === 'object' && 'adaptive' in url.options) {
-            return url.options.adaptive !== null && url.options.adaptive !== undefined
-          }
-          return false
-        }).length
-
-        if (adaptiveQrCodeCount >= entitlements.adaptiveQrCodeLimit) {
-          return c.json({ 
-            message: `Your ${entitlements.plan} plan supports ${entitlements.adaptiveQrCodeLimit} Adaptive QRC${entitlements.adaptiveQrCodeLimit === 1 ? '' : 's'}. Modify an existing one or upgrade.`,
-            code: 'ADAPTIVE_QR_LIMIT_REACHED'
-          }, 402)
-        }
-      }
 
       const options = withStoredPublicSlug(
         {
@@ -75,19 +44,19 @@ export const createUrlHandler = (service: UrlsService, billingService: BillingSe
         },
         userUrls
       )
-      const url = await service.createUrl({ ...input, userId, options })
+      const url = await service.createUrl({ ...input, userId, options }, entitlements)
 
       return c.json(
         {
           id: url.id,
           random: url.random,
-          targetUrl: url.targetUrl,
+          targetUrl: rewriteAssetUrl(url.targetUrl),
           name: url.name ?? null,
           virtualCardId: url.virtualCardId ?? null,
           shortUrl: buildShortUrl(url.id, url.random),
           publicUrl: buildPublicUrlForUrl(url),
           createdAt: url.createdAt,
-          options: url.options ?? null,
+          options: rewriteOptionsAssetUrls(url.options ?? null),
           kind: url.kind ?? null
         },
         201
@@ -99,6 +68,10 @@ export const createUrlHandler = (service: UrlsService, billingService: BillingSe
 
       if (error instanceof UrlConflictError) {
         return c.json({ message: error.message }, 409)
+      }
+
+      if (error instanceof UrlQuotaExceededError) {
+        return quotaExceededResponse(c, error)
       }
 
       throw error
@@ -335,7 +308,7 @@ export const redirectUrlHandler = (service: UrlsService, scansService?: ScansSer
       ]).catch(() => {}) // Ignore all analytics errors
 
       // ✅ IMMEDIATE REDIRECT - Don't wait for analytics
-      return c.redirect(url.targetUrl, 302)
+      return c.redirect(rewriteAssetUrl(url.targetUrl), 302)
     } catch (error) {
       if (error instanceof UrlValidationError) {
         return c.json({ message: error.message }, 400)
@@ -604,154 +577,6 @@ const buildAdaptiveInfoPage = (url: any, options: AdaptiveOptions, currentTarget
 </html>`
 }
 
-const buildAdaptiveLimitReachedPage = (url: any, scansUsed: number, limit: number) => {
-  const qrName = url.name || 'Adaptive QRC™'
-
-  return `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>${qrName} - Scan Limit Reached</title>
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-      min-height: 100vh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 24px;
-      color: #f8fafc;
-      background:
-        radial-gradient(circle at top left, rgba(251, 191, 36, 0.22), transparent 34%),
-        radial-gradient(circle at bottom right, rgba(120, 53, 15, 0.36), transparent 30%),
-        linear-gradient(135deg, #070a0f 0%, #111827 48%, #070a0f 100%);
-    }
-    .card {
-      width: 100%;
-      max-width: 560px;
-      padding: 34px;
-      border-radius: 28px;
-      border: 1px solid rgba(251, 191, 36, 0.28);
-      background: rgba(15, 23, 42, 0.86);
-      box-shadow: 0 28px 90px rgba(0, 0, 0, 0.55), 0 0 40px rgba(251, 191, 36, 0.12);
-      backdrop-filter: blur(18px);
-      text-align: center;
-    }
-    .badge {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      width: 68px;
-      height: 68px;
-      margin-bottom: 22px;
-      border-radius: 22px;
-      border: 1px solid rgba(251, 191, 36, 0.38);
-      background: linear-gradient(135deg, rgba(251, 191, 36, 0.18), rgba(180, 83, 9, 0.14));
-      color: #fbbf24;
-      font-size: 34px;
-      font-weight: 800;
-    }
-    .eyebrow {
-      margin-bottom: 10px;
-      color: rgba(252, 211, 77, 0.86);
-      font-size: 11px;
-      font-weight: 700;
-      letter-spacing: 0.34em;
-      text-transform: uppercase;
-    }
-    h1 {
-      margin-bottom: 14px;
-      font-size: clamp(30px, 7vw, 44px);
-      line-height: 1;
-      letter-spacing: -0.05em;
-      background: linear-gradient(135deg, #fde68a 0%, #fbbf24 48%, #d97706 100%);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
-    }
-    .message {
-      margin: 0 auto 24px;
-      max-width: 420px;
-      color: rgba(226, 232, 240, 0.78);
-      font-size: 16px;
-      line-height: 1.6;
-    }
-    .meter {
-      margin: 26px 0;
-      padding: 16px;
-      border-radius: 18px;
-      border: 1px solid rgba(251, 191, 36, 0.2);
-      background: rgba(2, 6, 23, 0.48);
-      text-align: left;
-    }
-    .meter-row {
-      display: flex;
-      justify-content: space-between;
-      gap: 16px;
-      margin-bottom: 10px;
-      color: rgba(226, 232, 240, 0.72);
-      font-size: 13px;
-      font-weight: 700;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-    }
-    .bar {
-      height: 10px;
-      overflow: hidden;
-      border-radius: 999px;
-      background: rgba(148, 163, 184, 0.22);
-    }
-    .fill {
-      width: 100%;
-      height: 100%;
-      border-radius: inherit;
-      background: linear-gradient(90deg, #f59e0b, #fbbf24, #fde68a);
-      box-shadow: 0 0 22px rgba(251, 191, 36, 0.42);
-    }
-    .owner-note {
-      margin-top: 22px;
-      padding-top: 22px;
-      border-top: 1px solid rgba(251, 191, 36, 0.18);
-      color: rgba(226, 232, 240, 0.64);
-      font-size: 13px;
-      line-height: 1.55;
-    }
-    .brand {
-      margin-top: 18px;
-      color: rgba(252, 211, 77, 0.64);
-      font-size: 11px;
-      font-weight: 700;
-      letter-spacing: 0.28em;
-      text-transform: uppercase;
-    }
-  </style>
-</head>
-<body>
-  <main class="card" role="main" aria-labelledby="limit-title">
-    <div class="badge" aria-hidden="true">!</div>
-    <div class="eyebrow">Adaptive QRC™</div>
-    <h1 id="limit-title">Scan Limit Reached</h1>
-    <p class="message">
-      This Adaptive QRC™ has reached its monthly scan limit. Please upgrade your account to keep this QR code active.
-    </p>
-    <div class="meter" aria-label="Monthly scan usage">
-      <div class="meter-row">
-        <span>Monthly scans</span>
-        <span>${scansUsed}/${limit}</span>
-      </div>
-      <div class="bar"><div class="fill"></div></div>
-    </div>
-    <p class="owner-note">
-      If you own this QR code, upgrade your plan or wait until the monthly limit resets. The QR code itself does not need to be reprinted.
-    </p>
-    <div class="brand">QR Code Studio</div>
-  </main>
-</body>
-</html>`
-}
-
 export const adaptiveResolveHandler = (service: UrlsService, scansService?: ScansService, areaStorage?: AreaStorage) => {
   return async (c: Context<AppBindings>) => {
     const startedAt = getNowMs()
@@ -759,29 +584,6 @@ export const adaptiveResolveHandler = (service: UrlsService, scansService?: Scan
       const params = parseResolveParams(c.req.param())
       const url = await service.resolveUrl(params)
       const options = (url.options ?? {}) as AdaptiveOptions
-      
-      // Check scan limit for Adaptive QRC (500 scans per month)
-      // Only apply limit if this is actually an Adaptive QRC
-      const isAdaptiveQRC = url.kind === 'adaptive' || 
-                            (url.options && typeof url.options === 'object' && 
-                             'adaptive' in url.options && url.options.adaptive !== null)
-      
-      if (isAdaptiveQRC && scansService) {
-        const now = new Date()
-        const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
-        
-        // ✅ Use optimized COUNT query instead of fetching all records
-        const scanCount = await scansService.getCountByUrlAndDateRange(
-          url.id,
-          url.random,
-          firstDayOfMonth,
-          now
-        )
-        
-        if (scanCount >= 500) {
-          return c.html(buildAdaptiveLimitReachedPage(url, scanCount, 500), 429)
-        }
-      }
       
       const ip = getClientIp(c)
       const userAgent = c.req.header('user-agent') ?? null
@@ -793,7 +595,7 @@ export const adaptiveResolveHandler = (service: UrlsService, scansService?: Scan
       }
       
       const adaptiveTarget = resolveAdaptiveTarget(options, ip, isReturning)
-      const destination = adaptiveTarget ?? url.targetUrl
+      const destination = rewriteAssetUrl(adaptiveTarget ?? url.targetUrl)
       const responseMs = Math.round(getNowMs() - startedAt)
 
       // ✅ FIRE-AND-FORGET: Don't block redirect for analytics
@@ -866,12 +668,12 @@ export const publicUrlDetailsHandler = (service: UrlsService) => {
       return c.json({
         id: url.id,
         random: url.random,
-        targetUrl: url.targetUrl,
+        targetUrl: rewriteAssetUrl(url.targetUrl),
         name: url.name ?? null,
         shortUrl: buildShortUrl(url.id, url.random),
         publicUrl: buildPublicUrlForUrl(url),
         createdAt: url.createdAt,
-        options: url.options ?? null,
+        options: rewriteOptionsAssetUrls(url.options ?? null),
         kind: url.kind ?? null
       })
     } catch (error) {
@@ -930,7 +732,7 @@ export const listUrlsHandler = (service: UrlsService, vcardsService?: VcardsServ
   }
 }
 
-export const updateUrlHandler = (service: UrlsService) => {
+export const updateUrlHandler = (service: UrlsService, billingService: BillingService) => {
   return async (c: Context<AppBindings>) => {
     try {
       const userId = c.get('userId')
@@ -951,7 +753,10 @@ export const updateUrlHandler = (service: UrlsService) => {
 
       const payload = await c.req.json()
       const updates = parseUpdateUrlInput(payload)
-      const userUrls = await service.getUrlsForUser(userId)
+      const [userUrls, entitlements] = await Promise.all([
+        service.getUrlsForUser(userId),
+        billingService.getEntitlements(userId)
+      ])
       const nextOptions = updates.options === undefined
         ? existing.options ?? null
         : updates.options
@@ -967,17 +772,17 @@ export const updateUrlHandler = (service: UrlsService) => {
         userUrls,
         existing.id
       )
-      const url = await service.updateUrl(id, userId, { ...updates, options })
+      const url = await service.updateUrl(id, userId, { ...updates, options }, entitlements)
 
       return c.json({
         id: url.id,
         random: url.random,
-        targetUrl: url.targetUrl,
+        targetUrl: rewriteAssetUrl(url.targetUrl),
         name: url.name ?? null,
         shortUrl: buildShortUrl(url.id, url.random),
         publicUrl: buildPublicUrlForUrl(url),
         createdAt: url.createdAt,
-        options: url.options ?? null,
+        options: rewriteOptionsAssetUrls(url.options ?? null),
         kind: url.kind ?? null
       })
     } catch (error) {
@@ -988,10 +793,21 @@ export const updateUrlHandler = (service: UrlsService) => {
       if (error instanceof UrlNotFoundError) {
         return c.json({ message: error.message }, 404)
       }
+      if (error instanceof UrlQuotaExceededError) {
+        return quotaExceededResponse(c, error)
+      }
 
       throw error
     }
   }
+}
+
+const quotaExceededResponse = (c: Context<AppBindings>, error: UrlQuotaExceededError) => {
+  const resource = error.code === 'ADAPTIVE_QR_LIMIT_REACHED' ? 'Adaptive QRC' : 'dynamic QR code'
+  return c.json({
+    message: `Your current plan has reached its ${resource} limit. Modify an existing code or upgrade.`,
+    code: error.code
+  }, 402)
 }
 
 // Helper to extract file paths from URL options and delete from Supabase storage
@@ -1033,13 +849,13 @@ const deleteStorageFiles = async (options: Record<string, unknown> | null | unde
   // Delete files from Supabase storage
   for (const fileUrl of filesToDelete) {
     try {
-      // Extract path from Supabase public URL
-      // Format: https://{project}.supabase.co/storage/v1/object/public/qr-assets/{path}
-      const urlMatch = fileUrl.match(/\/storage\/v1\/object\/public\/qr-assets\/(.+)$/)
-      if (!urlMatch) continue
-
-      const filePath = urlMatch[1]
-      const storageUrl = `${SUPABASE_PROJECT_URL}/storage/v1/object/qr-assets/${filePath}`
+      // Accepts both legacy Supabase public URLs and proxy URLs:
+      // https://{project}.supabase.co/storage/v1/object/public/qr-assets/{path}
+      // {appBaseUrl}/public/assets/{path}
+      const filePath = extractStoragePath(fileUrl)
+      if (!filePath) continue
+      const encodedPath = filePath.split('/').map(encodeURIComponent).join('/')
+      const storageUrl = `${SUPABASE_PROJECT_URL}/storage/v1/object/qr-assets/${encodedPath}`
 
       const response = await fetch(storageUrl, {
         method: 'DELETE',

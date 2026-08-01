@@ -18,7 +18,7 @@ const Login = () => {
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);
   const [loading, setLoading] = useState(false);
-  
+
   // Validation states
   const [usernameAvailable, setUsernameAvailable] = useState<boolean | null>(null);
   const [usernameChecking, setUsernameChecking] = useState(false);
@@ -29,7 +29,7 @@ const Login = () => {
   const [submitAttempted, setSubmitAttempted] = useState(false);
   const [showUsernameUnavailableOverlay, setShowUsernameUnavailableOverlay] = useState(false);
   const [signupError, setSignupError] = useState<string | null>(null);
-  
+
   const { signIn, signUp } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -51,10 +51,10 @@ const Login = () => {
     if (loading) return null;
     // Only show validation messages after user has attempted to submit
     if (!submitAttempted) return null;
-    
+
     // Show signup error if present
     if (signupError) return { message: signupError, isError: true };
-    
+
     if (!fullName.trim()) return { message: 'Please enter your full name', isError: false };
     if (!username.trim()) return { message: 'Please enter a username', isError: false };
     if (!email.trim()) return { message: 'Please enter your email', isError: false };
@@ -64,7 +64,7 @@ const Login = () => {
     if (usernameTouched && usernameAvailable === null && !usernameChecking) return { message: 'Please check if your username is available (click outside the username field)', isError: false };
     if (username.trim() && !usernameTouched) return { message: 'Please check if your username is available (click outside the username field)', isError: false };
     if (emailTouched && emailAvailable === false) return { message: 'This email is already in use. Please use a different email.', isError: true };
-    
+
     return null;
   };
 
@@ -93,10 +93,10 @@ const Login = () => {
   useEffect(() => {
     document.body.style.overflow = 'hidden';
     document.documentElement.style.overflow = 'hidden';
-    
+
     // Force dark mode on login page
     document.documentElement.classList.add('dark');
-    
+
     return () => {
       document.body.style.overflow = '';
       document.documentElement.style.overflow = '';
@@ -112,11 +112,11 @@ const Login = () => {
       setShowUsernameUnavailableOverlay(false);
       return;
     }
-    
+
     setUsernameTouched(true);
     setUsernameChecking(true);
     setShowUsernameUnavailableOverlay(false);
-    
+
     try {
       const result = await checkUsernameAvailability(username.trim());
       if (result.available) {
@@ -141,10 +141,10 @@ const Login = () => {
       setEmailTouched(false);
       return;
     }
-    
+
     setEmailTouched(true);
     setEmailChecking(true);
-    
+
     // Note: We can't check email availability without attempting signup
     // Supabase doesn't expose a direct email check endpoint
     // So we'll check it during actual signup and show error then
@@ -155,11 +155,11 @@ const Login = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (isSignUp) {
       setSubmitAttempted(true);
       setSignupError(null);
-      
+
       // Validate all fields before attempting signup
       if (!fullName.trim()) {
         setSignupError('Please enter your full name');
@@ -195,7 +195,7 @@ const Login = () => {
         }
         return;
       }
-      
+
       // Email format validation
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!emailRegex.test(email.trim())) {
@@ -211,8 +211,8 @@ const Login = () => {
     }
 
     setLoading(true);
-    
-    const { error } = isSignUp 
+
+    const { error } = isSignUp
       ? await signUp(email, password, { fullName, username })
       : await signIn(email, password);
 
@@ -231,7 +231,7 @@ const Login = () => {
         setEmailTouched(true);
         setSignupError('This email is already in use. Please use a different email.');
         // Keep all data except don't clear anything
-      } 
+      }
       // Check if error is due to invalid password (signup)
       else if (isSignUp && (
         errorLower.includes('password') && (
@@ -325,7 +325,7 @@ const Login = () => {
       </div>
 
       {/* Floating Particles Background - ONLY on Login page */}
-      <FloatingParticles 
+      <FloatingParticles
         count={40}
         speed={0.6}
         sizeRange={[2, 6]}
@@ -357,11 +357,11 @@ const Login = () => {
         {/* Form Card */}
         <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ 
-            opacity: 1, 
+          animate={{
+            opacity: 1,
             scale: 1,
           }}
-          transition={{ 
+          transition={{
             delay: 0.1,
           }}
           className="rounded-2xl p-6 sm:p-8 bg-[#121621]/90 backdrop-blur-2xl border border-white/10 shadow-xl"
@@ -563,8 +563,8 @@ const Login = () => {
                     </Button>
                     {isSignUp && !isFormValid && validationMessage && (
                       <p className={`text-xs text-center px-2 ${
-                        validationMessage.isError 
-                          ? 'text-red-500 font-medium' 
+                        validationMessage.isError
+                          ? 'text-red-500 font-medium'
                           : 'text-muted-foreground/80'
                       }`}>
                         {validationMessage.message}

@@ -43,10 +43,18 @@ export type BillingStatus = BillingEntitlements & {
   canManageBilling: boolean
 }
 
+export type BillingPlanPrice = {
+  plan: PaidBillingPlan
+  unitAmount: number
+  currency: string
+  interval: string | null
+}
+
 export type BillingService = {
   createCheckoutSession: (userId: string, plan: PaidBillingPlan) => Promise<string>
   createPortalSession: (userId: string) => Promise<string>
   getStatus: (userId: string) => Promise<BillingStatus>
+  getPlans: () => Promise<BillingPlanPrice[]>
   getEntitlements: (userId: string) => Promise<BillingEntitlements>
   syncUser: (userId: string) => Promise<BillingStatus>
   processWebhook: (payload: string, signature: string) => Promise<void>
@@ -56,10 +64,9 @@ export class BillingConfigurationError extends Error {}
 export class BillingNotFoundError extends Error {}
 export class BillingConflictError extends Error {}
 
-// Billing is hidden in production for now. When disabled, entitlements fall back
-// to the legacy behavior (no dynamic QR limit, one Adaptive QRC) and checkout,
-// portal, sync, and webhook processing are unavailable.
-export const isBillingFeatureEnabled = () => process.env.NODE_ENV !== 'production'
+// Billing is opt-in in every environment so preview builds cannot accidentally
+// create live Stripe customers or subscriptions.
+export const isBillingFeatureEnabled = () => process.env.BILLING_ENABLED === 'true'
 
 const LEGACY_ENTITLEMENTS: BillingEntitlements = {
   plan: 'free',
@@ -69,19 +76,22 @@ const LEGACY_ENTITLEMENTS: BillingEntitlements = {
 
 export const createBillingService = (
   usersService: UsersService,
-  billingStorage: BillingStorage
+  billingStorage: BillingStorage,
+  options: { stripe?: Stripe; enabled?: boolean } = {}
 ): BillingService => {
-  let stripeClient: Stripe | null = null
+  let stripeClient: Stripe | null = options.stripe ?? null
+  let planPricesPromise: Promise<BillingPlanPrice[]> | null = null
+  const billingEnabled = options.enabled ?? isBillingFeatureEnabled()
 
   const getStripeClient = () => {
+    if (stripeClient) return stripeClient
+
     const secretKey = process.env.STRIPE_SECRET_KEY
     if (!secretKey) {
       throw new BillingConfigurationError('STRIPE_SECRET_KEY is required')
     }
 
-    if (!stripeClient) {
-      stripeClient = new Stripe(secretKey)
-    }
+    stripeClient = new Stripe(secretKey)
 
     return stripeClient
   }
@@ -172,7 +182,7 @@ export const createBillingService = (
   const getStatus = async (userId: string): Promise<BillingStatus> => {
     await getUser(userId)
 
-    if (!isBillingFeatureEnabled()) {
+    if (!billingEnabled) {
       return {
         ...LEGACY_ENTITLEMENTS,
         subscriptionStatus: null,
@@ -195,7 +205,7 @@ export const createBillingService = (
   const getEntitlements = async (userId: string) => {
     await getUser(userId)
 
-    if (!isBillingFeatureEnabled()) {
+    if (!billingEnabled) {
       return LEGACY_ENTITLEMENTS
     }
 
@@ -204,7 +214,7 @@ export const createBillingService = (
   }
 
   const createCheckoutSession = async (userId: string, plan: PaidBillingPlan) => {
-    if (!isBillingFeatureEnabled()) {
+    if (!billingEnabled) {
       throw new BillingConfigurationError('Billing is not available yet')
     }
 
@@ -238,7 +248,7 @@ export const createBillingService = (
   }
 
   const createPortalSession = async (userId: string) => {
-    if (!isBillingFeatureEnabled()) {
+    if (!billingEnabled) {
       throw new BillingConfigurationError('Billing is not available yet')
     }
 
@@ -257,12 +267,19 @@ export const createBillingService = (
   }
 
   const readSubscriptionPlan = (subscription: Stripe.Subscription, priceId: string | null) => {
-    const metadataPlan = subscription.metadata.plan
-    if (isPaidBillingPlan(metadataPlan)) {
-      return metadataPlan
+    // Stripe Price IDs are authoritative. Metadata is only a fallback for
+    // legacy subscriptions that have no price item at all.
+    if (priceId) {
+      return getPlanForPrice(priceId)
     }
 
-    return getPlanForPrice(priceId)
+    const metadataPlan = subscription.metadata.plan
+    return isPaidBillingPlan(metadataPlan) ? metadataPlan : null
+  }
+
+  const readSubscriptionPriceId = (subscription: Stripe.Subscription) => {
+    const priceIds = subscription.items.data.map((item) => item.price.id)
+    return priceIds.find((priceId) => getPlanForPrice(priceId) !== null) ?? priceIds[0] ?? null
   }
 
   const ensureStripeCustomer = async (user: User): Promise<User & { stripeCustomerId: string }> => {
@@ -300,10 +317,14 @@ export const createBillingService = (
 
     const subscriptions = await getStripeClient().subscriptions.list({
       customer: customerId,
-      limit: 1,
+      limit: 100,
       status: 'all'
     })
-    const subscription = subscriptions.data[0]
+    const subscription = selectSubscription(
+      subscriptions.data,
+      billingRecord.stripeSubscriptionId,
+      (candidate) => readSubscriptionPlan(candidate, readSubscriptionPriceId(candidate))
+    )
     if (!subscription) {
       await billingStorage.upsert({
         userId: billingRecord.userId,
@@ -316,8 +337,10 @@ export const createBillingService = (
       return getStatus(billingRecord.userId)
     }
 
-    const priceId = subscription.items.data[0]?.price.id ?? null
-    const plan = readSubscriptionPlan(subscription, priceId) ?? billingRecord.billingPlan
+    const priceId = readSubscriptionPriceId(subscription)
+    const plan = ACTIVE_BILLING_STATUSES.has(subscription.status)
+      ? readSubscriptionPlan(subscription, priceId) ?? 'free'
+      : 'free'
 
     await billingStorage.upsert({
       userId: billingRecord.userId,
@@ -331,7 +354,7 @@ export const createBillingService = (
   }
 
   const syncUser = async (userId: string) => {
-    if (!isBillingFeatureEnabled()) {
+    if (!billingEnabled) {
       return getStatus(userId)
     }
 
@@ -345,7 +368,7 @@ export const createBillingService = (
   }
 
   const processWebhook = async (payload: string, signature: string) => {
-    if (!isBillingFeatureEnabled()) {
+    if (!billingEnabled) {
       throw new BillingConfigurationError('Billing is not available yet')
     }
 
@@ -364,14 +387,66 @@ export const createBillingService = (
     await syncStripeDataForCustomer(customerId)
   }
 
+  const getPlans = async () => {
+    if (!billingEnabled) return []
+
+    if (!planPricesPromise) {
+      planPricesPromise = Promise.all(PAID_BILLING_PLANS.map(async (plan) => {
+        const price = await getStripeClient().prices.retrieve(getPriceId(plan))
+        if (price.unit_amount === null) {
+          throw new BillingConfigurationError(`Stripe price for ${plan} must have a fixed unit amount`)
+        }
+
+        return {
+          plan,
+          unitAmount: price.unit_amount,
+          currency: price.currency,
+          interval: price.recurring?.interval ?? null
+        }
+      })).catch((error) => {
+        planPricesPromise = null
+        throw error
+      })
+    }
+
+    return planPricesPromise
+  }
+
   return {
     createCheckoutSession,
     createPortalSession,
     getStatus,
+    getPlans,
     getEntitlements,
     syncUser,
     processWebhook
   }
+}
+
+export const selectSubscription = (
+  subscriptions: Stripe.Subscription[],
+  storedSubscriptionId: string | null,
+  readPlan: (subscription: Stripe.Subscription) => BillingPlan | null
+) => {
+  const stored = storedSubscriptionId
+    ? subscriptions.find((subscription) => subscription.id === storedSubscriptionId)
+    : undefined
+  if (stored && ACTIVE_BILLING_STATUSES.has(stored.status)) return stored
+
+  const selected = [...subscriptions].sort((left, right) => {
+    const leftActivePaid = ACTIVE_BILLING_STATUSES.has(left.status) && readPlan(left) !== null
+    const rightActivePaid = ACTIVE_BILLING_STATUSES.has(right.status) && readPlan(right) !== null
+    if (leftActivePaid !== rightActivePaid) return leftActivePaid ? -1 : 1
+
+    const leftActive = ACTIVE_BILLING_STATUSES.has(left.status)
+    const rightActive = ACTIVE_BILLING_STATUSES.has(right.status)
+    if (leftActive !== rightActive) return leftActive ? -1 : 1
+
+    return right.created - left.created
+  })[0]
+
+  if (selected && ACTIVE_BILLING_STATUSES.has(selected.status)) return selected
+  return stored ?? selected
 }
 
 export const isPaidBillingPlan = (value: unknown): value is PaidBillingPlan => {

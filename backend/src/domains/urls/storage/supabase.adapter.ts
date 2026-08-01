@@ -1,5 +1,7 @@
 import { getSupabaseAdminConfig } from '../../../config/supabase'
-import { Url } from '../models'
+import { Url, UrlQuota } from '../models'
+import { UrlQuotaExceededError } from '../errors'
+import { findQuotaIncreaseViolation, findQuotaViolation } from '../quota'
 import { UrlsStorage } from './interface'
 
 type UrlRow = {
@@ -23,7 +25,11 @@ export class SupabaseUrlsStorageAdapter implements UrlsStorage {
     this.serviceRoleKey = serviceRoleKey
   }
 
-  async createUrl(url: Url) {
+  async createUrl(url: Url, quota?: UrlQuota) {
+    if (quota) {
+      const existing = await this.getByUserId(url.userId)
+      this.assertWithinQuota([...existing, url], quota)
+    }
     await this.request('urls', {
       method: 'POST',
       headers: { Prefer: 'return=minimal' },
@@ -82,7 +88,19 @@ export class SupabaseUrlsStorageAdapter implements UrlsStorage {
     })
   }
 
-  async updateById(id: string, userId: string, updates: Partial<Url>) {
+  async updateById(id: string, userId: string, updates: Partial<Url>, quota?: UrlQuota) {
+    if (quota) {
+      const existing = await this.getByUserId(userId)
+      const current = existing.find((url) => url.id === id)
+      if (current) {
+        const candidate = { ...current, ...updates }
+        const after = existing.map((url) => url.id === id ? candidate : url)
+        const violation = findQuotaIncreaseViolation(existing, after, quota)
+        if (violation) {
+          throw new UrlQuotaExceededError('QR code plan limit reached', violation.code)
+        }
+      }
+    }
     const payload: Record<string, unknown> = {}
     if (updates.targetUrl !== undefined) payload.target_url = updates.targetUrl
     if (updates.name !== undefined) payload.name = updates.name
@@ -110,6 +128,13 @@ export class SupabaseUrlsStorageAdapter implements UrlsStorage {
       createdAt: row.created_at,
       options: row.options ?? null,
       kind: row.kind ?? null
+    }
+  }
+
+  private assertWithinQuota(records: Url[], quota: UrlQuota) {
+    const violation = findQuotaViolation(records, quota)
+    if (violation) {
+      throw new UrlQuotaExceededError('QR code plan limit reached', violation.code)
     }
   }
 

@@ -15,8 +15,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 
-// Billing is hidden in production for now; flips on automatically in dev builds.
-const BILLING_ENABLED = import.meta.env.DEV;
+const BILLING_ENABLED = import.meta.env.VITE_BILLING_ENABLED === 'true';
 
 interface UpgradePageProps {
   isMobileV2: boolean;
@@ -188,11 +187,11 @@ export function UpgradePage({
                   <li><span className="font-semibold text-foreground">Basic</span> Intel</li>
                   <li><span className="font-semibold text-foreground">Standard</span> QR Styles</li>
                   <li><span className="font-semibold text-foreground">Community</span> Support</li>
-                  <li><span className="font-semibold text-foreground">Watermark</span> Enabled</li>
+                  <li><span className="font-semibold text-foreground">Menu & PDF</span> QR Codes</li>
                   <li className="flex items-center gap-2">
                     <span className="font-semibold text-foreground">1</span>
                     <span className={adaptiveGradientText}>Adaptive QRC™</span>
-                    <span className="text-[9px] uppercase tracking-[0.3em] text-foreground">Autodestroy in 7 days</span>
+                    <span className="text-[9px] uppercase tracking-[0.3em] text-foreground">Does not expire</span>
                   </li>
                 </ul>
               </div>
@@ -212,14 +211,13 @@ export function UpgradePage({
                     <User className="h-3.5 w-3.5 text-muted-foreground" />
                     <span className="font-semibold text-foreground">1</span> Seat
                   </li>
-                  <li><span className="font-semibold text-foreground">Full</span> Intel (analytics)</li>
-                  <li><span className="font-semibold text-foreground">Bulk</span> QR Creation</li>
+                  <li><span className="font-semibold text-foreground">Scan</span> Analytics</li>
+                  <li><span className="font-semibold text-foreground">Menu & PDF</span> QR Codes</li>
                   <li><span className="font-semibold text-foreground">Custom</span> Colors & Logos</li>
-                  <li><span className="font-semibold text-foreground">Preset</span> Loadouts</li>
-                  <li><span className="font-semibold text-foreground">Priority</span> Updates</li>
-                  <li><span className="font-semibold text-foreground">No</span> Watermark</li>
+                  <li><span className="font-semibold text-foreground">Saved</span> QR History</li>
+                  <li><span className="font-semibold text-foreground">Active</span> Saved Codes</li>
                   <li><span className={adaptiveGradientText}>Adaptive QRC™</span> Unlimited Scans</li>
-                  <li><span className="font-semibold text-foreground">+ $3</span> per extra Adaptive QRC™</li>
+                  <li><span className="font-semibold text-foreground">1</span> Adaptive QRC™ included</li>
                 </ul>
               </div>
               <div className="glass-panel rounded-2xl p-4 space-y-4 border border-amber-400/50">
@@ -238,17 +236,14 @@ export function UpgradePage({
                   <li><span className="font-semibold text-foreground">Unlimited</span> Scans</li>
                   <li className="flex items-center gap-2">
                     <Users className="h-3.5 w-3.5 text-muted-foreground" />
-                    <span className="font-semibold text-foreground">5</span> Seats
+                    <span className="font-semibold text-foreground">5</span> Adaptive QRCs
                   </li>
-                  <li><span className="font-semibold text-foreground">Advanced</span> Intel (reports & trends)</li>
-                  <li><span className="font-semibold text-foreground">Bulk</span> Creation (High-volume)</li>
-                  <li><span className="font-semibold text-foreground">API</span> Access</li>
-                  <li><span className="font-semibold text-foreground">Up to 5</span> Team Users</li>
-                  <li><span className="font-semibold text-foreground">Shared</span> Arsenal</li>
-                  <li><span className="font-semibold text-foreground">Priority</span> Support</li>
-                  <li><span className="font-semibold text-foreground">No</span> Watermark</li>
+                  <li><span className="font-semibold text-foreground">Scan</span> Reports & Trends</li>
+                  <li><span className="font-semibold text-foreground">Menu & PDF</span> QR Codes</li>
+                  <li><span className="font-semibold text-foreground">Saved</span> QR History</li>
+                  <li><span className="font-semibold text-foreground">Active</span> Saved Codes</li>
                   <li><span className={adaptiveGradientText}>Adaptive QRC™</span> Unlimited Scans</li>
-                  <li><span className="font-semibold text-foreground">+ $2</span> per extra Adaptive QRC™</li>
+                  <li><span className="font-semibold text-foreground">5</span> Adaptive QRCs included</li>
                 </ul>
               </div>
             </div>
@@ -290,15 +285,15 @@ export function UpgradePage({
                   <li><span className="font-semibold text-foreground">Basic</span> Intel</li>
                   <li><span className="font-semibold text-foreground">Standard</span> QR Styles</li>
                   <li><span className="font-semibold text-foreground">Community</span> Support</li>
-                  <li><span className="font-semibold text-foreground">Watermark</span> Enabled</li>
+                  <li><span className="font-semibold text-foreground">Menu & PDF</span> QR Codes</li>
                   <li className="flex items-center gap-2">
                     <span className="font-semibold text-foreground">1</span>
                     <span className={adaptiveGradientText}>Adaptive QRC™</span>
-                    <span className="text-[10px] uppercase tracking-[0.3em] text-foreground">Autodestroy in 7 days</span>
+                    <span className="text-[10px] uppercase tracking-[0.3em] text-foreground">Does not expire</span>
                     <span className="relative group">
                       <Info className="h-3.5 w-3.5 text-muted-foreground" />
                       <span className="pointer-events-none absolute left-1/2 top-full mt-2 w-52 -translate-x-1/2 rounded-lg border border-border/70 bg-card px-3 py-2 text-[11px] text-muted-foreground opacity-0 shadow-lg transition group-hover:opacity-100">
-                        This is a taste of Pro power. Avoid autodestroy by upgrading to Pro or Command.
+                        Saved Adaptive QRCs remain active on every plan.
                       </span>
                     </span>
                   </li>
@@ -333,14 +328,13 @@ export function UpgradePage({
                     <User className="h-4 w-4 text-muted-foreground" />
                     <span className="font-semibold text-foreground">1</span> Seat
                   </li>
-                  <li><span className="font-semibold text-foreground">Full</span> Intel (analytics)</li>
-                  <li><span className="font-semibold text-foreground">Bulk</span> QR Creation</li>
+                  <li><span className="font-semibold text-foreground">Scan</span> Analytics</li>
+                  <li><span className="font-semibold text-foreground">Menu & PDF</span> QR Codes</li>
                   <li><span className="font-semibold text-foreground">Custom</span> Colors & Logos</li>
-                  <li><span className="font-semibold text-foreground">Preset</span> Loadouts</li>
-                  <li><span className="font-semibold text-foreground">Priority</span> Updates</li>
-                  <li><span className="font-semibold text-foreground">No</span> Watermark</li>
+                  <li><span className="font-semibold text-foreground">Saved</span> QR History</li>
+                  <li><span className="font-semibold text-foreground">Active</span> Saved Codes</li>
                   <li><span className={adaptiveGradientText}>Adaptive QRC™</span> Unlimited Scans</li>
-                  <li><span className="font-semibold text-foreground">+ $3</span> per extra Adaptive QRC™</li>
+                  <li><span className="font-semibold text-foreground">1</span> Adaptive QRC™ included</li>
                 </ul>
                 <div className="text-xs uppercase tracking-[0.3em] text-primary">Compare</div>
               </div>
@@ -372,17 +366,14 @@ export function UpgradePage({
                   <li><span className="font-semibold text-foreground">Unlimited</span> Scans</li>
                   <li className="flex items-center gap-2">
                     <Users className="h-4 w-4 text-muted-foreground" />
-                    <span className="font-semibold text-foreground">5</span> Seats
+                    <span className="font-semibold text-foreground">5</span> Adaptive QRCs
                   </li>
-                  <li><span className="font-semibold text-foreground">Advanced</span> Intel (reports & trends)</li>
-                  <li><span className="font-semibold text-foreground">Bulk</span> Creation (High-volume)</li>
-                  <li><span className="font-semibold text-foreground">API</span> Access</li>
-                  <li><span className="font-semibold text-foreground">Up to 5</span> Team Users</li>
-                  <li><span className="font-semibold text-foreground">Shared</span> Arsenal</li>
-                  <li><span className="font-semibold text-foreground">Priority</span> Support</li>
-                  <li><span className="font-semibold text-foreground">No</span> Watermark</li>
+                  <li><span className="font-semibold text-foreground">Scan</span> Reports & Trends</li>
+                  <li><span className="font-semibold text-foreground">Menu & PDF</span> QR Codes</li>
+                  <li><span className="font-semibold text-foreground">Saved</span> QR History</li>
+                  <li><span className="font-semibold text-foreground">Active</span> Saved Codes</li>
                   <li><span className={adaptiveGradientText}>Adaptive QRC™</span> Unlimited Scans</li>
-                  <li><span className="font-semibold text-foreground">+ $2</span> per extra Adaptive QRC™</li>
+                  <li><span className="font-semibold text-foreground">5</span> Adaptive QRCs included</li>
                 </ul>
                 <div className="text-xs uppercase tracking-[0.3em] text-amber-200">Compare</div>
               </div>
@@ -403,17 +394,10 @@ export function UpgradePage({
                 {[
                   ['Dynamic QR Codes', '1', '25', 'Unlimited'],
                   ['Scans', 'Unlimited', 'Unlimited', 'Unlimited'],
-                  ['Intel', 'Basic', 'Full', 'Advanced'],
-                  ['Bulk Creation', '—', 'Included', 'High-volume'],
-                  ['Custom Colors & Logos', '—', 'Included', 'Included'],
-                  ['Preset Loadouts', '—', 'Included', 'Included'],
-                  ['Adaptive QRC™', '1 (Autodestroy 7 Days)', '1 Included', '5 Included'],
-                  ['Extra Adaptive QRC™', '—', '$3 / mo', '$2 / mo'],
-                  ['API Access', '—', '—', 'Included'],
-                  ['Team Users', '—', '—', 'Up to 5'],
-                  ['Shared Arsenal', '—', '—', 'Included'],
-                  ['Support', 'Community', 'Priority Updates', 'Priority Support'],
-                  ['Watermark', 'Enabled', 'No', 'No'],
+                  ['Static, menu & PDF QR codes', 'Unlimited', 'Unlimited', 'Unlimited'],
+                  ['Adaptive QRC™', '1 Included', '1 Included', '5 Included'],
+                  ['Saved codes expire', 'Never', 'Never', 'Never'],
+                  ['Scan analytics', 'Included', 'Included', 'Included'],
                 ].map(([feature, free, pro, command]) => (
                   <tr key={feature} className="border-b border-border/40">
                     <td className="py-3 pr-4 text-foreground">{feature}</td>
@@ -457,18 +441,18 @@ export function UpgradePage({
                       <ul className="space-y-1">
                         <li>1 Dynamic QR Code</li>
                         <li>Basic Intel</li>
-                        <li>Watermark Enabled</li>
-                        <li><span className={adaptiveGradientText}>Adaptive QRC™</span> autodestroy in 7 days</li>
+                        <li>Menu & PDF QR codes included</li>
+                        <li><span className={adaptiveGradientText}>Adaptive QRC™</span> does not expire</li>
                       </ul>
                     </div>
                     <div className="rounded-xl border border-primary/60 bg-primary/10 p-4 space-y-2">
                       <p className="text-foreground font-semibold">Pro</p>
                       <ul className="space-y-1">
                         <li>25 Dynamic QR Codes</li>
-                        <li>Full Intel + Bulk Creation</li>
-                        <li>No Watermark</li>
+                        <li>Scan analytics</li>
+                        <li>Saved codes remain active</li>
                         <li><span className={adaptiveGradientText}>Adaptive QRC™</span> unlimited scans</li>
-                        <li>$3 per extra Adaptive QRC™</li>
+                        <li>1 Adaptive QRC™ included</li>
                       </ul>
                     </div>
                   </div>
@@ -479,18 +463,18 @@ export function UpgradePage({
                       <ul className="space-y-1">
                         <li>1 Dynamic QR Code</li>
                         <li>Basic Intel</li>
-                        <li>Watermark Enabled</li>
-                        <li><span className={adaptiveGradientText}>Adaptive QRC™</span> autodestroy in 7 days</li>
+                        <li>Menu & PDF QR codes included</li>
+                        <li><span className={adaptiveGradientText}>Adaptive QRC™</span> does not expire</li>
                       </ul>
                     </div>
                     <div className="rounded-xl border border-amber-300/60 bg-amber-400/10 p-4 space-y-2">
                       <p className="text-foreground font-semibold">Command</p>
                       <ul className="space-y-1">
                         <li>Unlimited Dynamic QR Codes</li>
-                        <li>Advanced Intel + API Access</li>
-                        <li>No Watermark + Priority Support</li>
+                        <li>Scan reports and trends</li>
+                        <li>Saved codes remain active</li>
                         <li><span className={adaptiveGradientText}>Adaptive QRC™</span> unlimited scans</li>
-                        <li>$2 per extra Adaptive QRC™</li>
+                        <li>5 Adaptive QRCs included</li>
                       </ul>
                     </div>
                   </div>

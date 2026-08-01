@@ -5,6 +5,7 @@ import type { BillingService } from './service'
 import {
   createCheckoutHandler,
   createPortalHandler,
+  getBillingPlansHandler,
   getBillingStatusHandler,
   syncBillingHandler,
   stripeWebhookHandler
@@ -12,6 +13,7 @@ import {
 
 export const registerBillingRoutes = (app: Hono<AppBindings>, service: BillingService) => {
   app.get('/billing/status', getBillingStatusHandler(service))
+  app.get('/billing/plans', getBillingPlansHandler(service))
   app.post('/billing/sync', syncBillingHandler(service))
   app.post('/billing/checkout', createCheckoutHandler(service))
   app.post('/billing/portal', createPortalHandler(service))

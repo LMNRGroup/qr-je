@@ -9,8 +9,8 @@ import { CornerStylePicker } from '@/components/CornerStylePicker';
 import { ErrorCorrectionSelector } from '@/components/ErrorCorrectionSelector';
 import { LogoUpload } from '@/components/LogoUpload';
 import { SizeSlider } from '@/components/SizeSlider';
-import { 
-  X, 
+import {
+  X,
   Loader2,
   Sparkles,
   Save,
@@ -27,7 +27,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import type { AdaptiveConfig, AdaptiveRule, AdaptiveSlot, QRHistoryItem, QROptions } from '@/types/qr';
-import type { UserProfile } from '@/lib/api';
+import { buildAssetProxyUrl, type UserProfile } from '@/lib/api';
 import { defaultQROptions } from '@/types/qr';
 import supabase, { isSupabaseConfigured } from '@/lib/supabase';
 
@@ -186,18 +186,18 @@ export const AdaptiveQRCEditor = ({
       image.onerror = reject;
       image.src = dataUrl;
     });
-    
+
     const scale = Math.min(1, maxDimension / Math.max(image.width, image.height));
     const canvas = document.createElement('canvas');
     canvas.width = Math.max(1, Math.round(image.width * scale));
     canvas.height = Math.max(1, Math.round(image.height * scale));
     const ctx = canvas.getContext('2d');
     if (!ctx) return dataUrl;
-    
+
     ctx.imageSmoothingEnabled = true;
     ctx.imageSmoothingQuality = 'high';
     ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
-    
+
     try {
       const webpDataUrl = canvas.toDataURL('image/webp', quality);
       if (webpDataUrl && webpDataUrl.length < dataUrl.length * 0.8) {
@@ -206,7 +206,7 @@ export const AdaptiveQRCEditor = ({
     } catch {
       // WebP not supported
     }
-    
+
     return canvas.toDataURL('image/jpeg', quality);
   };
 
@@ -214,20 +214,20 @@ export const AdaptiveQRCEditor = ({
     if (!isSupabaseConfigured) {
       throw new Error('Storage is not configured yet.');
     }
-    
+
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) {
       throw new Error('You must be signed in to upload files.');
     }
-    
+
     try {
       const extension = file.name.split('.').pop() || (file.type.includes('pdf') ? 'pdf' : 'png');
       const fileName = `${crypto.randomUUID()}.${extension}`;
       const filePath = `${folder}/${fileName}`;
-      
+
       let payload: Blob | File;
       let compressedSize: number;
-      
+
       if (dataUrl) {
         const blob = dataUrlToBlob(dataUrl);
         payload = blob;
@@ -236,29 +236,25 @@ export const AdaptiveQRCEditor = ({
         payload = file;
         compressedSize = file.size;
       }
-      
+
       const storageCheck = checkStorageLimit(compressedSize);
       if (!storageCheck.allowed) {
         const availableMB = (storageCheck.available / (1024 * 1024)).toFixed(1);
         const neededMB = (compressedSize / (1024 * 1024)).toFixed(1);
         throw new Error(`Storage limit exceeded. You have ${availableMB}MB available, but need ${neededMB}MB.`);
       }
-      
+
       const { error } = await supabase.storage
         .from(QR_ASSETS_BUCKET)
-        .upload(filePath, payload, { upsert: true, contentType: file.type });
-      
+        .upload(filePath, payload, { upsert: false, contentType: file.type, cacheControl: '31536000' });
+
       if (error) {
         throw new Error(error.message || 'Failed to upload file.');
       }
-      
+
       addStorageUsage(compressedSize);
-      
-      const { data } = supabase.storage.from(QR_ASSETS_BUCKET).getPublicUrl(filePath);
-      if (!data?.publicUrl) {
-        throw new Error('Failed to get public URL for uploaded file.');
-      }
-      return { url: data.publicUrl, size: compressedSize };
+
+      return { url: buildAssetProxyUrl(filePath), size: compressedSize };
     } catch (error) {
       if (error instanceof Error) {
         throw error;
@@ -276,7 +272,7 @@ export const AdaptiveQRCEditor = ({
       });
       const adaptive = adaptiveQRC.options.adaptive;
       setQrName(adaptiveQRC.name || '');
-      
+
       if (adaptive.slots && adaptive.slots.length > 0) {
         const orderedSlots = [...adaptive.slots].sort((a, b) =>
           getSlotOrder(a, adaptive.slots!.indexOf(a)) - getSlotOrder(b, adaptive.slots!.indexOf(b))
@@ -384,8 +380,8 @@ export const AdaptiveQRCEditor = ({
       return;
     }
 
-    setContents(contents.map(c => 
-      c.id === contentId 
+    setContents(contents.map(c =>
+      c.id === contentId
         ? { ...c, uploading: true, uploadProgress: 0, uploadError: undefined }
         : c
     ));
@@ -402,7 +398,7 @@ export const AdaptiveQRCEditor = ({
 
       let compressed = '';
       const fileType: 'image' | 'pdf' = isPdf ? 'pdf' : 'image';
-      
+
       if (isImage) {
         toast.info('Compressing image...');
         compressed = await compressImageFile(file, { maxDimension: 2000, quality: 0.80 });
@@ -411,9 +407,9 @@ export const AdaptiveQRCEditor = ({
       }
 
       const result = await uploadQrAsset(file, 'files', compressed || undefined);
-      
+
       clearInterval(progressInterval);
-      
+
       if (!result?.url) {
         throw new Error('Upload returned no URL.');
       }
@@ -438,8 +434,8 @@ export const AdaptiveQRCEditor = ({
       toast.success('File uploaded successfully!');
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to upload file.';
-      setContents(prev => prev.map(c => 
-        c.id === contentId 
+      setContents(prev => prev.map(c =>
+        c.id === contentId
           ? { ...c, uploading: false, uploadProgress: 0, uploadError: message }
           : c
       ));
@@ -449,10 +445,10 @@ export const AdaptiveQRCEditor = ({
 
   const handleAddContent = () => {
     if (ruleType === 'time' && contents.length < 3) {
-      setContents([...contents, { 
-        id: crypto.randomUUID(), 
+      setContents([...contents, {
+        id: crypto.randomUUID(),
         name: `Content ${contents.length + 1}`,
-        url: '', 
+        url: '',
         inputType: 'url'
       }]);
     }
@@ -473,8 +469,8 @@ export const AdaptiveQRCEditor = ({
   };
 
   const handleAddTimeRule = () => {
-    const validContents = contents.filter(c => 
-      c.name.trim().length > 0 && 
+    const validContents = contents.filter(c =>
+      c.name.trim().length > 0 &&
       (c.url.trim().length > 0 || c.fileUrl || (c.file && c.inputType === 'file'))
     );
     if (validContents.length > 0) {
@@ -497,7 +493,7 @@ export const AdaptiveQRCEditor = ({
     field: Field,
     value: TimeRule[Field]
   ) => {
-    setTimeRules(timeRules.map(r => 
+    setTimeRules(timeRules.map(r =>
       r.id === id ? { ...r, [field]: value } : r
     ));
   };
@@ -516,7 +512,7 @@ export const AdaptiveQRCEditor = ({
   const handleVisitRuleChange = (visitNumber: 1 | 2, contentId: string) => {
     const existing = visitRules.find(r => r.visitNumber === visitNumber);
     if (existing) {
-      setVisitRules(visitRules.map(r => 
+      setVisitRules(visitRules.map(r =>
         r.visitNumber === visitNumber ? { ...r, contentId } : r
       ));
     } else {
@@ -525,8 +521,8 @@ export const AdaptiveQRCEditor = ({
   };
 
   const buildAdaptiveConfig = (): AdaptiveConfig => {
-    const validContents = contents.filter(c => 
-      c.name.trim().length > 0 && 
+    const validContents = contents.filter(c =>
+      c.name.trim().length > 0 &&
       (c.url.trim().length > 0 || c.fileUrl || (c.file && c.inputType === 'file'))
     );
     const slots = validContents.map((c, index) => {
@@ -630,7 +626,7 @@ export const AdaptiveQRCEditor = ({
     <div className="fixed inset-0 z-[100] bg-gradient-to-br from-[#0b0f14] via-[#1a1a1a] to-[#0b0f14] overflow-y-auto">
       {/* Gold gradient overlay - matching wizard */}
       <div className="fixed inset-0 bg-gradient-to-br from-amber-900/20 via-transparent to-amber-900/20 pointer-events-none" />
-      
+
       <div className="relative z-10 min-h-screen">
         {/* Gold Header - matching wizard */}
         <div className="sticky top-0 z-20 bg-background/80 backdrop-blur-xl border-b border-amber-500/20">
@@ -754,7 +750,7 @@ export const AdaptiveQRCEditor = ({
                               <Input
                                 value={content.name}
                                 onChange={(e) => handleContentChange(content.id, 'name', e.target.value)}
-                                placeholder={ruleType === 'visit' 
+                                placeholder={ruleType === 'visit'
                                   ? (index === 0 ? 'First Visit Content' : 'Second Visit Content')
                                   : `Content ${index + 1} Name`}
                                 className="h-11 bg-secondary/40 border-amber-500/30 focus:border-amber-400 text-lg"
@@ -823,8 +819,8 @@ export const AdaptiveQRCEditor = ({
                                         variant="ghost"
                                         size="sm"
                                         onClick={() => {
-                                          setContents(contents.map(c => 
-                                            c.id === content.id 
+                                          setContents(contents.map(c =>
+                                            c.id === content.id
                                               ? { ...c, fileUrl: undefined, fileSize: undefined, fileType: undefined, fileName: undefined }
                                               : c
                                           ));
@@ -1008,8 +1004,8 @@ export const AdaptiveQRCEditor = ({
                                     onChange={(e) => handleTimeRuleChange(rule.id, 'contentId', e.target.value)}
                                     className="w-full h-11 rounded-xl border border-amber-500/30 bg-secondary/40 px-3"
                                   >
-                                    {contents.filter(c => 
-                                      c.name.trim().length > 0 && 
+                                    {contents.filter(c =>
+                                      c.name.trim().length > 0 &&
                                       (c.url.trim().length > 0 || c.fileUrl || (c.file && c.inputType === 'file'))
                                     ).map(c => (
                                       <option key={c.id} value={c.id}>
@@ -1116,8 +1112,8 @@ export const AdaptiveQRCEditor = ({
                                   className="w-full h-11 rounded-xl border border-amber-500/40 bg-amber-900/40 px-3 text-amber-100"
                                 >
                                   <option value="">Select content...</option>
-                                  {contents.filter(c => 
-                                    c.name.trim().length > 0 && 
+                                  {contents.filter(c =>
+                                    c.name.trim().length > 0 &&
                                     (c.url.trim().length > 0 || c.fileUrl || (c.file && c.inputType === 'file'))
                                   ).map(c => (
                                     <option key={c.id} value={c.id}>

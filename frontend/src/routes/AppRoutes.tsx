@@ -30,8 +30,9 @@ const ROUTES = [
   { path: '/:owner/:slug', element: <VCard /> },
   { path: '/file/:id/:random', element: <FileViewer /> },
   { path: '/menu/:id/:random', element: <MenuViewer /> },
-  // Billing is hidden in production for now
-  ...(import.meta.env.DEV ? [{ path: '/billing/success', element: <BillingSuccess /> }] : []),
+  ...(import.meta.env.VITE_BILLING_ENABLED === 'true'
+    ? [{ path: '/billing/success', element: <BillingSuccess /> }]
+    : []),
 ] as const;
 
 function RouteFallback() {

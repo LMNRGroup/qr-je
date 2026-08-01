@@ -17,12 +17,18 @@ both plans, enable Stripe's "limit customers to one subscription" setting for th
 then set these backend environment values:
 
 ```sh
-WEB_APP_BASE_URL=http://localhost:8080
+BILLING_ENABLED=true
+WEB_APP_BASE_URL=http://localhost:8081
+SUPABASE_DB_URL=postgresql://...
 STRIPE_SECRET_KEY=sk_test_...
 STRIPE_WEBHOOK_SECRET=whsec_...
 STRIPE_PRO_PRICE_ID=price_...
 STRIPE_COMMAND_PRICE_ID=price_...
 ```
+
+Run `bun run db:migrate` before enabling billing. Billing intentionally requires PostgreSQL so
+quota checks and URL writes can run atomically. Set `NEXT_PUBLIC_BILLING_ENABLED=true` on the
+Next.js deployment only after the backend migration and Stripe values are live.
 
 Expose `POST /billing/webhook` to Stripe and subscribe it to these events:
 

@@ -1,0 +1,275 @@
+[
+  {
+    "id": "what-is-qr-code-studio",
+    "category": "Getting Started",
+    "question": "What is QR Code Studio?",
+    "answer": "QR Code Studio is a platform for creating, managing, and tracking QR codes. You can generate static QR codes, dynamic QR codes that you can update anytime, and Adaptive QRC™ codes that change their destination based on rules like time of day, date ranges, or visitor behavior.",
+    "keywords": ["qr code platform", "dynamic qr", "adaptive qr", "smart qr codes"]
+  },
+  {
+    "id": "need-account",
+    "category": "Getting Started",
+    "question": "Do I need an account to create QR codes?",
+    "answer": "You can create unlimited static QR codes without an account. For dynamic QR codes, menus, files, vCards, portals, and Adaptive QRC™, you'll need a free account. Signing up takes less than a minute and requires no credit card.",
+    "keywords": ["free account", "sign up", "static qr codes"]
+  },
+  {
+    "id": "static-vs-dynamic",
+    "category": "Static vs Dynamic vs Adaptive QRC™",
+    "question": "What's the difference between static and dynamic QR codes?",
+    "answer": "Static QR codes contain the destination URL directly in the code. Once printed, they can't be changed. Dynamic QR codes point to a short URL that you control, so you can update where they redirect anytime without reprinting. Dynamic QR codes also include scan analytics in Intel.",
+    "keywords": ["static qr", "dynamic qr", "qr analytics", "intel"]
+  },
+  {
+    "id": "when-use-static",
+    "category": "Static vs Dynamic vs Adaptive QRC™",
+    "question": "When should I use a static QR code?",
+    "answer": "Use static QR codes for permanent links that won't change, like your website homepage, social media profiles, or Wi-Fi passwords. They're free, unlimited, and work offline once scanned.",
+    "keywords": ["static qr codes", "permanent links", "free qr codes"]
+  },
+  {
+    "id": "when-use-dynamic",
+    "category": "Static vs Dynamic vs Adaptive QRC™",
+    "question": "When should I use a dynamic QR code?",
+    "answer": "Use dynamic QR codes when you need to update the destination later, track scans, or change content without reprinting. Perfect for marketing campaigns, event pages, menus, or any link that might change.",
+    "keywords": ["dynamic qr codes", "marketing campaigns", "event pages", "digital signage"]
+  },
+  {
+    "id": "what-is-adaptive-qrc",
+    "category": "Static vs Dynamic vs Adaptive QRC™",
+    "question": "What is Adaptive QRC™?",
+    "answer": "Adaptive QRC™ is a smart QR code that changes its destination based on rules you set. For example, show a lunch menu from 11 AM to 2 PM, then switch to a dinner menu. Or redirect first-time visitors to a welcome page and returning visitors to your main site. Rules can be based on time, date ranges, day of week, or visitor behavior.",
+    "keywords": ["adaptive qrc", "smart qr codes", "context-based qr", "dynamic qr menu", "time-based qr"]
+  },
+  {
+    "id": "how-adaptive-rules-work",
+    "category": "Static vs Dynamic vs Adaptive QRC™",
+    "question": "How do Adaptive QRC™ rules work?",
+    "answer": "You create content slots (URLs or files) and set rules that determine which slot to show. Time rules can change content by hour or day. Date rules work for specific date ranges. First-return rules show different content for first-time vs returning visitors. Admin IP rules let you test or preview specific content.",
+    "keywords": ["adaptive qrc rules", "time-based rules", "date rules", "first return visitor"]
+  },
+  {
+    "id": "test-adaptive-qrc",
+    "category": "Static vs Dynamic vs Adaptive QRC™",
+    "question": "Can I test my Adaptive QRC™ before printing?",
+    "answer": "Yes. When you create an Adaptive QRC™, you can preview how it behaves at different times. The preview shows which content will be displayed based on your current rules and the current time.",
+    "keywords": ["adaptive qrc preview", "test qr codes"]
+  },
+  {
+    "id": "adaptive-no-rule-match",
+    "category": "Static vs Dynamic vs Adaptive QRC™",
+    "question": "What happens if no Adaptive QRC™ rule matches?",
+    "answer": "If no rule matches (for example, outside your defined time windows), the Adaptive QRC™ shows your default content slot. Always set a default to ensure your QR code always works.",
+    "keywords": ["adaptive qrc default", "fallback content"]
+  },
+  {
+    "id": "create-digital-menu",
+    "category": "Menus & Link Hubs",
+    "question": "Can I create a digital menu with QR Code Studio?",
+    "answer": "Yes. Use the Menu QR type to upload multiple menu pages (images or PDFs). You can add your restaurant logo, social media links, and customize the menu viewer. The menu displays as a swipeable carousel or flipbook experience when scanned.",
+    "keywords": ["dynamic qr menu", "restaurant menu", "digital menu", "menu qr code"]
+  },
+  {
+    "id": "menu-pages-limit",
+    "category": "Menus & Link Hubs",
+    "question": "How many menu pages can I upload?",
+    "answer": "You can upload up to 15 menu pages. Each page can be up to 10MB (images or PDFs). The total menu size limit is 50MB. Files are automatically compressed to optimize loading speed.",
+    "keywords": ["menu upload", "menu pages", "restaurant menu"]
+  },
+  {
+    "id": "what-is-portal",
+    "category": "Menus & Link Hubs",
+    "question": "What's a Portal QR code?",
+    "answer": "Portal QR codes create a custom landing page (like Linktree) with multiple links. You can add up to 3 links, customize the design with templates, colors, fonts, and button styles, and add a title and description. All portals include our footer and watermark on the free plan.",
+    "keywords": ["portal qr", "link hub", "linktree alternative", "multi-link qr"]
+  },
+  {
+    "id": "customize-portal",
+    "category": "Menus & Link Hubs",
+    "question": "Can I customize my Portal design?",
+    "answer": "Yes. Portals include 3 template options (Classic, Modern, Minimal). You can customize background colors, button colors, button styles (square, rounded, minimal), font families, and font colors to match your brand.",
+    "keywords": ["portal customization", "custom landing page", "branded qr"]
+  },
+  {
+    "id": "portal-social-media",
+    "category": "Menus & Link Hubs",
+    "question": "Do Portal QR codes work for social media?",
+    "answer": "Yes. Portal QR codes are perfect for social media bios, business cards, or anywhere you want to share multiple links. When scanned, users see a branded landing page with all your links organized and easy to tap.",
+    "keywords": ["social media qr", "link hub", "business cards"]
+  },
+  {
+    "id": "what-is-intel",
+    "category": "Analytics / Intel",
+    "question": "What is Intel?",
+    "answer": "Intel is QR Code Studio's analytics dashboard. It shows scan counts, trends over time, geographic data (where scans came from), device types, response times, and more. Intel helps you understand how your QR codes are performing.",
+    "keywords": ["qr analytics", "intel", "scan tracking", "qr code analytics"]
+  },
+  {
+    "id": "dynamic-qr-analytics",
+    "category": "Analytics / Intel",
+    "question": "What analytics do I get with dynamic QR codes?",
+    "answer": "Dynamic QR codes include basic Intel: total scans, scan trends, top regions, and response times. Pro plans include full Intel with detailed breakdowns, exportable data, and advanced insights.",
+    "keywords": ["dynamic qr analytics", "intel", "scan data"]
+  },
+  {
+    "id": "see-scan-locations",
+    "category": "Analytics / Intel",
+    "question": "Can I see where my QR codes are being scanned?",
+    "answer": "Yes. Intel shows a map with dots representing scan locations. Click any dot to see scan details for that area, including city, region, device type, and timestamp. Geographic data is based on IP address location.",
+    "keywords": ["geographic analytics", "scan locations", "qr code map"]
+  },
+  {
+    "id": "geographic-accuracy",
+    "category": "Analytics / Intel",
+    "question": "How accurate is the geographic data?",
+    "answer": "Geographic data is estimated based on IP address geolocation. It's generally accurate to the city or region level but may not be precise to exact addresses. This is standard for IP-based location services.",
+    "keywords": ["location accuracy", "ip geolocation", "scan locations"]
+  },
+  {
+    "id": "export-scan-data",
+    "category": "Analytics / Intel",
+    "question": "Can I export my scan data?",
+    "answer": "Yes, on Pro and Command plans. You can export scan data as CSV files for analysis in spreadsheets or other tools. Exports include timestamps, locations, device types, and scan counts.",
+    "keywords": ["export data", "csv export", "analytics export"]
+  },
+  {
+    "id": "intel-update-frequency",
+    "category": "Analytics / Intel",
+    "question": "How often is Intel data updated?",
+    "answer": "Intel data updates in real-time as scans occur. The dashboard refreshes automatically, and you can manually refresh to see the latest data. Historical data is stored and available for trend analysis.",
+    "keywords": ["real-time analytics", "intel updates", "scan tracking"]
+  },
+  {
+    "id": "free-plan-includes",
+    "category": "Plans & Billing",
+    "question": "What's included in the Free Forever plan?",
+    "answer": "Free Forever includes unlimited static QR codes, 1 dynamic QR code, 1 Adaptive QRC™ (expires after 30 days), basic Intel analytics, standard QR styles, and community support. Dynamic QR codes, menus, files, vCards, and portals include watermarks.",
+    "keywords": ["free plan", "free forever", "qr code pricing"]
+  },
+  {
+    "id": "pro-plan-includes",
+    "category": "Plans & Billing",
+    "question": "What's included in Pro?",
+    "answer": "Pro includes 25 dynamic QR codes, 1 Adaptive QRC™ (never expires, unlimited scans), full Intel analytics, bulk QR creation, custom colors and logos, preset loadouts, priority updates, no watermarks, and $3 per additional Adaptive QRC™.",
+    "keywords": ["pro plan", "qr code pricing", "premium features"]
+  },
+  {
+    "id": "credit-card-required",
+    "category": "Plans & Billing",
+    "question": "Do I need a credit card for the free plan?",
+    "answer": "No. The Free Forever plan requires no credit card. You can sign up and start creating QR codes immediately.",
+    "keywords": ["free account", "no credit card", "sign up"]
+  },
+  {
+    "id": "upgrade-downgrade",
+    "category": "Plans & Billing",
+    "question": "Can I upgrade or downgrade my plan anytime?",
+    "answer": "Yes. You can upgrade to Pro at any time to unlock more features. Plan changes take effect immediately. We don't currently offer downgrades, but you can cancel Pro and return to Free Forever.",
+    "keywords": ["upgrade plan", "plan changes", "billing"]
+  },
+  {
+    "id": "cancel-pro-plan",
+    "category": "Plans & Billing",
+    "question": "What happens to my QR codes if I cancel Pro?",
+    "answer": "Your existing QR codes continue to work. You'll lose access to Pro features like advanced Intel, bulk creation, and unlimited dynamic QR codes. You'll be limited to 1 dynamic QR code and 1 Adaptive QRC™ (which will expire after 30 days on the free plan).",
+    "keywords": ["cancel subscription", "plan cancellation", "downgrade"]
+  },
+  {
+    "id": "watermarks-free-plan",
+    "category": "Plans & Billing",
+    "question": "Are there watermarks on free QR codes?",
+    "answer": "Yes. Dynamic QR codes, menus, files, vCards, and portals created on the free plan include a watermark. Static QR codes and the QR code image itself don't have watermarks. Upgrade to Pro to remove all watermarks.",
+    "keywords": ["watermark", "free plan", "pro features"]
+  },
+  {
+    "id": "qr-codes-secure",
+    "category": "Security & Reliability",
+    "question": "Are my QR codes secure?",
+    "answer": "Yes. All QR codes are generated securely, and your account data is protected. Dynamic QR codes use short URLs that are unique and difficult to guess. We use industry-standard security practices for authentication and data storage.",
+    "keywords": ["security", "qr code security", "data protection"]
+  },
+  {
+    "id": "access-modify-qr-codes",
+    "category": "Security & Reliability",
+    "question": "Can someone else access or modify my QR codes?",
+    "answer": "No. Only you can access and modify your QR codes through your account. QR codes are tied to your user account and protected by authentication. Always keep your login credentials secure.",
+    "keywords": ["account security", "qr code access", "authentication"]
+  },
+  {
+    "id": "platform-downtime",
+    "category": "Security & Reliability",
+    "question": "What happens if QR Code Studio goes down?",
+    "answer": "QR codes themselves are stored in the code image, so static QR codes work even if our servers are down. Dynamic QR codes require our servers to redirect, but we maintain high uptime and redundancy to ensure reliability.",
+    "keywords": ["reliability", "uptime", "server downtime"]
+  },
+  {
+    "id": "qr-code-lifespan",
+    "category": "Security & Reliability",
+    "question": "How long do my QR codes stay active?",
+    "answer": "Static QR codes work forever. Dynamic QR codes stay active as long as your account is active. Adaptive QRC™ codes on the free plan expire after 30 days; Pro Adaptive QRC™ codes never expire.",
+    "keywords": ["qr code expiration", "qr code lifespan", "active qr codes"]
+  },
+  {
+    "id": "delete-qr-codes",
+    "category": "Security & Reliability",
+    "question": "Can I delete my QR codes?",
+    "answer": "Yes. You can delete any QR code from your Arsenal at any time. When you delete a QR code, associated files (menu images, PDFs, etc.) are also removed from storage. Deleted QR codes cannot be recovered.",
+    "keywords": ["delete qr code", "remove qr code", "qr code management"]
+  },
+  {
+    "id": "qr-code-print-size",
+    "category": "Printing & Best Practices",
+    "question": "What size should I print my QR code?",
+    "answer": "Print QR codes at least 1 inch (2.5 cm) square for reliable scanning. Larger is better, especially for distance scanning. For posters or signage, 3-4 inches works well. Test scan your printed QR code before mass printing.",
+    "keywords": ["qr code size", "printing qr codes", "best practices"]
+  },
+  {
+    "id": "download-formats",
+    "category": "Printing & Best Practices",
+    "question": "What file formats can I download?",
+    "answer": "You can download QR codes as PNG (for web and printing), SVG (vector, scalable), JPEG, or PDF. PNG is recommended for most use cases. SVG is best if you need to scale the QR code to different sizes.",
+    "keywords": ["download qr code", "qr code formats", "png", "svg", "pdf"]
+  },
+  {
+    "id": "add-logo",
+    "category": "Printing & Best Practices",
+    "question": "Can I add my logo to QR codes?",
+    "answer": "Yes. Pro plans include logo upload. You can add your logo to the center of the QR code, adjust its size, and customize colors. Logos are embedded in the QR code image and don't affect scanability when sized appropriately.",
+    "keywords": ["custom logo", "branded qr code", "qr code logo"]
+  },
+  {
+    "id": "error-correction-level",
+    "category": "Printing & Best Practices",
+    "question": "What's the best error correction level?",
+    "answer": "Medium (M) is recommended for most QR codes. It balances data capacity with error tolerance. Use High (H) if your QR code will be printed small or in challenging conditions. Use Low (L) only if you need maximum data capacity and have perfect printing conditions.",
+    "keywords": ["error correction", "qr code quality", "scan reliability"]
+  },
+  {
+    "id": "customize-colors",
+    "category": "Printing & Best Practices",
+    "question": "Can I customize QR code colors?",
+    "answer": "Yes. You can customize foreground and background colors. Ensure high contrast between colors for reliable scanning. Dark QR codes on light backgrounds (or vice versa) work best. Avoid similar colors or low contrast combinations.",
+    "keywords": ["custom colors", "qr code design", "color customization"]
+  },
+  {
+    "id": "qr-placement-best-practices",
+    "category": "Printing & Best Practices",
+    "question": "What's the best practice for QR code placement?",
+    "answer": "Place QR codes where they're easily accessible and scannable. Ensure good lighting, avoid reflective surfaces, and leave white space around the code. For menus, place QR codes on tables, countertops, or entry points. For marketing materials, place them prominently but not intrusively.",
+    "keywords": ["qr code placement", "best practices", "scanning tips"]
+  },
+  {
+    "id": "lead-generation",
+    "category": "Printing & Best Practices",
+    "question": "Can I use QR codes for lead generation?",
+    "answer": "Yes. Dynamic QR codes are perfect for lead generation. Create a QR code that links to a landing page, form, or contact page. Use Intel to track how many people scan and where they're coming from. This helps measure campaign effectiveness.",
+    "keywords": ["lead generation", "marketing campaigns", "qr code marketing"]
+  },
+  {
+    "id": "digital-signage",
+    "category": "Printing & Best Practices",
+    "question": "Are QR codes good for digital signage?",
+    "answer": "Yes. QR codes work great for digital signage. Use dynamic QR codes so you can update destinations without changing the display. Adaptive QRC™ is especially powerful for digital signage, allowing different content based on time of day or other rules.",
+    "keywords": ["digital signage", "adaptive qrc", "smart qr codes", "time-based qr"]
+  }
+]

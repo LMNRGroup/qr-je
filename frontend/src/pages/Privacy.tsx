@@ -4,7 +4,7 @@ import { X } from 'lucide-react';
 
 const Privacy = () => {
   const navigate = useNavigate();
-  
+
   return (
     <div className="min-h-screen bg-background text-foreground">
       <div className="container mx-auto px-4 py-12 space-y-8 max-w-4xl">
@@ -29,7 +29,7 @@ const Privacy = () => {
         <div className="glass-panel rounded-2xl p-6 space-y-6 text-sm text-muted-foreground">
         <div className="space-y-3">
           <h2 className="text-base font-semibold text-foreground">1. Information We Collect</h2>
-          
+
           <h3 className="text-sm font-semibold text-foreground mt-4">Account Information</h3>
           <p>When you create an account, we collect:</p>
           <ul className="list-disc list-inside space-y-1 ml-4">
@@ -90,7 +90,7 @@ const Privacy = () => {
         <div className="space-y-3">
           <h2 className="text-base font-semibold text-foreground">3. Third-Party Services</h2>
           <p>We use the following third-party services:</p>
-          
+
           <h3 className="text-sm font-semibold text-foreground mt-4">Supabase</h3>
           <ul className="list-disc list-inside space-y-1 ml-4">
             <li><strong>Purpose:</strong> Authentication and file storage</li>

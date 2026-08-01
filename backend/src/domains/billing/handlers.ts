@@ -24,6 +24,16 @@ export const getBillingStatusHandler = (billingService: BillingService) => {
   }
 }
 
+export const getBillingPlansHandler = (billingService: BillingService) => {
+  return async (c: Context<AppBindings>) => {
+    try {
+      return c.json(await billingService.getPlans())
+    } catch (error) {
+      return handleBillingError(c, error)
+    }
+  }
+}
+
 export const syncBillingHandler = (billingService: BillingService) => {
   return async (c: Context<AppBindings>) => {
     const userId = c.get('userId')

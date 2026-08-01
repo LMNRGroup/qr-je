@@ -74,7 +74,7 @@ export function AdaptivePage({
                         Edit
                       </Button>
                     </div>
-                    
+
                     {/* Quick Stats - Vertical Stack */}
                     <div className="grid grid-cols-3 gap-2 pt-4 border-t border-amber-500/20">
                       <div className="text-center">
@@ -86,7 +86,7 @@ export function AdaptivePage({
                       <div className="text-center">
                         <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground mb-0.5">Rule Type</p>
                         <p className="text-lg font-bold bg-gradient-to-r from-amber-400 via-amber-300 to-amber-400 bg-clip-text text-transparent capitalize">
-                          {existingAdaptiveQRC.options?.adaptive?.dateRules ? 'Time' : 
+                          {existingAdaptiveQRC.options?.adaptive?.dateRules ? 'Time' :
                            existingAdaptiveQRC.options?.adaptive?.firstReturn ? 'Visit' : 'None'}
                         </p>
                       </div>
@@ -126,10 +126,10 @@ export function AdaptivePage({
                           {existingAdaptiveQRC.options.adaptive.dateRules && existingAdaptiveQRC.options.adaptive.dateRules.length > 0 && (
                             existingAdaptiveQRC.options.adaptive.dateRules.map((rule: AdaptiveRule, index: number) => {
                               const slot = existingAdaptiveQRC.options.adaptive.slots?.find((s: AdaptiveSlot) => s.id === rule.slot);
-                              const timeRange = rule.startTime && rule.endTime 
+                              const timeRange = rule.startTime && rule.endTime
                                 ? `${rule.startTime} - ${rule.endTime}`
                                 : rule.startTime || rule.endTime || 'All day';
-                              const days = rule.days && rule.days.length > 0 
+                              const days = rule.days && rule.days.length > 0
                                 ? rule.days.join(', ')
                                 : 'Every day';
                               return slot ? (
@@ -158,10 +158,9 @@ export function AdaptivePage({
                     <div className="flex items-start gap-3">
                       <Info className="h-4 w-4 text-amber-400 mt-0.5 flex-shrink-0" />
                       <div className="space-y-1.5 flex-1 min-w-0">
-                        <p className="text-xs font-semibold bg-gradient-to-r from-amber-400 via-amber-300 to-amber-400 bg-clip-text text-transparent">Monthly Scan Limit</p>
+                        <p className="text-xs font-semibold bg-gradient-to-r from-amber-400 via-amber-300 to-amber-400 bg-clip-text text-transparent">Unlimited Scans</p>
                         <p className="text-xs text-muted-foreground leading-relaxed">
-                          Your Adaptive QRC™ has a limit of <span className="font-semibold bg-gradient-to-r from-amber-400 via-amber-300 to-amber-400 bg-clip-text text-transparent">500 scans per month</span>. 
-                          Upgrade to Pro or Command for unlimited scans.
+                          Your Adaptive QRC™ stays active with unlimited scans on every plan.
                         </p>
                       </div>
                     </div>
@@ -186,8 +185,8 @@ export function AdaptivePage({
                           Create Your Adaptive QRC™
                         </h3>
                         <p className="text-xs text-muted-foreground mb-4 leading-relaxed">
-                          Build a premium QR code that routes content based on time, day, or visitor count. 
-                          One Adaptive QRC™ per account with 500 scans per month.
+                          Build a premium QR code that routes content based on time, day, or visitor count.
+                          One Adaptive QRC™ per account with unlimited scans.
                         </p>
                       </div>
                       {!user ? (
@@ -252,7 +251,7 @@ export function AdaptivePage({
                         <p className="text-xs font-semibold bg-gradient-to-r from-amber-400 via-amber-300 to-amber-400 bg-clip-text text-transparent">Limits & Restrictions</p>
                         <ul className="text-xs text-muted-foreground space-y-1 leading-relaxed">
                           <li>• One Adaptive QRC™ per account</li>
-                          <li>• 500 scans per month limit (upgrade for unlimited)</li>
+                          <li>• Unlimited scans</li>
                           <li>• Choose either Time rules OR Visit rules (not both)</li>
                         </ul>
                       </div>
@@ -269,7 +268,7 @@ export function AdaptivePage({
               <Sparkles className="h-8 w-8 text-amber-400" />
               <p className="text-xs uppercase tracking-[0.4em] text-muted-foreground">Adaptive QRC™</p>
             </div>
-            <h2 
+            <h2
               className="text-4xl sm:text-5xl font-semibold tracking-tight bg-gradient-to-r from-amber-400 via-amber-300 to-amber-400 bg-clip-text text-transparent cursor-pointer hover:opacity-80 transition-opacity inline-block"
               onClick={() => setShowNavOverlay(true)}
             >
@@ -333,7 +332,7 @@ export function AdaptivePage({
                   <div>
                     <p className="text-xs uppercase tracking-[0.3em] text-amber-200/60 mb-1">Rule Type</p>
                     <p className="text-2xl font-bold text-amber-300 capitalize">
-                      {existingAdaptiveQRC.options?.adaptive?.dateRules ? 'Time' : 
+                      {existingAdaptiveQRC.options?.adaptive?.dateRules ? 'Time' :
                        existingAdaptiveQRC.options?.adaptive?.firstReturn ? 'Visit' : 'None'}
                     </p>
                   </div>
@@ -349,10 +348,9 @@ export function AdaptivePage({
                 <div className="flex items-start gap-4">
                   <Info className="h-5 w-5 text-amber-400 mt-0.5 flex-shrink-0" />
                   <div className="space-y-2">
-                    <p className="text-sm font-semibold text-amber-200">Monthly Scan Limit</p>
+                    <p className="text-sm font-semibold text-amber-200">Unlimited Scans</p>
                     <p className="text-sm text-amber-200/70">
-                      Your Adaptive QRC™ has a limit of <span className="font-semibold text-amber-300">500 scans per month</span>. 
-                      Upgrade to Pro or Command for unlimited scans.
+                      Your Adaptive QRC™ stays active with unlimited scans on every plan.
                     </p>
                   </div>
                 </div>
@@ -377,8 +375,8 @@ export function AdaptivePage({
                       Create Your Adaptive QRC™
                     </h3>
                     <p className="text-muted-foreground mb-6">
-                      Build a premium QR code that routes content based on time, day, or visitor count. 
-                      One Adaptive QRC™ per account with 500 scans per month.
+                      Build a premium QR code that routes content based on time, day, or visitor count.
+                      One Adaptive QRC™ per account with unlimited scans.
                     </p>
                   </div>
                   {!user ? (
@@ -442,7 +440,7 @@ export function AdaptivePage({
                     <p className="text-sm font-semibold text-amber-200">Limits & Restrictions</p>
                     <ul className="text-sm text-amber-200/70 space-y-1">
                       <li>• One Adaptive QRC™ per account</li>
-                      <li>• 500 scans per month limit (upgrade for unlimited)</li>
+                      <li>• Unlimited scans</li>
                       <li>• Choose either Time rules OR Visit rules (not both)</li>
                     </ul>
                   </div>

@@ -104,7 +104,7 @@ const getVcardSharePayload = (item: QRHistoryItem) => {
 const calculateQRStorageSize = (item: QRHistoryItem): number => {
   let total = 0;
   const opts = item.options;
-  
+
   // Menu files
   if (opts.menuFiles && Array.isArray(opts.menuFiles)) {
     for (const file of opts.menuFiles) {
@@ -113,17 +113,17 @@ const calculateQRStorageSize = (item: QRHistoryItem): number => {
       }
     }
   }
-  
+
   // Menu logo
   if (opts.menuLogoSize && typeof opts.menuLogoSize === 'number') {
     total += opts.menuLogoSize;
   }
-  
+
   // File QRC
   if (opts.fileSize && typeof opts.fileSize === 'number') {
     total += opts.fileSize;
   }
-  
+
   // Adaptive QRC files
   if (opts.adaptive && typeof opts.adaptive === 'object' && 'slots' in opts.adaptive) {
     const slots = opts.adaptive.slots;
@@ -135,44 +135,51 @@ const calculateQRStorageSize = (item: QRHistoryItem): number => {
       }
     }
   }
-  
+
   // vCard photo (stored as dataUrl, but we track size)
   // Note: vCard photos are stored in options.photo as dataUrl, but we don't have size stored
   // For now, we'll skip vCard photos in deletion cleanup (they're small anyway)
-  
+
   return total;
 };
 
 // Delete file from Supabase storage
 const deleteFileFromStorage = async (fileUrl: string) => {
-  if (!fileUrl || (!fileUrl.includes('/storage/v1/object/public/') && !fileUrl.includes('/storage/v1/object/sign/'))) return;
-  
+  const isProxyUrl = fileUrl?.includes('/public/assets/');
+  const isSupabaseUrl = fileUrl?.includes('/storage/v1/object/public/') || fileUrl?.includes('/storage/v1/object/sign/');
+  if (!fileUrl || (!isProxyUrl && !isSupabaseUrl)) return;
+
   try {
-    // Extract file path from public URL
-    // URL format: https://[project].supabase.co/storage/v1/object/public/qr-assets/files/[filename]
-    // Or signed URL format: https://[project].supabase.co/storage/v1/object/sign/qr-assets/files/[filename]?...
-    let urlParts: string[];
-    if (fileUrl.includes('/storage/v1/object/public/')) {
-      urlParts = fileUrl.split('/storage/v1/object/public/');
+    // URL formats:
+    // - Proxy:  {apiBase}/public/assets/qr-assets-path e.g. /public/assets/files/[filename]
+    // - Public: https://[project].supabase.co/storage/v1/object/public/qr-assets/files/[filename]
+    // - Signed: https://[project].supabase.co/storage/v1/object/sign/qr-assets/files/[filename]?...
+    let bucket = 'qr-assets';
+    let filePath: string;
+
+    if (isProxyUrl) {
+      const pathOnly = fileUrl.split('/public/assets/')[1]?.split('?')[0] ?? '';
+      filePath = decodeURIComponent(pathOnly);
     } else {
-      urlParts = fileUrl.split('/storage/v1/object/sign/');
+      const urlParts = fileUrl.includes('/storage/v1/object/public/')
+        ? fileUrl.split('/storage/v1/object/public/')
+        : fileUrl.split('/storage/v1/object/sign/');
+      if (urlParts.length < 2) return;
+
+      const pathOnly = urlParts[1].split('?')[0];
+      const pathParts = pathOnly.split('/');
+      if (pathParts.length < 3) return; // Should be: bucket/folder/filename
+
+      bucket = pathParts[0];
+      const folder = pathParts[1];
+      const filename = pathParts.slice(2).join('/');
+      filePath = `${folder}/${filename}`;
     }
-    
-    if (urlParts.length < 2) return;
-    
-    // Remove query params if present
-    const pathWithQuery = urlParts[1];
-    const pathOnly = pathWithQuery.split('?')[0];
-    const pathParts = pathOnly.split('/');
-    if (pathParts.length < 3) return; // Should be: bucket/folder/filename
-    
-    const bucket = pathParts[0];
-    const folder = pathParts[1];
-    const filename = pathParts.slice(2).join('/');
-    const filePath = `${folder}/${filename}`;
-    
+
+    if (!filePath) return;
+
     const { error } = await supabase.storage.from(bucket).remove([filePath]);
-    
+
     if (error) {
       console.warn('[ArsenalPanel] Failed to delete file from storage:', error);
     }
@@ -185,12 +192,12 @@ const deleteFileFromStorage = async (fileUrl: string) => {
 const freeQRStorage = async (item: QRHistoryItem) => {
   const size = calculateQRStorageSize(item);
   const opts = item.options;
-  
+
   // Delete files from Supabase storage
   if (opts.fileUrl && typeof opts.fileUrl === 'string') {
     await deleteFileFromStorage(opts.fileUrl);
   }
-  
+
   // Delete menu files
   if (opts.menuFiles && Array.isArray(opts.menuFiles)) {
     for (const file of opts.menuFiles) {
@@ -199,12 +206,12 @@ const freeQRStorage = async (item: QRHistoryItem) => {
       }
     }
   }
-  
+
   // Delete menu logo
   if (opts.menuLogoDataUrl && typeof opts.menuLogoDataUrl === 'string' && opts.menuLogoDataUrl.includes('/storage/')) {
     await deleteFileFromStorage(opts.menuLogoDataUrl);
   }
-  
+
   // Delete Adaptive QRC files
   if (opts.adaptive && typeof opts.adaptive === 'object' && 'slots' in opts.adaptive) {
     const slots = opts.adaptive.slots;
@@ -216,7 +223,7 @@ const freeQRStorage = async (item: QRHistoryItem) => {
       }
     }
   }
-  
+
   // Update localStorage storage usage
   if (size > 0 && typeof window !== 'undefined') {
     const current = Number(window.localStorage.getItem('qrc.storage.usage') || '0');
@@ -246,15 +253,15 @@ const parseKind = (kind?: string | null) => {
 const getQrPreviewContent = (item: QRHistoryItem) => {
   const parsed = parseKind(item.kind ?? null);
   // Check if item has adaptive config in options
-  const isAdaptive = parsed.type === 'adaptive' || 
-                     (item.options && typeof item.options === 'object' && 
+  const isAdaptive = parsed.type === 'adaptive' ||
+                     (item.options && typeof item.options === 'object' &&
                       'adaptive' in item.options && item.options.adaptive !== null);
-  
+
   if (isAdaptive && item.shortUrl) {
     // Convert /r/ URL to /adaptive/ URL for adaptive QRCs
     return item.shortUrl.replace('/r/', '/adaptive/');
   }
-  
+
   if (parsed.mode === 'dynamic') {
     return item.shortUrl ?? item.content;
   }
@@ -426,7 +433,7 @@ export function ArsenalPanel({
   // Hide delete X when clicking outside or on another QR code
   useEffect(() => {
     if (!isMobileV2 || !showDeleteX) return;
-    
+
     const handleClickOutside = (e: MouseEvent | TouchEvent) => {
       const target = e.target as HTMLElement;
       // If clicking on a QR card (but not the X button), hide X
@@ -442,15 +449,15 @@ export function ArsenalPanel({
         setShowDeleteX(null);
       }
     };
-    
+
     // Also hide when selecting a different QR
     if (selectedId && selectedId !== showDeleteX) {
       setShowDeleteX(null);
     }
-    
+
     document.addEventListener('click', handleClickOutside, true);
     document.addEventListener('touchstart', handleClickOutside, true);
-    
+
     return () => {
       document.removeEventListener('click', handleClickOutside, true);
       document.removeEventListener('touchstart', handleClickOutside, true);
@@ -712,7 +719,7 @@ export function ArsenalPanel({
 
   useEffect(() => {
     if (!items.length) return;
-    
+
     // Only poll when tab is visible
     const isVisible = () => {
       if (typeof document === 'undefined') return true;
@@ -816,16 +823,16 @@ export function ArsenalPanel({
   const handleSelect = (item: QRHistoryItem) => {
     // Check if this is an Adaptive QRC or Dynamic QR code
     const parsed = parseKind(item.kind ?? null);
-    const isAdaptive = parsed.type === 'adaptive' || 
-                       (item.options && typeof item.options === 'object' && 
+    const isAdaptive = parsed.type === 'adaptive' ||
+                       (item.options && typeof item.options === 'object' &&
                         'adaptive' in item.options && item.options.adaptive !== null);
-    
+
     // If it's Adaptive/Dynamic, open the Adaptive editor instead
     if (isAdaptive && onAdaptiveEdit) {
       onAdaptiveEdit(item);
       return;
     }
-    
+
     if (hasUnsavedChanges) {
       setPendingAction({ type: 'select', item });
       setShowUnsavedPrompt(true);
@@ -911,12 +918,12 @@ export function ArsenalPanel({
     try {
       // Get items before deletion to free storage
       const itemsToDelete = items.filter((item) => selectedIds.has(item.id));
-      
+
       // Free up storage for all deleted QRs (delete files from storage) BEFORE deletion
       await Promise.all(itemsToDelete.map((item) => freeQRStorage(item)));
-      
+
       await Promise.all(ids.map((id) => deleteQRFromHistory(id)));
-      
+
       setItems((prev) => prev.filter((entry) => !selectedIds.has(entry.id)));
       setSelectedIds(new Set());
       setIsSelectMode(false);
@@ -1045,8 +1052,8 @@ export function ArsenalPanel({
   const renderCardBadge = (item: QRHistoryItem) => {
     const parsed = parseKind(item.kind ?? null);
     // Check if item has adaptive config in options
-    const isAdaptive = parsed.type === 'adaptive' || 
-                       (item.options && typeof item.options === 'object' && 
+    const isAdaptive = parsed.type === 'adaptive' ||
+                       (item.options && typeof item.options === 'object' &&
                         'adaptive' in item.options && item.options.adaptive !== null);
     const itemType = isAdaptive ? 'adaptive' : parsed.type;
     const typeMeta = typeStyles[itemType] ?? typeStyles.url;
@@ -1927,7 +1934,7 @@ export function ArsenalPanel({
                             // Don't proceed with normal click if X was showing
                             return;
                           }
-                          
+
                           // Clear any pending long press
                           const timer = longPressTimer[item.id];
                           if (timer) {
@@ -2171,7 +2178,7 @@ export function ArsenalPanel({
                         </div>
                       )}
                     </button>
-                    
+
                     {/* X Delete Button - shown on long press for mobile V2 */}
                     {shouldShowDeleteX && (
                       <button
@@ -2515,7 +2522,7 @@ export function ArsenalPanel({
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="flex-row gap-3 mt-6 sm:justify-end">
-            <AlertDialogCancel 
+            <AlertDialogCancel
               onClick={() => setDeleteTarget(null)}
               className="flex-1 sm:flex-initial border-border/60 hover:border-border"
             >

@@ -48,6 +48,6 @@ export const registerUrlsRoutes = (
   app.get('/scans/areas', getScanAreasHandler(areaStorage!))
   app.get('/scans/counts', getUserScanCountsHandler(scansService))
   app.get('/urls', listUrlsHandler(service, vcardsService))
-  app.patch('/urls/:id', updateUrlHandler(service))
+  app.patch('/urls/:id', updateUrlHandler(service, billingService))
   app.delete('/urls/:id', deleteUrlHandler(service, scansService, vcardsService))
 }

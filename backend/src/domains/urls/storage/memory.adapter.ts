@@ -1,10 +1,13 @@
-import { Url } from '../models'
+import { Url, UrlQuota } from '../models'
+import { UrlQuotaExceededError } from '../errors'
+import { findQuotaIncreaseViolation, findQuotaViolation } from '../quota'
 import { UrlsStorage } from './interface'
 
 export class InMemoryUrlsStorageAdapter implements UrlsStorage {
   private readonly records = new Map<string, Url>()
 
-  async createUrl(url: Url) {
+  async createUrl(url: Url, quota?: UrlQuota) {
+    if (quota) this.assertWithinQuota([...this.records.values(), url], quota)
     this.records.set(this.keyFor(url.id, url.random), url)
   }
 
@@ -32,7 +35,7 @@ export class InMemoryUrlsStorageAdapter implements UrlsStorage {
     return Array.from(this.records.values())
   }
 
-  async updateById(id: string, userId: string, updates: Partial<Url>) {
+  async updateById(id: string, userId: string, updates: Partial<Url>, quota?: UrlQuota) {
     const entry = Array.from(this.records.values()).find(
       (url) => url.id === id && url.userId === userId
     )
@@ -42,6 +45,16 @@ export class InMemoryUrlsStorageAdapter implements UrlsStorage {
     const updated: Url = {
       ...entry,
       ...updates
+    }
+    if (quota) {
+      const before = Array.from(this.records.values())
+      const after = before.map((record) =>
+        record.id === id && record.userId === userId ? updated : record
+      )
+      const violation = findQuotaIncreaseViolation(before, after, quota)
+      if (violation) {
+        throw new UrlQuotaExceededError('QR code plan limit reached', violation.code)
+      }
     }
     this.records.set(this.keyFor(updated.id, updated.random), updated)
     return updated
@@ -58,5 +71,12 @@ export class InMemoryUrlsStorageAdapter implements UrlsStorage {
 
   private keyFor(id: string, random: string) {
     return `${id}:${random}`
+  }
+
+  private assertWithinQuota(records: Url[], quota: UrlQuota) {
+    const violation = findQuotaViolation(records, quota)
+    if (violation) {
+      throw new UrlQuotaExceededError('QR code plan limit reached', violation.code)
+    }
   }
 }

@@ -44,6 +44,7 @@ import {
   updateUserProfile,
   type ScanAreaSummary,
   type UserProfile,
+  buildAssetProxyUrl,
 } from '@/lib/api';
 import {
   canEditCollectrForVcard,
@@ -953,15 +954,15 @@ const Index = () => {
       try {
         const history = await getQRHistory({ summary: true });
         if (!history.success || cancelled) return;
-        
+
         // Early return if user has no QR codes - no need to fetch counts
         if (!history.data || history.data.length === 0) {
           scanNotifyPollingRef.current = false;
           return;
         }
-        
+
         const targets = history.data.slice(0, 10);
-        
+
         // Use bulk endpoint instead of per-QR calls
         const bulkCounts = await getScanCounts();
         const results = targets.map((item) => {
@@ -972,7 +973,7 @@ const Index = () => {
           const count = bulkCounts[key] ?? 0;
           return { id: item.id, count, label: getLabel(item) };
         });
-        
+
         const prev = scanNotifyRef.current;
         results.forEach(({ id, count, label }) => {
           const previous = prev[id];
@@ -1014,16 +1015,16 @@ const Index = () => {
         window.dispatchEvent(new CustomEvent('qrc:storage-update', { detail: 0 }));
         return;
       }
-      
+
       let totalStorage = 0;
       for (const item of response.data) {
         const opts = item.options;
-        
+
         // File QR
         if (opts.fileSize && typeof opts.fileSize === 'number') {
           totalStorage += opts.fileSize;
         }
-        
+
         // Menu files
         if (opts.menuFiles && Array.isArray(opts.menuFiles)) {
           for (const file of opts.menuFiles) {
@@ -1032,12 +1033,12 @@ const Index = () => {
             }
           }
         }
-        
+
         // Menu logo
         if (opts.menuLogoSize && typeof opts.menuLogoSize === 'number') {
           totalStorage += opts.menuLogoSize;
         }
-        
+
         // Adaptive QRC files
         if (opts.adaptive && typeof opts.adaptive === 'object' && 'slots' in opts.adaptive) {
           const slots = opts.adaptive.slots;
@@ -1050,7 +1051,7 @@ const Index = () => {
           }
         }
       }
-      
+
       // Update localStorage with actual DB storage
       window.localStorage.setItem(STORAGE_KEY, String(totalStorage));
       window.dispatchEvent(new CustomEvent('qrc:storage-update', { detail: totalStorage }));
@@ -1072,22 +1073,22 @@ const Index = () => {
         setScanStats({ total: 0 });
         return;
       }
-      
+
       setQrHistory(response.data);
       const qrCount = response.data.length;
         const dynamicCount = response.data.filter(
           (item) => parseKind(item.kind ?? null).mode === 'dynamic'
         ).length;
       setArsenalStats({ total: qrCount, dynamic: dynamicCount });
-      
+
       // Find existing Adaptive QRC
       const adaptiveQRC = response.data.find((item) => {
-        return item.kind === 'adaptive' || 
-               (item.options && typeof item.options === 'object' && 
+        return item.kind === 'adaptive' ||
+               (item.options && typeof item.options === 'object' &&
                 'adaptive' in item.options && item.options.adaptive !== null);
       });
       setExistingAdaptiveQRC(adaptiveQRC || null);
-      
+
       // Only fetch scan summary if user has QR codes (optimize for users with no QRs)
       if (qrCount > 0) {
         try {
@@ -1101,17 +1102,17 @@ const Index = () => {
       } else {
         setScanStats({ total: 0 });
       }
-      
+
       // Calculate storage from the data we already fetched (no need to fetch again!)
       let totalStorage = 0;
       for (const item of response.data) {
         const opts = item.options;
-        
+
         // File QR
         if (opts.fileSize && typeof opts.fileSize === 'number') {
           totalStorage += opts.fileSize;
         }
-        
+
         // Menu files
         if (opts.menuFiles && Array.isArray(opts.menuFiles)) {
           for (const file of opts.menuFiles) {
@@ -1120,12 +1121,12 @@ const Index = () => {
             }
           }
         }
-        
+
         // Menu logo
         if (opts.menuLogoSize && typeof opts.menuLogoSize === 'number') {
           totalStorage += opts.menuLogoSize;
         }
-        
+
         // Adaptive QRC files
         if (opts.adaptive && typeof opts.adaptive === 'object' && 'slots' in opts.adaptive) {
           const slots = opts.adaptive.slots;
@@ -1138,7 +1139,7 @@ const Index = () => {
           }
         }
       }
-      
+
       // Update localStorage with calculated storage (no additional fetch!)
       if (typeof window !== 'undefined') {
         window.localStorage.setItem(STORAGE_KEY, String(totalStorage));
@@ -1222,7 +1223,7 @@ const Index = () => {
       userProfile?.timezone ||
       profileForm.timezone ||
       Intl.DateTimeFormat().resolvedOptions().timeZone;
-    
+
     // Determine number of days based on intelRange
     let days = 7; // default
     if (intelRange === 'today') {
@@ -1235,12 +1236,12 @@ const Index = () => {
       // For "all", show last 30 days as a reasonable default
       days = 30;
     }
-    
+
     // Use current timezone values inside effect instead of dependencies
     const currentTimeZone = userProfile?.timezone ||
       profileForm.timezone ||
       Intl.DateTimeFormat().resolvedOptions().timeZone;
-    
+
     getScanTrends(days, currentTimeZone)
       .then((points) => {
         if (cancelled) return;
@@ -1773,13 +1774,13 @@ const Index = () => {
       return;
     }
     const optionsSnapshot = { ...optionsRef.current };
-    
+
     // Build adaptive configuration ONLY if QR type is 'adaptive'
     // Note: qrType can never be 'adaptive' in the wizard flow (Adaptive QRCs use separate handler),
     // so this ensures adaptive config is NEVER built for wizard-created QRs
     const adaptiveConfig = (qrType as string) === 'adaptive' ? buildAdaptiveConfig() : undefined;
     const isAdaptiveQR = Boolean(adaptiveConfig);
-    
+
     // Merge adaptive config into options if enabled
     const finalOptions = isAdaptiveQR
       ? {
@@ -1788,12 +1789,12 @@ const Index = () => {
         }
       : optionsSnapshot;
     const normalizedVcardData = buildVcardData(vcard, vcardStyle);
-    
+
     setIsGenerating(true);
     // Declare file variables outside IIFE for use in adaptive logic
     let finalFileUrl = fileUrl;
     let finalFileSize = fileSize;
-    
+
     try {
       const editingKind = editingDynamicContentQRC ? parseKind(editingDynamicContentQRC.kind ?? null) : null;
       const isEditingDynamicAsset =
@@ -1919,7 +1920,7 @@ const Index = () => {
           // For file QR, upload file to DB now (only when generating)
           finalFileUrl = fileUrl;
           finalFileSize = fileSize;
-          
+
           if (qrType === 'file' && (fileDataUrl || fileBlob)) {
             try {
               // Create a File object from cached data for upload
@@ -1932,7 +1933,7 @@ const Index = () => {
               } else {
                 throw new Error('No file data available');
               }
-              
+
               const result = await uploadQrAsset(fileToUpload, 'files', fileDataUrl || undefined);
               if (!result?.url) {
                 throw new Error('Upload returned no URL.');
@@ -1945,18 +1946,18 @@ const Index = () => {
               throw error;
             }
           }
-          
+
           // Determine kind field - NEVER set to 'adaptive' unless explicitly creating Adaptive QRC
           // Note: qrType can never be 'adaptive' in wizard flow, so kind will always follow pattern
           const qrKind = (qrType as string) === 'adaptive'
             ? 'adaptive'
             : `${qrMode ?? 'static'}:${qrType === 'website' ? 'url' : qrType === 'social' ? 'url' : qrType === 'portal' ? 'portal' : qrType ?? 'url'}`;
-          
+
           // Build portal URL if portal type
           const portalUrl = qrType === 'portal'
             ? `${appBaseUrl}/portal/${crypto.randomUUID()}`
             : null;
-          
+
           return generateQR(
           qrType === 'file' || qrType === 'menu'
             ? `${appBaseUrl}/pending/${crypto.randomUUID()}`
@@ -2008,7 +2009,7 @@ const Index = () => {
               console.warn('Failed to update vCard:', error);
             }
           }
-          
+
           // For adaptive QR codes, convert /r/ URL to /adaptive/ URL
           let qrContent =
             qrType === 'vcard' && qrMode === 'static'
@@ -2028,7 +2029,7 @@ const Index = () => {
               console.warn('Failed to update QR with adaptive URL:', error);
             }
           }
-          
+
           setGeneratedShortUrl(response.url.shortUrl);
           setGeneratedLongUrl(response.url.publicUrl ?? response.url.targetUrl);
           setLastGeneratedContent(qrContent);
@@ -2041,7 +2042,7 @@ const Index = () => {
               const targetUrl = qrType === 'file'
                 ? `${appBaseUrl}/file/${id}/${random}`
                 : `${appBaseUrl}/menu/${id}/${random}`;
-              
+
               // Build options - NEVER include adaptive config unless qrType is 'adaptive'
               const updateOptions = qrType === 'file'
                 ? {
@@ -2057,11 +2058,11 @@ const Index = () => {
                     menuLogoDataUrl,
                     menuSocials,
                   };
-              
+
               // Determine kind field - NEVER set to 'adaptive' unless explicitly creating Adaptive QRC
               // Note: qrType is 'file' | 'menu' here, so kind will always follow pattern (never 'adaptive')
               const updateKind = `${qrMode ?? 'static'}:${qrType}`;
-              
+
               const updateResponse = await updateQR(id, {
                 targetUrl,
                 name: name || (qrType === 'file' ? fileName || 'File QR' : null),
@@ -2071,7 +2072,7 @@ const Index = () => {
               if (updateResponse.success && updateResponse.data) {
                 nextItem = updateResponse.data;
               }
-              
+
               // For adaptive QR codes, convert /r/ URL to /adaptive/ URL
               if (isAdaptiveQR) {
                 const adaptiveUrl = `${appBaseUrl}/adaptive/${id}/${random}`;
@@ -2112,7 +2113,7 @@ const Index = () => {
               console.warn('Failed to update QR with adaptive URL:', error);
             }
           }
-          
+
           const qrValue = isAdaptiveQR && nextItem.shortUrl?.includes('/adaptive/')
             ? nextItem.shortUrl
             : (nextItem.shortUrl ?? nextItem.content);
@@ -2575,7 +2576,7 @@ const Index = () => {
     setProfileSaving(true);
     setPasswordError('');
     setPasswordStatus('idle');
-    
+
     if (profileForm.newPassword || profileForm.currentPassword || profileForm.confirmPassword) {
       if (!profileForm.currentPassword || !profileForm.newPassword) {
         setPasswordError(t('Enter your current and new password.', 'Ingresa tu contraseña actual y nueva.'));
@@ -2868,22 +2869,22 @@ const Index = () => {
     if (!isSupabaseConfigured) {
       throw new Error('Storage is not configured yet.');
     }
-    
+
     // Check if user is authenticated
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) {
       throw new Error('You must be signed in to upload files. Please sign in and try again.');
     }
-    
+
     try {
       const extension = file.name.split('.').pop() || (file.type.includes('pdf') ? 'pdf' : 'png');
       const fileName = `${crypto.randomUUID()}.${extension}`;
       const filePath = `${folder}/${fileName}`;
-      
+
       // Use compressed dataUrl if provided, otherwise use original file
       let payload: Blob | File;
       let compressedSize: number;
-      
+
       if (dataUrl) {
         const blob = dataUrlToBlob(dataUrl);
         payload = blob;
@@ -2892,7 +2893,7 @@ const Index = () => {
         payload = file;
         compressedSize = file.size;
       }
-      
+
       // Check storage limit before upload
       const storageCheck = checkStorageLimit(compressedSize);
       if (!storageCheck.allowed) {
@@ -2900,11 +2901,11 @@ const Index = () => {
         const neededMB = (compressedSize / (1024 * 1024)).toFixed(1);
         throw new Error(`Storage limit exceeded. You have ${availableMB}MB available, but need ${neededMB}MB. Please delete some files or upgrade your plan.`);
       }
-      
+
       const { error, data: uploadData } = await supabase.storage
         .from(QR_ASSETS_BUCKET)
-        .upload(filePath, payload, { upsert: true, contentType: file.type });
-      
+        .upload(filePath, payload, { upsert: false, contentType: file.type, cacheControl: '31536000' });
+
       if (error) {
         // Provide detailed error messages
         const statusCode = 'statusCode' in error ? String(error.statusCode) : undefined;
@@ -2922,15 +2923,11 @@ const Index = () => {
         }
         throw new Error(`${errorMessage} (${statusCode || 'unknown'})`);
       }
-      
+
       // Track storage usage (compressed size)
       addStorageUsage(compressedSize);
-      
-      const { data } = supabase.storage.from(QR_ASSETS_BUCKET).getPublicUrl(filePath);
-      if (!data?.publicUrl) {
-        throw new Error('Failed to get public URL for uploaded file.');
-      }
-      return { url: data.publicUrl, size: compressedSize };
+
+      return { url: buildAssetProxyUrl(filePath), size: compressedSize };
     } catch (error) {
       // Re-throw with context if it's already an Error, otherwise wrap it
       if (error instanceof Error) {
@@ -2977,7 +2974,7 @@ const Index = () => {
       toast.info('Compressing photo for vCard...');
       const compressedDataUrl = await compressImageFile(file, { targetSize: 250, quality: 0.85 });
       const compressedBlob = dataUrlToBlob(compressedDataUrl);
-      
+
       // Check storage limit
       const storageCheck = checkStorageLimit(compressedBlob.size);
       if (!storageCheck.allowed) {
@@ -3197,22 +3194,22 @@ const Index = () => {
       image.onerror = reject;
       image.src = dataUrl;
     });
-    
+
     // Use targetSize if provided (for vCard photos), otherwise use maxDimension
     const dimensionLimit = targetSize || maxDimension;
     const scale = Math.min(1, dimensionLimit / Math.max(image.width, image.height));
-    
+
     const canvas = document.createElement('canvas');
     canvas.width = Math.max(1, Math.round(image.width * scale));
     canvas.height = Math.max(1, Math.round(image.height * scale));
     const ctx = canvas.getContext('2d');
     if (!ctx) return dataUrl;
-    
+
     // Better quality for smaller images
     ctx.imageSmoothingEnabled = true;
     ctx.imageSmoothingQuality = 'high';
     ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
-    
+
     if (preserveAlpha) {
       try {
         const webpDataUrl = canvas.toDataURL('image/webp', quality);
@@ -3281,9 +3278,9 @@ const Index = () => {
       const compressed = file.type.startsWith('image/')
         ? await compressImageFile(file, { maxDimension: 2000, quality: 0.80 })
         : '';
-      
+
       const result = await uploadQrAsset(file, 'logos', compressed || undefined);
-      
+
       clearInterval(progressInterval);
       setMenuLogoUploadProgress(100);
       await new Promise((resolve) => setTimeout(resolve, 300));
@@ -3552,18 +3549,18 @@ const Index = () => {
       setMenuFlip(false);
       setMenuCarouselIndex(0);
       setMenuUploadError(null); // Clear any previous errors
-      
+
       // Ensure menu builder is open before advancing step
       if (!showMenuBuilder) {
         setShowMenuBuilder(true);
       }
-      
+
       // Advance to logo step - use setTimeout to ensure state updates are processed
       // Use a longer delay to ensure React has processed all state updates
       setTimeout(() => {
         setMenuBuilderStep('logo'); // Advance to logo step after menu upload
       }, 200);
-      
+
       toast.success(`Successfully uploaded ${uploads.length} file${uploads.length === 1 ? '' : 's'}`);
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to process menu files.';
@@ -3629,7 +3626,7 @@ const Index = () => {
       // Compress files before upload and check storage with compressed size
       let compressed = '';
       let estimatedSize = file.size; // Default to original size for PDFs
-      
+
       if (isImage) {
         toast.info('Compressing image...');
         try {
@@ -3647,7 +3644,7 @@ const Index = () => {
         // PDFs can't be compressed client-side effectively, use original size
         estimatedSize = file.size;
       }
-      
+
       // Check storage limit with estimated (compressed) size BEFORE caching
       const storageCheck = checkStorageLimit(estimatedSize);
       if (!storageCheck.allowed) {
@@ -3684,11 +3681,11 @@ const Index = () => {
       setFileSize(result.size);
       setFileDataUrl('');
       setFileBlob(null);
-      
+
       // Mark file as touched and clear any previous errors BEFORE completing upload
       setFileTouched(true);
       setFileUploadError(null);
-      
+
       // Set progress to 100% and mark upload as complete
       setFileUploadProgress(100);
       await new Promise((resolve) => setTimeout(resolve, 300));
@@ -4146,7 +4143,7 @@ const Index = () => {
       // Find files to delete (in old but not in new)
       const filesToDelete = oldFileUrls.filter(url => !newFileUrls.includes(url));
 
-      const adaptiveUrl = existingAdaptiveQRC.shortUrl?.replace('/r/', '/adaptive/') || 
+      const adaptiveUrl = existingAdaptiveQRC.shortUrl?.replace('/r/', '/adaptive/') ||
                          `${appBaseUrl}/adaptive/${existingAdaptiveQRC.id}/${existingAdaptiveQRC.random}`;
 
       await updateQR(existingAdaptiveQRC.id, {
@@ -4172,11 +4169,11 @@ const Index = () => {
                 const fileName = urlParts[urlParts.length - 1];
                 const folder = urlParts[urlParts.length - 2];
                 const filePath = `${folder}/${fileName}`;
-                
+
                 const { error } = await supabase.storage
                   .from(QR_ASSETS_BUCKET)
                   .remove([filePath]);
-                
+
                 if (error) {
                   console.warn(`Failed to delete file ${filePath}:`, error);
                 }
@@ -4362,7 +4359,7 @@ const Index = () => {
       // Validate slots exist
       const firstSlotExists = slots.some((s) => s.id === adaptiveFirstSlot);
       const returnSlotExists = slots.some((s) => s.id === adaptiveReturnSlot);
-      
+
       if (firstSlotExists && returnSlotExists) {
         config.firstReturn = {
           enabled: true,
@@ -4693,7 +4690,7 @@ const Index = () => {
         return Sparkles;
     }
   };
-  
+
   const getStepIconOld = (step: 1 | 2 | 3 | 4) => {
     if (step === 1) return QrCode;
     if (step === 2) return qrMode === 'dynamic' ? Zap : QrCode;
@@ -7690,8 +7687,8 @@ const Index = () => {
                         </g>
                       </g>
                       {/* Triangle from SVG - rotates with dial, always points to Studio */}
-                      <polygon 
-                        className="dial-st0" 
+                      <polygon
+                        className="dial-st0"
                         points="200 36.84 210.39 18.85 189.61 18.85 200 36.84"
                       />
                     </svg>
@@ -7884,7 +7881,7 @@ const Index = () => {
         {!isMobile && selectedQuickAction && (
           <DesktopStudioWizard {...studioWizardProps} />
         )}
-        
+
         {/* Hidden file input for desktop wizard */}
         <input
           ref={fileInputRef}
@@ -7893,7 +7890,7 @@ const Index = () => {
           onChange={handleFileUpload}
           className="hidden"
         />
-        
+
         {/* Desktop Studio Dashboard - Show when no Quick Action is selected */}
         {!isMobile && !selectedQuickAction && (
           <section id="studio" className="space-y-6">
@@ -8012,7 +8009,7 @@ const Index = () => {
             </div>
           </section>
         )}
-        
+
         {/* Mobile V2 and legacy desktop - keep intact for mobile only */}
         {showStudioIntro && isMobile && !isMobileV2 && (
         <section className={`space-y-3 sm:space-y-4 ${isMobileV2 ? 'qrc-v2-section' : ''}`} data-tour-id="quick-actions">
@@ -8134,7 +8131,7 @@ const Index = () => {
           <div className="flex items-center justify-between gap-4 sm:gap-5 lg:gap-6">
             <div className={isMobileV2 ? "mb-0 pb-3" : ""}>
               <p className="text-xs uppercase tracking-[0.4em] text-muted-foreground mb-1">Studio</p>
-              <h2 
+              <h2
                 className={`${isMobileV2 ? 'text-lg' : 'text-2xl sm:text-3xl'} font-semibold ${!isMobileV2 ? 'tracking-tight' : ''} cursor-pointer hover:text-primary/80 transition-colors`}
                 onClick={() => setShowNavOverlay(true)}
               >
