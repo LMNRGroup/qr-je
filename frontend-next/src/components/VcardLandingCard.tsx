@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { Fragment, useEffect, useRef } from 'react';
 import type { CSSProperties, ComponentType, ReactNode } from 'react';
 import {
   ArrowUpRight,
@@ -12,6 +12,7 @@ import {
 import { formatCollectrCurrency, resolveCollectrPreviewInput, useCollectrPreview } from '@/lib/collectr';
 import { normalizeVcardFontFamily } from '@/lib/vcard-theme';
 import { cn } from '@/lib/utils';
+import '@/styles/vcard-youtube.css';
 import type {
   VcardCtaType,
   VcardProfile,
@@ -24,6 +25,7 @@ import type {
 type VcardLandingCardProps = {
   profile: VcardProfile;
   style: VcardStyle;
+  publicUrl?: string;
   mode?: 'preview' | 'public';
   interactive?: boolean;
   showFooter?: boolean;
@@ -51,6 +53,17 @@ type CollectrStat = {
   key: string;
   label: string;
   value: string;
+};
+
+const RAMONTCG_PUBLIC_PATH = '/1vbilcikwj/ramn-figueroa-soto';
+const RAMONTCG_YOUTUBE_URL = 'https://youtu.be/y4mFeeLgQLw?si=pSiDkTQw_wIYw60y';
+
+const isRamontcgPublicPath = (value: string) => {
+  try {
+    return new URL(value, 'https://qrcode.luminarapps.com').pathname.replace(/\/+$/, '') === RAMONTCG_PUBLIC_PATH;
+  } catch {
+    return false;
+  }
 };
 
 const CTA_LABELS: Record<VcardCtaType, string> = {
@@ -319,6 +332,7 @@ const renderMaybeLink = (
 export function VcardLandingCard({
   profile,
   style,
+  publicUrl = '',
   mode = 'public',
   interactive = true,
   showFooter = true,
@@ -373,6 +387,28 @@ export function VcardLandingCard({
         href: normalizeUrl(featuredSocial.value),
         external: true,
       }
+    : null;
+
+  const showRamontcgYoutube = mode === 'public' && [
+    publicUrl,
+    typeof window !== 'undefined' ? window.location.pathname : '',
+  ].some(isRamontcgPublicPath);
+  const youtubeSpotlight = showRamontcgYoutube
+    ? renderMaybeLink(
+        'ramontcg-youtube',
+        interactive,
+        { href: RAMONTCG_YOUTUBE_URL, external: true },
+        'qrc-youtube-spotlight',
+        <>
+          <YoutubeLogo className="qrc-youtube-logo" />
+          <span>Watch on YouTube</span>
+          <span className="qrc-youtube-badge">New</span>
+        </>,
+        {
+          'aria-label': 'Watch @ramontcg on YouTube (opens in a new tab)',
+          title: '@ramontcg on YouTube',
+        }
+      )
     : null;
 
   const contactRows: ContactRow[] = [
@@ -660,8 +696,9 @@ export function VcardLandingCard({
                   </div>
                 </div>
 
-                {socialLinks.length > 0 ? (
+                {socialLinks.length > 0 || showRamontcgYoutube ? (
                   <div className="flex flex-wrap items-center gap-2.5">
+                    {!socialLinks.some((link) => link.key === 'instagram') ? youtubeSpotlight : null}
                     {socialLinks.map((link) => {
                       const Icon = SOCIAL_ICONS[link.key];
                       const socialHref = normalizeUrl(link.value);
@@ -671,30 +708,30 @@ export function VcardLandingCard({
                           ? 'border-white/14 bg-white/[0.1] text-white/[0.92] hover:border-white/24 hover:bg-white/[0.16]'
                           : 'border-slate-900/[0.08] bg-white/[0.72] text-slate-900/[0.82] hover:border-slate-900/14 hover:bg-white/[0.88]'
                       );
-                      if (interactive) {
-                        return (
-                          <a
-                            key={link.key}
-                            href={socialHref}
-                            target="_blank"
-                            rel="noreferrer"
-                            aria-label={link.label}
-                            title={link.label}
-                            className={sharedClassName}
-                          >
-                            <Icon className="h-4 w-4" />
-                          </a>
-                        );
-                      }
                       return (
-                        <div
-                          key={link.key}
-                          aria-label={link.label}
-                          title={link.label}
-                          className={sharedClassName}
-                        >
-                          <Icon className="h-4 w-4" />
-                        </div>
+                        <Fragment key={link.key}>
+                          {interactive ? (
+                            <a
+                              href={socialHref}
+                              target="_blank"
+                              rel="noreferrer"
+                              aria-label={link.label}
+                              title={link.label}
+                              className={sharedClassName}
+                            >
+                              <Icon className="h-4 w-4" />
+                            </a>
+                          ) : (
+                            <div
+                              aria-label={link.label}
+                              title={link.label}
+                              className={sharedClassName}
+                            >
+                              <Icon className="h-4 w-4" />
+                            </div>
+                          )}
+                          {link.key === 'instagram' ? youtubeSpotlight : null}
+                        </Fragment>
                       );
                     })}
                   </div>

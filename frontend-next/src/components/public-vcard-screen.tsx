@@ -364,6 +364,7 @@ const VCard = () => {
               <VcardLandingCard
                 profile={profile ?? {}}
                 style={{ ...fallbackStyle, ...(style ?? {}) }}
+                publicUrl={publicUrl}
                 mode="public"
                 interactive
                 showFooter

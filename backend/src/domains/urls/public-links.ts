@@ -15,6 +15,8 @@ import type { UrlsService } from './service'
 const PUBLIC_SLUG_FALLBACK = 'link'
 const FNV_OFFSET = 0x811c9dc5
 const FNV_PRIME = 0x01000193
+const RAMONTCG_PUBLIC_PATH = '/1vbilcikwj/ramn-figueroa-soto'
+const RAMONTCG_YOUTUBE_URL = 'https://youtu.be/y4mFeeLgQLw?si=pSiDkTQw_wIYw60y'
 
 type ParsedKind = {
   mode: 'dynamic' | 'static'
@@ -1027,6 +1029,8 @@ export const buildVcardLandingHtml = (
   const phone = normalizeText(profile.phone)
   const email = normalizeText(profile.email)
   const website = normalizeText(profile.website)
+  // Match the resolved card, not the scanned URL, so legacy aliases work too.
+  const showRamontcgYoutube = normalizePathname(canonicalUrl) === RAMONTCG_PUBLIC_PATH
   const frontFontColor = pickColor(style.frontFontColor, DEFAULT_VCARD_STYLE.frontFontColor)
   const buttonColor = pickColor(style.buttonColor, DEFAULT_VCARD_STYLE.buttonColor)
   const buttonTextColor = pickColor(style.buttonTextColor, DEFAULT_VCARD_STYLE.buttonTextColor)
@@ -1100,9 +1104,27 @@ export const buildVcardLandingHtml = (
       backgroundRepeat: 'no-repeat',
     })
   )
-  const socialButtons = socialLinks
-    .map((link) => buildSocialButton(link.label, link.value, ICON_SVGS[link.key]))
-    .join('')
+  const youtubeSpotlight = showRamontcgYoutube
+    ? buildMaybeLink(
+        { href: RAMONTCG_YOUTUBE_URL, external: true },
+        'qrc-youtube-spotlight',
+        `<span class="qrc-youtube-logo" aria-hidden="true">${ICON_SVGS.youtube}</span>
+         <span>Watch on YouTube</span>
+         <span class="qrc-youtube-badge">New</span>`,
+        {
+          'aria-label': 'Watch @ramontcg on YouTube (opens in a new tab)',
+          title: '@ramontcg on YouTube',
+        }
+      )
+    : ''
+  const socialButtons =
+    (socialLinks.some((link) => link.key === 'instagram') ? '' : youtubeSpotlight) +
+    socialLinks
+      .map((link) =>
+        buildSocialButton(link.label, link.value, ICON_SVGS[link.key]) +
+        (link.key === 'instagram' ? youtubeSpotlight : '')
+      )
+      .join('')
   const contactRows = [
     phone
       ? buildContactRow(
@@ -1455,6 +1477,7 @@ export const buildVcardLandingHtml = (
     .social-row {
       display: flex;
       flex-wrap: wrap;
+      align-items: center;
       gap: 10px;
     }
     .social-chip {
@@ -1479,6 +1502,81 @@ export const buildVcardLandingHtml = (
     .social-chip .icon-svg {
       width: 16px;
       height: 16px;
+    }
+    .qrc-youtube-spotlight {
+      position: relative;
+      isolation: isolate;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      min-height: 44px;
+      max-width: 100%;
+      padding: 10px;
+      overflow: hidden;
+      border: 1px solid rgba(255, 255, 255, 0.28);
+      border-radius: 999px;
+      background: linear-gradient(135deg, #d71926, #ac0916);
+      color: #fff;
+      box-shadow: 0 5px 16px rgba(137, 9, 23, 0.24), inset 0 1px 0 rgba(255, 255, 255, 0.18);
+      font-size: 12px;
+      font-weight: 700;
+      line-height: 1.2;
+      text-decoration: none;
+      transition: transform 180ms ease, box-shadow 180ms ease;
+    }
+    .qrc-youtube-spotlight::before {
+      content: '';
+      position: absolute;
+      z-index: -1;
+      inset: 0;
+      background: linear-gradient(110deg, transparent 30%, rgba(255, 255, 255, 0.2) 50%, transparent 70%);
+      transform: translateX(-150%);
+      animation: qrc-youtube-sheen 3.6s ease-out 0.6s 2;
+      pointer-events: none;
+    }
+    .qrc-youtube-logo {
+      width: 20px;
+      height: 20px;
+      flex-shrink: 0;
+    }
+    .qrc-youtube-badge {
+      flex-shrink: 0;
+      padding: 4px 5px;
+      border-radius: 999px;
+      background: #fff1cf;
+      color: #87111b;
+      font-size: 9px;
+      font-weight: 800;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+    a.qrc-youtube-spotlight:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 8px 22px rgba(137, 9, 23, 0.32), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+    }
+    a.qrc-youtube-spotlight:focus-visible {
+      outline: 2px solid #fff;
+      outline-offset: 2px;
+      box-shadow: 0 0 0 5px #87111b;
+    }
+    a.qrc-youtube-spotlight:active {
+      transform: translateY(0);
+    }
+    @keyframes qrc-youtube-sheen {
+      0% { transform: translateX(-150%); }
+      35%, 100% { transform: translateX(150%); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .qrc-youtube-spotlight,
+      a.qrc-youtube-spotlight:hover,
+      a.qrc-youtube-spotlight:active {
+        transform: none;
+        transition: none;
+      }
+      .qrc-youtube-spotlight::before {
+        animation: none;
+      }
     }
     .about {
       margin: 0;
