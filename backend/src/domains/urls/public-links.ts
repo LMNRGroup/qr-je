@@ -1431,9 +1431,7 @@ export const buildVcardLandingHtml = (
     }
     .column-main,
     .column-side {
-      display: grid;
-      gap: 16px;
-      align-content: start;
+      display: contents;
     }
     .intro-shell {
       border-radius: 30px;
@@ -1662,6 +1660,8 @@ export const buildVcardLandingHtml = (
     .contact-shell {
       border-radius: 30px;
       padding: 10px;
+      display: flex;
+      flex-direction: column;
     }
     .contact-header {
       display: flex;
@@ -1690,6 +1690,9 @@ export const buildVcardLandingHtml = (
     .contact-panel {
       overflow: hidden;
       border-radius: 24px;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
     }
     .contact-row {
       display: flex;
@@ -2066,6 +2069,30 @@ export const buildVcardLandingHtml = (
       .layout {
         grid-template-columns: minmax(0, 1.05fr) minmax(280px, 0.95fr);
         gap: 24px;
+        align-items: stretch;
+      }
+      .intro-shell {
+        grid-column: 1;
+        grid-row: 1;
+        height: 100%;
+      }
+      .action-card {
+        grid-column: 1;
+        grid-row: 2;
+        height: 100%;
+      }
+      .featured-card {
+        grid-column: 2;
+        grid-row: 2;
+        height: 100%;
+      }
+      .contact-shell {
+        grid-column: 2;
+        grid-row: 1;
+        height: 100%;
+      }
+      .contact-row {
+        flex: 1;
       }
       .collectr-header {
         grid-template-columns: minmax(0, 1fr) auto;
