@@ -660,8 +660,9 @@ export function VcardLandingCard({
           isPreview ? 'space-y-4 pt-16' : 'space-y-5 pt-[4.75rem] sm:space-y-6 sm:pt-20 md:px-8 md:pb-8 md:pt-24'
         )}
       >
-        <div className={cn('flex flex-col gap-4', isPreview ? '' : 'lg:grid lg:grid-cols-[minmax(0,1.05fr)_minmax(280px,0.95fr)] lg:items-start lg:gap-6')}>
-            <div className={cn('rounded-[30px] border px-4 py-5 backdrop-blur-2xl sm:px-5 sm:py-6 lg:col-start-1 lg:row-start-1', shellClass)}>
+        <div className={cn('space-y-4', isPreview ? '' : 'lg:grid lg:grid-cols-[minmax(0,1.05fr)_minmax(280px,0.95fr)] lg:items-stretch lg:gap-6 lg:space-y-0')}>
+          <div className="space-y-4">
+            <div className={cn('rounded-[30px] border px-4 py-5 backdrop-blur-2xl sm:px-5 sm:py-6', shellClass)}>
               <div className="space-y-4">
                 <div className="space-y-2.5">
                   <div className="space-y-2">
@@ -752,7 +753,7 @@ export function VcardLandingCard({
                 'primary-action',
                 interactive,
                 actionLink,
-                'qrc-scroll-spotlight group relative block overflow-hidden rounded-[30px] px-5 py-4 sm:px-6 sm:py-5 lg:col-start-1 lg:row-start-2',
+                'qrc-scroll-spotlight group relative block overflow-hidden rounded-[30px] px-5 py-4 sm:px-6 sm:py-5',
                 <>
                   <div
                     className="absolute inset-0"
@@ -829,7 +830,7 @@ export function VcardLandingCard({
                 interactive,
                 featuredSocialLink,
                 cn(
-                  'qrc-scroll-spotlight group relative overflow-hidden rounded-[30px] border px-5 py-4 backdrop-blur-2xl sm:px-6 sm:py-5 lg:col-start-2 lg:row-start-2',
+                  'qrc-scroll-spotlight group relative overflow-hidden rounded-[30px] border px-5 py-4 backdrop-blur-2xl sm:px-6 sm:py-5',
                   shellClass
                 ),
                 <>
@@ -885,11 +886,13 @@ export function VcardLandingCard({
                 }
               )
             ) : null}
+          </div>
 
+          <div className="lg:h-full">
             {contactRows.length > 0 ? (
               <div
                 className={cn(
-                  'qrc-scroll-spotlight overflow-hidden rounded-[30px] border p-2.5 backdrop-blur-2xl sm:p-3 lg:col-start-2 lg:row-start-1',
+                  'qrc-scroll-spotlight h-full overflow-hidden rounded-[30px] border p-2.5 backdrop-blur-2xl sm:p-3',
                   shellClass
                 )}
                 data-scroll-spotlight="contact"
@@ -965,6 +968,7 @@ export function VcardLandingCard({
                 </div>
               </div>
             ) : null}
+          </div>
         </div>
 
         {showCollectrModule ? (

@@ -1431,7 +1431,9 @@ export const buildVcardLandingHtml = (
     }
     .column-main,
     .column-side {
-      display: contents;
+      display: grid;
+      gap: 16px;
+      align-content: start;
     }
     .intro-shell {
       border-radius: 30px;
@@ -2063,25 +2065,14 @@ export const buildVcardLandingHtml = (
       }
       .layout {
         grid-template-columns: minmax(0, 1.05fr) minmax(280px, 0.95fr);
-        grid-template-rows: auto auto;
         gap: 24px;
-        align-items: start;
+        align-items: stretch;
       }
-      .intro-shell {
-        grid-column: 1;
-        grid-row: 1;
-      }
-      .action-card {
-        grid-column: 1;
-        grid-row: 2;
-      }
-      .featured-card {
-        grid-column: 2;
-        grid-row: 2;
+      .column-side {
+        align-content: stretch;
       }
       .contact-shell {
-        grid-column: 2;
-        grid-row: 1;
+        height: 100%;
       }
       .collectr-header {
         grid-template-columns: minmax(0, 1fr) auto;
