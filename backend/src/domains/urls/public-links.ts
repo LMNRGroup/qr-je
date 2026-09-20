@@ -1434,7 +1434,7 @@ export const buildVcardLandingHtml = (
     .column-main,
     .column-side {
       display: grid;
-      gap: 20px;
+      gap: 24px;
       align-content: start;
       justify-items: stretch;
       width: 100%;
@@ -2193,8 +2193,8 @@ export const buildVcardLandingHtml = (
           const emphasis = Math.max(0, 1 - distance / range);
           const strength = Number(target.getAttribute('data-scroll-strength') || '1');
 
-          target.style.setProperty('--qrc-spotlight-scale', (1 + emphasis * 0.06 * strength).toFixed(3));
-          target.style.setProperty('--qrc-spotlight-shift', (emphasis * -12 * strength).toFixed(2) + 'px');
+          target.style.setProperty('--qrc-spotlight-scale', '1');
+          target.style.setProperty('--qrc-spotlight-shift', '0px');
           target.style.setProperty('--qrc-spotlight-opacity', (0.9 + emphasis * 0.1).toFixed(3));
         });
       };
