@@ -257,8 +257,7 @@
 
 @layer utilities {
   .qrc-scroll-spotlight {
-    transform: translate3d(0, var(--qrc-spotlight-shift, 0px), 0)
-      scale(var(--qrc-spotlight-scale, 1));
+    transform: translate3d(0, var(--qrc-spotlight-shift, 0px), 0);
     transform-origin: center top;
     opacity: var(--qrc-spotlight-opacity, 1);
     transition:

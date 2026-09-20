@@ -1330,7 +1330,7 @@ export const buildVcardLandingHtml = (
       white-space: nowrap;
     }
     .qrc-scroll-spotlight {
-      transform: translate3d(0, var(--qrc-spotlight-shift, 0px), 0) scale(var(--qrc-spotlight-scale, 1));
+      transform: translate3d(0, var(--qrc-spotlight-shift, 0px), 0);
       transform-origin: center top;
       opacity: var(--qrc-spotlight-opacity, 1);
       transition:
@@ -1428,12 +1428,24 @@ export const buildVcardLandingHtml = (
     .layout {
       display: grid;
       gap: 16px;
+      width: 100%;
+      min-width: 0;
     }
     .column-main,
     .column-side {
       display: grid;
       gap: 16px;
       align-content: start;
+      justify-items: stretch;
+      width: 100%;
+      min-width: 0;
+    }
+    .intro-shell,
+    .action-card,
+    .featured-card,
+    .contact-shell {
+      width: 100%;
+      min-width: 0;
     }
     .intro-shell {
       border-radius: 30px;
@@ -1745,6 +1757,7 @@ export const buildVcardLandingHtml = (
     .action-arrow { font-size: 1.2rem; }
     .featured-card {
       position: relative;
+      display: block;
       overflow: hidden;
       border-radius: 30px;
       padding: 18px 20px;
