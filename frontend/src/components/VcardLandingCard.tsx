@@ -663,7 +663,7 @@ export function VcardLandingCard({
         <div className={cn('space-y-4', isPreview ? '' : 'lg:grid lg:grid-cols-[minmax(0,1.05fr)_minmax(280px,0.95fr)] lg:items-stretch lg:gap-6 lg:space-y-0')}>
           <div className="space-y-4">
             <div className={cn('w-full min-w-0 rounded-[30px] border px-4 py-5 backdrop-blur-2xl sm:px-5 sm:py-6', shellClass)}>
-              <div className="space-y-4">
+          <div className="space-y-5">
                 <div className="space-y-2.5">
                   <div className="space-y-2">
                     <h1

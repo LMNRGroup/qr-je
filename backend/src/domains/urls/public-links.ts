@@ -1434,7 +1434,7 @@ export const buildVcardLandingHtml = (
     .column-main,
     .column-side {
       display: grid;
-      gap: 16px;
+      gap: 20px;
       align-content: start;
       justify-items: stretch;
       width: 100%;
