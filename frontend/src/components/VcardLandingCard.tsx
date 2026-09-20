@@ -660,8 +660,8 @@ export function VcardLandingCard({
           isPreview ? 'space-y-4 pt-16' : 'space-y-5 pt-[4.75rem] sm:space-y-6 sm:pt-20 md:px-8 md:pb-8 md:pt-24'
         )}
       >
-        <div className={cn('flex flex-col gap-4', isPreview ? '' : 'lg:grid lg:grid-cols-[minmax(0,1.05fr)_minmax(280px,0.95fr)] lg:items-stretch lg:gap-6')}>
-            <div className={cn('h-full rounded-[30px] border px-4 py-5 backdrop-blur-2xl sm:px-5 sm:py-6 lg:col-start-1 lg:row-start-1', shellClass)}>
+        <div className={cn('flex flex-col gap-4', isPreview ? '' : 'lg:grid lg:grid-cols-[minmax(0,1.05fr)_minmax(280px,0.95fr)] lg:items-start lg:gap-6')}>
+            <div className={cn('rounded-[30px] border px-4 py-5 backdrop-blur-2xl sm:px-5 sm:py-6 lg:col-start-1 lg:row-start-1', shellClass)}>
               <div className="space-y-4">
                 <div className="space-y-2.5">
                   <div className="space-y-2">
@@ -752,7 +752,7 @@ export function VcardLandingCard({
                 'primary-action',
                 interactive,
                 actionLink,
-                'qrc-scroll-spotlight group relative block h-full overflow-hidden rounded-[30px] px-5 py-4 sm:px-6 sm:py-5 lg:col-start-1 lg:row-start-2',
+                'qrc-scroll-spotlight group relative block overflow-hidden rounded-[30px] px-5 py-4 sm:px-6 sm:py-5 lg:col-start-1 lg:row-start-2',
                 <>
                   <div
                     className="absolute inset-0"
@@ -829,7 +829,7 @@ export function VcardLandingCard({
                 interactive,
                 featuredSocialLink,
                 cn(
-                  'qrc-scroll-spotlight group relative h-full overflow-hidden rounded-[30px] border px-5 py-4 backdrop-blur-2xl sm:px-6 sm:py-5 lg:col-start-2 lg:row-start-2',
+                  'qrc-scroll-spotlight group relative overflow-hidden rounded-[30px] border px-5 py-4 backdrop-blur-2xl sm:px-6 sm:py-5 lg:col-start-2 lg:row-start-2',
                   shellClass
                 ),
                 <>
@@ -889,7 +889,7 @@ export function VcardLandingCard({
             {contactRows.length > 0 ? (
               <div
                 className={cn(
-                  'qrc-scroll-spotlight flex h-full flex-col overflow-hidden rounded-[30px] border p-2.5 backdrop-blur-2xl sm:p-3 lg:col-start-2 lg:row-start-1',
+                  'qrc-scroll-spotlight overflow-hidden rounded-[30px] border p-2.5 backdrop-blur-2xl sm:p-3 lg:col-start-2 lg:row-start-1',
                   shellClass
                 )}
                 data-scroll-spotlight="contact"
@@ -920,13 +920,13 @@ export function VcardLandingCard({
                   </span>
                 </div>
 
-                <div className={cn('flex flex-1 flex-col overflow-hidden rounded-[24px] border backdrop-blur-xl', panelClass, dividerClass)}>
+                <div className={cn('overflow-hidden rounded-[24px] border backdrop-blur-xl', panelClass, dividerClass)}>
                   {contactRows.map((row) =>
                     renderMaybeLink(
                       row.key,
                       interactive,
                       row.link,
-                      'group flex flex-1 items-center gap-3.5 px-4 py-3.5 transition sm:px-5 sm:py-4',
+                      'group flex items-center gap-3.5 px-4 py-3.5 transition sm:px-5 sm:py-4',
                       <>
                         <div
                           className={cn(
