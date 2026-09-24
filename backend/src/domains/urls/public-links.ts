@@ -1330,7 +1330,7 @@ export const buildVcardLandingHtml = (
       white-space: nowrap;
     }
     .qrc-scroll-spotlight {
-      transform: translate3d(0, var(--qrc-spotlight-shift, 0px), 0) scale(var(--qrc-spotlight-scale, 1));
+      transform: translate3d(0, var(--qrc-spotlight-shift, 0px), 0);
       transform-origin: center top;
       opacity: var(--qrc-spotlight-opacity, 1);
       transition:
@@ -1428,12 +1428,24 @@ export const buildVcardLandingHtml = (
     .layout {
       display: grid;
       gap: 16px;
+      width: 100%;
+      min-width: 0;
     }
     .column-main,
     .column-side {
       display: grid;
-      gap: 16px;
+      gap: 24px;
       align-content: start;
+      justify-items: stretch;
+      width: 100%;
+      min-width: 0;
+    }
+    .intro-shell,
+    .action-card,
+    .featured-card,
+    .contact-shell {
+      width: 100%;
+      min-width: 0;
     }
     .intro-shell {
       border-radius: 30px;
@@ -1745,6 +1757,7 @@ export const buildVcardLandingHtml = (
     .action-arrow { font-size: 1.2rem; }
     .featured-card {
       position: relative;
+      display: block;
       overflow: hidden;
       border-radius: 30px;
       padding: 18px 20px;
@@ -2066,6 +2079,13 @@ export const buildVcardLandingHtml = (
       .layout {
         grid-template-columns: minmax(0, 1.05fr) minmax(280px, 0.95fr);
         gap: 24px;
+        align-items: stretch;
+      }
+      .column-side {
+        align-content: stretch;
+      }
+      .contact-shell {
+        height: 100%;
       }
       .collectr-header {
         grid-template-columns: minmax(0, 1fr) auto;
@@ -2173,8 +2193,8 @@ export const buildVcardLandingHtml = (
           const emphasis = Math.max(0, 1 - distance / range);
           const strength = Number(target.getAttribute('data-scroll-strength') || '1');
 
-          target.style.setProperty('--qrc-spotlight-scale', (1 + emphasis * 0.06 * strength).toFixed(3));
-          target.style.setProperty('--qrc-spotlight-shift', (emphasis * -12 * strength).toFixed(2) + 'px');
+          target.style.setProperty('--qrc-spotlight-scale', '1');
+          target.style.setProperty('--qrc-spotlight-shift', '0px');
           target.style.setProperty('--qrc-spotlight-opacity', (0.9 + emphasis * 0.1).toFixed(3));
         });
       };
