@@ -7,6 +7,7 @@ const PUBLIC_ENV_FALLBACKS = {
   NEXT_PUBLIC_API_BASE_URL: 'VITE_API_BASE_URL',
   NEXT_PUBLIC_APP_URL: 'VITE_PUBLIC_APP_URL',
   NEXT_PUBLIC_MOBILE_UI_V2: 'VITE_MOBILE_UI_V2',
+  NEXT_PUBLIC_BILLING_ENABLED: 'VITE_BILLING_ENABLED',
   NEXT_PUBLIC_SUPABASE_URL: 'VITE_SUPABASE_URL',
   NEXT_PUBLIC_SUPABASE_ANON_KEY: 'VITE_SUPABASE_ANON_KEY',
   NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY: 'VITE_SUPABASE_PUBLISHABLE_DEFAULT_KEY',
@@ -77,7 +78,7 @@ async function devRewrites() {
     { source: '/v/:slug', destination: '/vcard' },
     {
       source:
-        '/:owner((?!v$|vcard$|menu$|file$|r$|adaptive$|public$|assets$|api$|_next$|inspector$|login$|forgot-password$|reset-password$|terms$|privacy$|support$|data-deletion$|faq$)[^/]+)/:slug',
+        '/:owner((?!v$|vcard$|menu$|file$|r$|adaptive$|public$|assets$|api$|_next$|inspector$|login$|forgot-password$|reset-password$|terms$|privacy$|support$|data-deletion$|faq$|billing$)[^/]+)/:slug',
       destination: '/vcard',
     },
     // Map the real viewer URLs onto their single static shells (mirrors vercel.json).

@@ -1,6 +1,6 @@
 /**
  * Desktop Studio Wizard Component
- * 
+ *
  * Shared QR creation wizard that follows the Mobile V2 step-by-step flow.
  * Provides a guided, step-by-step experience with progress indicator and navigation.
  *
@@ -83,7 +83,7 @@ interface DesktopStudioWizardProps {
   portalDescription: string;
   portalTemplate: number;
   portalCustomization: PortalCustomization;
-  
+
   // Handlers
   onModeChange: (mode: 'static' | 'dynamic' | null) => void;
   onTypeChange: (type: QRType | null) => void;
@@ -304,7 +304,7 @@ export function DesktopStudioWizard({
     const handleKeyDown = (event: KeyboardEvent) => {
       // Only handle Enter key
       if (event.key !== 'Enter') return;
-      
+
       // Don't trigger if user is typing in an input, textarea, or button
       const target = event.target as HTMLElement;
       if (
@@ -315,7 +315,7 @@ export function DesktopStudioWizard({
       ) {
         return;
       }
-      
+
       // Only trigger Next on steps 1 and 3 (not step 2 which auto-advances, not step 4 which has Done)
       if (currentStep === 1 || currentStep === 3) {
         if (canProceed && nextStep) {
@@ -411,7 +411,7 @@ export function DesktopStudioWizard({
             </Button>
           </div>
         </div>
-        
+
         {/* Step Progress Bar */}
         <div className="flex items-center gap-2">
           {[1, 2, 3, 4].map((step) => {
@@ -419,7 +419,7 @@ export function DesktopStudioWizard({
             const isActive = currentStep === step;
             const isComplete = isStepComplete(step as QRWizardStep);
             const config = STEP_CONFIG[step as QRWizardStep];
-            
+
             return (
               <div key={step} className="flex items-center flex-1">
                 <button
@@ -435,10 +435,10 @@ export function DesktopStudioWizard({
                   }`}
                 >
                   <div className={`flex items-center justify-center w-7 h-7 rounded-full transition-all ${
-                    isComplete 
-                      ? 'bg-primary text-primary-foreground shadow-md' 
-                      : isActive 
-                        ? 'bg-primary/20 text-primary ring-2 ring-primary/30' 
+                    isComplete
+                      ? 'bg-primary text-primary-foreground shadow-md'
+                      : isActive
+                        ? 'bg-primary/20 text-primary ring-2 ring-primary/30'
                         : 'bg-secondary text-muted-foreground'
                   }`}>
                     {isComplete ? (
@@ -582,7 +582,7 @@ export function DesktopStudioWizard({
               >
                 <div>
                   <h3 className="text-lg font-semibold mb-1">
-                    {qrType === 'vcard' ? 'vCard Contents' : 
+                    {qrType === 'vcard' ? 'vCard Contents' :
                      qrType === 'file' ? 'File Upload' :
                      qrType === 'menu' ? 'Menu Customization' :
                      qrType === 'social' ? 'Social Media' :
@@ -1181,7 +1181,7 @@ export function DesktopStudioWizard({
               </div>
             </div>
           )}
-          
+
           {/* Back button only for step 2 */}
           {currentStep === 2 && (
             <div className="flex flex-col gap-3 pt-4 border-t sm:flex-row sm:items-center sm:justify-between">
@@ -1218,7 +1218,7 @@ export function DesktopStudioWizard({
                 </div>
               )}
             </div>
-            
+
             {/* Done button below preview when on step 4 */}
             {currentStep === 4 && (
               <div className="pt-4 border-t">

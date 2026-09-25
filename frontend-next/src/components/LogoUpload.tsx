@@ -143,7 +143,7 @@ export function LogoUpload({
               onDragOver={handleDragOver}
               onDragLeave={handleDragLeave}
               className={`
-                relative flex flex-col items-center justify-center w-full h-24 
+                relative flex flex-col items-center justify-center w-full h-24
                 border-2 border-dashed rounded-lg cursor-pointer
                 transition-all duration-200
                 ${

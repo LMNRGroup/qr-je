@@ -1,7 +1,25 @@
+'use client';
+
 import { Button } from '@/components/ui/button';
 import { NavPageLayout } from '@/components/NavPageLayout';
+import { useAuth } from '@/contexts/AuthContext';
+import {
+  createBillingCheckout,
+  createBillingPortalSession,
+  getBillingPlans,
+  getBillingStatus,
+  type BillingPlan,
+  type BillingPlanPrice,
+  type BillingStatus,
+  type PaidBillingPlan,
+} from '@/lib/api';
 import { motion } from 'framer-motion';
-import { User, Users, Info } from 'lucide-react';
+import { Info, Loader2, User, Users } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
+import { toast } from 'sonner';
+
+const BILLING_ENABLED = process.env.NEXT_PUBLIC_BILLING_ENABLED === 'true';
 
 interface UpgradePageProps {
   isMobileV2: boolean;
@@ -18,6 +36,124 @@ export function UpgradePage({
   setSelectedPlanComparison,
   adaptiveGradientText,
 }: UpgradePageProps) {
+  const { user } = useAuth();
+  const router = useRouter();
+  const [billingStatus, setBillingStatus] = useState<BillingStatus | null>(null);
+  const [planPrices, setPlanPrices] = useState<BillingPlanPrice[]>([]);
+  const [billingLoaded, setBillingLoaded] = useState(false);
+  const [billingAction, setBillingAction] = useState<PaidBillingPlan | 'portal' | null>(null);
+  const currentPlan = billingStatus?.plan ?? 'free';
+  const billingLoading = Boolean(user) && !billingLoaded;
+
+  useEffect(() => {
+    if (!BILLING_ENABLED || !user) return;
+
+    let active = true;
+    Promise.allSettled([getBillingStatus(), getBillingPlans()])
+      .then(([statusResult, pricesResult]) => {
+        if (!active) return;
+        if (statusResult.status === 'fulfilled') {
+          setBillingStatus(statusResult.value);
+        } else {
+          toast.error(readErrorMessage(statusResult.reason, 'Billing status could not be loaded.'));
+        }
+        if (pricesResult.status === 'fulfilled') {
+          setPlanPrices(pricesResult.value);
+        } else {
+          toast.error(readErrorMessage(pricesResult.reason, 'Plan prices could not be loaded.'));
+        }
+      })
+      .finally(() => {
+        if (active) setBillingLoaded(true);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [user]);
+
+  const beginCheckout = async (plan: PaidBillingPlan) => {
+    if (!user) {
+      router.push('/login');
+      return;
+    }
+
+    setBillingAction(plan);
+    try {
+      const { url } = await createBillingCheckout(plan);
+      window.location.assign(url);
+    } catch (error) {
+      toast.error(readErrorMessage(error, 'Checkout could not be started.'));
+      setBillingAction(null);
+    }
+  };
+
+  const openBillingPortal = async () => {
+    setBillingAction('portal');
+    try {
+      const { url } = await createBillingPortalSession();
+      window.location.assign(url);
+    } catch (error) {
+      toast.error(readErrorMessage(error, 'Billing portal could not be opened.'));
+      setBillingAction(null);
+    }
+  };
+
+  const priceFor = (plan: PaidBillingPlan) => formatPlanPrice(planPrices.find((price) => price.plan === plan));
+  const lockedClasses = BILLING_ENABLED ? '' : ' blur-sm pointer-events-none select-none';
+  const billingPanel = BILLING_ENABLED ? (
+    <div className="glass-panel rounded-2xl border border-border/60 p-4 sm:p-5 space-y-3">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Current plan</p>
+          <p className="text-base font-semibold text-foreground">
+            {billingLoading ? 'Loading billing details' : PLAN_LABELS[currentPlan]}
+          </p>
+        </div>
+        {billingStatus?.subscriptionStatus && (
+          <p className="text-xs uppercase tracking-[0.25em] text-muted-foreground">
+            Status: <span className="text-foreground">{billingStatus.subscriptionStatus}</span>
+          </p>
+        )}
+      </div>
+      <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+        <Button
+          type="button"
+          disabled={billingAction !== null || currentPlan !== 'free'}
+          onClick={() => beginCheckout('pro')}
+          className="uppercase tracking-[0.2em] text-xs"
+        >
+          {billingAction === 'pro' && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+          {user
+            ? currentPlan === 'pro' ? 'Pro active' : `Choose Pro${priceFor('pro')}`
+            : 'Log in for Pro'}
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          disabled={billingAction !== null || currentPlan !== 'free'}
+          onClick={() => beginCheckout('command')}
+          className="uppercase tracking-[0.2em] text-xs"
+        >
+          {billingAction === 'command' && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+          {user
+            ? currentPlan === 'command' ? 'Command active' : `Choose Command${priceFor('command')}`
+            : 'Log in for Command'}
+        </Button>
+        {billingStatus?.canManageBilling && (
+          <Button type="button" variant="secondary" disabled={billingAction !== null} onClick={openBillingPortal}>
+            {billingAction === 'portal' && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+            Manage billing
+          </Button>
+        )}
+      </div>
+    </div>
+  ) : (
+    <div className="text-center text-sm text-muted-foreground">
+      Current plan: <span className="text-foreground font-semibold">FREE FOREVER PLAN</span>
+    </div>
+  );
+
   return (
     <NavPageLayout
       sectionLabel="Upgrade"
@@ -27,10 +163,8 @@ export function UpgradePage({
     >
       {isMobileV2 ? (
         <div className="flex flex-col min-h-0 space-y-3">
-          <div className="text-center text-xs text-muted-foreground">
-            Current plan: <span className="text-foreground font-semibold">FREE FOREVER PLAN</span>
-          </div>
-          <div className="relative blur-sm pointer-events-none select-none">
+          {billingPanel}
+          <div className={`relative${lockedClasses}`}>
             <div className="grid gap-4">
               <div className="glass-panel rounded-2xl p-4 space-y-4 border border-border/60">
                 <div className="space-y-1">
@@ -49,11 +183,11 @@ export function UpgradePage({
                   <li><span className="font-semibold text-foreground">Basic</span> Intel</li>
                   <li><span className="font-semibold text-foreground">Standard</span> QR Styles</li>
                   <li><span className="font-semibold text-foreground">Community</span> Support</li>
-                  <li><span className="font-semibold text-foreground">Watermark</span> Enabled</li>
+                  <li><span className="font-semibold text-foreground">Menu & PDF</span> QR Codes</li>
                   <li className="flex items-center gap-2">
                     <span className="font-semibold text-foreground">1</span>
                     <span className={adaptiveGradientText}>Adaptive QRC™</span>
-                    <span className="text-[9px] uppercase tracking-[0.3em] text-foreground">Autodestroy in 7 days</span>
+                    <span className="text-[9px] uppercase tracking-[0.3em] text-foreground">Does not expire</span>
                   </li>
                 </ul>
               </div>
@@ -73,14 +207,13 @@ export function UpgradePage({
                     <User className="h-3.5 w-3.5 text-muted-foreground" />
                     <span className="font-semibold text-foreground">1</span> Seat
                   </li>
-                  <li><span className="font-semibold text-foreground">Full</span> Intel (analytics)</li>
-                  <li><span className="font-semibold text-foreground">Bulk</span> QR Creation</li>
+                  <li><span className="font-semibold text-foreground">Scan</span> Analytics</li>
+                  <li><span className="font-semibold text-foreground">Menu & PDF</span> QR Codes</li>
                   <li><span className="font-semibold text-foreground">Custom</span> Colors & Logos</li>
-                  <li><span className="font-semibold text-foreground">Preset</span> Loadouts</li>
-                  <li><span className="font-semibold text-foreground">Priority</span> Updates</li>
-                  <li><span className="font-semibold text-foreground">No</span> Watermark</li>
+                  <li><span className="font-semibold text-foreground">Saved</span> QR History</li>
+                  <li><span className="font-semibold text-foreground">Active</span> Saved Codes</li>
                   <li><span className={adaptiveGradientText}>Adaptive QRC™</span> Unlimited Scans</li>
-                  <li><span className="font-semibold text-foreground">+ $3</span> per extra Adaptive QRC™</li>
+                  <li><span className="font-semibold text-foreground">1</span> Adaptive QRC™ included</li>
                 </ul>
               </div>
               <div className="glass-panel rounded-2xl p-4 space-y-4 border border-amber-400/50">
@@ -99,17 +232,14 @@ export function UpgradePage({
                   <li><span className="font-semibold text-foreground">Unlimited</span> Scans</li>
                   <li className="flex items-center gap-2">
                     <Users className="h-3.5 w-3.5 text-muted-foreground" />
-                    <span className="font-semibold text-foreground">5</span> Seats
+                    <span className="font-semibold text-foreground">5</span> Adaptive QRCs
                   </li>
-                  <li><span className="font-semibold text-foreground">Advanced</span> Intel (reports & trends)</li>
-                  <li><span className="font-semibold text-foreground">Bulk</span> Creation (High-volume)</li>
-                  <li><span className="font-semibold text-foreground">API</span> Access</li>
-                  <li><span className="font-semibold text-foreground">Up to 5</span> Team Users</li>
-                  <li><span className="font-semibold text-foreground">Shared</span> Arsenal</li>
-                  <li><span className="font-semibold text-foreground">Priority</span> Support</li>
-                  <li><span className="font-semibold text-foreground">No</span> Watermark</li>
+                  <li><span className="font-semibold text-foreground">Scan</span> Reports & Trends</li>
+                  <li><span className="font-semibold text-foreground">Menu & PDF</span> QR Codes</li>
+                  <li><span className="font-semibold text-foreground">Saved</span> QR History</li>
+                  <li><span className="font-semibold text-foreground">Active</span> Saved Codes</li>
                   <li><span className={adaptiveGradientText}>Adaptive QRC™</span> Unlimited Scans</li>
-                  <li><span className="font-semibold text-foreground">+ $2</span> per extra Adaptive QRC™</li>
+                  <li><span className="font-semibold text-foreground">5</span> Adaptive QRCs included</li>
                 </ul>
               </div>
             </div>
@@ -128,11 +258,9 @@ export function UpgradePage({
             <p className="text-sm text-muted-foreground">Pricing comparison for every team size.</p>
           </div>
 
-          <div className="text-center text-sm text-muted-foreground">
-            Current plan: <span className="text-foreground font-semibold">FREE FOREVER PLAN</span>
-          </div>
+          {billingPanel}
 
-          <div className="relative blur-sm pointer-events-none select-none">
+          <div className={`relative${lockedClasses}`}>
             <div className="grid gap-6 lg:grid-cols-3">
               <div className="glass-panel rounded-2xl p-6 space-y-5 border border-border/60 transition-transform duration-200 hover:scale-[1.02] hover:border-amber-300/60 hover:shadow-[0_0_25px_rgba(251,191,36,0.15)]">
                 <div className="space-y-2">
@@ -153,15 +281,15 @@ export function UpgradePage({
                   <li><span className="font-semibold text-foreground">Basic</span> Intel</li>
                   <li><span className="font-semibold text-foreground">Standard</span> QR Styles</li>
                   <li><span className="font-semibold text-foreground">Community</span> Support</li>
-                  <li><span className="font-semibold text-foreground">Watermark</span> Enabled</li>
+                  <li><span className="font-semibold text-foreground">Menu & PDF</span> QR Codes</li>
                   <li className="flex items-center gap-2">
                     <span className="font-semibold text-foreground">1</span>
                     <span className={adaptiveGradientText}>Adaptive QRC™</span>
-                    <span className="text-[10px] uppercase tracking-[0.3em] text-foreground">Autodestroy in 7 days</span>
+                    <span className="text-[10px] uppercase tracking-[0.3em] text-foreground">Does not expire</span>
                     <span className="relative group">
                       <Info className="h-3.5 w-3.5 text-muted-foreground" />
                       <span className="pointer-events-none absolute left-1/2 top-full mt-2 w-52 -translate-x-1/2 rounded-lg border border-border/70 bg-card px-3 py-2 text-[11px] text-muted-foreground opacity-0 shadow-lg transition group-hover:opacity-100">
-                        This is a taste of Pro power. Avoid autodestroy by upgrading to Pro or Command.
+                        Saved Adaptive QRCs remain active on every plan.
                       </span>
                     </span>
                   </li>
@@ -196,14 +324,13 @@ export function UpgradePage({
                     <User className="h-4 w-4 text-muted-foreground" />
                     <span className="font-semibold text-foreground">1</span> Seat
                   </li>
-                  <li><span className="font-semibold text-foreground">Full</span> Intel (analytics)</li>
-                  <li><span className="font-semibold text-foreground">Bulk</span> QR Creation</li>
+                  <li><span className="font-semibold text-foreground">Scan</span> Analytics</li>
+                  <li><span className="font-semibold text-foreground">Menu & PDF</span> QR Codes</li>
                   <li><span className="font-semibold text-foreground">Custom</span> Colors & Logos</li>
-                  <li><span className="font-semibold text-foreground">Preset</span> Loadouts</li>
-                  <li><span className="font-semibold text-foreground">Priority</span> Updates</li>
-                  <li><span className="font-semibold text-foreground">No</span> Watermark</li>
+                  <li><span className="font-semibold text-foreground">Saved</span> QR History</li>
+                  <li><span className="font-semibold text-foreground">Active</span> Saved Codes</li>
                   <li><span className={adaptiveGradientText}>Adaptive QRC™</span> Unlimited Scans</li>
-                  <li><span className="font-semibold text-foreground">+ $3</span> per extra Adaptive QRC™</li>
+                  <li><span className="font-semibold text-foreground">1</span> Adaptive QRC™ included</li>
                 </ul>
                 <div className="text-xs uppercase tracking-[0.3em] text-primary">Compare</div>
               </div>
@@ -235,24 +362,21 @@ export function UpgradePage({
                   <li><span className="font-semibold text-foreground">Unlimited</span> Scans</li>
                   <li className="flex items-center gap-2">
                     <Users className="h-4 w-4 text-muted-foreground" />
-                    <span className="font-semibold text-foreground">5</span> Seats
+                    <span className="font-semibold text-foreground">5</span> Adaptive QRCs
                   </li>
-                  <li><span className="font-semibold text-foreground">Advanced</span> Intel (reports & trends)</li>
-                  <li><span className="font-semibold text-foreground">Bulk</span> Creation (High-volume)</li>
-                  <li><span className="font-semibold text-foreground">API</span> Access</li>
-                  <li><span className="font-semibold text-foreground">Up to 5</span> Team Users</li>
-                  <li><span className="font-semibold text-foreground">Shared</span> Arsenal</li>
-                  <li><span className="font-semibold text-foreground">Priority</span> Support</li>
-                  <li><span className="font-semibold text-foreground">No</span> Watermark</li>
+                  <li><span className="font-semibold text-foreground">Scan</span> Reports & Trends</li>
+                  <li><span className="font-semibold text-foreground">Menu & PDF</span> QR Codes</li>
+                  <li><span className="font-semibold text-foreground">Saved</span> QR History</li>
+                  <li><span className="font-semibold text-foreground">Active</span> Saved Codes</li>
                   <li><span className={adaptiveGradientText}>Adaptive QRC™</span> Unlimited Scans</li>
-                  <li><span className="font-semibold text-foreground">+ $2</span> per extra Adaptive QRC™</li>
+                  <li><span className="font-semibold text-foreground">5</span> Adaptive QRCs included</li>
                 </ul>
                 <div className="text-xs uppercase tracking-[0.3em] text-amber-200">Compare</div>
               </div>
             </div>
           </div>
 
-          <div className="glass-panel rounded-2xl p-6 overflow-x-auto blur-sm pointer-events-none select-none">
+          <div className={`glass-panel rounded-2xl p-6 overflow-x-auto${lockedClasses}`}>
             <table className="w-full text-sm text-muted-foreground">
               <thead>
                 <tr className="text-left border-b border-border/60">
@@ -266,17 +390,10 @@ export function UpgradePage({
                 {[
                   ['Dynamic QR Codes', '1', '25', 'Unlimited'],
                   ['Scans', 'Unlimited', 'Unlimited', 'Unlimited'],
-                  ['Intel', 'Basic', 'Full', 'Advanced'],
-                  ['Bulk Creation', '—', 'Included', 'High-volume'],
-                  ['Custom Colors & Logos', '—', 'Included', 'Included'],
-                  ['Preset Loadouts', '—', 'Included', 'Included'],
-                  ['Adaptive QRC™', '1 (Autodestroy 7 Days)', '1 Included', '5 Included'],
-                  ['Extra Adaptive QRC™', '—', '$3 / mo', '$2 / mo'],
-                  ['API Access', '—', '—', 'Included'],
-                  ['Team Users', '—', '—', 'Up to 5'],
-                  ['Shared Arsenal', '—', '—', 'Included'],
-                  ['Support', 'Community', 'Priority Updates', 'Priority Support'],
-                  ['Watermark', 'Enabled', 'No', 'No'],
+                  ['Static, menu & PDF QR codes', 'Unlimited', 'Unlimited', 'Unlimited'],
+                  ['Adaptive QRC™', '1 Included', '1 Included', '5 Included'],
+                  ['Saved codes expire', 'Never', 'Never', 'Never'],
+                  ['Scan analytics', 'Included', 'Included', 'Included'],
                 ].map(([feature, free, pro, command]) => (
                   <tr key={feature} className="border-b border-border/40">
                     <td className="py-3 pr-4 text-foreground">{feature}</td>
@@ -298,7 +415,7 @@ export function UpgradePage({
                 initial={{ opacity: 0, scale: 0.9, rotateY: 12 }}
                 animate={{ opacity: 1, scale: 1, rotateY: 0 }}
                 transition={{ duration: 0.35, ease: 'easeOut' }}
-                className="glass-panel rounded-3xl p-6 sm:p-8 w-full max-w-3xl space-y-5 blur-sm pointer-events-none select-none"
+                className={`glass-panel rounded-3xl p-6 sm:p-8 w-full max-w-3xl space-y-5${lockedClasses}`}
                 onClick={(event) => event.stopPropagation()}
               >
                 <div className="flex items-center justify-between">
@@ -320,18 +437,18 @@ export function UpgradePage({
                       <ul className="space-y-1">
                         <li>1 Dynamic QR Code</li>
                         <li>Basic Intel</li>
-                        <li>Watermark Enabled</li>
-                        <li><span className={adaptiveGradientText}>Adaptive QRC™</span> autodestroy in 7 days</li>
+                        <li>Menu & PDF QR codes included</li>
+                        <li><span className={adaptiveGradientText}>Adaptive QRC™</span> does not expire</li>
                       </ul>
                     </div>
                     <div className="rounded-xl border border-primary/60 bg-primary/10 p-4 space-y-2">
                       <p className="text-foreground font-semibold">Pro</p>
                       <ul className="space-y-1">
                         <li>25 Dynamic QR Codes</li>
-                        <li>Full Intel + Bulk Creation</li>
-                        <li>No Watermark</li>
+                        <li>Scan analytics</li>
+                        <li>Saved codes remain active</li>
                         <li><span className={adaptiveGradientText}>Adaptive QRC™</span> unlimited scans</li>
-                        <li>$3 per extra Adaptive QRC™</li>
+                        <li>1 Adaptive QRC™ included</li>
                       </ul>
                     </div>
                   </div>
@@ -342,18 +459,18 @@ export function UpgradePage({
                       <ul className="space-y-1">
                         <li>1 Dynamic QR Code</li>
                         <li>Basic Intel</li>
-                        <li>Watermark Enabled</li>
-                        <li><span className={adaptiveGradientText}>Adaptive QRC™</span> autodestroy in 7 days</li>
+                        <li>Menu & PDF QR codes included</li>
+                        <li><span className={adaptiveGradientText}>Adaptive QRC™</span> does not expire</li>
                       </ul>
                     </div>
                     <div className="rounded-xl border border-amber-300/60 bg-amber-400/10 p-4 space-y-2">
                       <p className="text-foreground font-semibold">Command</p>
                       <ul className="space-y-1">
                         <li>Unlimited Dynamic QR Codes</li>
-                        <li>Advanced Intel + API Access</li>
-                        <li>No Watermark + Priority Support</li>
+                        <li>Scan reports and trends</li>
+                        <li>Saved codes remain active</li>
                         <li><span className={adaptiveGradientText}>Adaptive QRC™</span> unlimited scans</li>
-                        <li>$2 per extra Adaptive QRC™</li>
+                        <li>5 Adaptive QRCs included</li>
                       </ul>
                     </div>
                   </div>
@@ -366,3 +483,28 @@ export function UpgradePage({
     </NavPageLayout>
   );
 }
+
+const PLAN_LABELS: Record<BillingPlan, string> = {
+  free: 'Free Forever',
+  pro: 'Pro',
+  command: 'Command',
+};
+
+const formatPlanPrice = (price?: BillingPlanPrice) => {
+  if (!price) return '';
+  const amount = new Intl.NumberFormat(undefined, {
+    style: 'currency',
+    currency: price.currency,
+  }).format(price.unitAmount / 100);
+  return ` · ${amount}${price.interval ? `/${price.interval}` : ''}`;
+};
+
+const readErrorMessage = (error: unknown, fallback: string) => {
+  if (!(error instanceof Error)) return fallback;
+  try {
+    const parsed = JSON.parse(error.message) as { message?: string };
+    return parsed.message ?? fallback;
+  } catch {
+    return error.message || fallback;
+  }
+};

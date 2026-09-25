@@ -57,11 +57,11 @@ export const PDFViewer = ({
       try {
         setIsLoading(true);
         setError(null);
-        
+
         // Handle data URLs and regular URLs
         const pdfUrl = url;
         let loadingOptions: { url: string } | { data: Uint8Array } = { url: pdfUrl };
-        
+
         // If it's a data URL, convert to Uint8Array for better compatibility
         if (url.startsWith('data:application/pdf')) {
           try {
@@ -73,7 +73,7 @@ export const PDFViewer = ({
             loadingOptions = { url: pdfUrl };
           }
         }
-        
+
         const loadingTask = pdfjsLib.getDocument(loadingOptions);
         const pdf = await loadingTask.promise;
         setPdfDoc(pdf);
@@ -143,7 +143,7 @@ export const PDFViewer = ({
         canvas.height = renderViewport.height * dpr;
         canvas.style.width = `${renderViewport.width}px`;
         canvas.style.height = `${renderViewport.height}px`;
-        
+
         // Scale context for high DPI displays
         context.scale(dpr, dpr);
 
@@ -198,7 +198,7 @@ export const PDFViewer = ({
     e.preventDefault();
     const newX = e.clientX - panRef.current.startX;
     const newY = e.clientY - panRef.current.startY;
-    
+
     // Limit pan to canvas bounds (when zoomed 2x, canvas is 2x larger)
     if (canvasRef.current && containerRef.current) {
       const canvas = canvasRef.current;
@@ -207,11 +207,11 @@ export const PDFViewer = ({
       const canvasHeight = parseFloat(canvas.style.height) || canvas.height;
       const containerWidth = container.clientWidth;
       const containerHeight = container.clientHeight;
-      
+
       // When zoomed 2x, we can pan up to half the difference
       const maxX = Math.max(0, (canvasWidth * 2 - containerWidth) / 2);
       const maxY = Math.max(0, (canvasHeight * 2 - containerHeight) / 2);
-      
+
       setPanPosition({
         x: Math.max(-maxX, Math.min(maxX, newX)),
         y: Math.max(-maxY, Math.min(maxY, newY)),
@@ -249,7 +249,7 @@ export const PDFViewer = ({
     const touch = e.touches[0];
     const newX = touch.clientX - panRef.current.startX;
     const newY = touch.clientY - panRef.current.startY;
-    
+
     // Limit pan to canvas bounds (when zoomed 2x, canvas is 2x larger)
     if (canvasRef.current && containerRef.current) {
       const canvas = canvasRef.current;
@@ -258,11 +258,11 @@ export const PDFViewer = ({
       const canvasHeight = parseFloat(canvas.style.height) || canvas.height;
       const containerWidth = container.clientWidth;
       const containerHeight = container.clientHeight;
-      
+
       // When zoomed 2x, we can pan up to half the difference
       const maxX = Math.max(0, (canvasWidth * 2 - containerWidth) / 2);
       const maxY = Math.max(0, (canvasHeight * 2 - containerHeight) / 2);
-      
+
       setPanPosition({
         x: Math.max(-maxX, Math.min(maxX, newX)),
         y: Math.max(-maxY, Math.min(maxY, newY)),
@@ -287,7 +287,7 @@ export const PDFViewer = ({
     if (enableTwoPageFlip && pdfDoc && pdfDoc.numPages === 2 && !isZoomed) {
       const now = Date.now();
       const timeSinceLastTap = now - lastTapRef.current;
-      
+
       if (timeSinceLastTap < 300) {
         // Double tap detected - handled by onDoubleClick
         return;
@@ -298,7 +298,7 @@ export const PDFViewer = ({
           onFlip();
         }
       }
-      
+
       lastTapRef.current = now;
     }
     // For multi-page PDFs, single tap does nothing (handled by parent swipe)
@@ -330,10 +330,10 @@ export const PDFViewer = ({
         touch2.clientX - touch1.clientX,
         touch2.clientY - touch1.clientY
       );
-      
+
       const scaleChange = distance / pinchRef.current.distance;
       const newScale = Math.max(0.5, Math.min(3, pinchRef.current.initialScale * scaleChange));
-      
+
       if (newScale > 1.5) {
         if (!isZoomed) {
           onZoomChange(true);
@@ -401,7 +401,7 @@ export const PDFViewer = ({
         }
         handleTouchEnd();
       }}
-      style={{ 
+      style={{
         touchAction: isZoomed ? 'pan-x pan-y' : 'pan-x pan-y pinch-zoom',
         cursor: isZoomed ? 'grab' : 'default',
       }}

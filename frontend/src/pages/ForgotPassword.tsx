@@ -27,7 +27,7 @@ const ForgotPassword = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!email.trim()) {
       toast.error('Please enter your email address');
       return;
@@ -73,7 +73,7 @@ const ForgotPassword = () => {
       </div>
 
       {/* Floating Particles Background */}
-      <FloatingParticles 
+      <FloatingParticles
         count={40}
         speed={0.6}
         sizeRange={[2, 6]}
@@ -105,11 +105,11 @@ const ForgotPassword = () => {
         {/* Form Card */}
         <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ 
-            opacity: 1, 
+          animate={{
+            opacity: 1,
             scale: 1,
           }}
-          transition={{ 
+          transition={{
             delay: 0.1,
           }}
           className="rounded-2xl p-6 sm:p-8 bg-[#121621]/90 backdrop-blur-2xl border border-white/10 shadow-xl"

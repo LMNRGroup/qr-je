@@ -14,6 +14,7 @@ const DataDeletion = lazy(() => import('@/pages/DataDeletion'));
 const FAQ = lazy(() => import('@/pages/FAQ'));
 const VCard = lazy(() => import('@/pages/VCard'));
 const FileViewer = lazy(() => import('@/pages/FileViewer'));
+const BillingSuccess = lazy(() => import('@/pages/BillingSuccess'));
 
 const ROUTES = [
   { path: '/', element: <Index /> },
@@ -29,6 +30,9 @@ const ROUTES = [
   { path: '/:owner/:slug', element: <VCard /> },
   { path: '/file/:id/:random', element: <FileViewer /> },
   { path: '/menu/:id/:random', element: <MenuViewer /> },
+  ...(import.meta.env.VITE_BILLING_ENABLED === 'true'
+    ? [{ path: '/billing/success', element: <BillingSuccess /> }]
+    : []),
 ] as const;
 
 function RouteFallback() {

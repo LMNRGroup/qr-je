@@ -64,7 +64,7 @@ export function IntelPage({
   const trendPoints = useMemo(() => {
     // Check if we're showing hourly data (for today)
     const isHourly = intelTrends.hourly === true || (intelTrends.length > 0 && intelRange === 'today');
-    
+
     if (isHourly && intelRange === 'today') {
       // Handle hourly data for today
       const hourFormatter = new Intl.DateTimeFormat('en-CA', {
@@ -81,12 +81,12 @@ export function IntelPage({
         const key = hourFormatter.format(new Date(point.date));
         map.set(key, point.count ?? 0);
       });
-      
+
       // Generate 24 hours for today
       const today = new Date();
       const todayStart = new Date(today);
       todayStart.setHours(0, 0, 0, 0);
-      
+
       // Helper to format hour as simple number (12, 1, 2, ... 11)
       const formatHourLabel = (date: Date): string => {
         const hour = date.getHours();
@@ -94,7 +94,7 @@ export function IntelPage({
         const hour12 = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
         return hour12.toString();
       };
-      
+
       return Array.from({ length: 24 }, (_, index) => {
         const date = new Date(todayStart);
         date.setHours(date.getHours() + index);
@@ -125,7 +125,7 @@ export function IntelPage({
         const key = keyFormatter.format(new Date(point.date));
         map.set(key, point.count ?? 0);
       });
-      
+
       // Determine number of days based on intelRange
       let days = 7; // default
       if (intelRange === 'today') {
@@ -138,7 +138,7 @@ export function IntelPage({
         // For "all", show last 30 days as a reasonable default
         days = 30;
       }
-      
+
       const today = new Date();
       return Array.from({ length: days }, (_, index) => {
         const date = new Date(today);
@@ -266,9 +266,9 @@ export function IntelPage({
       <div className="grid sm:grid-cols-2 gap-4">
         <div className="rounded-xl border border-border/60 bg-secondary/30 p-4 sm:col-span-2 lg:col-span-2">
           <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground mb-4">Signal Trends</p>
-          <div 
+          <div
             ref={graphContainerRef}
-            className="relative w-full" 
+            className="relative w-full"
             style={{ height: '200px' }}
             onMouseLeave={() => !isMobile && setHoveredPointIndex(null)}
           >
@@ -282,21 +282,21 @@ export function IntelPage({
               const chartWidth = svgWidth - padding * 2;
               const chartHeight = svgHeight - padding * 2;
               const gridLines = 4;
-              
+
               // Calculate label interval based on range
-              const labelInterval = intelRange === '30d' || intelRange === 'all' 
+              const labelInterval = intelRange === '30d' || intelRange === 'all'
                 ? Math.max(1, Math.floor(points / 6))
                 : intelRange === '7d'
                 ? Math.max(1, Math.floor(points / 4))
                 : 1;
-              
+
               // Generate path data for line and area
               const getPointCoords = (index: number, count: number) => {
                 const x = padding + (chartWidth / Math.max(1, points - 1)) * index;
                 const y = padding + chartHeight - ((count / max) * chartHeight);
                 return { x, y };
               };
-              
+
               // Format full time label for tooltip (desktop only)
               const formatFullTimeLabel = (point: { date: Date; label: string; count: number }) => {
                 if (intelRange === 'today') {
@@ -319,20 +319,20 @@ export function IntelPage({
                   return `${dateFormatter.format(point.date)}: ${point.count} scans`;
                 }
               };
-              
+
               const linePath = trendPoints.map((point, index) => {
                 const { x, y } = getPointCoords(index, point.count ?? 0);
                 return `${index === 0 ? 'M' : 'L'} ${x} ${y}`;
               }).join(' ');
-              
+
               const areaPath = `${linePath} L ${padding + chartWidth} ${padding + chartHeight} L ${padding} ${padding + chartHeight} Z`;
-              
+
               // Get hovered point coordinates for tooltip positioning (desktop only)
               const hoveredPoint = !isMobile && hoveredPointIndex !== null ? trendPoints[hoveredPointIndex] : null;
               const hoveredCoords = hoveredPoint && hoveredPointIndex !== null
                 ? getPointCoords(hoveredPointIndex, hoveredPoint.count ?? 0)
                 : null;
-              
+
               return (
                 <>
                   <svg
@@ -346,7 +346,7 @@ export function IntelPage({
                         <stop offset="100%" stopColor="rgb(251, 191, 36)" stopOpacity="0.05" />
                       </linearGradient>
                     </defs>
-                    
+
                     {/* Grid lines */}
                     {Array.from({ length: gridLines + 1 }).map((_, i) => {
                       const y = padding + (chartHeight / gridLines) * i;
@@ -378,7 +378,7 @@ export function IntelPage({
                         </g>
                       );
                     })}
-                    
+
                     {/* Area fill */}
                     {max > 0 && (
                       <path
@@ -387,7 +387,7 @@ export function IntelPage({
                         stroke="none"
                       />
                     )}
-                    
+
                     {/* Line */}
                     {max > 0 && points > 0 && (
                       <path
@@ -400,15 +400,15 @@ export function IntelPage({
                         className="drop-shadow-sm"
                       />
                     )}
-                    
+
                     {/* Data points */}
                     {max > 0 && trendPoints.map((point, index) => {
                       const { x, y } = getPointCoords(index, point.count ?? 0);
                       const isHovered = !isMobile && hoveredPointIndex === index;
                       const radius = isHovered ? 8 : 4;
-                      
+
                       return (
-                        <g 
+                        <g
                           key={`point-${index}`}
                           onMouseEnter={() => !isMobile && setHoveredPointIndex(index)}
                           onMouseLeave={() => !isMobile && setHoveredPointIndex(null)}
@@ -432,7 +432,7 @@ export function IntelPage({
                             stroke="hsl(var(--background))"
                             strokeWidth={isHovered ? "3" : "2"}
                             className={!isMobile ? "transition-all duration-200" : ""}
-                            style={!isMobile ? { 
+                            style={!isMobile ? {
                               filter: isHovered ? 'drop-shadow(0 0 8px rgb(251, 191, 36))' : 'none',
                               transform: isHovered ? 'scale(1.2)' : 'scale(1)',
                             } : {}}
@@ -441,7 +441,7 @@ export function IntelPage({
                         </g>
                       );
                     })}
-                    
+
                     {/* X-axis labels */}
                     {trendPoints.map((point, index) => {
                       if (index % labelInterval !== 0 && index !== points - 1) return null;
@@ -462,7 +462,7 @@ export function IntelPage({
                       );
                     })}
                   </svg>
-                  
+
                   {/* Tooltip for hovered point (desktop only) */}
                   {!isMobile && hoveredPoint && hoveredCoords && graphContainerRef.current && (
                     <div
@@ -526,7 +526,7 @@ export function IntelPage({
 
             // Calculate total scans across all areas
             const totalScans = scanAreas.reduce((sum, area) => sum + area.count, 0);
-            
+
             if (totalScans === 0) {
               return (
                 <div className="text-xs text-muted-foreground py-2">No scans recorded.</div>
@@ -607,7 +607,7 @@ export function IntelPage({
             <div className="flex flex-wrap items-start justify-between gap-2 sm:flex-nowrap sm:items-center">
               <div>
                 <p className="text-xs uppercase tracking-[0.4em] text-muted-foreground">Intel</p>
-                <h2 
+                <h2
                   className="text-2xl sm:text-3xl font-semibold tracking-tight cursor-pointer hover:text-primary/80 transition-colors"
                   onClick={() => setShowNavOverlay(true)}
                 >

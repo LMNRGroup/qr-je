@@ -46,3 +46,19 @@ alter table public.users add column if not exists language text;
 alter table public.users add column if not exists theme text;
 alter table public.users add column if not exists username_changed_at timestamptz;
 create unique index if not exists users_username_idx on public.users (username);
+
+create table if not exists public.billing_records (
+  user_id text primary key references public.users(id) on delete cascade,
+  stripe_customer_id text not null,
+  stripe_subscription_id text,
+  billing_plan text not null default 'free',
+  billing_status text,
+  billing_price_id text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create unique index if not exists billing_records_stripe_customer_idx
+  on public.billing_records (stripe_customer_id);
+create index if not exists billing_records_subscription_idx
+  on public.billing_records (stripe_subscription_id);

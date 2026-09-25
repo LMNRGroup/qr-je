@@ -42,6 +42,25 @@ export type UserProfile = {
   createdAt: string;
 };
 
+export type BillingPlan = 'free' | 'pro' | 'command';
+export type PaidBillingPlan = Exclude<BillingPlan, 'free'>;
+
+export type BillingStatus = {
+  plan: BillingPlan;
+  dynamicQrCodeLimit: number | null;
+  adaptiveQrCodeLimit: number;
+  subscriptionStatus: string | null;
+  priceId: string | null;
+  canManageBilling: boolean;
+};
+
+export type BillingPlanPrice = {
+  plan: PaidBillingPlan;
+  unitAmount: number;
+  currency: string;
+  interval: string | null;
+};
+
 const requireBaseUrl = () => {
   if (!API_BASE_URL) {
     throw new Error('NEXT_PUBLIC_API_BASE_URL is not configured');
@@ -376,8 +395,8 @@ export async function getScanTrends(
   if (timeZone) params.set('tz', timeZone);
   const query = params.toString() ? `?${params.toString()}` : '';
   const response = await request(`/scans/trends${query}`);
-  const data = (await response.json()) as { 
-    points?: Array<{ date: string; count: number }>; 
+  const data = (await response.json()) as {
+    points?: Array<{ date: string; count: number }>;
     hourly?: boolean;
   };
   const result = (data.points ?? []) as ScanTrendSeries;
@@ -432,6 +451,40 @@ export async function updateUserProfile(payload: {
     body: JSON.stringify(payload),
   });
   return (await response.json()) as UserProfile;
+}
+
+export async function getBillingStatus(): Promise<BillingStatus> {
+  const response = await request('/billing/status');
+  return response.json();
+}
+
+export async function getBillingPlans(): Promise<BillingPlanPrice[]> {
+  const response = await request('/billing/plans');
+  return response.json();
+}
+
+export async function createBillingCheckout(plan: PaidBillingPlan): Promise<{ url: string }> {
+  const response = await request('/billing/checkout', {
+    method: 'POST',
+    body: JSON.stringify({ plan }),
+  });
+  return response.json();
+}
+
+export async function createBillingPortalSession(): Promise<{ url: string }> {
+  const response = await request('/billing/portal', {
+    method: 'POST',
+    body: JSON.stringify({}),
+  });
+  return response.json();
+}
+
+export async function syncBillingStatus(): Promise<BillingStatus> {
+  const response = await request('/billing/sync', {
+    method: 'POST',
+    body: JSON.stringify({}),
+  });
+  return response.json();
 }
 
 export async function checkUsernameAvailability(username: string): Promise<{ available: boolean; message?: string; username?: string }> {

@@ -5,15 +5,21 @@ import { registerUrlsRoutes } from './domains/urls/routes'
 import { createUrlsService } from './domains/urls/service'
 import { createUsersService } from './domains/users/service'
 import { registerUsersRoutes } from './domains/users/routes'
+import { createBillingService, isBillingFeatureEnabled } from './domains/billing/service'
+import { registerBillingRoutes } from './domains/billing/routes'
 import { registerVcardsRoutes } from './domains/vcards/routes'
 import { createVcardsService } from './domains/vcards/service'
 import { createScansService } from './domains/scans/service'
-import { getScansStorage, getUrlsStorage, getUsersStorage, getVcardsStorage, getAreaStorage } from './infra/storage/factory'
+import { getScansStorage, getUrlsStorage, getUsersStorage, getVcardsStorage, getAreaStorage, getBillingStorage } from './infra/storage/factory'
 import { createAuthMiddleware } from './shared/http/auth'
 import { assetProxyHandler } from './shared/assets/handlers'
 import type { AppBindings } from './shared/http/types'
 
 const app = new Hono<AppBindings>()
+
+if (isBillingFeatureEnabled() && !process.env.SUPABASE_DB_URL) {
+  throw new Error('SUPABASE_DB_URL is required when BILLING_ENABLED=true')
+}
 
 app.use(
   '*',
@@ -28,7 +34,7 @@ app.options('*', (c) => c.text(''))
 const usersService = createUsersService(getUsersStorage())
 const authMiddleware = createAuthMiddleware({
   usersService,
-  publicPaths: ['/health', '/r/', '/public/', '/adaptive/', '/debug/auth', '/users/username/check', '/favicon.ico', '/favicon.png']
+  publicPaths: ['/health', '/r/', '/public/', '/adaptive/', '/debug/auth', '/users/username/check', '/billing/webhook', '/favicon.ico', '/favicon.png']
 })
 app.use('*', authMiddleware)
 
@@ -43,12 +49,14 @@ app.get('/debug/auth', (c) => {
   })
 })
 registerUsersRoutes(app, usersService)
+const billingService = createBillingService(usersService, getBillingStorage())
+registerBillingRoutes(app, billingService)
 const urlsService = createUrlsService(getUrlsStorage())
 const scansService = createScansService(getScansStorage())
 const vcardsService = createVcardsService(getVcardsStorage())
 const areaStorage = getAreaStorage()
-registerUrlsRoutes(app, urlsService, scansService, vcardsService, areaStorage)
+registerUrlsRoutes(app, urlsService, scansService, billingService, vcardsService, areaStorage)
 
-registerVcardsRoutes(app, vcardsService, urlsService)
+registerVcardsRoutes(app, vcardsService, urlsService, billingService)
 
 export default app

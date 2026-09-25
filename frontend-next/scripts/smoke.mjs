@@ -39,6 +39,7 @@ const checks = [
   { path: '/data-deletion', expect: 200 },
   { path: '/forgot-password', expect: 200 },
   { path: '/reset-password', expect: 200 },
+  { path: '/billing/success', expect: 200 },
   { path: '/file', expect: 200 },
   { path: '/menu', expect: 200 },
   { path: '/file/demo-id/demo-random', expect: 200 },
@@ -69,6 +70,7 @@ const RESERVED_OWNER_SEGMENTS = new Set([
   'support',
   'data-deletion',
   'faq',
+  'billing',
 ]);
 
 function applyDeploymentRewrite(urlPath) {

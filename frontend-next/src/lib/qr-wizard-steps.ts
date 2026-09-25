@@ -1,9 +1,9 @@
 /**
  * Shared QR Creation Wizard Step Configuration
- * 
+ *
  * This module defines the step structure and validation logic for the QR creation wizard.
  * Used by both Mobile V2 and Desktop implementations to ensure consistent behavior.
- * 
+ *
  * Steps:
  * 1. Quick Actions (select QR type via quick action) - Optional, can skip to step 2
  * 2. Mode Selection (Static or Dynamic)
@@ -104,7 +104,7 @@ export function canProceedFromStep(step: QRWizardStep, state: QRWizardState): bo
     case 3:
       // Step 3 requires type selection and valid content based on type
       if (!state.type) return false;
-      
+
       switch (state.type) {
         case 'website':
           return isValidWebsiteUrl(state.websiteUrl);
@@ -155,14 +155,14 @@ export function getEffectiveStep(state: QRWizardState): QRWizardStep {
  */
 export function getNextStep(currentStep: QRWizardStep, state: QRWizardState): QRWizardStep | null {
   if (currentStep >= 4) return null; // Already at last step
-  
+
   const nextStep = (currentStep + 1) as QRWizardStep;
-  
+
   // If quick action is selected and we're at step 1, go to step 2
   if (currentStep === 1 && state.quickAction) {
     return 2;
   }
-  
+
   return nextStep;
 }
 
@@ -171,12 +171,12 @@ export function getNextStep(currentStep: QRWizardStep, state: QRWizardState): QR
  */
 export function getPreviousStep(currentStep: QRWizardStep, state: QRWizardState): QRWizardStep | null {
   if (currentStep <= 1) return null;
-  
+
   // If quick action is selected, we can't go back to step 1
   if (currentStep === 2 && state.quickAction) {
     return null; // Can't go back to step 1 if quick action was used
   }
-  
+
   return (currentStep - 1) as QRWizardStep;
 }
 

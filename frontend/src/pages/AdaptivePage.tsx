@@ -74,7 +74,7 @@ export function AdaptivePage({
                         Edit
                       </Button>
                     </div>
-                    
+
                     {/* Quick Stats - Vertical Stack */}
                     <div className="grid grid-cols-3 gap-2 pt-4 border-t border-amber-500/20">
                       <div className="text-center">
@@ -86,7 +86,7 @@ export function AdaptivePage({
                       <div className="text-center">
                         <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground mb-0.5">Rule Type</p>
                         <p className="text-lg font-bold bg-gradient-to-r from-amber-400 via-amber-300 to-amber-400 bg-clip-text text-transparent capitalize">
-                          {existingAdaptiveQRC.options?.adaptive?.dateRules ? 'Time' : 
+                          {existingAdaptiveQRC.options?.adaptive?.dateRules ? 'Time' :
                            existingAdaptiveQRC.options?.adaptive?.firstReturn ? 'Visit' : 'None'}
                         </p>
                       </div>
@@ -126,10 +126,10 @@ export function AdaptivePage({
                           {existingAdaptiveQRC.options.adaptive.dateRules && existingAdaptiveQRC.options.adaptive.dateRules.length > 0 && (
                             existingAdaptiveQRC.options.adaptive.dateRules.map((rule: AdaptiveRule, index: number) => {
                               const slot = existingAdaptiveQRC.options.adaptive.slots?.find((s: AdaptiveSlot) => s.id === rule.slot);
-                              const timeRange = rule.startTime && rule.endTime 
+                              const timeRange = rule.startTime && rule.endTime
                                 ? `${rule.startTime} - ${rule.endTime}`
                                 : rule.startTime || rule.endTime || 'All day';
-                              const days = rule.days && rule.days.length > 0 
+                              const days = rule.days && rule.days.length > 0
                                 ? rule.days.join(', ')
                                 : 'Every day';
                               return slot ? (
@@ -185,7 +185,7 @@ export function AdaptivePage({
                           Create Your Adaptive QRC™
                         </h3>
                         <p className="text-xs text-muted-foreground mb-4 leading-relaxed">
-                          Build a premium QR code that routes content based on time, day, or visitor count. 
+                          Build a premium QR code that routes content based on time, day, or visitor count.
                           One Adaptive QRC™ per account with unlimited scans.
                         </p>
                       </div>
@@ -268,7 +268,7 @@ export function AdaptivePage({
               <Sparkles className="h-8 w-8 text-amber-400" />
               <p className="text-xs uppercase tracking-[0.4em] text-muted-foreground">Adaptive QRC™</p>
             </div>
-            <h2 
+            <h2
               className="text-4xl sm:text-5xl font-semibold tracking-tight bg-gradient-to-r from-amber-400 via-amber-300 to-amber-400 bg-clip-text text-transparent cursor-pointer hover:opacity-80 transition-opacity inline-block"
               onClick={() => setShowNavOverlay(true)}
             >
@@ -332,7 +332,7 @@ export function AdaptivePage({
                   <div>
                     <p className="text-xs uppercase tracking-[0.3em] text-amber-200/60 mb-1">Rule Type</p>
                     <p className="text-2xl font-bold text-amber-300 capitalize">
-                      {existingAdaptiveQRC.options?.adaptive?.dateRules ? 'Time' : 
+                      {existingAdaptiveQRC.options?.adaptive?.dateRules ? 'Time' :
                        existingAdaptiveQRC.options?.adaptive?.firstReturn ? 'Visit' : 'None'}
                     </p>
                   </div>
@@ -375,7 +375,7 @@ export function AdaptivePage({
                       Create Your Adaptive QRC™
                     </h3>
                     <p className="text-muted-foreground mb-6">
-                      Build a premium QR code that routes content based on time, day, or visitor count. 
+                      Build a premium QR code that routes content based on time, day, or visitor count.
                       One Adaptive QRC™ per account with unlimited scans.
                     </p>
                   </div>

@@ -21,11 +21,11 @@ const projectLatLon = (lat: number, lon: number) => {
 const formatScanLocation = (scan: ScanAreaSummary['recentScans'][number]): string => {
   // Format: "Scan from [City], [Region/Country]"
   const parts: string[] = [];
-  
+
   if (scan.city) {
     parts.push(scan.city);
   }
-  
+
   // For PR, prefer region over countryCode
   if (scan.region && (scan.region.toUpperCase() === 'PR' || scan.region.toUpperCase() === 'PUERTO RICO')) {
     parts.push('PR');
@@ -34,11 +34,11 @@ const formatScanLocation = (scan: ScanAreaSummary['recentScans'][number]): strin
   } else if (scan.countryCode) {
     parts.push(scan.countryCode);
   }
-  
+
   if (parts.length === 0) {
     return 'Unknown location';
   }
-  
+
   return `Scan from ${parts.join(', ')}`;
 };
 
@@ -62,7 +62,7 @@ export function MapDots({ areas }: { areas: ScanAreaSummary[] }) {
   // Close overlay when clicking outside
   useEffect(() => {
     if (!activeArea) return;
-    
+
     const handleClickOutside = (event: MouseEvent) => {
       if (overlayRef.current && !overlayRef.current.contains(event.target as Node)) {
         // Check if click was on a dot
@@ -137,7 +137,7 @@ export function MapDots({ areas }: { areas: ScanAreaSummary[] }) {
               <X className="h-4 w-4" />
             </button>
           </div>
-          
+
           <div className="mb-4 pb-3 border-b border-border/50">
             <p className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground mb-1">Scan Count</p>
             <p className="text-2xl font-bold text-amber-400">{activeArea.count.toLocaleString()}</p>

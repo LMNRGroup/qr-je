@@ -15,6 +15,26 @@ export const users = pgTable('users', {
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow()
 })
 
+export const billingRecords = pgTable(
+  'billing_records',
+  {
+    userId: text('user_id')
+      .primaryKey()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    stripeCustomerId: text('stripe_customer_id').notNull(),
+    stripeSubscriptionId: text('stripe_subscription_id'),
+    billingPlan: text('billing_plan').notNull().default('free'),
+    billingStatus: text('billing_status'),
+    billingPriceId: text('billing_price_id'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow()
+  },
+  (table) => ({
+    stripeCustomerIdx: uniqueIndex('billing_records_stripe_customer_idx').on(table.stripeCustomerId),
+    subscriptionIdx: index('billing_records_subscription_idx').on(table.stripeSubscriptionId)
+  })
+)
+
 export const urls = pgTable(
   'urls',
   {

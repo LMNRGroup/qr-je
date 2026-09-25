@@ -84,7 +84,7 @@ const DataDeletion = () => (
         <div className="space-y-3 pt-4 border-t border-border/50">
           <h2 className="text-base font-semibold text-foreground">What May Be Retained</h2>
           <p>The following data may be retained for legal or operational reasons:</p>
-          
+
           <h3 className="text-sm font-semibold text-foreground mt-4 mb-2">Legal Compliance</h3>
           <ul className="list-disc list-inside space-y-1 ml-4">
             <li>Transaction records (if applicable) may be retained as required by law</li>
@@ -108,7 +108,7 @@ const DataDeletion = () => (
             <Mail className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
             <div>
               <h2 className="text-base font-semibold text-foreground mb-3">How to Request Deletion</h2>
-              
+
               <h3 className="text-sm font-semibold text-foreground mt-4 mb-2">Option 1: Self-Service (If Available)</h3>
               <p className="text-muted-foreground/70 mb-4">
                 TODO: Confirm if self-service account deletion is implemented in the app. If yes, describe the process here.
@@ -149,7 +149,7 @@ const DataDeletion = () => (
             <AlertTriangle className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
             <div>
               <h2 className="text-base font-semibold text-foreground mb-3">Important Considerations</h2>
-              
+
               <h3 className="text-sm font-semibold text-foreground mt-4 mb-2">Before Deleting Your Account</h3>
               <ol className="list-decimal list-inside space-y-1 ml-4">
                 <li><strong>Export your data:</strong> If you want to keep any QR codes or analytics, export or download them before deletion</li>

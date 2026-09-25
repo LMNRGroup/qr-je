@@ -1,8 +1,9 @@
 import type { Context } from 'hono'
 
-import { UrlValidationError } from '../urls/errors'
+import { UrlQuotaExceededError, UrlValidationError } from '../urls/errors'
 import type { AppBindings } from '../../shared/http/types'
 import type { UrlsService } from '../urls/service'
+import type { BillingService } from '../billing/service'
 import { buildVcardPublicUrl, resolveLegacyVcardMatch, withStoredVcardAliases } from '../urls/public-links'
 import { parseCreateVcardInput, parseUpdateVcardInput } from './validators'
 import type { VcardsService } from './service'
@@ -11,7 +12,11 @@ import { buildUrlResponse } from './response'
 
 const MAX_SLUG_ATTEMPTS = 20
 
-export const createVcardHandler = (vcardsService: VcardsService, urlsService: UrlsService) => {
+export const createVcardHandler = (
+  vcardsService: VcardsService,
+  urlsService: UrlsService,
+  billingService: BillingService
+) => {
   return async (c: Context<AppBindings>) => {
     try {
       const userId = c.get('userId')
@@ -24,6 +29,8 @@ export const createVcardHandler = (vcardsService: VcardsService, urlsService: Ur
 
       const baseSlug = input.slug ?? `${userId}-vcard`
       const slug = await findAvailableSlug(vcardsService, userId, baseSlug)
+      const entitlements = await billingService.getEntitlements(userId)
+
       const publicUrl = buildVcardPublicUrl({ userId, slug })
       const urlOptions = withStoredVcardAliases(
         {
@@ -42,7 +49,7 @@ export const createVcardHandler = (vcardsService: VcardsService, urlsService: Ur
         targetUrl: publicUrl,
         options: urlOptions,
         kind: input.kind
-      })
+      }, entitlements)
 
       const vcard: Vcard = {
         id: crypto.randomUUID(),
@@ -71,6 +78,12 @@ export const createVcardHandler = (vcardsService: VcardsService, urlsService: Ur
       if (error instanceof UrlValidationError) {
         return c.json({ message: error.message }, 400)
       }
+      if (error instanceof UrlQuotaExceededError) {
+        return c.json({
+          message: 'Your current plan has reached its dynamic QR code limit. Modify an existing code or upgrade.',
+          code: error.code
+        }, 402)
+      }
       const message = error instanceof Error ? error.message : 'Failed to create vcard'
       console.error('[vcards] create failed', message)
       return c.json({ message: 'Failed to create vcard', reason: message }, 500)
@@ -78,7 +91,11 @@ export const createVcardHandler = (vcardsService: VcardsService, urlsService: Ur
   }
 }
 
-export const updateVcardHandler = (vcardsService: VcardsService, urlsService: UrlsService) => {
+export const updateVcardHandler = (
+  vcardsService: VcardsService,
+  urlsService: UrlsService,
+  billingService: BillingService
+) => {
   return async (c: Context<AppBindings>) => {
     try {
       const userId = c.get('userId')
@@ -121,11 +138,12 @@ export const updateVcardHandler = (vcardsService: VcardsService, urlsService: Ur
           },
           record.slug
         )
+        const entitlements = await billingService.getEntitlements(userId)
         url = await urlsService.updateUrl(record.shortId, userId, {
           name: input.name,
           options: nextOptions,
           kind: input.kind
-        })
+        }, entitlements)
       }
 
       return c.json({
@@ -135,6 +153,13 @@ export const updateVcardHandler = (vcardsService: VcardsService, urlsService: Ur
     } catch (error) {
       if (error instanceof UrlValidationError) {
         return c.json({ message: error.message }, 400)
+      }
+
+      if (error instanceof UrlQuotaExceededError) {
+        return c.json({
+          message: 'Your current plan has reached its QR code limit. Modify an existing code or upgrade.',
+          code: error.code
+        }, 402)
       }
 
       const message = error instanceof Error ? error.message : 'Failed to update vcard'

@@ -33,7 +33,7 @@ const ResetPassword = () => {
     const checkSession = async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
-        
+
         // Check if this is a recovery session (password recovery token)
         // Supabase sets a recovery session when user clicks the reset link
         if (session && (session.user?.recovery_sent_at || searchParams.get('token'))) {
@@ -42,7 +42,7 @@ const ResetPassword = () => {
           // Try to exchange the token from URL if present
           const token = searchParams.get('token');
           const type = searchParams.get('type');
-          
+
           if (token && type === 'recovery') {
             // Supabase handles this automatically via the redirect, but we can verify
             const { data: { session: newSession } } = await supabase.auth.getSession();
@@ -102,7 +102,7 @@ const ResetPassword = () => {
       }
 
       toast.success('Password updated successfully!');
-      
+
       // Redirect to login after a short delay
       setTimeout(() => {
         navigate('/login', { replace: true });
@@ -121,7 +121,7 @@ const ResetPassword = () => {
         <div className="fixed inset-0 -z-20 overflow-hidden">
           <div className="absolute inset-0 bg-gradient-to-br from-[#0b0f14] via-[#1a1f2e] to-[#0b0f14]" />
         </div>
-        <FloatingParticles 
+        <FloatingParticles
           count={40}
           speed={0.6}
           sizeRange={[2, 6]}
@@ -141,7 +141,7 @@ const ResetPassword = () => {
         <div className="fixed inset-0 -z-20 overflow-hidden">
           <div className="absolute inset-0 bg-gradient-to-br from-[#0b0f14] via-[#1a1f2e] to-[#0b0f14]" />
         </div>
-        <FloatingParticles 
+        <FloatingParticles
           count={40}
           speed={0.6}
           sizeRange={[2, 6]}
@@ -167,11 +167,11 @@ const ResetPassword = () => {
 
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ 
-              opacity: 1, 
+            animate={{
+              opacity: 1,
               scale: 1,
             }}
-            transition={{ 
+            transition={{
               delay: 0.1,
             }}
             className="rounded-2xl p-6 sm:p-8 bg-[#121621]/90 backdrop-blur-2xl border border-white/10 shadow-xl text-center space-y-6"
@@ -216,7 +216,7 @@ const ResetPassword = () => {
       </div>
 
       {/* Floating Particles Background */}
-      <FloatingParticles 
+      <FloatingParticles
         count={40}
         speed={0.6}
         sizeRange={[2, 6]}
@@ -248,11 +248,11 @@ const ResetPassword = () => {
         {/* Form Card */}
         <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ 
-            opacity: 1, 
+          animate={{
+            opacity: 1,
             scale: 1,
           }}
-          transition={{ 
+          transition={{
             delay: 0.1,
           }}
           className="rounded-2xl p-6 sm:p-8 bg-[#121621]/90 backdrop-blur-2xl border border-white/10 shadow-xl"

@@ -8,7 +8,7 @@
     { "source": "/menu/:id/:random", "destination": "/menu" },
     { "source": "/v/:slug", "destination": "/vcard" },
     {
-      "source": "/:owner((?!v$|vcard$|menu$|file$|r$|adaptive$|public$|assets$|api$|_next$|inspector$|login$|forgot-password$|reset-password$|terms$|privacy$|support$|data-deletion$|faq$)[^/]+)/:slug",
+      "source": "/:owner((?!v$|vcard$|menu$|file$|r$|adaptive$|public$|assets$|api$|_next$|inspector$|login$|forgot-password$|reset-password$|terms$|privacy$|support$|data-deletion$|faq$|billing$)[^/]+)/:slug",
       "destination": "/vcard"
     }
   ]

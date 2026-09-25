@@ -3,36 +3,40 @@ import { eq, sql } from 'drizzle-orm'
 import { db } from '../../../infra/db/postgres.db'
 import { users } from '../../../infra/db/schema'
 
-let avatarColumnsEnsured = false
-let avatarColumnsPromise: Promise<void> | null = null
+let userColumnsEnsured = false
+let userColumnsPromise: Promise<void> | null = null
 
-const ensureAvatarColumns = async () => {
-  if (avatarColumnsEnsured) return
-  if (!avatarColumnsPromise) {
-    avatarColumnsPromise = (async () => {
+const ensureUserColumns = async () => {
+  if (userColumnsEnsured) return
+  if (!userColumnsPromise) {
+    userColumnsPromise = (async () => {
       await db.execute(sql`ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "avatar_type" text`)
       await db.execute(sql`ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "avatar_color" text`)
       await db.execute(sql`ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "leftie" boolean NOT NULL DEFAULT false`)
-      avatarColumnsEnsured = true
+      userColumnsEnsured = true
     })().catch((error) => {
-      avatarColumnsPromise = null
+      userColumnsPromise = null
       throw error
     })
   }
-  await avatarColumnsPromise
+  await userColumnsPromise
 }
 
-const isMissingAvatarColumn = (error: unknown) => {
+const isMissingUserColumn = (error: unknown) => {
   const message = error instanceof Error ? error.message : ''
-  return message.includes('avatar_type') || message.includes('avatar_color') || message.includes('leftie')
+  return (
+    message.includes('avatar_type') ||
+    message.includes('avatar_color') ||
+    message.includes('leftie')
+  )
 }
 
-const withAvatarColumns = async <T>(task: () => Promise<T>) => {
+const withUserColumns = async <T>(task: () => Promise<T>) => {
   try {
     return await task()
   } catch (error) {
-    if (isMissingAvatarColumn(error)) {
-      await ensureAvatarColumns()
+    if (isMissingUserColumn(error)) {
+      await ensureUserColumns()
       return await task()
     }
     throw error
@@ -43,7 +47,7 @@ import { UsersStorage } from './interface'
 
 export class DrizzleUsersStorageAdapter implements UsersStorage {
   async upsertUser(user: User) {
-    const rows = await withAvatarColumns(() =>
+    const rows = await withUserColumns(() =>
       db
         .insert(users)
         .values({
@@ -86,7 +90,7 @@ export class DrizzleUsersStorageAdapter implements UsersStorage {
   }
 
   async getById(id: string) {
-    const rows = await withAvatarColumns(() =>
+    const rows = await withUserColumns(() =>
       db
         .select()
         .from(users)
@@ -102,7 +106,7 @@ export class DrizzleUsersStorageAdapter implements UsersStorage {
   }
 
   async getByUsername(username: string) {
-    const rows = await withAvatarColumns(() =>
+    const rows = await withUserColumns(() =>
       db
         .select()
         .from(users)
@@ -134,7 +138,7 @@ export class DrizzleUsersStorageAdapter implements UsersStorage {
         : null
     }
 
-    const rows = await withAvatarColumns(() =>
+    const rows = await withUserColumns(() =>
       db
         .update(users)
         .set(payload)

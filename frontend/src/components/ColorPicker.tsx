@@ -33,7 +33,7 @@ export function ColorPicker({ label, value, onChange, presets = defaultPresets }
   return (
     <div className="space-y-3">
       <label className="text-sm font-medium text-foreground">{label}</label>
-      
+
       <div className="flex items-center gap-3">
         <div className="relative">
           <input
@@ -51,7 +51,7 @@ export function ColorPicker({ label, value, onChange, presets = defaultPresets }
             />
           </div>
         </div>
-        
+
         <input
           type="text"
           value={value}
@@ -76,11 +76,11 @@ export function ColorPicker({ label, value, onChange, presets = defaultPresets }
             style={{ backgroundColor: preset }}
           >
             {value.toLowerCase() === preset.toLowerCase() && (
-              <Check 
+              <Check
                 className={cn(
                   'h-3.5 w-3.5',
                   isLight(preset) ? 'text-gray-800' : 'text-white'
-                )} 
+                )}
               />
             )}
           </motion.button>

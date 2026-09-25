@@ -25,7 +25,7 @@
   html[data-mobile-ui="v2"] .qrc-v2-section {
     margin-top: 8px;
   }
-  
+
   /* Reduce spacing in sections for mobile V2 */
   html[data-mobile-ui="v2"] .qrc-v2-section.space-y-6 {
     gap: 8px;
@@ -47,7 +47,7 @@
     flex-direction: column;
     overflow: hidden;
   }
-  
+
   /* Generic scrollable container for all nav pages */
   /* Height calculation: 100dvh - header (~70px) - footer (~80px) - main padding/gaps (~24px) */
   html[data-mobile-ui="v2"] .qrc-v2-scroll-container {
@@ -57,7 +57,7 @@
     flex-direction: column;
     overflow: hidden;
   }
-  
+
   html[data-mobile-ui="v2"] .qrc-v2-scroll-container [data-radix-scroll-area-viewport] {
     overflow-x: hidden !important;
     overflow-y: auto !important;
@@ -214,7 +214,7 @@
     max-height: calc(100dvh - 140px);
     overflow: hidden;
   }
-  
+
   /* Consistent header block for nav pages */
   /* Header height: section label (~20px) + title (~28px) + spacing (~22px) = ~70px */
   html[data-mobile-ui="v2"] .qrc-v2-section > div:first-child {
@@ -236,7 +236,7 @@
     overflow-wrap: break-word;
     max-width: 100%;
   }
-  
+
   /* Reduce glass panel padding on mobile V2 */
   html[data-mobile-ui="v2"] .qrc-v2-section .glass-panel {
     padding: 12px !important;

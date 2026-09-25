@@ -38,7 +38,7 @@
 
     --glass: 0 0% 100% / 0.7;
     --glass-border: 220 16% 86% / 0.7;
-    
+
     --gradient-start: 197 90% 45%;
     --gradient-end: 268 85% 55%;
   }
@@ -74,7 +74,7 @@
 
     --glass: 225 12% 12% / 0.75;
     --glass-border: 225 12% 22% / 0.6;
-    
+
     --gradient-start: 197 90% 60%;
     --gradient-end: 268 85% 70%;
   }
@@ -196,13 +196,13 @@
 
   .qr-container {
     @apply relative p-8 rounded-2xl glass-panel;
-    background: 
+    background:
       radial-gradient(ellipse at top, hsl(var(--primary) / 0.05) 0%, transparent 50%),
       hsl(var(--card) / 0.9);
   }
 
   .checkerboard {
-    background-image: 
+    background-image:
       linear-gradient(45deg, hsl(var(--muted)) 25%, transparent 25%),
       linear-gradient(-45deg, hsl(var(--muted)) 25%, transparent 25%),
       linear-gradient(45deg, transparent 75%, hsl(var(--muted)) 75%),

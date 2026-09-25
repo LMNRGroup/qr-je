@@ -28,6 +28,16 @@ export type UpdateUrlPayload = {
   kind?: string | null
 }
 
+export type UrlQuota = {
+  dynamicQrCodeLimit: number | null
+  adaptiveQrCodeLimit: number
+}
+
+export type UrlQuotaViolation = {
+  code: 'DYNAMIC_QR_LIMIT_REACHED' | 'ADAPTIVE_QR_LIMIT_REACHED'
+  limit: number
+}
+
 export type CreateUrlInput = CreateUrlPayload & {
   userId: string
 }

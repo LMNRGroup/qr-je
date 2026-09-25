@@ -84,20 +84,20 @@ const FileViewer = () => {
     if (isZoomed || !isPdf) return;
     // Don't capture swipe if it's a 2-page PDF (handled by tap)
     if (isTwoPagePdf) return;
-    
+
     // On mobile, avoid edge gestures (first 20px and last 20px)
     const isMobile = window.innerWidth < 768;
     if (isMobile) {
       const startX = event.clientX;
       const screenWidth = window.innerWidth;
       const edgeThreshold = 20;
-      
+
       // Prevent swipe if starting too close to edges (browser gesture zones)
       if (startX < edgeThreshold || startX > screenWidth - edgeThreshold) {
         return;
       }
     }
-    
+
     event.preventDefault();
     event.stopPropagation();
     event.currentTarget.setPointerCapture(event.pointerId);
@@ -194,10 +194,10 @@ const FileViewer = () => {
         onPointerUp={handleSwipeEnd}
         onPointerLeave={handleSwipeEnd}
         onPointerCancel={handleSwipeEnd}
-        style={{ 
-          width: '100%', 
-          height: '100%', 
-          maxWidth: '100vw', 
+        style={{
+          width: '100%',
+          height: '100%',
+          maxWidth: '100vw',
           overflow: 'hidden',
           touchAction: isZoomed ? 'pan-x pan-y' : 'pan-x pan-y pinch-zoom',
           // Prevent browser gestures on mobile
@@ -277,7 +277,7 @@ const FileViewer = () => {
                 initial={{ opacity: 0, x: direction === 'left' ? 50 : -50 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: direction === 'left' ? -50 : 50 }}
-                transition={{ 
+                transition={{
                   duration: 0.4,
                   ease: [0.4, 0, 0.2, 1]
                 }}

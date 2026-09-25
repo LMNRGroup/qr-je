@@ -1,7 +1,7 @@
 import type { Context } from 'hono'
 
 import { buildShortUrl } from '../../config/env'
-import { UrlConflictError, UrlNotFoundError, UrlValidationError } from './errors'
+import { UrlConflictError, UrlNotFoundError, UrlQuotaExceededError, UrlValidationError } from './errors'
 import { UrlsService } from './service'
 import type { ScansService } from '../scans/service'
 import type { VcardsService } from '../vcards/service'
@@ -15,8 +15,9 @@ import type { AreaStorage } from '../scans/storage/area.interface'
 import { parseCreateUrlInput, parseResolveParams, parseUpdateUrlInput } from './validators'
 import { extractStoragePath, rewriteAssetUrl, rewriteOptionsAssetUrls } from '../../shared/assets/url'
 import type { AppBindings } from '../../shared/http/types'
+import type { BillingService } from '../billing/service'
 
-export const createUrlHandler = (service: UrlsService) => {
+export const createUrlHandler = (service: UrlsService, billingService: BillingService) => {
   return async (c: Context<AppBindings>) => {
     try {
       const payload = await c.req.json()
@@ -27,30 +28,11 @@ export const createUrlHandler = (service: UrlsService) => {
         return c.json({ message: 'Unauthorized' }, 401)
       }
 
-      // Check if user is trying to create an Adaptive QRC
-      const isAdaptiveQRC = input.kind === 'adaptive' || 
-                            (input.options && typeof input.options === 'object' && 
-                             'adaptive' in input.options && input.options.adaptive !== null)
+      const [userUrls, entitlements] = await Promise.all([
+        service.getUrlsForUser(userId),
+        billingService.getEntitlements(userId)
+      ])
 
-      if (isAdaptiveQRC) {
-        // Check if user already has an Adaptive QRC
-        const userUrls = await service.getUrlsForUser(userId)
-        const hasAdaptiveQRC = userUrls.some((url) => {
-          if (url.kind === 'adaptive') return true
-          if (url.options && typeof url.options === 'object' && 'adaptive' in url.options) {
-            return url.options.adaptive !== null && url.options.adaptive !== undefined
-          }
-          return false
-        })
-
-        if (hasAdaptiveQRC) {
-          return c.json({ 
-            message: 'You can only have one Adaptive QRC™ per account. Please modify your existing Adaptive QRC™ instead.' 
-          }, 409)
-        }
-      }
-
-      const userUrls = await service.getUrlsForUser(userId)
       const options = withStoredPublicSlug(
         {
           id: '',
@@ -62,7 +44,7 @@ export const createUrlHandler = (service: UrlsService) => {
         },
         userUrls
       )
-      const url = await service.createUrl({ ...input, userId, options })
+      const url = await service.createUrl({ ...input, userId, options }, entitlements)
 
       return c.json(
         {
@@ -86,6 +68,10 @@ export const createUrlHandler = (service: UrlsService) => {
 
       if (error instanceof UrlConflictError) {
         return c.json({ message: error.message }, 409)
+      }
+
+      if (error instanceof UrlQuotaExceededError) {
+        return quotaExceededResponse(c, error)
       }
 
       throw error
@@ -712,8 +698,8 @@ export const listUrlsHandler = (service: UrlsService, vcardsService?: VcardsServ
       return c.json({ message: 'Unauthorized' }, 401)
     }
 
-    const urls = await service.getUrlsForUser(userId)
     const summary = c.req.query('summary') === '1' || c.req.query('summary') === 'true'
+    const urls = await service.getUrlsForUser(userId, { includeOptions: !summary })
     const vcardMap = new Map<string, Vcard | null>()
 
     if (!summary && vcardsService) {
@@ -746,7 +732,7 @@ export const listUrlsHandler = (service: UrlsService, vcardsService?: VcardsServ
   }
 }
 
-export const updateUrlHandler = (service: UrlsService) => {
+export const updateUrlHandler = (service: UrlsService, billingService: BillingService) => {
   return async (c: Context<AppBindings>) => {
     try {
       const userId = c.get('userId')
@@ -767,7 +753,10 @@ export const updateUrlHandler = (service: UrlsService) => {
 
       const payload = await c.req.json()
       const updates = parseUpdateUrlInput(payload)
-      const userUrls = await service.getUrlsForUser(userId)
+      const [userUrls, entitlements] = await Promise.all([
+        service.getUrlsForUser(userId),
+        billingService.getEntitlements(userId)
+      ])
       const nextOptions = updates.options === undefined
         ? existing.options ?? null
         : updates.options
@@ -783,7 +772,7 @@ export const updateUrlHandler = (service: UrlsService) => {
         userUrls,
         existing.id
       )
-      const url = await service.updateUrl(id, userId, { ...updates, options })
+      const url = await service.updateUrl(id, userId, { ...updates, options }, entitlements)
 
       return c.json({
         id: url.id,
@@ -804,10 +793,21 @@ export const updateUrlHandler = (service: UrlsService) => {
       if (error instanceof UrlNotFoundError) {
         return c.json({ message: error.message }, 404)
       }
+      if (error instanceof UrlQuotaExceededError) {
+        return quotaExceededResponse(c, error)
+      }
 
       throw error
     }
   }
+}
+
+const quotaExceededResponse = (c: Context<AppBindings>, error: UrlQuotaExceededError) => {
+  const resource = error.code === 'ADAPTIVE_QR_LIMIT_REACHED' ? 'Adaptive QRC' : 'dynamic QR code'
+  return c.json({
+    message: `Your current plan has reached its ${resource} limit. Modify an existing code or upgrade.`,
+    code: error.code
+  }, 402)
 }
 
 // Helper to extract file paths from URL options and delete from Supabase storage

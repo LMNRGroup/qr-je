@@ -54,10 +54,10 @@ const FloatingParticlesComponent = ({
       const delay = Math.random() * 2;
       const opacity = opacityRange[0] + Math.random() * (opacityRange[1] - opacityRange[0]);
       const size = sizeRange[0] + Math.random() * (sizeRange[1] - sizeRange[0]);
-      
+
       // Generate unique animation name for each particle
       const animationName = `float-particle-${Date.now()}-${i}`;
-      
+
       // Inject CSS keyframes for this particle (only once)
       const styleId = `particle-style-${Date.now()}-${i}`;
       if (!document.getElementById(styleId)) {
@@ -77,7 +77,7 @@ const FloatingParticlesComponent = ({
         `;
         document.head.appendChild(style);
       }
-      
+
       return {
         id: i,
         x,
@@ -96,7 +96,7 @@ const FloatingParticlesComponent = ({
   if (reducedMotion) {
     // Return static particles if reduced motion is preferred
     return (
-      <div 
+      <div
         className="fixed inset-0 z-0 overflow-hidden pointer-events-none"
         style={{
           isolation: 'isolate',
@@ -121,7 +121,7 @@ const FloatingParticlesComponent = ({
   }
 
   return (
-    <div 
+    <div
       className="fixed inset-0 z-0 overflow-hidden pointer-events-none"
       style={{
         isolation: 'isolate',

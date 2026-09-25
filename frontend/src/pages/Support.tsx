@@ -88,8 +88,8 @@ const Support = () => (
           <div className="space-y-2">
             <h3 className="text-base font-semibold text-foreground">Billing & Plans</h3>
             <ul className="text-sm text-muted-foreground space-y-1 ml-4 list-disc">
-              <li><strong>Free plan features:</strong> Unlimited static QR codes, 1 dynamic QR code, 1 Adaptive QRC™ (expires after 30 days), basic Intel.</li>
-              <li><strong>Pro plan features:</strong> 25 dynamic QR codes, 1 Adaptive QRC™ (never expires), full Intel, no watermarks, bulk creation.</li>
+              <li><strong>Free plan:</strong> Unlimited static QR codes, 1 dynamic QR code, and 1 Adaptive QRC™. Saved codes do not expire.</li>
+              <li><strong>Pro plan:</strong> 25 dynamic QR codes and 1 Adaptive QRC™.</li>
               <li><strong>Upgrading:</strong> Contact support@luminarapps.com to upgrade your plan.</li>
               <li><strong>Cancellation:</strong> You can cancel Pro at any time. Your QR codes will continue to work, but Pro features will be removed.</li>
             </ul>
